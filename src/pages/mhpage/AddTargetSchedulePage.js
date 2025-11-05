@@ -6,12 +6,10 @@ import { Pencil, Save, Trash2, Plus } from "lucide-react";
 import { Helmet } from "react-helmet";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 
-/** ========= FE CONFIG ========= **/
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const R_CAPACITY = 16; // kapasitas pallet R default
 const CUSTOMER_CACHE_KEY = "customerMaster:v1";
 
-// >>> NEW: centralize endpoints biar ga hard-code berserak
 const API = {
   schedules: {
     base: "/api/production-schedules",
@@ -24,7 +22,6 @@ const API = {
   },
 };
 
-// >>> NEW: tiny HTTP client (auto set token + JSON)
 const http = async (path, { method = "GET", body, headers } = {}) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(`${API_BASE}${path}`, {
@@ -41,9 +38,7 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 
   if (!res.ok) {
     const msg = data?.message || text || `HTTP ${res.status}`;
@@ -57,10 +52,24 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   return data;
 };
 
-// >> Kontrol restore data lokal (biar tabel gak muncul sebelum Insert)
+/** === Server check: block duplicate target_date (ignore line/shift) === */
+const checkTargetDateExists = async (targetDate) => {
+  const resp = await http(
+    API.schedules.list({
+      dateFrom: targetDate,
+      dateTo: targetDate,
+      page: 1,
+      limit: 1, // cukup 1, buat tahu udah ada
+    })
+  );
+  const total = Number(resp?.total || 0);
+  if (total > 0) return true;
+  const items = resp?.items || [];
+  return items.some((it) => String(it?.target_date) === String(targetDate));
+};
+
 const RESTORE_FROM_LOCALSTORAGE = false;
 
-// Safe reader untuk auth user tanpa import (biar gak ribet path)
 const getAuthUserLocal = () => {
   try {
     return JSON.parse(localStorage.getItem("auth_user") || "null");
@@ -83,11 +92,9 @@ const nowHHmm = () => {
   return `${hh}:${mm}`;
 };
 
-// ==== Helper buat ambil created_by (kalau ada di auth_user) ====
 const getCreatorId = () => {
   try {
     const u = getAuthUserLocal();
-    // ambil yang ada aja, tanpa hard-code
     return (
       u?.id || u?.emp_id || u?.employeeId || u?.employee_id || u?.userId || null
     );
@@ -96,7 +103,6 @@ const getCreatorId = () => {
   }
 };
 
-// Pallet Type FE -> DB ("Pallet R"/"Pallet W" -> "R"/"W")
 const toDbPalletType = (label) => {
   const s = String(label || "").toLowerCase();
   if (s.includes("pallet w") || s === "w") return "W";
@@ -121,7 +127,7 @@ const buildScheduleBody = (header) => {
     lineCode: header.line,
     shiftTime: header.shiftTime,
     targetDate: header.date,
-  //  ...(creatorId ? { createdBy: String(creatorId) } : {}),
+    //  ...(creatorId ? { createdBy: String(creatorId) } : {}),
     ...(creatorId ? { createdBy: creatorId } : {}),
     details: (header.details || []).map((d, i) => ({
       customerName: d.customer || null,
@@ -133,14 +139,13 @@ const buildScheduleBody = (header) => {
       sequenceNumber: i + 1,
       poNumber: (d.poNumber || "").trim() || null,
       palletStatus: "Pending",
-      model: d.model || "Veronicas", // PASTIKAN ini dikirim
-      description: d.description || "", // PASTIKAN ini dikirim
+      model: d.model || "Veronicas",
+      description: d.description || "",
     })),
   };
   return stripNullish(payload);
 };
 
-// >>> UPDATED: POST satu header via http() + API map
 const postOneSchedule = async (header) => {
   const token = localStorage.getItem("auth_token");
   if (!token) {
@@ -150,11 +155,10 @@ const postOneSchedule = async (header) => {
   console.log(
     "[POST] /api/production-schedules",
     JSON.stringify(body, null, 2)
-  ); // Detailed log
+  );
   return http(API.schedules.create(), { method: "POST", body });
 };
 
-// Submit semua header yang dicentang (sekuensial biar error-nya ketahuan)
 const submitSelectedHeadersToServer = async (headers) => {
   const results = [];
   for (const h of headers) {
@@ -166,8 +170,6 @@ const submitSelectedHeadersToServer = async (headers) => {
 
 const AddTargetSchedulePage = () => {
   const navigate = useNavigate();
-
-  /** ======== STATE EXISTING (style & UI dipertahankan) ======== **/
   const [isAdmin, setIsAdmin] = useState(true);
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
@@ -175,26 +177,19 @@ const AddTargetSchedulePage = () => {
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [navbarTotalHeight, setNavbarTotalHeight] = useState(60);
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
-
-  // MAIN DATA: header schedules + details
   const [savedProductionSchedules, setSavedProductionSchedules] = useState([]);
   const [expandedRows, setExpandedRows] = useState({});
-
-  // Modal Add Customer Detail
   const [addCustomerDetail, setAddCustomerDetail] = useState(false);
   const [activeHeaderId, setActiveHeaderId] = useState(null);
-
-  // Form modal (pakai key lama supaya tampilan/label tetap)
   const [addCustomerFormData, setAddCustomerFormData] = useState({
-    partCode: "", // => Customer
-    partName: "", // => Material Code
-    model: "Veronicas", // tambahan: select model (Veronicas / Heracles)
-    quantity: "", // => Input
+    partCode: "",
+    partName: "",
+    model: "Veronicas",
+    quantity: "",
     poNumber: "",
     description: "",
   });
 
-  // Form header
   const [selectedShiftTime, setSelectedShiftTime] = useState("06:30 - 18:30");
   const [targetDateFrom, setTargetDateFrom] = useState("");
   const [creatorName, setCreatorName] = useState(() => {
@@ -209,7 +204,6 @@ const AddTargetSchedulePage = () => {
     );
   });
 
-  // Request date (display)
   const [currentDate] = useState(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -218,7 +212,6 @@ const AddTargetSchedulePage = () => {
     return `${year}-${month}-${day}`;
   });
 
-  // Tooltip (dipertahankan)
   const [tooltip, setTooltip] = useState({
     visible: false,
     content: "",
@@ -235,7 +228,6 @@ const AddTargetSchedulePage = () => {
     });
   };
 
-  /** ======== MASTER CUSTOMER (ambil dari DB, cache, fallback dimatikan) ======== **/
   const [customerMap, setCustomerMap] = useState({});
   const [customerList, setCustomerList] = useState([]);
   const [customerLoading, setCustomerLoading] = useState(false);
@@ -396,8 +388,35 @@ const AddTargetSchedulePage = () => {
   };
   const hideTooltip = () => setTooltip((t) => ({ ...t, visible: false }));
 
+  // Cek ke DB apakah sudah ada header untuk (date + line + shift)
+  const checkScheduleExistsInDb = async ({ line, shiftTime, targetDate }) => {
+    try {
+      // filter by exact date; backend list support dateFrom & dateTo
+      const resp = await http(
+        API.schedules.list({
+          dateFrom: targetDate,
+          dateTo: targetDate,
+          limit: 200,
+          page: 1,
+        })
+      );
+      const items = resp?.items || [];
+      // backend returns: line_code, shift_time, target_date, code
+      const found = items.find(
+        (it) =>
+          it.line_code === line &&
+          it.shift_time === shiftTime &&
+          it.target_date === targetDate
+      );
+      return found || null;
+    } catch (err) {
+      // kalau gagal cek, mending block demi safety biar gak dobel
+      throw new Error(`Gagal cek duplikat ke server: ${err.message || err}`);
+    }
+  };
+
   /** ======== INSERT HEADER (Create Schedule -> Insert) ======== **/
-  const handleInsertHeader = () => {
+  const handleInsertHeader = async () => {
     if (!targetDateFrom) {
       alert("Pilih Target Date dulu.");
       return;
@@ -414,34 +433,45 @@ const AddTargetSchedulePage = () => {
     const td = new Date(`${targetDateFrom}T00:00:00`);
     const ty = new Date(`${todayStr}T00:00:00`);
 
-    // Block: targetDateFrom <= today
     if (td <= ty) {
       alert("Target Date harus lebih besar dari Request Date (hari ini).");
       return;
     }
 
-    // Block: duplikat header (date+line+shift)
-    const line = "B1";
-    const exists = savedProductionSchedules.some(
-      (h) =>
-        h.date === targetDateFrom &&
-        h.line === line &&
-        h.shiftTime === selectedShiftTime
+    // === NEW: Block duplikat di LOCAL by DATE ONLY (tanpa peduli line/shift)
+    const existsLocalDate = savedProductionSchedules.some(
+      (h) => h.date === targetDateFrom
     );
-    if (exists) {
+    if (existsLocalDate) {
       alert(
-        `Header sudah ada untuk:\n- Tanggal: ${toDDMMYYYY(
+        `Tanggal ${toDDMMYYYY(
           targetDateFrom
-        )}\n- Line: ${line}\n- Shift: ${selectedShiftTime}`
+        )} sudah ada di daftar lokal. Tidak boleh dobel tanggal.`
       );
       return;
     }
 
-    // OK → buat header lokal
+    try {
+      const existsInDb = await checkTargetDateExists(targetDateFrom);
+      if (existsInDb) {
+        alert(
+          // `Target Date ${toDDMMYYYY(
+          //   targetDateFrom
+          // )} sudah ada di database.\nTidak boleh dobel tanggal (tanpa peduli line/shift).`
+          'Target Date has been created, select another Target Date'
+        );
+        return;
+      }
+    } catch (err) {
+      alert(err.message || "Gagal cek duplikat ke server.");
+      return;
+    }
+
+    const line = "B1"; 
     const id = Date.now();
-    const creatorId = getCreatorId(); 
+    const creatorId = getCreatorId();
     const creatorName = getAuthUserLocal()?.emp_name || "Unknown";
-    // const createdByDisplay = `${creatorName} | ${currentDate} ${nowHHmm()}`;
+
     const header = {
       id,
       date: targetDateFrom,
@@ -451,7 +481,6 @@ const AddTargetSchedulePage = () => {
       total_customer: 0,
       total_model: 0,
       total_pallet: 0,
-      // createdBy: createdByDisplay,
       createdBy: creatorId,
       createdByDisplay: `${creatorName} | ${currentDate} ${nowHHmm()}`,
       details: [],
@@ -464,11 +493,10 @@ const AddTargetSchedulePage = () => {
     setToastMessage("Schedule header berhasil ditambahkan.");
     setToastType("success");
 
-    // reset ringan
     handleAddClick();
   };
 
-  /** ======== DELETE HEADER / DETAIL ======== **/
+
   const handleDeleteHeader = (id) => {
     const next = savedProductionSchedules.filter((h) => h.id !== id);
     setSavedProductionSchedules(next);

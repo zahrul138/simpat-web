@@ -1265,6 +1265,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                 <col style={{ width: "23px" }} />
                 <col style={{ width: "20%" }} />
                 <col style={{ width: "20%" }} />
+                <col style={{ width: "20%" }} />
                 <col style={{ width: "15%" }} />
                 <col style={{ width: "15%" }} />
                 <col style={{ width: "15%" }} />
@@ -1295,6 +1296,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                   <th style={styles.thWithLeftBorder}></th>
                   <th style={styles.thWithLeftBorder}>Date</th>
                   <th style={styles.thWithLeftBorder}>Line</th>
+                  <th style={styles.thWithLeftBorder}>Shift Time</th>
                   <th style={styles.thWithLeftBorder}>Total Input</th>
                   <th style={styles.thWithLeftBorder}>Total Customer</th>
                   <th style={styles.thWithLeftBorder}>Total Model</th>
@@ -1396,6 +1398,13 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                           onMouseLeave={hideTooltip}
                         >
                           {h.line}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          onMouseEnter={showTooltip}
+                          onMouseLeave={hideTooltip}
+                        >
+                          {h.shiftTime}
                         </td>
                         <td
                           style={styles.tdWithLeftBorder}
