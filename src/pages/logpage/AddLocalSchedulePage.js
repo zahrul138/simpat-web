@@ -1,20 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save } from "lucide-react";
 
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+
+const getAuthUserLocal = () => {
+  try {
+    return JSON.parse(localStorage.getItem("auth_user") || "null");
+  } catch {
+    return null;
+  }
+};
+
 const AddLocalSchedulePage = () => {
   const navigate = useNavigate();
-  const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
-  const [selectedModel, setSelectedModel] = useState("Veronicas");
-  const [selectedAnnexUpdate, setSelectedAnnexUpdate] =
-    useState("ZAHRUL ROMADHON");
-  const [scheduleDate, setScheduleDate] = useState("");
-  const [expandedRows, setExpandedRows] = useState({});
-  const [expandedVendorRows, setExpandedVendorRows] = useState({});
 
+  // ====== FORM ATAS (INPUT HEADER BARU) ======
+  const [selectedStockLevel, setSelectedStockLevel] = useState("M101 | SCN-MH");
+  const [selectedModel, setSelectedModel] = useState("Veronicas");
+  const [scheduleDate, setScheduleDate] = useState("");
+
+  // emp_name user login (ambil dari auth_user di localStorage)
+  const [currentEmpName, setCurrentEmpName] = useState("Unknown User");
+
+  useEffect(() => {
+    try {
+      const u = getAuthUserLocal(); // baca dari localStorage.auth_user
+      if (!u) {
+        setCurrentEmpName("Unknown User");
+        return;
+      }
+
+      const name =
+        u.emp_name ||
+        u.employeeName ||
+        u.fullname ||
+        u.name ||
+        u.username ||
+        "";
+
+      setCurrentEmpName(name || "Unknown User");
+
+      // optional: kalau mau dipakai di tempat lain juga sebagai string
+      // localStorage.setItem("emp_name", name || "");
+    } catch (err) {
+      console.error("Failed reading auth_user from localStorage", err);
+      setCurrentEmpName("Unknown User");
+    }
+  }, []);
+
+  // ====== STATE LIST HEADER & VENDOR DRAFT ======
+  // Multi header
+  const [headerDrafts, setHeaderDrafts] = useState([]); // [{id, stockLevel, modelName, scheduleDate, uploadByName, createdAt}]
+  // Vendor per header: { [headerId]: [ {trip_id, vendor_id, do_numbers[]} ] }
+  const [vendorDraftsByHeader, setVendorDraftsByHeader] = useState({});
+  const [expandedRows, setExpandedRows] = useState({}); // expand header row
+  const [expandedVendorRows, setExpandedVendorRows] = useState({}); // expand vendor row (level 3)
+  const [activeVendorContext, setActiveVendorContext] = useState(null);
+
+  // header mana yang sedang ditambah vendor-nya (untuk popup)
+  const [activeHeaderIdForVendorForm, setActiveHeaderIdForVendorForm] =
+    useState(null);
+
+  // master data
+  const [tripOptions, setTripOptions] = useState([]);
+  const [vendorOptions, setVendorOptions] = useState([]);
+
+  // ====== POPUP VENDOR DETAIL (LEVEL 2) ======
   const [addVendorDetail, setAddVendorDetail] = useState(false);
   const [addVendorFormData, setAddVendorFormData] = useState({
     trip: "",
@@ -23,6 +78,7 @@ const AddLocalSchedulePage = () => {
     arrivalTime: "",
   });
 
+  // ====== POPUP VENDOR PART DETAIL (LEVEL 3) – masih mock ======
   const [addVendorPartDetail, setAddVendorPartDetail] = useState(false);
   const [addVendorPartFormData, setAddVendorPartFormData] = useState({
     trip: "",
@@ -31,6 +87,328 @@ const AddLocalSchedulePage = () => {
     arrivalTime: "",
     parts: [], // Array of {doNumber, partCode, id}
   });
+
+  // ========== INSERT HEADER (TAMBAH ROW BARU DI SCHEDULE LIST) ==========
+  async function handleInsertSchedule() {
+    try {
+      if (!scheduleDate) {
+        alert("Pilih Schedule Date dulu");
+        return;
+      }
+
+      // Validasi FE: Tanggal harus LEBIH BESAR dari hari ini (bukan sama, bukan kurang)
+      const sel = new Date(`${scheduleDate}T00:00:00`);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      if (!(sel instanceof Date) || Number.isNaN(sel.getTime())) {
+        alert("Format Schedule Date tidak valid");
+        return;
+      }
+      if (sel <= today) {
+        alert("Schedule Date harus lebih besar dari hari ini");
+        return;
+      }
+
+      // 🚫 CEK DUPLIKAT SCHEDULE DATE DI DATABASE
+      const resp = await fetch(
+        `${API_BASE}/api/local-schedules/check-date?scheduleDate=${scheduleDate}`
+      );
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        throw new Error(data.message || "Failed to check schedule date");
+      }
+
+      if (data.exists) {
+        const [year, month, day] = scheduleDate.split("-");
+        const formattedDate = `${day}/${month}/${year}`;
+
+        alert(
+          // `❌ Schedule Date ${formattedDate} sudah ada di database!\n\n` +
+          //   `Detail Schedule yang sudah ada:\n` +
+          //   `• Kode: ${data.schedule.schedule_code}\n` +
+          //   `• Stock Level: ${data.schedule.stock_level}\n` +
+          //   `• Model: ${data.schedule.model_name}\n\n` +
+          //   `Silakan pilih tanggal lain.`
+          'Schedule Date has been created. Try creating another Schedule Date.'
+        );
+        return;
+      }
+
+      // 🚫 CEK DUPLIKAT SCHEDULE DATE DI DRAFT
+      const isDuplicateDate = headerDrafts.some(
+        (hdr) => hdr.scheduleDate === scheduleDate
+      );
+
+      if (isDuplicateDate) {
+        alert("Schedule Date has been created in draft, try make another");
+        return;
+      }
+
+      // Jika tidak ada duplikat, buat draft baru
+      const createdAt = new Date().toISOString();
+      const newId = `draft-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      const newHeader = {
+        id: newId,
+        stockLevel: selectedStockLevel,
+        modelName: selectedModel,
+        scheduleDate,
+        uploadByName: currentEmpName,
+        createdAt,
+      };
+
+      setHeaderDrafts((prev) => [...prev, newHeader]);
+      setVendorDraftsByHeader((prev) => ({
+        ...prev,
+        [newId]: [],
+      }));
+
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  }
+
+
+useEffect(() => {
+  if (addVendorDetail) {
+    (async () => {
+      try {
+        const [tRes, vRes] = await Promise.all([
+          fetch(`${API_BASE}/api/masters/trips`),
+          fetch(`${API_BASE}/api/vendors`), 
+        ]);
+        
+        const tripsData = await tRes.json();
+        const vendorsData = await vRes.json();
+        
+
+        setTripOptions(Array.isArray(tripsData) ? tripsData : []);
+        
+
+        let vendorsArray = [];
+        if (Array.isArray(vendorsData)) {
+          vendorsArray = vendorsData;
+        } else if (vendorsData && Array.isArray(vendorsData.data)) {
+          vendorsArray = vendorsData.data;
+        } else if (vendorsData && vendorsData.success && Array.isArray(vendorsData.data)) {
+          vendorsArray = vendorsData.data;
+        }
+        
+        console.log("Vendors data:", vendorsArray); 
+        setVendorOptions(vendorsArray);
+        
+      } catch (error) {
+        console.error("Error fetching master data:", error);
+        setTripOptions([]);
+        setVendorOptions([]);
+      }
+    })();
+  }
+}, [addVendorDetail]);
+
+  function onTripChange(e) {
+    const tripLabel = e.target.value;
+    handleAddVendorInputChange("trip", tripLabel);
+    const t = tripOptions.find((x) => String(x.trip_no) === String(tripLabel));
+    if (t?.arv_to) {
+      handleAddVendorInputChange("arrivalTime", t.arv_to);
+    }
+  }
+
+  const handleAddVendorInputChange = (field, value) => {
+    setAddVendorFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleAddVendorSubmit = (e) => {
+    e.preventDefault();
+
+    if (!activeHeaderIdForVendorForm) {
+      alert(
+        "Header schedule tidak ditemukan. Klik tombol + pada schedule yang ingin ditambahkan vendor-nya."
+      );
+      return;
+    }
+
+
+    const clean = (addVendorFormData.doNumbers || [])
+      .map((s) => String(s || "").trim())
+      .filter(Boolean);
+    if (
+      !addVendorFormData.trip ||
+      !addVendorFormData.vendor ||
+      clean.length === 0
+    ) {
+      alert("Trip, Vendor, dan minimal 1 DO wajib diisi.");
+      return;
+    }
+
+
+    const dup = clean.filter((v, i, a) => a.indexOf(v) !== i);
+    if (dup.length) {
+      alert("DO Number duplikat di form: " + [...new Set(dup)].join(", "));
+      return;
+    }
+
+
+    const t = tripOptions.find(
+      (x) => String(x.trip_no) === String(addVendorFormData.trip)
+    );
+    if (!t?.id) {
+      alert("Trip tidak dikenali. Pastikan trip master sudah tersedia.");
+      return;
+    }
+
+    const vendorLabel = addVendorFormData.vendor; 
+    const v = vendorOptions.find(
+      (x) => `${x.vendor_code} - ${x.vendor_name}` === vendorLabel
+    );
+    if (!v?.id) {
+      alert("Vendor tidak dikenali. Pastikan vendor master sudah tersedia.");
+      return;
+    }
+
+    const headerId = activeHeaderIdForVendorForm;
+
+    setVendorDraftsByHeader((prev) => {
+      const existing = prev[headerId] || [];
+      return {
+        ...prev,
+        [headerId]: [
+          ...existing,
+          {
+            trip_id: Number(t.id),
+            vendor_id: Number(v.id),
+            do_numbers: clean,
+          },
+        ],
+      };
+    });
+
+    setAddVendorDetail(false);
+    setActiveHeaderIdForVendorForm(null);
+    setAddVendorFormData({
+      trip: "",
+      vendor: "",
+      doNumbers: [""],
+      arrivalTime: "",
+    });
+    alert("Vendor Detail Created.");
+  };
+
+  async function handleSubmitVendors() {
+    try {
+      if (!headerDrafts.length) {
+        alert("Belum ada draft schedule. Klik Insert dulu.");
+        return;
+      }
+
+      for (let i = 0; i < headerDrafts.length; i++) {
+        const hdr = headerDrafts[i];
+
+        const body = {
+          stockLevel: hdr.stockLevel,
+          modelName: hdr.modelName,
+          scheduleDate: hdr.scheduleDate,
+          uploadByName: hdr.uploadByName,
+        };
+
+        const resp = await fetch(`${API_BASE}/api/local-schedules`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(
+            `Gagal membuat schedule ke-${i + 1}: ${
+              data.message || "Failed to create schedule"
+            }`
+          );
+        }
+
+        const scheduleId = data.schedule?.id;
+        if (!scheduleId) {
+          throw new Error(`Schedule ke-${i + 1}: Schedule ID tidak ditemukan`);
+        }
+
+        const vendors = vendorDraftsByHeader[hdr.id] || [];
+        if (vendors.length) {
+          const vendorPayload = {
+            items: vendors.map((vendor) => ({
+              trip_id: vendor.trip_id,
+              vendor_id: vendor.vendor_id,
+              do_numbers: vendor.do_numbers || [],
+            })),
+          };
+
+          const resp2 = await fetch(
+            `${API_BASE}/api/local-schedules/${scheduleId}/vendors/bulk`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(vendorPayload),
+            }
+          );
+          const data2 = await resp2.json();
+          if (!resp2.ok) {
+            throw new Error(
+              `Gagal menyimpan vendor untuk schedule ke-${i + 1}: ${
+                data2.message || "Failed to submit vendors"
+              }`
+            );
+          }
+
+          for (let j = 0; j < vendors.length; j++) {
+            const vendor = vendors[j];
+            const vendorId = data2.vendors[j]?.id;
+
+            if (vendorId && vendor.parts && vendor.parts.length > 0) {
+              const partsData = vendor.parts.map((part) => ({
+                part_code: part.partCode,
+                part_name: part.partName || "",
+                qty: part.qty || 0,
+                qty_box: part.qtyBox || 0,
+                unit: part.unit || "PCS",
+                do_number: part.doNumber || "",
+              }));
+
+              const resp3 = await fetch(
+                `${API_BASE}/api/local-schedules/${vendorId}/parts/bulk`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ items: partsData }),
+                }
+              );
+              const data3 = await resp3.json();
+              if (!resp3.ok) {
+                throw new Error(
+                  `Gagal menyimpan parts untuk vendor ke-${j + 1} schedule ke-${
+                    i + 1
+                  }: ${data3.message || "Failed to submit parts"}`
+                );
+              }
+            }
+          }
+        }
+      }
+
+      alert("Semua schedule, vendor details, dan parts berhasil disimpan.");
+
+      setHeaderDrafts([]);
+      setVendorDraftsByHeader({});
+      setExpandedRows({});
+      setExpandedVendorRows({});
+      navigate("/local-schedule");
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  }
 
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
@@ -43,11 +421,7 @@ const AddLocalSchedulePage = () => {
         setExpandedVendorRows((prevVendor) => {
           const newVendorRows = { ...prevVendor };
           Object.keys(newVendorRows).forEach((key) => {
-            if (
-              key.startsWith(`vendor_${rowId}_`) ||
-              key === `vendor_${rowId}` ||
-              key.includes("vendor_")
-            ) {
+            if (key.startsWith(`${rowId}_vendor_`)) {
               delete newVendorRows[key];
             }
           });
@@ -65,26 +439,34 @@ const AddLocalSchedulePage = () => {
     }));
   };
 
-  const openThirdLevelPopup = () => {
-    setAddVendorDetail(true);
-  };
+  const openVendorPartDetailPopup = (
+    headerId,
+    vendorIndex,
+    vendorData,
+    vendorLabel
+  ) => {
+    // simpan konteks vendor yang lagi diedit
+    setActiveVendorContext({
+      headerId,
+      vendorIndex,
+      vendorId: vendorData.vendor_id,
+      vendorLabel,
+      doNumbers: vendorData.do_numbers || [],
+    });
 
-  const openVendorPartDetailPopup = () => {
+    // isi form popup dengan DO vendor tsb + part yang sudah pernah disimpan (kalau ada)
+    setAddVendorPartFormData({
+      trip: "",
+      vendor: vendorLabel,
+      doNumbers:
+        vendorData.do_numbers && vendorData.do_numbers.length
+          ? [...vendorData.do_numbers]
+          : [""],
+      arrivalTime: "",
+      parts: vendorData.parts ? [...vendorData.parts] : [],
+    });
+
     setAddVendorPartDetail(true);
-  };
-
-  const handleAddVendorInputChange = (field, value) => {
-    setAddVendorFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleAddVendorPartInputChange = (field, value) => {
-    setAddVendorPartFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
   };
 
   const handleDoNumberChange = (index, value) => {
@@ -96,24 +478,8 @@ const AddLocalSchedulePage = () => {
     }));
   };
 
-  const handleVendorPartDoNumberChange = (index, value) => {
-    const updatedDoNumbers = [...addVendorPartFormData.doNumbers];
-    updatedDoNumbers[index] = value;
-    setAddVendorPartFormData((prev) => ({
-      ...prev,
-      doNumbers: updatedDoNumbers,
-    }));
-  };
-
   const addDoNumberField = () => {
     setAddVendorFormData((prev) => ({
-      ...prev,
-      doNumbers: [...prev.doNumbers, ""],
-    }));
-  };
-
-  const addVendorPartDoNumberField = () => {
-    setAddVendorPartFormData((prev) => ({
       ...prev,
       doNumbers: [...prev.doNumbers, ""],
     }));
@@ -131,6 +497,30 @@ const AddLocalSchedulePage = () => {
     }
   };
 
+  // ====== PART DETAIL (LEVEL 3) – MASIH MOCK DATA UNTUK LIST DI POPUP ======
+  const handleAddVendorPartInputChange = (field, value) => {
+    setAddVendorPartFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleVendorPartDoNumberChange = (index, value) => {
+    const updatedDoNumbers = [...addVendorPartFormData.doNumbers];
+    updatedDoNumbers[index] = value;
+    setAddVendorPartFormData((prev) => ({
+      ...prev,
+      doNumbers: updatedDoNumbers,
+    }));
+  };
+
+  const addVendorPartDoNumberField = () => {
+    setAddVendorPartFormData((prev) => ({
+      ...prev,
+      doNumbers: [...prev.doNumbers, ""],
+    }));
+  };
+
   const removeVendorPartDoNumberField = (index) => {
     if (addVendorPartFormData.doNumbers.length > 1) {
       const updatedDoNumbers = addVendorPartFormData.doNumbers.filter(
@@ -143,57 +533,152 @@ const AddLocalSchedulePage = () => {
     }
   };
 
-  const handleAddVendorSubmit = (e) => {
-    e.preventDefault();
-    console.log("Vendor Detail Added:", addVendorFormData);
-    setAddVendorDetail(false);
-    setAddVendorFormData({
-      trip: "",
-      vendor: "",
-      doNumbers: [""],
-      arrivalTime: "",
-    });
-  };
-
   const handleAddVendorPartSubmit = (e) => {
     e.preventDefault();
-    console.log("Vendor Part Detail Added:", addVendorPartFormData);
+
+    if (!activeVendorContext) {
+      alert("Vendor context tidak ditemukan.");
+      return;
+    }
+
+    const { headerId, vendorIndex } = activeVendorContext;
+
+    // Update parts di vendorDraftsByHeader
+    setVendorDraftsByHeader((prev) => {
+      const vendors = [...(prev[headerId] || [])];
+      if (!vendors[vendorIndex]) return prev;
+
+      vendors[vendorIndex] = {
+        ...vendors[vendorIndex],
+        parts: [...addVendorPartFormData.parts],
+      };
+
+      return {
+        ...prev,
+        [headerId]: vendors,
+      };
+    });
+
     setAddVendorPartDetail(false);
+    setActiveVendorContext(null);
     setAddVendorPartFormData({
       trip: "",
       vendor: "",
       doNumbers: [""],
       arrivalTime: "",
+      parts: [],
     });
+
+    alert("Part details berhasil disimpan ke draft.");
   };
 
-  const handleAddPart = (partCode) => {
-    if (!partCode.trim()) return;
-    const availableDoNumbers = addVendorFormData.doNumbers.filter((doNum) =>
-      doNum.trim()
-    );
-    if (availableDoNumbers.length === 0) {
-      alert("Please add DO Numbers in Vendor Details first");
+  const handleAddPart = async (rawPartCode) => {
+    const partCode = String(rawPartCode || "").trim();
+    if (!partCode) return;
+
+    if (!activeVendorContext) {
+      alert("Vendor context tidak ditemukan. Buka popup dari baris vendor.");
       return;
     }
-    const newPart = {
-      id: Date.now(),
-      doNumber: availableDoNumbers[0],
-      partCode: partCode.trim(),
-    };
-    setAddVendorPartFormData((prev) => ({
-      ...prev,
-      parts: [...prev.parts, newPart],
-    }));
+
+    const availableDoNumbers =
+      activeVendorContext.doNumbers && activeVendorContext.doNumbers.length
+        ? activeVendorContext.doNumbers.filter((d) => String(d || "").trim())
+        : [];
+
+    if (!availableDoNumbers.length) {
+      alert(
+        "DO Number untuk vendor ini belum ada. Tambahkan dulu di Vendor Detail."
+      );
+      return;
+    }
+
+    try {
+      const resp = await fetch(
+        `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
+          partCode
+        )}`
+      );
+
+      if (!resp.ok) {
+        throw new Error("Gagal cek Part Code ke server.");
+      }
+
+      const json = await resp.json();
+      const item = json.item || json.data || json;
+
+      if (!item || !item.part_code) {
+        alert("Part code tidak ditemukan di kanban_master.");
+        return;
+      }
+
+      // Validasi vendor (opsional, bisa di-comment jika tidak diperlukan)
+      if (
+        activeVendorContext.vendorId &&
+        item.vendor_id &&
+        Number(item.vendor_id) !== Number(activeVendorContext.vendorId)
+      ) {
+        alert("Part code in another vendor.");
+        return;
+      }
+
+      setAddVendorPartFormData((prev) => {
+        const already = prev.parts?.some(
+          (p) => String(p.partCode) === String(item.part_code)
+        );
+        if (already) {
+          alert("Part code sudah ada di daftar.");
+          return prev;
+        }
+
+        const newPart = {
+          id: Date.now(),
+          doNumber: availableDoNumbers[0],
+          partCode: item.part_code,
+          partName: item.part_name || "",
+          qty: item.qty_unit ?? 0,
+          qtyBox: item.qty_box ?? 0,
+          unit: item.unit || "PCS",
+        };
+
+        return {
+          ...prev,
+          parts: [...(prev.parts || []), newPart],
+        };
+      });
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Terjadi kesalahan saat cek Part Code.");
+    }
   };
 
   const handleRemovePart = (partId) => {
     setAddVendorPartFormData((prev) => ({
       ...prev,
-      parts: prev.parts.filter((part) => part.id !== partId),
+      parts: (prev.parts || []).filter((p) => p.id !== partId),
     }));
   };
 
+  const handleRemoveVendorPart = (headerId, vendorIndex, partId) => {
+    setVendorDraftsByHeader((prev) => {
+      const vendors = [...(prev[headerId] || [])];
+      if (!vendors[vendorIndex]) return prev;
+
+      vendors[vendorIndex] = {
+        ...vendors[vendorIndex],
+        parts: (vendors[vendorIndex].parts || []).filter(
+          (p) => p.id !== partId
+        ),
+      };
+
+      return {
+        ...prev,
+        [headerId]: vendors,
+      };
+    });
+  };
+
+  // ===================== STYLES (TIDAK DIUBAH) =====================
   const styles = {
     pageContainer: {
       transition: "margin-left 0.3s ease",
@@ -1071,10 +1556,12 @@ const AddLocalSchedulePage = () => {
     },
   };
 
+  // ===================== RENDER =====================
   return (
     <div style={styles.pageContainer}>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
+          {/* CARD ATAS: STOCK LEVEL CONFIGURATION */}
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
               <h2 style={styles.h2}>Stock Level Configuration</h2>
@@ -1089,7 +1576,10 @@ const AddLocalSchedulePage = () => {
                     id="stockLevel"
                     style={styles.select}
                     value={selectedStockLevel}
-                    onChange={(e) => setSelectedStockLevel(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSelectedStockLevel(v);
+                    }}
                   >
                     <option value="M101 | SCN-MH">M101 | SCN-MH</option>
                   </select>
@@ -1102,7 +1592,10 @@ const AddLocalSchedulePage = () => {
                     id="model"
                     style={styles.select}
                     value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSelectedModel(v);
+                    }}
                   >
                     <option value="Veronicas">Veronicas</option>
                     <option value="Heracles">Heracles</option>
@@ -1110,6 +1603,7 @@ const AddLocalSchedulePage = () => {
                   <div style={styles.actionButtonsGroup}>
                     <button
                       style={{ ...styles.button, ...styles.primaryButton }}
+                      onClick={handleInsertSchedule}
                     >
                       <Plus size={16} />
                       Insert
@@ -1119,17 +1613,16 @@ const AddLocalSchedulePage = () => {
               </div>
               <div style={{ flex: "2", display: "grid" }}>
                 <div>
-                  <label htmlFor="annexUpdate" style={styles.label}>
+                  <label htmlFor="uploadBy" style={styles.label}>
                     Upload By
                   </label>
-                  <select
-                    id="annexUpdate"
-                    style={styles.select}
-                    value={selectedAnnexUpdate}
-                    onChange={(e) => setSelectedAnnexUpdate(e.target.value)}
-                  >
-                    <option value="ZAHRUL ROMADHON">ZAHRUL ROMADHON</option>
-                  </select>
+                  <input
+                    id="uploadBy"
+                    type="text"
+                    style={styles.input}
+                    value={currentEmpName}
+                    readOnly
+                  />
                 </div>
                 <div>
                   <label htmlFor="scheduleDate" style={styles.label}>
@@ -1140,12 +1633,17 @@ const AddLocalSchedulePage = () => {
                     type="date"
                     style={{ ...styles.input, marginBottom: "28px" }}
                     value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setScheduleDate(v);
+                    }}
                   />
                 </div>
               </div>
             </div>
           </div>
+
+          {/* SCHEDULE LIST */}
           <h2 style={styles.h2}>Schedule List</h2>
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
@@ -1157,8 +1655,8 @@ const AddLocalSchedulePage = () => {
                 }}
               >
                 <colgroup>
-                  <col style={{ width: "25px" }} />
-                  <col style={{ width: "2.5%" }} />
+                  <col style={{ width: "26px" }} />
+                  <col style={{ width: "1.8%" }} />
                   <col style={{ width: "25px" }} />
                   <col style={{ width: "15%" }} />
                   <col style={{ width: "15%" }} />
@@ -1167,7 +1665,7 @@ const AddLocalSchedulePage = () => {
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "25%" }} />
-                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "7%" }} />
                 </colgroup>
                 <thead>
                   <tr style={styles.tableHeader}>
@@ -1184,458 +1682,580 @@ const AddLocalSchedulePage = () => {
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
                 </thead>
+
                 <tbody>
-                  <tr
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      1
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="checkbox"
-                        style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
-                        }}
-                      />
-                    </td>
-                    <td
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      <button
-                        style={styles.arrowButton}
-                        onClick={() => toggleRowExpansion(1)}
-                      >
-                        {expandedRows[1] ? (
-                          <MdArrowDropDown style={styles.arrowIcon} />
-                        ) : (
-                          <MdArrowRight style={styles.arrowIcon} />
-                        )}
-                      </button>
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>18/08/2025</td>
-                    <td style={styles.tdWithLeftBorder}>M101 | SCN-MH</td>
-                    <td style={styles.tdWithLeftBorder}>Veronicas</td>
-                    <td style={styles.tdWithLeftBorder}>2</td>
-                    <td style={styles.tdWithLeftBorder}>4</td>
-                    <td style={styles.tdWithLeftBorder}>12</td>
-                    <td style={styles.tdWithLeftBorder}>ZAHRUL ROMADHON</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <button
-                        style={styles.addButton}
-                        onClick={openThirdLevelPopup}
-                      >
-                        <Plus size={10} />
-                      </button>
-                      <button style={styles.deleteButton}>
-                        <Trash2 size={10} />
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedRows[1] && (
+                  {headerDrafts.length === 0 ? (
                     <tr>
-                      <td colSpan="11" style={{ padding: 0, border: "none" }}>
-                        <div style={styles.expandedTableContainer}>
-                          <table style={styles.expandedTable}>
-                            <colgroup>
-                              <col style={{ width: "25px" }} />
-                              <col style={{ width: "25px" }} />
-                              <col style={{ width: "10%" }} />
-                              <col style={{ width: "50%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "10%" }} />
-                            </colgroup>
-                            <thead>
-                              <tr style={styles.expandedTableHeader}>
-                                <th style={styles.expandedTh}>No</th>
-                                <th style={styles.expandedTh}></th>
-                                <th style={styles.expandedTh}>Trip</th>
-                                <th style={styles.expandedTh}>Vendor Name</th>
-                                <th style={styles.expandedTh}>DO Number</th>
-                                <th style={styles.expandedTh}>Arrival Time</th>
-                                <th style={styles.expandedTh}>Total Pallet</th>
-                                <th style={styles.expandedTh}>Total Item</th>
-                                <th style={styles.expandedTh}>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr
-                                onMouseEnter={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "#c7cde8")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "transparent")
-                                }
-                              >
-                                <td
-                                  style={{
-                                    ...styles.expandedTd,
-                                    ...styles.expandedWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  1
-                                </td>
-                                <td
-                                  style={{
-                                    ...styles.tdWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  <button
-                                    style={styles.arrowButton}
-                                    onClick={() =>
-                                      toggleVendorRowExpansion("vendor_1_1")
-                                    }
-                                  >
-                                    {expandedVendorRows["vendor_1_1"] ? (
-                                      <MdArrowDropDown
-                                        style={styles.arrowIcon}
-                                      />
-                                    ) : (
-                                      <MdArrowRight style={styles.arrowIcon} />
-                                    )}
-                                  </button>
-                                </td>
-                                <td style={styles.expandedTd}>Trip-01</td>
-                                <td style={styles.expandedTd}>
-                                  188646 - PT. DAIHO INDONESIA
-                                </td>
-                                <td style={styles.expandedTd}>DO-001</td>
-                                <td style={styles.expandedTd}>08:00</td>
-                                <td style={styles.expandedTd}>2</td>
-                                <td style={styles.expandedTd}>6</td>
-                                <td style={styles.expandedTd}>
-                                  <button style={styles.addButton}>
-                                    <Plus
-                                      size={10}
-                                      onClick={openVendorPartDetailPopup}
-                                    />
-                                  </button>
-                                  <button style={styles.deleteButton}>
-                                    <Trash2 size={10} />
-                                  </button>
-                                </td>
-                              </tr>
-                              {expandedVendorRows["vendor_1_1"] && (
-                                <tr>
-                                  <td
-                                    colSpan="9"
-                                    style={{ padding: 0, border: "none" }}
-                                  >
-                                    <div
-                                      style={styles.thirdLevelTableContainer}
-                                    >
-                                      <table style={styles.thirdLevelTable}>
-                                        <colgroup>
-                                          <col style={{ width: "1.5%" }} />
-                                          <col style={{ width: "10%" }} />
-                                          <col style={{ width: "20%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "5%" }} />
-                                        </colgroup>
-                                        <thead>
-                                          <tr
-                                            style={styles.thirdLevelTableHeader}
-                                          >
-                                            <th style={styles.expandedTh}>
-                                              No
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Part Code
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Part Name
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Qty
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Qty Box
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Unit
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Action
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          <tr
-                                            onMouseEnter={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "#c7cde8")
-                                            }
-                                            onMouseLeave={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "transparent")
-                                            }
-                                          >
-                                            <td
-                                              style={{
-                                                ...styles.expandedTd,
-                                                ...styles.expandedWithLeftBorder,
-                                                ...styles.emptyColumn,
-                                              }}
-                                            >
-                                              1
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              213345432
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              Engine Part A
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              50
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              2
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              PCS
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                               <button
-                                                style={styles.deleteButton}
-                                              >
-                                                <Pencil size={10} />
-                                              </button>
-                                              <button
-                                                style={styles.deleteButton}
-                                              >
-                                                <Trash2 size={10} />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                          <tr
-                                            onMouseEnter={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "#c7cde8")
-                                            }
-                                            onMouseLeave={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "transparent")
-                                            }
-                                          >
-                                            <td
-                                              style={{
-                                                ...styles.expandedTd,
-                                                ...styles.expandedWithLeftBorder,
-                                                ...styles.emptyColumn,
-                                              }}
-                                            >
-                                              2
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              214235654
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              Engine Part B
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              30
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              5
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              PCS
-                                            </td>
-                                            
-                                            <td style={styles.thirdLevelTd}>
-                                               <button
-                                                style={styles.deleteButton}
-                                              >
-                                                <Pencil size={10} />
-                                              </button>
-                                              <button
-                                                style={styles.deleteButton}
-                                              >
-                                                <Trash2 size={10} />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                              <tr
-                                onMouseEnter={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "#c7cde8")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "transparent")
-                                }
-                              >
-                                <td
-                                  style={{
-                                    ...styles.expandedTd,
-                                    ...styles.expandedWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  2
-                                </td>
-                                <td
-                                  style={{
-                                    ...styles.tdWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  <button
-                                    style={styles.arrowButton}
-                                    onClick={() =>
-                                      toggleVendorRowExpansion("vendor_1_2")
-                                    }
-                                  >
-                                    {expandedVendorRows["vendor_1_2"] ? (
-                                      <MdArrowDropDown
-                                        style={styles.arrowIcon}
-                                      />
-                                    ) : (
-                                      <MdArrowRight style={styles.arrowIcon} />
-                                    )}
-                                  </button>
-                                </td>
-                                <td style={styles.expandedTd}>Trip-02</td>
-                                <td style={styles.expandedTd}>
-                                  188651 - PT. SAT NUSAPERSADA TBK
-                                </td>
-                                <td style={styles.expandedTd}>DO-002</td>
-                                <td style={styles.expandedTd}>10:00</td>
-                                <td style={styles.expandedTd}>1</td>
-                                <td style={styles.expandedTd}>3</td>
-                                <td style={styles.expandedTd}>
-                                  <button
-                                    style={styles.addButton}
-                                    onClick={openVendorPartDetailPopup}
-                                  >
-                                    <Plus size={10} />
-                                  </button>
-                                  <button style={styles.deleteButton}>
-                                    <Trash2 size={10} />
-                                  </button>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
+                      <td
+                        colSpan="11"
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          textAlign: "center",
+                        }}
+                      >
+                        Belum ada data. Klik <b>Insert</b> dulu buat bikin draft
+                        schedule.
                       </td>
                     </tr>
+                  ) : (
+                    headerDrafts.map((hdr, headerIndex) => {
+                      const headerVendors = vendorDraftsByHeader[hdr.id] || [];
+
+                      const headerRow = (
+                        <tr
+                          key={`hdr-${hdr.id}`}
+                          onMouseEnter={(e) =>
+                            (e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.target.closest("tr").style.backgroundColor =
+                              "transparent")
+                          }
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                          >
+                            {headerIndex + 1}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            <input
+                              type="checkbox"
+                              style={{
+                                margin: "0 auto",
+                                display: "block",
+                                cursor: "pointer",
+                                width: "12px",
+                                height: "12px",
+                              }}
+                            />
+                          </td>
+                          <td
+                            style={{
+                              ...styles.tdWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                          >
+                            <button
+                              style={styles.arrowButton}
+                              onClick={() => toggleRowExpansion(hdr.id)}
+                            >
+                              {expandedRows[hdr.id] ? (
+                                <MdArrowDropDown style={styles.arrowIcon} />
+                              ) : (
+                                <MdArrowRight style={styles.arrowIcon} />
+                              )}
+                            </button>
+                          </td>
+
+                          {/* Schedule Date -> format dd/mm/yyyy */}
+                          <td style={styles.tdWithLeftBorder}>
+                            {(() => {
+                              try {
+                                const d = new Date(hdr.scheduleDate);
+                                if (Number.isNaN(d.getTime())) {
+                                  return hdr.scheduleDate || "-";
+                                }
+                                const pad = (n) => String(n).padStart(2, "0");
+                                return `${pad(d.getDate())}/${pad(
+                                  d.getMonth() + 1
+                                )}/${d.getFullYear()}`;
+                              } catch {
+                                return hdr.scheduleDate || "-";
+                              }
+                            })()}
+                          </td>
+
+                          <td style={styles.tdWithLeftBorder}>
+                            {hdr.stockLevel}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {hdr.modelName}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {headerVendors.length}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>0</td>
+                          <td style={styles.tdWithLeftBorder}>0</td>
+
+                          {/* Upload By label: emp_name | yyyy/mm/dd hh:mm */}
+                          <td style={styles.tdWithLeftBorder}>
+                            {(() => {
+                              try {
+                                const d = new Date(hdr.createdAt || Date.now());
+                                const pad = (n) => String(n).padStart(2, "0");
+                                const ts = `${d.getFullYear()}/${pad(
+                                  d.getMonth() + 1
+                                )}/${pad(d.getDate())} ${pad(
+                                  d.getHours()
+                                )}:${pad(d.getMinutes())}`;
+                                return `${hdr.uploadByName} | ${ts}`;
+                              } catch {
+                                return hdr.uploadByName;
+                              }
+                            })()}
+                          </td>
+
+                          <td style={styles.tdWithLeftBorder}>
+                            <button
+                              style={styles.addButton}
+                              onClick={() => {
+                                setActiveHeaderIdForVendorForm(hdr.id);
+                                setAddVendorDetail(true);
+                              }}
+                              title="Add Vendor Detail"
+                            >
+                              <Plus size={10} />
+                            </button>
+
+                            {/* Delete draft: hanya bersihin state, tidak call API */}
+                            <button
+                              style={styles.deleteButton}
+                              onClick={() => {
+                                const ok = window.confirm(
+                                  "Delete this draft schedule?"
+                                );
+                                if (!ok) return;
+
+                                // hapus header
+                                setHeaderDrafts((prev) =>
+                                  prev.filter((h) => h.id !== hdr.id)
+                                );
+                                // hapus vendor2 nya
+                                setVendorDraftsByHeader((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[hdr.id];
+                                  return copy;
+                                });
+                                // tutup expansion header
+                                setExpandedRows((prev) => {
+                                  const copy = { ...prev };
+                                  delete copy[hdr.id];
+                                  return copy;
+                                });
+                                // tutup semua expansion vendor di bawah header ini
+                                setExpandedVendorRows((prev) => {
+                                  const copy = { ...prev };
+                                  Object.keys(copy).forEach((key) => {
+                                    if (key.startsWith(`${hdr.id}_vendor_`)) {
+                                      delete copy[key];
+                                    }
+                                  });
+                                  return copy;
+                                });
+                              }}
+                              title="Delete Schedule"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+
+                      // EXPANDED: VENDOR LIST (LEVEL 2) + LEVEL 3 DI BAWAH SETIAP ROW
+                      const expandedRow = expandedRows[hdr.id] ? (
+                        <tr key={`hdr-${hdr.id}-expanded`}>
+                          <td
+                            colSpan="11"
+                            style={{ padding: 0, border: "none" }}
+                          >
+                            <div style={styles.expandedTableContainer}>
+                              <table style={styles.expandedTable}>
+                                <colgroup>
+                                  <col style={{ width: "25px" }} />
+                                  <col style={{ width: "25px" }} />
+                                  <col style={{ width: "10%" }} />
+                                  <col style={{ width: "50%" }} />
+                                  <col style={{ width: "15%" }} />
+                                  <col style={{ width: "15%" }} />
+                                  <col style={{ width: "15%" }} />
+                                  <col style={{ width: "15%" }} />
+                                  <col style={{ width: "6%" }} />
+                                </colgroup>
+                                <thead>
+                                  <tr style={styles.expandedTableHeader}>
+                                    <th style={styles.expandedTh}>No</th>
+                                    <th style={styles.expandedTh}></th>
+                                    <th style={styles.expandedTh}>Trip</th>
+                                    <th style={styles.expandedTh}>
+                                      Vendor Name
+                                    </th>
+                                    <th style={styles.expandedTh}>DO Number</th>
+                                    <th style={styles.expandedTh}>
+                                      Arrival Time
+                                    </th>
+                                    <th style={styles.expandedTh}>
+                                      Total Pallet
+                                    </th>
+                                    <th style={styles.expandedTh}>
+                                      Total Item
+                                    </th>
+                                    <th style={styles.expandedTh}>Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {headerVendors.length === 0 ? (
+                                    <tr>
+                                      <td
+                                        colSpan="9"
+                                        style={{
+                                          ...styles.expandedTd,
+                                          textAlign: "center",
+                                        }}
+                                      >
+                                        Belum ada vendor detail (klik tombol{" "}
+                                        <b>+</b> di kanan atas row header).
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    headerVendors.map((vd, idx) => {
+                                      const trip = tripOptions.find(
+                                        (t) =>
+                                          Number(t.id) === Number(vd.trip_id)
+                                      );
+                                      const vendor = vendorOptions.find(
+                                        (v) =>
+                                          Number(v.id) === Number(vd.vendor_id)
+                                      );
+                                      const tripLabel = trip?.trip_no || "-";
+                                      const vendorLabel = vendor
+                                        ? `${vendor.vendor_code} - ${vendor.vendor_name}`
+                                        : "-";
+                                      const doJoined = (
+                                        vd.do_numbers || []
+                                      ).join(" | ");
+                                      const arrival = trip?.arv_to || "-";
+                                      const vendorRowId = `${hdr.id}_vendor_${
+                                        idx + 1
+                                      }`;
+
+                                      const vendorRow = (
+                                        <tr
+                                          key={`${vendorRowId}-row`}
+                                          onMouseEnter={(e) =>
+                                            (e.target.closest(
+                                              "tr"
+                                            ).style.backgroundColor = "#c7cde8")
+                                          }
+                                          onMouseLeave={(e) =>
+                                            (e.target.closest(
+                                              "tr"
+                                            ).style.backgroundColor =
+                                              "transparent")
+                                          }
+                                        >
+                                          <td
+                                            style={{
+                                              ...styles.expandedTd,
+                                              ...styles.expandedWithLeftBorder,
+                                              ...styles.emptyColumn,
+                                            }}
+                                          >
+                                            {idx + 1}
+                                          </td>
+                                          <td
+                                            style={{
+                                              ...styles.tdWithLeftBorder,
+                                              ...styles.emptyColumn,
+                                            }}
+                                          >
+                                            <button
+                                              style={styles.arrowButton}
+                                              onClick={() =>
+                                                toggleVendorRowExpansion(
+                                                  vendorRowId
+                                                )
+                                              }
+                                            >
+                                              {expandedVendorRows[
+                                                vendorRowId
+                                              ] ? (
+                                                <MdArrowDropDown
+                                                  style={styles.arrowIcon}
+                                                />
+                                              ) : (
+                                                <MdArrowRight
+                                                  style={styles.arrowIcon}
+                                                />
+                                              )}
+                                            </button>
+                                          </td>
+                                          <td style={styles.expandedTd}>
+                                            {tripLabel}
+                                          </td>
+                                          <td style={styles.expandedTd}>
+                                            {vendorLabel}
+                                          </td>
+                                          <td style={styles.expandedTd}>
+                                            {doJoined}
+                                          </td>
+                                          <td style={styles.expandedTd}>
+                                            {arrival}
+                                          </td>
+                                          <td style={styles.expandedTd}>0</td>
+                                          <td style={styles.expandedTd}>0</td>
+                                          <td style={styles.expandedTd}>
+                                            <button
+                                              style={styles.addButton}
+                                              onClick={() =>
+                                                openVendorPartDetailPopup(
+                                                  hdr.id,
+                                                  idx,
+                                                  vd,
+                                                  vendorLabel
+                                                )
+                                              }
+                                              title="Add Part Details"
+                                            >
+                                              <Plus size={10} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      );
+
+                                      const partRow = expandedVendorRows[
+                                        vendorRowId
+                                      ] ? (
+                                        <tr key={`${vendorRowId}-parts`}>
+                                          <td
+                                            colSpan="9"
+                                            style={{
+                                              padding: 0,
+                                              border: "none",
+                                            }}
+                                          >
+                                            <div
+                                              style={
+                                                styles.thirdLevelTableContainer
+                                              }
+                                            >
+                                              <table
+                                                style={styles.thirdLevelTable}
+                                              >
+                                                <colgroup>
+                                                  <col
+                                                    style={{ width: "1.5%" }}
+                                                  />
+                                                  <col
+                                                    style={{ width: "10%" }}
+                                                  />
+                                                  <col
+                                                    style={{ width: "20%" }}
+                                                  />
+                                                  <col
+                                                    style={{ width: "8%" }}
+                                                  />
+                                                  <col
+                                                    style={{ width: "8%" }}
+                                                  />
+                                                  <col
+                                                    style={{ width: "8%" }}
+                                                  />
+                                                  <col
+                                                    style={{ width: "5%" }}
+                                                  />
+                                                </colgroup>
+                                                <thead>
+                                                  <tr
+                                                    style={
+                                                      styles.thirdLevelTableHeader
+                                                    }
+                                                  >
+                                                    <th
+                                                      style={styles.expandedTh}
+                                                    >
+                                                      No
+                                                    </th>
+                                                    <th
+                                                      style={
+                                                        styles.thirdLevelTh
+                                                      }
+                                                    >
+                                                      Part Code
+                                                    </th>
+                                                    <th
+                                                      style={
+                                                        styles.thirdLevelTh
+                                                      }
+                                                    >
+                                                      Part Name
+                                                    </th>
+                                                    <th
+                                                      style={
+                                                        styles.thirdLevelTh
+                                                      }
+                                                    >
+                                                      Qty
+                                                    </th>
+                                                    <th
+                                                      style={
+                                                        styles.thirdLevelTh
+                                                      }
+                                                    >
+                                                      Qty Box
+                                                    </th>
+                                                    <th
+                                                      style={
+                                                        styles.thirdLevelTh
+                                                      }
+                                                    >
+                                                      Unit
+                                                    </th>
+                                                    <th
+                                                      style={
+                                                        styles.thirdLevelTh
+                                                      }
+                                                    >
+                                                      Action
+                                                    </th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {Array.isArray(vd.parts) &&
+                                                  vd.parts.length > 0 ? (
+                                                    vd.parts.map(
+                                                      (part, pIndex) => (
+                                                        <tr
+                                                          key={`${vendorRowId}-part-${
+                                                            part.id || pIndex
+                                                          }`}
+                                                          onMouseEnter={(e) =>
+                                                            (e.target.closest(
+                                                              "tr"
+                                                            ).style.backgroundColor =
+                                                              "#c7cde8")
+                                                          }
+                                                          onMouseLeave={(e) =>
+                                                            (e.target.closest(
+                                                              "tr"
+                                                            ).style.backgroundColor =
+                                                              "transparent")
+                                                          }
+                                                        >
+                                                          <td
+                                                            style={{
+                                                              ...styles.expandedTd,
+                                                              ...styles.expandedWithLeftBorder,
+                                                              ...styles.emptyColumn,
+                                                            }}
+                                                          >
+                                                            {pIndex + 1}
+                                                          </td>
+                                                          <td
+                                                            style={
+                                                              styles.thirdLevelTd
+                                                            }
+                                                          >
+                                                            {part.partCode}
+                                                          </td>
+                                                          <td
+                                                            style={
+                                                              styles.thirdLevelTd
+                                                            }
+                                                          >
+                                                            {part.partName ||
+                                                              "—"}
+                                                          </td>
+                                                          <td
+                                                            style={
+                                                              styles.thirdLevelTd
+                                                            }
+                                                          >
+                                                            {part.qty ?? 0}
+                                                          </td>
+                                                          <td
+                                                            style={
+                                                              styles.thirdLevelTd
+                                                            }
+                                                          >
+                                                            {part.qtyBox ?? 0}
+                                                          </td>
+                                                          <td
+                                                            style={
+                                                              styles.thirdLevelTd
+                                                            }
+                                                          >
+                                                            {part.unit || "PCS"}
+                                                          </td>
+                                                          <td
+                                                            style={
+                                                              styles.thirdLevelTd
+                                                            }
+                                                          >
+                                                            <button
+                                                              style={
+                                                                styles.deleteButton
+                                                              }
+                                                              // TODO: nanti kalau mau edit qty dll, isi handler di sini
+                                                            >
+                                                              <Pencil
+                                                                size={10}
+                                                              />
+                                                            </button>
+                                                            <button
+                                                              style={
+                                                                styles.deleteButton
+                                                              }
+                                                              onClick={() =>
+                                                                handleRemoveVendorPart(
+                                                                  hdr.id,
+                                                                  idx,
+                                                                  part.id
+                                                                )
+                                                              }
+                                                            >
+                                                              <Trash2
+                                                                size={10}
+                                                              />
+                                                            </button>
+                                                          </td>
+                                                        </tr>
+                                                      )
+                                                    )
+                                                  ) : (
+                                                    <tr>
+                                                      <td
+                                                        colSpan="7"
+                                                        style={{
+                                                          ...styles.thirdLevelTd,
+                                                          textAlign: "center",
+                                                        }}
+                                                      >
+                                                        Belum ada part untuk
+                                                        vendor ini.
+                                                      </td>
+                                                    </tr>
+                                                  )}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ) : null;
+
+                                      // kembalikan vendor row + optional part row, supaya level 3 tepat di bawah vendor tsb
+                                      return [vendorRow, partRow];
+                                    })
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null;
+
+                      // gabungkan row header + row expanded (kalau ada)
+                      return [headerRow, expandedRow];
+                    })
                   )}
-                  <tr
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      2
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="checkbox"
-                        style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
-                        }}
-                      />
-                    </td>
-                    <td
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      <button
-                        style={styles.arrowButton}
-                        onClick={() => toggleRowExpansion(2)}
-                      >
-                        {expandedRows[2] ? (
-                          <MdArrowDropDown style={styles.arrowIcon} />
-                        ) : (
-                          <MdArrowRight style={styles.arrowIcon} />
-                        )}
-                      </button>
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>18/08/2025</td>
-                    <td style={styles.tdWithLeftBorder}>M101 | SCN-MH</td>
-                    <td style={styles.tdWithLeftBorder}>Veronicas</td>
-                    <td style={styles.tdWithLeftBorder}>2</td>
-                    <td style={styles.tdWithLeftBorder}>4</td>
-                    <td style={styles.tdWithLeftBorder}>12</td>
-                    <td style={styles.tdWithLeftBorder}>ZAHRUL ROMADHON</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <button
-                        style={styles.addButton}
-                        onClick={openThirdLevelPopup}
-                      >
-                        <Plus size={10} />
-                      </button>
-                      <button style={styles.deleteButton}>
-                        <Trash2 size={10} />
-                      </button>
-                    </td>
-                  </tr>
                 </tbody>
               </table>
             </div>
+
             <div style={styles.paginationBar}>
               <div style={styles.paginationControls}>
                 <button style={styles.paginationButton}>{"<<"}</button>
@@ -1653,8 +2273,12 @@ const AddLocalSchedulePage = () => {
               </div>
             </div>
           </div>
+
           <div style={styles.saveConfiguration}>
-            <button style={{ ...styles.button, ...styles.primaryButton }} onClick={() => navigate("/local-schedule")}>
+            <button
+              style={{ ...styles.button, ...styles.primaryButton }}
+              onClick={handleSubmitVendors}
+            >
               <Save size={16} />
               Input Schedule
             </button>
@@ -1662,44 +2286,52 @@ const AddLocalSchedulePage = () => {
         </div>
       </div>
 
+      {/* POPUP ADD VENDOR DETAIL (LEVEL 2) */}
       {addVendorDetail && (
         <div style={vendorDetailStyles.popupOverlay}>
           <div style={vendorDetailStyles.popupContainer}>
             <div style={vendorDetailStyles.popupHeader}>
               <h3 style={vendorDetailStyles.popupTitle}>Add Vendor Detail</h3>
               <button
-                onClick={() => setAddVendorDetail(false)}
+                onClick={() => {
+                  setAddVendorDetail(false);
+                  setActiveHeaderIdForVendorForm(null);
+                }}
                 style={vendorDetailStyles.closeButton}
               >
                 ×
               </button>
             </div>
+
             <form
               onSubmit={handleAddVendorSubmit}
               style={vendorDetailStyles.form}
             >
+              {/* TRIP (from DB) */}
               <div style={vendorDetailStyles.formGroup}>
                 <label style={vendorDetailStyles.label}>Trip:</label>
                 <select
                   value={addVendorFormData.trip}
-                  onChange={(e) =>
-                    handleAddVendorInputChange("trip", e.target.value)
-                  }
+                  onChange={onTripChange}
                   style={vendorDetailStyles.select}
                   required
                 >
                   <option value="">Select Trip</option>
-                  <option value="Trip-01">Trip-01</option>
-                  <option value="Trip-02">Trip-02</option>
-                  <option value="Trip-03">Trip-03</option>
-                  <option value="Trip-04">Trip-04</option>
-                  <option value="Trip-05">Trip-05</option>
-                  <option value="Trip-06">Trip-06</option>
-                  <option value="Trip-07">Trip-07</option>
-                  <option value="Trip-08">Trip-08</option>
+                  {tripOptions.length === 0 ? (
+                    <option value="" disabled>
+                      (loading / empty)
+                    </option>
+                  ) : (
+                    tripOptions.map((t) => (
+                      <option key={t.id} value={String(t.trip_no)}>
+                        {t.trip_no}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
+              {/* VENDOR (from DB) */}
               <div style={vendorDetailStyles.formGroup}>
                 <label style={vendorDetailStyles.label}>Vendor:</label>
                 <select
@@ -1711,15 +2343,20 @@ const AddLocalSchedulePage = () => {
                   required
                 >
                   <option value="">Select Vendor</option>
-                  <option value="188646 - PT. Daiho Indonesia">
-                    188646 - PT. Daiho Indonesia
-                  </option>
-                  <option value="188651 - PT. SAT NUSAPERSADA TBK">
-                    188651 - PT. SAT NUSAPERSADA TBK
-                  </option>
-                  <option value="199869 - PT. PRIMA LABELING">
-                    199869 - PT. PRIMA LABELING
-                  </option>
+                  {vendorOptions.length === 0 ? (
+                    <option value="" disabled>
+                      (loading / empty)
+                    </option>
+                  ) : (
+                    vendorOptions.map((v) => {
+                      const label = `${v.vendor_code} - ${v.vendor_name}`;
+                      return (
+                        <option key={v.id} value={label}>
+                          {label}
+                        </option>
+                      );
+                    })
+                  )}
                 </select>
               </div>
 
@@ -1757,15 +2394,13 @@ const AddLocalSchedulePage = () => {
                   Add Do Number
                 </button>
               </div>
-
               <div style={vendorDetailStyles.formGroup}>
                 <label style={vendorDetailStyles.label}>Arrival Time:</label>
                 <input
                   type="time"
-                  value={addVendorFormData.arrivalTime}
-                  onChange={(e) =>
-                    handleAddVendorInputChange("arrivalTime", e.target.value)
-                  }
+                  value={(addVendorFormData.arrivalTime || "").slice(0, 5)}
+                  readOnly
+                  title="Auto-filled from selected trip (arv_to)"
                   style={vendorDetailStyles.timeInput}
                   required
                 />
@@ -1774,7 +2409,10 @@ const AddLocalSchedulePage = () => {
               <div style={vendorDetailStyles.buttonGroup}>
                 <button
                   type="button"
-                  onClick={() => setAddVendorDetail(false)}
+                  onClick={() => {
+                    setAddVendorDetail(false);
+                    setActiveHeaderIdForVendorForm(null);
+                  }}
                   style={vendorDetailStyles.cancelButton}
                 >
                   Cancel
@@ -1788,6 +2426,7 @@ const AddLocalSchedulePage = () => {
         </div>
       )}
 
+      {/* POPUP VENDOR PART DETAIL (LEVEL 3) */}
       {addVendorPartDetail && (
         <div style={vendorPartStyles.popupOverlay}>
           <div style={vendorPartStyles.popupContainer}>
@@ -1796,7 +2435,10 @@ const AddLocalSchedulePage = () => {
                 Add Vendor Part Details
               </h3>
               <button
-                onClick={() => setAddVendorPartDetail(false)}
+                onClick={() => {
+                  setAddVendorPartDetail(false);
+                  setActiveVendorContext(null);
+                }}
                 style={vendorPartStyles.closeButton}
               >
                 ×
@@ -1825,8 +2467,15 @@ const AddLocalSchedulePage = () => {
                     type="button"
                     style={vendorPartStyles.addPartButton}
                     onClick={(e) => {
+                      // SELALU tombol <button>, bukan icon <svg>
                       const input =
-                        e.target.parentElement.querySelector("input");
+                        e.currentTarget.parentElement.querySelector("input");
+
+                      if (!input) {
+                        console.error("Part Code input not found");
+                        return;
+                      }
+
                       handleAddPart(input.value);
                       input.value = "";
                     }}
@@ -1837,7 +2486,7 @@ const AddLocalSchedulePage = () => {
                 </div>
               </div>
 
-              {addVendorPartFormData.parts.length > 0 && (
+              {/* {addVendorPartFormData.parts.length > 0 && (
                 <div style={vendorPartStyles.partsList}>
                   <div style={vendorPartStyles.partsListHeader}>
                     Added Parts ({addVendorPartFormData.parts.length})
@@ -1863,7 +2512,7 @@ const AddLocalSchedulePage = () => {
                     </div>
                   ))}
                 </div>
-              )}
+              )} */}
 
               <div style={vendorPartStyles.partDetailsSection}>
                 <h4 style={vendorPartStyles.sectionTitle}>Part List</h4>
@@ -1877,7 +2526,8 @@ const AddLocalSchedulePage = () => {
                       }}
                     >
                       <colgroup>
-                        <col style={{ width: "2.5%"}} />
+                        <col style={{ width: "2.5%" }} />
+                        <col style={{ width: "2.5%" }} />
                         <col style={{ width: "15%" }} />
                         <col style={{ width: "25%" }} />
                         <col style={{ width: "10%" }} />
@@ -1887,7 +2537,8 @@ const AddLocalSchedulePage = () => {
                       </colgroup>
                       <thead>
                         <tr style={vendorPartStyles.tableHeader}>
-                          <th  style={vendorPartStyles.th}>No</th>
+                          <th style={vendorPartStyles.th}>No</th>
+                          <th style={vendorPartStyles.th}></th>
                           <th style={vendorPartStyles.th}>Part Code</th>
                           <th style={vendorPartStyles.th}>Part Name</th>
                           <th style={vendorPartStyles.th}>Qty</th>
@@ -1897,56 +2548,94 @@ const AddLocalSchedulePage = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr
-                          onMouseEnter={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "#c7cde8")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "transparent")
-                          }
-                        >
-                          <td style={vendorPartStyles.tdNumber}>1</td>
-                          <td style={vendorPartStyles.td}>213123432</td>
-                          <td style={vendorPartStyles.td}>Sample Part A</td>
-                          <td style={vendorPartStyles.td}>25</td>
-                          <td style={vendorPartStyles.td}>1</td>
-                          <td style={vendorPartStyles.td}>PCS</td>
-                          <td style={vendorPartStyles.td}>
-                            <button style={vendorPartStyles.deleteButton}>
-                              <Pencil size={10} />
-                            </button>
-                            <button style={vendorPartStyles.deleteButton}>
-                              <Trash2 size={10} />
-                            </button>
-                          </td>
-                        </tr>
-                        <tr
-                          onMouseEnter={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "#c7cde8")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "transparent")
-                          }
-                        >
-                          <td style={vendorPartStyles.tdNumber}>2</td>
-                          <td style={vendorPartStyles.td}>432123431</td>
-                          <td style={vendorPartStyles.td}>Sample Part B</td>
-                          <td style={vendorPartStyles.td}>15</td>
-                          <td style={vendorPartStyles.td}>3</td>
-                          <td style={vendorPartStyles.td}>PCS</td>
-                          <td style={vendorPartStyles.td}>
-                            <button style={vendorPartStyles.deleteButton}>
-                              <Pencil size={10} />
-                            </button>
-                            <button style={vendorPartStyles.deleteButton}>
-                              <Trash2 size={10} />
-                            </button>
-                          </td>
-                        </tr>
+                        {addVendorPartFormData.parts.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan="8"
+                              style={{
+                                ...vendorPartStyles.td,
+                                textAlign: "center",
+                              }}
+                            >
+                              Belum ada part di daftar (input Part Code lalu
+                              klik Add).
+                            </td>
+                          </tr>
+                        ) : (
+                          addVendorPartFormData.parts.map((part, index) => (
+                            <tr
+                              key={part.id || index}
+                              onMouseEnter={(e) =>
+                                (e.target.closest("tr").style.backgroundColor =
+                                  "#c7cde8")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.target.closest("tr").style.backgroundColor =
+                                  "transparent")
+                              }
+                            >
+                              {/* No */}
+                              <td style={vendorPartStyles.tdNumber}>
+                                {index + 1}
+                              </td>
+
+                              {/* Checkbox */}
+                              <td style={styles.tdWithLeftBorder}>
+                                <input
+                                  type="checkbox"
+                                  style={{
+                                    margin: "0 auto",
+                                    display: "block",
+                                    cursor: "pointer",
+                                    width: "12px",
+                                    height: "12px",
+                                  }}
+                                />
+                              </td>
+
+                              {/* Part Code */}
+                              <td style={vendorPartStyles.td}>
+                                {part.partCode}
+                              </td>
+
+                              {/* Part Name */}
+                              <td style={vendorPartStyles.td}>
+                                {part.partName || "—"}
+                              </td>
+
+                              {/* Qty (qty_unit) */}
+                              <td style={vendorPartStyles.td}>
+                                {part.qty ?? 0}
+                              </td>
+
+                              {/* Qty Box */}
+                              <td style={vendorPartStyles.td}>
+                                {part.qtyBox ?? 0}
+                              </td>
+
+                              {/* Unit */}
+                              <td style={vendorPartStyles.td}>
+                                {part.unit || "PCS"}
+                              </td>
+
+                              {/* Action */}
+                              <td style={vendorPartStyles.td}>
+                                <button
+                                  style={vendorPartStyles.deleteButton}
+                                  // nanti kalau mau edit qty, isi handler di sini
+                                >
+                                  <Pencil size={10} />
+                                </button>
+                                <button
+                                  style={vendorPartStyles.deleteButton}
+                                  onClick={() => handleRemovePart(part.id)}
+                                >
+                                  <Trash2 size={10} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1980,11 +2669,15 @@ const AddLocalSchedulePage = () => {
               <div style={vendorPartStyles.buttonGroup}>
                 <button
                   type="button"
-                  onClick={() => setAddVendorPartDetail(false)}
+                  onClick={() => {
+                    setAddVendorPartDetail(false);
+                    setActiveVendorContext(null);
+                  }}
                   style={vendorPartStyles.cancelButton}
                 >
                   Cancel
                 </button>
+
                 <button type="submit" style={vendorPartStyles.submitButton}>
                   Insert
                 </button>

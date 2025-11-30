@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
-import { Plus, Trash2, Pencil, Save } from "lucide-react";
+import { Plus, Trash2, Pencil, Save, Check } from "lucide-react";
 import { Helmet } from "react-helmet";
 
 // === FE CONFIG ===
@@ -13,6 +13,8 @@ const API = {
     list: (q) => `/api/production-schedules?${new URLSearchParams(q || {})}`,
     detail: (id) => `/api/production-schedules/${id}`,
     updateStatus: (id) => `/api/production-schedules/${id}/status`,
+    delete: (id) => `/api/production-schedules/${id}`,
+    deleteDetail: (id) => `/api/production-schedules/details/${id}`,
   },
 };
 
@@ -44,22 +46,22 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
 
 const toDDMMYYYY = (iso) => {
   if (!iso) return "-";
-  
+
   try {
     // Coba parse sebagai Date object
     const date = new Date(iso);
     if (isNaN(date.getTime())) {
       // Jika parsing gagal, coba manual split
-      if (iso.includes('-')) {
-        const [y, m, d] = iso.split('-');
+      if (iso.includes("-")) {
+        const [y, m, d] = iso.split("-");
         if (y && m && d) return `${d}/${m}/${y}`;
       }
       return iso;
     }
-    
+
     // Format sebagai DD/MM/YYYY
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   } catch {
@@ -87,6 +89,11 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("New");
+  const [autoCompleteLoading, setAutoCompleteLoading] = useState(false);
+  const filteredSchedules = productionSchedules.filter(
+    (schedule) => activeTab === "All" || schedule.status === activeTab
+  );
 
   // === STATE API ===
   const [loading, setLoading] = useState(false);
@@ -100,10 +107,61 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   const [searchBy, setSearchBy] = useState("Customer");
   const [keyword, setKeyword] = useState("");
 
-  // === STATE TAB AKTIF ===
-  const [activeTab, setActiveTab] = useState("New");
+  // === TOAST NOTIFICATION ===
+  const [toastMessage, setToastMessage] = useState(null);
+  const [toastType, setToastType] = useState(null);
 
-  // === FUNGSI SELECTION ===
+  // === FUNGSI AUTO-COMPLETE ===
+  const checkAndAutoCompleteSchedules = useCallback(async () => {
+    if (autoCompleteLoading) return;
+
+    setAutoCompleteLoading(true);
+    try {
+      const result = await http("/api/production-schedules/auto-complete", {
+        method: "PATCH",
+      });
+
+      if (result.completed > 0) {
+        console.log(`Auto-completed ${result.completed} schedules`);
+        // Refresh data jika ada yang di-complete
+        await loadSchedulesFromServer();
+      }
+    } catch (err) {
+      console.error("Auto-complete error:", err);
+    } finally {
+      setAutoCompleteLoading(false);
+    }
+  }, [autoCompleteLoading]);
+
+  // === FUNGSI EMERGENCY COMPLETE ===
+  const handleEmergencyComplete = async (scheduleId) => {
+    if (!window.confirm("Force complete this schedule?")) return;
+
+    try {
+      await http(API.schedules.updateStatus(scheduleId), {
+        method: "PATCH",
+        body: { status: "Complete" },
+      });
+
+      // Juga update details
+      const details = detailCache[scheduleId] || [];
+      for (const detail of details) {
+        if (detail.id) {
+          await http(`/api/production-schedule-details/${detail.id}/status`, {
+            method: "PATCH",
+            body: { status: "Complete" },
+          });
+        }
+      }
+
+      await loadSchedulesFromServer();
+      setToastMessage("Schedule force completed");
+      setToastType("success");
+    } catch (err) {
+      alert("Failed to force complete: " + err.message);
+    }
+  };
+
   const toggleHeaderCheckbox = (headerId, checked) => {
     setSelectedHeaderIds((prev) => {
       const next = new Set(prev);
@@ -112,6 +170,14 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       } else {
         next.delete(headerId);
       }
+
+      // Update selectAll state
+      if (checked && next.size === filteredSchedules.length) {
+        setSelectAll(true);
+      } else if (!checked) {
+        setSelectAll(false);
+      }
+
       return next;
     });
   };
@@ -120,9 +186,18 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     if (selectAll) {
       setSelectedHeaderIds(new Set());
     } else {
-      const newScheduleIds = productionSchedules
-        .filter(schedule => schedule.status === "New")
-        .map(schedule => schedule.id);
+      let newScheduleIds = [];
+
+      if (activeTab === "New") {
+        newScheduleIds = productionSchedules
+          .filter((schedule) => schedule.status === "New")
+          .map((schedule) => schedule.id);
+      } else if (activeTab === "OnProgress") {
+        newScheduleIds = productionSchedules
+          .filter((schedule) => schedule.status === "OnProgress")
+          .map((schedule) => schedule.id);
+      }
+
       setSelectedHeaderIds(new Set(newScheduleIds));
     }
     setSelectAll(!selectAll);
@@ -135,50 +210,253 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       return;
     }
 
-    if (!window.confirm(`Apakah Anda yakin ingin menyimpan ${selectedHeaderIds.size} schedule ke OnProgress?`)) {
+    if (
+      !window.confirm(
+        `Apakah Anda yakin ingin menyimpan ${selectedHeaderIds.size} schedule ke OnProgress?`
+      )
+    ) {
       return;
     }
 
     setSaveLoading(true);
     try {
-      const updatePromises = Array.from(selectedHeaderIds).map(id =>
+      const updatePromises = Array.from(selectedHeaderIds).map((id) =>
         http(API.schedules.updateStatus(id), {
           method: "PATCH",
-          body: { status: "OnProgress" }
+          body: { status: "OnProgress" },
         })
       );
 
       await Promise.all(updatePromises);
-      
+
       // Refresh data setelah update berhasil
       await loadSchedulesFromServer();
       setSelectedHeaderIds(new Set());
       setSelectAll(false);
-      
-      setToastMessage(`${selectedHeaderIds.size} schedule berhasil dipindahkan ke OnProgress`);
+
+      setToastMessage(
+        `${selectedHeaderIds.size} schedule berhasil dipindahkan ke OnProgress`
+      );
       setToastType("success");
     } catch (err) {
-      console.error("Error saving schedules:", err);
       alert("Gagal menyimpan schedule: " + (err.message || "Unknown error"));
     } finally {
       setSaveLoading(false);
     }
   };
 
-  // === TOAST NOTIFICATION ===
-  const [toastMessage, setToastMessage] = useState(null);
-  const [toastType, setToastType] = useState(null);
+  const handleDeleteSchedule = async (scheduleId, scheduleCode = "") => {
+    if (!scheduleId) return;
 
-  useEffect(() => {
-    if (!toastMessage) return;
-    const timer = setTimeout(() => {
-      setToastMessage(null);
-      setToastType(null);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [toastMessage]);
+    // Konfirmasi delete sederhana
+    if (!window.confirm("Are you sure to delete this schedule?")) {
+      return;
+    }
 
-  // Fungsi toggle row expansion (tetap sama)
+    try {
+      // Tampilkan loading state jika diperlukan
+      setLoadingDetail((prev) => ({ ...prev, [scheduleId]: true }));
+
+      const result = await http(API.schedules.delete(scheduleId), {
+        method: "DELETE",
+      });
+
+      if (result.success) {
+        // Show success message
+        setToastMessage("Schedule successfully deleted");
+        setToastType("success");
+
+        // Refresh data setelah delete berhasil
+        await loadSchedulesFromServer();
+
+        // Hapus dari cache jika ada
+        setDetailCache((prev) => {
+          const newCache = { ...prev };
+          delete newCache[scheduleId];
+          return newCache;
+        });
+
+        // Hapus dari expanded rows jika ada
+        setExpandedRows((prev) => {
+          const newExpanded = { ...prev };
+          delete newExpanded[scheduleId];
+          return newExpanded;
+        });
+
+        // Hapus dari selected jika ada
+        setSelectedHeaderIds((prev) => {
+          const newSelected = new Set(prev);
+          newSelected.delete(scheduleId);
+          return newSelected;
+        });
+      } else {
+        throw new Error(result.message || "Failed to delete schedule");
+      }
+    } catch (err) {
+      // Handle specific error cases
+      if (
+        err.status === 400 &&
+        err.data?.error === "Foreign key constraint violation"
+      ) {
+        alert(
+          `Cannot delete schedule: ${err.data.message}\n\nSchedule still has relations with other data.`
+        );
+      } else if (err.status === 404) {
+        alert("Schedule not found. Maybe already deleted.");
+        // Refresh data karena schedule mungkin sudah dihapus
+        await loadSchedulesFromServer();
+      } else {
+        alert(`Failed to delete schedule: ${err.message || "Unknown error"}`);
+      }
+
+      setToastMessage("Failed to delete schedule");
+      setToastType("error");
+    } finally {
+      setLoadingDetail((prev) => ({ ...prev, [scheduleId]: false }));
+    }
+  };
+
+  const handleDeleteDetail = async (detailId, scheduleId) => {
+    // VALIDASI LEBIH KETAT DAN DETAIL
+    if (!detailId || !scheduleId) {
+      alert("Error: Detail ID atau Schedule ID tidak valid");
+      return;
+    }
+
+    // Validasi tipe data dan format
+    if (typeof detailId !== "number" || detailId <= 0) {
+      alert("Error: Format Detail ID tidak valid. Harus berupa angka positif.");
+      return;
+    }
+
+    if (typeof scheduleId !== "number" || scheduleId <= 0) {
+      alert("Error: Format Schedule ID tidak valid.");
+      return;
+    }
+
+    if (!window.confirm("Are you sure to delete this detail?")) {
+      return;
+    }
+
+    try {
+      const result = await http(API.schedules.deleteDetail(detailId), {
+        method: "DELETE",
+      });
+
+      if (result.success) {
+        setToastMessage("Detail successfully deleted");
+        setToastType("success");
+
+        // Refresh detail cache untuk schedule tersebut
+        const updatedDetails = await http(API.schedules.detail(scheduleId));
+        setDetailCache((prev) => ({
+          ...prev,
+          [scheduleId]: updatedDetails.details || [],
+        }));
+
+        // Refresh header totals
+        await loadSchedulesFromServer();
+      } else {
+        throw new Error(result.message || "Failed to delete detail");
+      }
+    } catch (err) {
+      alert(`Failed to delete detail: ${err.message}`);
+      setToastMessage("Failed to delete detail");
+      setToastType("error");
+    }
+  };
+
+  const handleCompleteSchedule = async (scheduleId) => {
+    if (!scheduleId) return;
+
+    if (!window.confirm("Are you sure to mark this schedule as Complete?")) {
+      return;
+    }
+
+    try {
+      setLoadingDetail((prev) => ({ ...prev, [scheduleId]: true }));
+
+      const result = await http(API.schedules.updateStatus(scheduleId), {
+        method: "PATCH",
+        body: { status: "Complete" },
+      });
+
+      if (result) {
+        setToastMessage("Schedule successfully marked as Complete");
+        setToastType("success");
+
+        // Refresh data setelah update berhasil
+        await loadSchedulesFromServer();
+
+        // Hapus dari cache jika ada
+        setDetailCache((prev) => {
+          const newCache = { ...prev };
+          delete newCache[scheduleId];
+          return newCache;
+        });
+
+        // Hapus dari expanded rows jika ada
+        setExpandedRows((prev) => {
+          const newExpanded = { ...prev };
+          delete newExpanded[scheduleId];
+          return newExpanded;
+        });
+      } else {
+        throw new Error("Failed to complete schedule");
+      }
+    } catch (err) {
+      alert("Failed to complete schedule: " + (err.message || "Unknown error"));
+      setToastMessage("Failed to complete schedule");
+      setToastType("error");
+    } finally {
+      setLoadingDetail((prev) => ({ ...prev, [scheduleId]: false }));
+    }
+  };
+
+  const handleCompleteMultipleSchedules = async () => {
+    if (selectedHeaderIds.size === 0) {
+      alert("Pilih minimal 1 schedule untuk diselesaikan!");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Apakah Anda yakin ingin menandai ${selectedHeaderIds.size} schedule sebagai Complete?`
+      )
+    ) {
+      return;
+    }
+
+    setSaveLoading(true);
+    try {
+      const updatePromises = Array.from(selectedHeaderIds).map((id) =>
+        http(API.schedules.updateStatus(id), {
+          method: "PATCH",
+          body: { status: "Complete" },
+        })
+      );
+
+      await Promise.all(updatePromises);
+
+      // Refresh data setelah update berhasil
+      await loadSchedulesFromServer();
+      setSelectedHeaderIds(new Set());
+      setSelectAll(false);
+
+      setToastMessage(
+        `${selectedHeaderIds.size} schedule berhasil ditandai sebagai Complete`
+      );
+      setToastType("success");
+    } catch (err) {
+      alert(
+        "Gagal menyelesaikan schedule: " + (err.message || "Unknown error")
+      );
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  // Fungsi toggle row expansion
   const toggleRowExpansion = async (rowId) => {
     setExpandedRows((prev) => {
       const newExpandedRows = {
@@ -210,6 +488,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         setLoadingDetail((p) => ({ ...p, [rowId]: true }));
         const data = await http(API.schedules.detail(rowId));
         const details = (data?.details || []).map((d) => ({
+          id: d.id,
           materialCode: d.material_code || "",
           customer: d.customer || "",
           model: d.model || "",
@@ -221,7 +500,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         }));
         setDetailCache((p) => ({ ...p, [rowId]: details }));
       } catch (err) {
-        console.warn("load details failed", err);
+        // Tetap tidak perlu log error di sini
       } finally {
         setLoadingDetail((p) => ({ ...p, [rowId]: false }));
       }
@@ -289,17 +568,52 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // === AUTO-COMPLETE EFFECTS ===
+  useEffect(() => {
+    checkAndAutoCompleteSchedules();
+
+    const interval = setInterval(() => {
+      checkAndAutoCompleteSchedules();
+    }, 60000); // 1 menit
+
+    return () => clearInterval(interval);
+  }, [checkAndAutoCompleteSchedules]);
+
+  useEffect(() => {
+    checkAndAutoCompleteSchedules();
+  }, [activeTab, checkAndAutoCompleteSchedules]);
+
   const handleSearchClick = () => {
     loadSchedulesFromServer();
   };
 
-  // Reset selection ketika tab berubah
   useEffect(() => {
     setSelectedHeaderIds(new Set());
     setSelectAll(false);
   }, [activeTab]);
 
-  // ===== Tooltip (tetap) =====
+  useEffect(() => {
+    if (
+      filteredSchedules.length > 0 &&
+      selectedHeaderIds.size === filteredSchedules.length
+    ) {
+      setSelectAll(true);
+    } else {
+      setSelectAll(false);
+    }
+  }, [selectedHeaderIds, filteredSchedules]);
+
+  // Toast effect
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => {
+      setToastMessage(null);
+      setToastType(null);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
+  // ===== Tooltip =====
   const [tooltip, setTooltip] = useState({
     visible: false,
     content: "",
@@ -309,7 +623,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
 
   const handleAddCustomerSubmit = (e) => {
     e.preventDefault();
-    console.log("Customer Detail Form Data:", addCustomerFormData);
     setAddCustomerDetail(false);
     setAddCustomerFormData({
       partCode: "",
@@ -416,13 +729,9 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     e.target.style.borderColor = "#d1d5db";
   };
 
-  // Filter schedules berdasarkan tab aktif
-  const filteredSchedules = productionSchedules.filter(schedule => 
-    activeTab === "All" || schedule.status === activeTab
+  const hasNewSchedules = productionSchedules.some(
+    (schedule) => schedule.status === "New"
   );
-
-  // Cek apakah ada data di tab New untuk menampilkan button Save Schedule
-  const hasNewSchedules = productionSchedules.some(schedule => schedule.status === "New");
 
   const optionStyle = {
     backgroundColor: "#d1d5db",
@@ -431,7 +740,68 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     padding: "4px 8px",
   };
 
-  // (Semua styles di bawah ini PERSIS dari file kamu — tidak diubah)
+  // Fungsi untuk menentukan colgroup berdasarkan activeTab
+  const getColgroup = () => {
+    if (activeTab === "New") {
+      return (
+        <colgroup>
+          <col style={{ width: "25px" }} />
+          <col style={{ width: "3.3%" }} />
+          <col style={{ width: "23px" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "12%" }} />
+        </colgroup>
+      );
+    } else if (activeTab === "OnProgress") {
+      return (
+        <colgroup>
+          <col style={{ width: "25px" }} />
+          <col style={{ width: "3.3%" }} />
+          <col style={{ width: "23px" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "12%" }} />
+        </colgroup>
+      );
+    } else {
+      // Complete dan Reject - tanpa checkbox dan action
+      return (
+        <colgroup>
+          <col style={{ width: "25px" }} />
+          <col style={{ width: "23px" }} />
+          <col style={{ width: "16%" }} />
+          <col style={{ width: "16%" }} />
+          <col style={{ width: "16%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "18%" }} />
+        </colgroup>
+      );
+    }
+  };
+
+  // Fungsi untuk menentukan jumlah kolom berdasarkan activeTab
+  const getColSpanCount = () => {
+    if (activeTab === "New") return 12;
+    if (activeTab === "OnProgress") return 11;
+    return 10; // Complete dan Reject
+  };
+
   const styles = {
     pageContainer: {
       fontFamily:
@@ -963,6 +1333,22 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
     },
+
+    completeButton: {
+      backgroundColor: "#10b981",
+      color: "white",
+      padding: "4px 8px",
+      fontSize: "12px",
+      borderRadius: "4px",
+      border: "none",
+      cursor: "pointer",
+      marginLeft: "4px",
+    },
+
+    successButton: {
+      backgroundColor: "#10b981",
+      color: "white",
+    },
   };
 
   const customerDetailStyles = {
@@ -1074,27 +1460,28 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-    return (
+  return (
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
           <title>Production | Target Schedule</title>
         </Helmet>
       </div>
-      
-      {/* Toast Notification */}
+
       {toastMessage && (
-        <div style={{
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          padding: "12px 20px",
-          borderRadius: "6px",
-          backgroundColor: toastType === "success" ? "#22c55e" : "#ef4444",
-          color: "white",
-          zIndex: 1000,
-          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-        }}>
+        <div
+          style={{
+            position: "fixed",
+            top: "20px",
+            right: "20px",
+            padding: "12px 20px",
+            borderRadius: "6px",
+            backgroundColor: toastType === "success" ? "#22c55e" : "#ef4444",
+            color: "white",
+            zIndex: 1000,
+            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+          }}
+        >
           {toastMessage}
         </div>
       )}
@@ -1178,20 +1565,29 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
             <Plus size={16} />
             Create
           </button>
+
+          {/* Button untuk Complete Multiple Schedules (OnProgress tab) */}
+          {activeTab === "OnProgress" && selectedHeaderIds.size > 0 && (
+            <button
+              style={{
+                ...styles.button,
+                ...styles.successButton,
+                ...(saveLoading && { opacity: 0.7, cursor: "not-allowed" }),
+              }}
+              onMouseEnter={(e) => handleButtonHover(e, true, "search")}
+              onMouseLeave={(e) => handleButtonHover(e, false, "search")}
+              onClick={handleCompleteMultipleSchedules}
+              disabled={saveLoading}
+            >
+              <Save size={16} />
+              {saveLoading
+                ? "Currently"
+                : `Complete (${selectedHeaderIds.size})`}
+            </button>
+          )}
         </div>
 
         <div style={styles.tabsContainer}>
-          {/* <button
-            style={{
-              ...styles.tabButton,
-              ...(activeTab === "All" && styles.tabButtonActive),
-            }}
-            onClick={() => setActiveTab("All")}
-            onMouseEnter={(e) => handleTabHover(e, true, activeTab === "All")}
-            onMouseLeave={(e) => handleTabHover(e, false, activeTab === "All")}
-          >
-            All
-          </button> */}
           <button
             style={{
               ...styles.tabButton,
@@ -1259,40 +1655,29 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                 tableLayout: "fixed",
               }}
             >
-              <colgroup>
-                <col style={{ width: "25px" }} />
-                <col style={{ width: "3.3%" }} />
-                <col style={{ width: "23px" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "25%" }} />
-                <col style={{ width: "11%" }} />
-              </colgroup>
+              {getColgroup()}
               <thead>
                 <tr style={styles.tableHeader}>
                   <th style={styles.expandedTh}>No</th>
-                  <th style={styles.thWithLeftBorder}>
-                    {/* Checkbox Select All - hanya tampil di tab New */}
-                    {activeTab === "New" && filteredSchedules.length > 0 && (
-                      <input
-                        type="checkbox"
-                        checked={selectAll}
-                        onChange={toggleSelectAll}
-                        style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
-                        }}
-                      />
-                    )}
-                  </th>
+                  {/* Checkbox hanya untuk New dan OnProgress */}
+                  {(activeTab === "New" || activeTab === "OnProgress") && (
+                    <th style={styles.thWithLeftBorder}>
+                      {filteredSchedules.length > 0 && (
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={toggleSelectAll}
+                          style={{
+                            margin: "0 auto",
+                            display: "block",
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
+                          }}
+                        />
+                      )}
+                    </th>
+                  )}
                   <th style={styles.thWithLeftBorder}></th>
                   <th style={styles.thWithLeftBorder}>Date</th>
                   <th style={styles.thWithLeftBorder}>Line</th>
@@ -1302,28 +1687,38 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                   <th style={styles.thWithLeftBorder}>Total Model</th>
                   <th style={styles.thWithLeftBorder}>Total Pallet</th>
                   <th style={styles.thWithLeftBorder}>Created By</th>
-                  <th style={styles.thWithLeftBorder}>Action</th>
+                  {/* Action hanya untuk New dan OnProgress */}
+                  {(activeTab === "New" || activeTab === "OnProgress") && (
+                    <th style={styles.thWithLeftBorder}>Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan="11" style={{ ...styles.tdWithLeftBorder, textAlign: "center", color: "#6b7280" }}>
+                    <td
+                      colSpan={getColSpanCount()}
+                      style={{
+                        ...styles.tdWithLeftBorder,
+                        textAlign: "center",
+                        color: "#6b7280",
+                      }}
+                    >
                       Loading…
                     </td>
                   </tr>
                 )}
                 {!loading && error && (
                   <tr>
-                    <td colSpan="11" style={{ ...styles.tdWithLeftBorder, textAlign: "center", color: "#ef4444" }}>
+                    <td
+                      colSpan={getColSpanCount()}
+                      style={{
+                        ...styles.tdWithLeftBorder,
+                        textAlign: "center",
+                        color: "#ef4444",
+                      }}
+                    >
                       {error}
-                    </td>
-                  </tr>
-                )}
-                {!loading && !error && filteredSchedules.length === 0 && (
-                  <tr>
-                    <td colSpan="11" style={{ ...styles.tdWithLeftBorder, textAlign: "center", color: "#9ca3af" }}>
-                      {activeTab === "New" ? "Data belum dibuat" : "No data"}
                     </td>
                   </tr>
                 )}
@@ -1351,13 +1746,15 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                         >
                           {idx + 1}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {/* Checkbox per row - hanya tampil di tab New */}
-                          {activeTab === "New" && (
+                        {/* Checkbox hanya untuk New dan OnProgress */}
+                        {(activeTab === "New" || activeTab === "OnProgress") && (
+                          <td style={styles.tdWithLeftBorder}>
                             <input
                               type="checkbox"
                               checked={selectedHeaderIds.has(h.id)}
-                              onChange={(e) => toggleHeaderCheckbox(h.id, e.target.checked)}
+                              onChange={(e) =>
+                                toggleHeaderCheckbox(h.id, e.target.checked)
+                              }
                               style={{
                                 margin: "0 auto",
                                 display: "block",
@@ -1366,8 +1763,8 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                                 height: "12px",
                               }}
                             />
-                          )}
-                        </td>
+                          </td>
+                        )}
                         <td
                           style={{
                             ...styles.tdWithLeftBorder,
@@ -1441,28 +1838,52 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                         >
                           {String(h.createdBy).toUpperCase()}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          <button
-                            style={styles.addButton}
-                            onClick={openThirdLevelPopup}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
-                          >
-                            <Plus size={10} />
-                          </button>
-                          <button
-                            style={styles.deleteButton}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
-                          >
-                            <Trash2 size={10} />
-                          </button>
-                        </td>
+                        {/* Action hanya untuk New dan OnProgress */}
+                        {(activeTab === "New" || activeTab === "OnProgress") && (
+                          <td style={styles.tdWithLeftBorder}>
+                            <button
+                              style={styles.addButton}
+                              onClick={openThirdLevelPopup}
+                              onMouseEnter={showTooltip}
+                              onMouseLeave={hideTooltip}
+                              title="Add Detail"
+                            >
+                              <Plus size={10} />
+                            </button>
+
+                            {h.status === "OnProgress" && (
+                              <button
+                                style={styles.completeButton}
+                                onMouseEnter={showTooltip}
+                                onMouseLeave={hideTooltip}
+                                onClick={() => handleCompleteSchedule(h.id)}
+                                title="Mark as Complete"
+                                disabled={loadingDetail[h.id]}
+                              >
+                                <Check size={10} />
+                              </button>
+                            )}
+
+                            <button
+                              style={styles.deleteButton}
+                              onMouseEnter={showTooltip}
+                              onMouseLeave={hideTooltip}
+                              onClick={() => handleDeleteSchedule(h.id, h.code)}
+                              title="Delete"
+                              disabled={loadingDetail[h.id]}
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </td>
+                        )}
                       </tr>
 
                       {expandedRows[h.id] && (
                         <tr>
-                          <td colSpan="11" style={{ padding: 0, border: "none" }}>
+                          <td
+                            colSpan={getColSpanCount()}
+                            style={{ padding: 0, border: "none" }}
+                          >
                             <div style={styles.expandedTableContainer}>
                               <table style={styles.expandedTable}>
                                 <colgroup>
@@ -1480,14 +1901,22 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                                 <thead>
                                   <tr style={styles.expandedTableHeader}>
                                     <th style={styles.expandedTh}>No</th>
-                                    <th style={styles.expandedTh}>Material Code</th>
+                                    <th style={styles.expandedTh}>
+                                      Material Code
+                                    </th>
                                     <th style={styles.expandedTh}>Customer</th>
                                     <th style={styles.expandedTh}>Model</th>
-                                    <th style={styles.expandedTh}>Description</th>
+                                    <th style={styles.expandedTh}>
+                                      Description
+                                    </th>
                                     <th style={styles.expandedTh}>Input</th>
                                     <th style={styles.expandedTh}>PO Number</th>
-                                    <th style={styles.expandedTh}>Pallet Type</th>
-                                    <th style={styles.expandedTh}>Pallet Use</th>
+                                    <th style={styles.expandedTh}>
+                                      Pallet Type
+                                    </th>
+                                    <th style={styles.expandedTh}>
+                                      Pallet Use
+                                    </th>
                                     <th style={styles.expandedTh}>Action</th>
                                   </tr>
                                 </thead>
@@ -1522,63 +1951,126 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                                       </tr>
                                     )}
                                   {!loadingDetail[h.id] &&
-                                    detailCache[h.id]?.map((d, i) => (
-                                      <tr
-                                        key={`${h.id}-${i}`}
-                                        onMouseEnter={(e) =>
-                                          (e.target.closest("tr").style.backgroundColor =
-                                            "#c7cde8")
-                                        }
-                                        onMouseLeave={(e) =>
-                                          (e.target.closest("tr").style.backgroundColor =
-                                            "transparent")
-                                        }
-                                      >
-                                        <td
-                                          style={{
-                                            ...styles.expandedTd,
-                                            ...styles.expandedWithLeftBorder,
-                                            ...styles.emptyColumn,
-                                          }}
+                                    detailCache[h.id]?.map((d, i) => {
+                                      return (
+                                        <tr
+                                          key={`${h.id}-${d.id || i}`}
+                                          onMouseEnter={(e) =>
+                                            (e.target.closest(
+                                              "tr"
+                                            ).style.backgroundColor = "#c7cde8")
+                                          }
+                                          onMouseLeave={(e) =>
+                                            (e.target.closest(
+                                              "tr"
+                                            ).style.backgroundColor =
+                                              "transparent")
+                                          }
                                         >
-                                          {i + 1}
-                                        </td>
+                                          <td
+                                            style={{
+                                              ...styles.expandedTd,
+                                              ...styles.expandedWithLeftBorder,
+                                              ...styles.emptyColumn,
+                                            }}
+                                          >
+                                            {i + 1}
+                                          </td>
 
-                                        <td style={styles.expandedTd}>
-                                          {d.materialCode}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.customer}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.model || ""}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.description || ""}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.input}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.poNumber}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.palletType}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.palletUse}
-                                        </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {d.materialCode}
+                                          </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {d.customer}
+                                          </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {d.model || ""}
+                                          </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {d.description || ""}
+                                          </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {d.input}
+                                          </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {d.poNumber}
+                                          </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {d.palletType}
+                                          </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {d.palletUse}
+                                          </td>
 
-                                        <td style={styles.expandedTd}>
-                                          <button style={styles.editButton}>
-                                            <Pencil size={10} />
-                                          </button>
-                                          <button style={styles.deleteButton}>
-                                            <Trash2 size={10} />
-                                          </button>
-                                        </td>
-                                      </tr>
-                                    ))}
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                            title="Edit"
+                                          >
+                                            <button style={styles.editButton}>
+                                              <Pencil size={10} />
+                                            </button>
+                                            <button
+                                              style={styles.deleteButton}
+                                              onMouseEnter={showTooltip}
+                                              onMouseLeave={hideTooltip}
+                                              title="Delete "
+                                              onClick={() => {
+                                                if (!d.id) {
+                                                  alert(
+                                                    "Error: Detail ID tidak valid. Tidak dapat menghapus."
+                                                  );
+                                                  return;
+                                                }
+
+                                                if (!h.id) {
+                                                  alert(
+                                                    "Error: Schedule ID tidak valid."
+                                                  );
+                                                  return;
+                                                }
+                                                handleDeleteDetail(d.id, h.id);
+                                              }}
+                                            >
+                                              <Trash2 size={10} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
                                 </tbody>
                               </table>
                             </div>
@@ -1595,7 +2087,12 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
               <button style={styles.paginationButton}>{"<<"}</button>
               <button style={styles.paginationButton}>{"<"}</button>
               <span>Page</span>
-              <input type="text" value="1" style={styles.paginationInput} readOnly />
+              <input
+                type="text"
+                value="1"
+                style={styles.paginationInput}
+                readOnly
+              />
               <span>of 1</span>
               <button style={styles.paginationButton}>{">"}</button>
               <button style={styles.paginationButton}>{">>"}</button>
@@ -1603,14 +2100,13 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
           </div>
         </div>
 
-        {/* Button Save Schedule - hanya tampil di tab New dan ada data */}
         {activeTab === "New" && hasNewSchedules && (
           <div style={styles.saveConfiguration}>
             <button
-              style={{ 
-                ...styles.button, 
+              style={{
+                ...styles.button,
                 ...styles.primaryButton,
-                ...(saveLoading && { opacity: 0.7, cursor: 'not-allowed' })
+                ...(saveLoading && { opacity: 0.7, cursor: "not-allowed" }),
               }}
               onMouseEnter={(e) => handleButtonHover(e, true, "search")}
               onMouseLeave={(e) => handleButtonHover(e, false, "search")}
@@ -1622,13 +2118,36 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
             </button>
           </div>
         )}
+
+        {activeTab === "OnProgress" && selectedHeaderIds.size > 0 && (
+          <div style={styles.saveConfiguration}>
+            <button
+              style={{
+                ...styles.button,
+                ...styles.successButton,
+                ...(saveLoading && { opacity: 0.7, cursor: "not-allowed" }),
+              }}
+              onMouseEnter={(e) => handleButtonHover(e, true, "search")}
+              onMouseLeave={(e) => handleButtonHover(e, false, "search")}
+              onClick={handleCompleteMultipleSchedules}
+              disabled={saveLoading}
+            >
+              <Save size={16} />
+              {saveLoading
+                ? "Menyelesaikan..."
+                : `Complete ${selectedHeaderIds.size} Schedule`}
+            </button>
+          </div>
+        )}
       </div>
 
       {addCustomerDetail && (
         <div style={customerDetailStyles.popupOverlay}>
           <div style={customerDetailStyles.popupContainer}>
             <div style={customerDetailStyles.popupHeader}>
-              <h3 style={customerDetailStyles.popupTitle}>Add Customer Detail</h3>
+              <h3 style={customerDetailStyles.popupTitle}>
+                Add Customer Detail
+              </h3>
               <button
                 style={customerDetailStyles.closeButton}
                 onClick={() => setAddCustomerDetail(false)}
@@ -1636,7 +2155,10 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                 ×
               </button>
             </div>
-            <form onSubmit={handleAddCustomerSubmit} style={customerDetailStyles.form}>
+            <form
+              onSubmit={handleAddCustomerSubmit}
+              style={customerDetailStyles.form}
+            >
               <div style={customerDetailStyles.formGroup}>
                 <label style={customerDetailStyles.label}>Customer:</label>
                 <select

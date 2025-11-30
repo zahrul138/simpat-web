@@ -7,7 +7,7 @@ import { Helmet } from "react-helmet";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
-const R_CAPACITY = 16; // kapasitas pallet R default
+const R_CAPACITY = 16;
 const CUSTOMER_CACHE_KEY = "customerMaster:v1";
 
 const API = {
@@ -52,14 +52,13 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   return data;
 };
 
-/** === Server check: block duplicate target_date (ignore line/shift) === */
 const checkTargetDateExists = async (targetDate) => {
   const resp = await http(
     API.schedules.list({
       dateFrom: targetDate,
       dateTo: targetDate,
       page: 1,
-      limit: 1, // cukup 1, buat tahu udah ada
+      limit: 1,
     })
   );
   const total = Number(resp?.total || 0);
@@ -78,7 +77,6 @@ const getAuthUserLocal = () => {
   }
 };
 
-// Format YYYY-MM-DD -> DD/MM/YYYY
 const toDDMMYYYY = (iso) => {
   if (!iso) return "-";
   const [y, m, d] = iso.split("-");
@@ -127,7 +125,6 @@ const buildScheduleBody = (header) => {
     lineCode: header.line,
     shiftTime: header.shiftTime,
     targetDate: header.date,
-    //  ...(creatorId ? { createdBy: String(creatorId) } : {}),
     ...(creatorId ? { createdBy: creatorId } : {}),
     details: (header.details || []).map((d, i) => ({
       customerName: d.customer || null,
@@ -141,6 +138,7 @@ const buildScheduleBody = (header) => {
       palletStatus: "Pending",
       model: d.model || "Veronicas",
       description: d.description || "",
+      status: "New"
     })),
   };
   return stripNullish(payload);
@@ -149,7 +147,7 @@ const buildScheduleBody = (header) => {
 const postOneSchedule = async (header) => {
   const token = localStorage.getItem("auth_token");
   if (!token) {
-    throw new Error("Token login tidak ada. Silakan login ulang.");
+    throw new Error("Login token not found. Please login again.");
   }
   const body = buildScheduleBody(header);
   console.log(
@@ -181,6 +179,7 @@ const AddTargetSchedulePage = () => {
   const [expandedRows, setExpandedRows] = useState({});
   const [addCustomerDetail, setAddCustomerDetail] = useState(false);
   const [activeHeaderId, setActiveHeaderId] = useState(null);
+  const [selectAll, setSelectAll] = useState(false);
   const [addCustomerFormData, setAddCustomerFormData] = useState({
     partCode: "",
     partName: "",
@@ -190,7 +189,8 @@ const AddTargetSchedulePage = () => {
     description: "",
   });
 
-  const [selectedShiftTime, setSelectedShiftTime] = useState("06:30 - 18:30");
+  const [shiftStart, setShiftStart] = useState("");
+  const [shiftEnd, setShiftEnd] = useState("");
   const [targetDateFrom, setTargetDateFrom] = useState("");
   const [creatorName, setCreatorName] = useState(() => {
     const u = getAuthUserLocal();
@@ -224,6 +224,12 @@ const AddTargetSchedulePage = () => {
       const next = new Set(prev);
       if (checked) next.add(headerId);
       else next.delete(headerId);
+      if (checked && next.size === savedProductionSchedules.length) {
+        setSelectAll(true);
+      } else if (!checked) {
+        setSelectAll(false);
+      }
+
       return next;
     });
   };
@@ -266,7 +272,6 @@ const AddTargetSchedulePage = () => {
     setCustomerList(list);
   };
 
-  // >>> UPDATED: pakai http() + API.customers.activeMinimal
   const loadCustomers = async () => {
     setCustomerLoading(true);
     setCustomerError(null);
@@ -277,7 +282,6 @@ const AddTargetSchedulePage = () => {
       if (Object.keys(map).length === 0) {
         throw new Error("Empty dataset");
       }
-      // success -> set & cache
       setFromMap(map);
       localStorage.setItem(CUSTOMER_CACHE_KEY, JSON.stringify(map));
     } catch (err) {
@@ -286,8 +290,8 @@ const AddTargetSchedulePage = () => {
       setCustomerList([]);
       setCustomerError(
         err?.message === "Empty dataset"
-          ? "Customer list kosong dari API."
-          : "Gagal memuat customer."
+          ? "Customer list is empty from API."
+          : "Failed to load customers."
       );
     } finally {
       setCustomerLoading(false);
@@ -296,8 +300,6 @@ const AddTargetSchedulePage = () => {
 
   useEffect(() => {
     let mounted = true;
-
-    // coba cache dulu (hanya dari hasil fetch sukses sebelumnya)
     const cached = localStorage.getItem(CUSTOMER_CACHE_KEY);
     if (cached) {
       try {
@@ -307,8 +309,6 @@ const AddTargetSchedulePage = () => {
         }
       } catch {}
     }
-
-    // selalu coba refresh dari API (biar up-to-date)
     loadCustomers();
 
     return () => {
@@ -316,7 +316,6 @@ const AddTargetSchedulePage = () => {
     };
   }, []);
 
-  /** ======== LOAD & TOAST ======== **/
   useEffect(() => {
     if (!RESTORE_FROM_LOCALSTORAGE) {
       localStorage.removeItem("productionSchedules");
@@ -331,6 +330,17 @@ const AddTargetSchedulePage = () => {
   }, []);
 
   useEffect(() => {
+    if (
+      savedProductionSchedules.length > 0 &&
+      selectedHeaderIds.size === savedProductionSchedules.length
+    ) {
+      setSelectAll(true);
+    } else {
+      setSelectAll(false);
+    }
+  }, [selectedHeaderIds, savedProductionSchedules]);
+
+  useEffect(() => {
     if (!toastMessage) return;
     const t = setTimeout(() => {
       setToastMessage(null);
@@ -339,7 +349,6 @@ const AddTargetSchedulePage = () => {
     return () => clearTimeout(t);
   }, [toastMessage]);
 
-  /** ======== EXPAND / TOOLTIP (dipertahankan) ======== **/
   const toggleRowExpansion = (rowId) =>
     setExpandedRows((prev) => ({ ...prev, [rowId]: !prev[rowId] }));
 
@@ -369,29 +378,27 @@ const AddTargetSchedulePage = () => {
         if (icon) {
           if (icon.contains(e.target)) {
             if (button.querySelector('[size="10"]')) content = "Add";
-            else content = "Perluas/sembunyikan detail";
+            else content = "Expand/hide details";
           }
         }
       }
     } else if (e.target.type === "checkbox") {
-      content = "Pilih baris ini";
+      content = "Select this row";
     } else if (e.target.tagName === "TD" || e.target.tagName === "TH") {
-      content = e.target.textContent.trim() || "Informasi";
+      content = e.target.textContent.trim() || "Information";
     }
     const rect = e.target.getBoundingClientRect();
     setTooltip({
       visible: true,
-      content: content || "Informasi",
+      content: content || "Information",
       x: rect.left + rect.width / 2,
       y: rect.top - 10,
     });
   };
   const hideTooltip = () => setTooltip((t) => ({ ...t, visible: false }));
 
-  // Cek ke DB apakah sudah ada header untuk (date + line + shift)
   const checkScheduleExistsInDb = async ({ line, shiftTime, targetDate }) => {
     try {
-      // filter by exact date; backend list support dateFrom & dateTo
       const resp = await http(
         API.schedules.list({
           dateFrom: targetDate,
@@ -401,7 +408,6 @@ const AddTargetSchedulePage = () => {
         })
       );
       const items = resp?.items || [];
-      // backend returns: line_code, shift_time, target_date, code
       const found = items.find(
         (it) =>
           it.line_code === line &&
@@ -410,64 +416,80 @@ const AddTargetSchedulePage = () => {
       );
       return found || null;
     } catch (err) {
-      // kalau gagal cek, mending block demi safety biar gak dobel
-      throw new Error(`Gagal cek duplikat ke server: ${err.message || err}`);
+      throw new Error(
+        `Failed to check duplicate on server: ${err.message || err}`
+      );
     }
   };
 
-  /** ======== INSERT HEADER (Create Schedule -> Insert) ======== **/
   const handleInsertHeader = async () => {
     if (!targetDateFrom) {
-      alert("Pilih Target Date dulu.");
+      alert("Select target date first.");
       return;
     }
 
-    // Request Date (today) vs Target Date
+    if (!shiftStart || !shiftEnd) {
+      alert("Shift Start and Shift End must be filled.");
+      return;
+    }
+
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(shiftStart) || !timeRegex.test(shiftEnd)) {
+      alert("Invalid time format. Use HH:mm format (example: 08:00, 14:30)");
+      return;
+    }
+
+    const convertTimeToMinutes = (timeStr) => {
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const startMinutes = convertTimeToMinutes(shiftStart);
+    const endMinutes = convertTimeToMinutes(shiftEnd);
+
+    if (endMinutes <= startMinutes) {
+      alert("Shift End must be after Shift Start.");
+      return;
+    }
+
+    const shiftTime = `${shiftStart} - ${shiftEnd}`;
+
     const toYMD = (d) => {
       const yy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
       return `${yy}-${mm}-${dd}`;
     };
-    const todayStr = toYMD(new Date()); // "YYYY-MM-DD"
+
+    const todayStr = toYMD(new Date());
     const td = new Date(`${targetDateFrom}T00:00:00`);
     const ty = new Date(`${todayStr}T00:00:00`);
 
     if (td <= ty) {
-      alert("Target Date harus lebih besar dari Request Date (hari ini).");
+      alert("Target Date must be greater than Request Date (today).");
       return;
     }
 
-    // === NEW: Block duplikat di LOCAL by DATE ONLY (tanpa peduli line/shift)
     const existsLocalDate = savedProductionSchedules.some(
-      (h) => h.date === targetDateFrom
+      (h) => h.date === targetDateFrom && h.shiftTime === shiftTime
     );
     if (existsLocalDate) {
-      alert(
-        `Tanggal ${toDDMMYYYY(
-          targetDateFrom
-        )} sudah ada di daftar lokal. Tidak boleh dobel tanggal.`
-      );
+      alert("Schedule with same date and shift already exists in local list.");
       return;
     }
 
     try {
       const existsInDb = await checkTargetDateExists(targetDateFrom);
       if (existsInDb) {
-        alert(
-          // `Target Date ${toDDMMYYYY(
-          //   targetDateFrom
-          // )} sudah ada di database.\nTidak boleh dobel tanggal (tanpa peduli line/shift).`
-          'Target Date has been created, select another Target Date'
-        );
+        alert("Target Date has been created, select another Target Date");
         return;
       }
     } catch (err) {
-      alert(err.message || "Gagal cek duplikat ke server.");
+      alert(err.message || "Failed to check duplicate on server.");
       return;
     }
 
-    const line = "B1"; 
+    const line = "B1";
     const id = Date.now();
     const creatorId = getCreatorId();
     const creatorName = getAuthUserLocal()?.emp_name || "Unknown";
@@ -476,7 +498,7 @@ const AddTargetSchedulePage = () => {
       id,
       date: targetDateFrom,
       line,
-      shiftTime: selectedShiftTime,
+      shiftTime: shiftTime,
       total_input: 0,
       total_customer: 0,
       total_model: 0,
@@ -490,18 +512,17 @@ const AddTargetSchedulePage = () => {
     setSavedProductionSchedules(next);
     localStorage.setItem("productionSchedules", JSON.stringify(next));
 
-    setToastMessage("Schedule header berhasil ditambahkan.");
+    setToastMessage("Schedule header successfully added.");
     setToastType("success");
 
     handleAddClick();
   };
 
-
   const handleDeleteHeader = (id) => {
     const next = savedProductionSchedules.filter((h) => h.id !== id);
     setSavedProductionSchedules(next);
     localStorage.setItem("productionSchedules", JSON.stringify(next));
-    setToastMessage("Schedule header dihapus.");
+    setToastMessage("Schedule header deleted.");
     setToastType("success");
   };
 
@@ -517,7 +538,16 @@ const AddTargetSchedulePage = () => {
     localStorage.setItem("productionSchedules", JSON.stringify(next));
   };
 
-  /** ======== POPUP ADD CUSTOMER DETAIL ======== **/
+  const handleSelectAll = (checked) => {
+    setSelectAll(checked);
+    if (checked) {
+      const allIds = new Set(savedProductionSchedules.map((h) => h.id));
+      setSelectedHeaderIds(allIds);
+    } else {
+      setSelectedHeaderIds(new Set());
+    }
+  };
+
   const openThirdLevelPopup = (headerId) => {
     setActiveHeaderId(headerId);
     setAddCustomerDetail(true);
@@ -528,29 +558,28 @@ const AddTargetSchedulePage = () => {
       const updated = { ...prev };
 
       if (field === "partCode") {
-        // partCode = Customer
         updated.partCode = value;
         const meta = (customerMap && customerMap[value]) || {};
-        updated.partName = meta.mat_code || ""; // auto set material code
+        updated.partName = meta.mat_code || "";
         return updated;
       }
 
       if (field === "partName") {
-        updated.partName = value; // manual override
+        updated.partName = value;
         return updated;
       }
 
       if (field === "model") {
-        updated.model = value; // Veronicas / Heracles
+        updated.model = value;
         return updated;
       }
 
       if (field === "input") {
-        updated.quantity = value; // map ke quantity agar tampilan form tetap
+        updated.quantity = value;
         return updated;
       }
 
-      updated[field] = value; // poNumber / description
+      updated[field] = value;
       return updated;
     });
   };
@@ -569,11 +598,11 @@ const AddTargetSchedulePage = () => {
     };
 
     if (!payload.customer) {
-      alert("Pilih Customer terlebih dahulu.");
+      alert("Please select Customer first.");
       return;
     }
     if (!payload.input || payload.input <= 0) {
-      alert("Input harus lebih dari 0.");
+      alert("Input must be greater than 0.");
       return;
     }
 
@@ -587,7 +616,6 @@ const AddTargetSchedulePage = () => {
       details: [...(savedProductionSchedules[hIdx].details || [])],
     };
 
-    // ✳️ Cek: PO duplikat untuk CUSTOMER yang sama (case-insensitive)
     const poKey = (payload.poNumber || "").trim().toLowerCase();
     if (poKey) {
       const already = header.details.some(
@@ -596,14 +624,11 @@ const AddTargetSchedulePage = () => {
           (d.poNumber || "").trim().toLowerCase() === poKey
       );
       if (already) {
-        alert(
-          `PO Number "${payload.poNumber}" sudah ada untuk customer "${payload.customer}".`
-        );
-        return; // stop submit
+        alert("PO Number already exists for this customer.");
+        return;
       }
     }
 
-    // lanjut split & push
     pushGenericSplit(header, payload);
     recalcHeaderTotals(header);
 
@@ -624,23 +649,16 @@ const AddTargetSchedulePage = () => {
   };
 
   const handleInsertSchedule = async () => {
-    // belum ada header sama sekali
     if (!savedProductionSchedules || savedProductionSchedules.length === 0) {
-      alert(
-        "Belum ada schedule yang dibuat. Klik Insert dulu untuk bikin header."
-      );
+      alert("Please create schedule data before input.");
       return;
     }
 
-    // belum pilih (centang) header mana yang mau di-insert
     if (selectedHeaderIds.size === 0) {
-      alert(
-        "Pilih minimal 1 schedule (centang checkbox) sebelum Insert Schedule."
-      );
+      alert("Please select schedule data");
       return;
     }
 
-    // wajib punya detail
     const selected = [...selectedHeaderIds].map((id) =>
       savedProductionSchedules.find((x) => x.id === id)
     );
@@ -648,23 +666,16 @@ const AddTargetSchedulePage = () => {
       (h) => !h || !Array.isArray(h.details) || h.details.length === 0
     );
     if (tanpaDetail.length > 0) {
-      alert(
-        "Ada schedule yang belum punya detail. Tambahkan detail dulu sebelum Insert Schedule."
-      );
+      alert("Please make schedule detail before input");
       return;
     }
 
-    // validasi Target Date > Request Date + tidak duplikat di lokal (safety FE)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     for (const h of selected) {
       const td = new Date(`${h.date}T00:00:00`);
       if (td <= today) {
-        alert(
-          `Target Date ${toDDMMYYYY(
-            h.date
-          )} harus lebih besar dari Request Date (hari ini).`
-        );
+        alert("Target Date must be greater than Request Date (today).");
         return;
       }
       const dupeLocal = savedProductionSchedules.some(
@@ -675,20 +686,14 @@ const AddTargetSchedulePage = () => {
           x.shiftTime === h.shiftTime
       );
       if (dupeLocal) {
-        alert(
-          `Duplikat header lokal terdeteksi untuk ${toDDMMYYYY(h.date)} | ${
-            h.line
-          } | ${h.shiftTime}.`
-        );
+        alert("Duplicate schedule detected in local data.");
         return;
       }
     }
 
     try {
-      // kirim ke server (sekuensial)
       const results = await submitSelectedHeadersToServer(selected);
 
-      // Bersihkan yang sudah sukses dari state lokal
       const postedIds = new Set(selected.map((h) => h.id));
       const remaining = savedProductionSchedules.filter(
         (h) => !postedIds.has(h.id)
@@ -696,23 +701,19 @@ const AddTargetSchedulePage = () => {
       setSavedProductionSchedules(remaining);
       localStorage.setItem("productionSchedules", JSON.stringify(remaining));
       setSelectedHeaderIds(new Set());
+      setSelectAll(false);
 
-      // info sukses
-      const okList = results
-        .map(
-          (r) =>
-            `• ${toDDMMYYYY(r.header.date)} | ${r.header.line} | ${
-              r.header.shiftTime
-            } → ${r.response.code}`
-        )
-        .join("\n");
-      alert(`Berhasil menyimpan ke DB:\n${okList}`);
+      if (results.length > 1) {
+        alert("Schedules successfully created");
+      } else {
+        alert("Schedule successfully created");
+      }
+      navigate("/target-schedule");
     } catch (err) {
-      alert(err.message || "Gagal menyimpan schedule.");
+      alert(err.message || "Failed to save schedule.");
     }
   };
 
-  /** ======== SPLIT LOGIC (data-driven dari DB) ======== **/
   const pushGenericSplit = (header, payload) => {
     const meta = (customerMap && customerMap[payload.customer]) || {};
     const defType = meta.default_pallet_type || "R";
@@ -722,8 +723,8 @@ const AddTargetSchedulePage = () => {
     const cloneRow = (overrides) => ({
       materialCode: payload.materialCode,
       customer: payload.customer,
-      model: payload.model, // PASTIKAN model dikirim
-      description: payload.description, // PASTIKAN description dikirim
+      model: payload.model,
+      description: payload.description,
       input: overrides.input,
       poNumber: payload.poNumber,
       palletType: overrides.palletType,
@@ -783,7 +784,6 @@ const AddTargetSchedulePage = () => {
         }
       }
     } else {
-      // Default R: pecah per 16
       let remaining = Number(payload.input) || 0;
       while (remaining > 0) {
         const chunk = Math.min(R_CAPACITY, remaining);
@@ -801,13 +801,12 @@ const AddTargetSchedulePage = () => {
     header.total_pallet = header.details.length;
   };
 
-  /** ======== RESET BUTTON (dipertahankan perilakunya) ======== **/
   const handleAddClick = () => {
-    setSelectedShiftTime("06:30 - 18:30");
+    setShiftStart("");
+    setShiftEnd("");
     setTargetDateFrom("");
   };
 
-  /** ======== STYLES (ASLI, JANGAN DIUBAH) ======== **/
   const styles = {
     pageContainer: {
       fontFamily:
@@ -1428,7 +1427,6 @@ const AddTargetSchedulePage = () => {
     }
   };
 
-  /** ====================== RENDER ====================== **/
   return (
     <div style={styles.pageContainer}>
       <div>
@@ -1438,7 +1436,6 @@ const AddTargetSchedulePage = () => {
       </div>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
-          {/* ====== Create Schedule Card ====== */}
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
               <h1 style={styles.title}>Create Schedule</h1>
@@ -1446,7 +1443,6 @@ const AddTargetSchedulePage = () => {
             <div style={{ display: "flex" }}>
               <div style={{ flex: "1", display: "grid", gap: "20px" }}>
                 <div>
-                  {/* A11y fix: pair label + input */}
                   <label htmlFor="targetDate" style={styles.label}>
                     Target Date
                   </label>
@@ -1464,16 +1460,31 @@ const AddTargetSchedulePage = () => {
                   <label htmlFor="shiftTime" style={styles.label}>
                     Shift Time
                   </label>
-                  <select
-                    id="shiftTime"
-                    style={styles.select}
-                    value={selectedShiftTime}
-                    onChange={(e) => setSelectedShiftTime(e.target.value)}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
                   >
-                    <option value="06:30 - 15:30">06:30 - 15:30</option>
-                    <option value="06:30 - 15:45">06:30 - 15:45</option>
-                    <option value="06:30 - 18:30">06:30 - 18:30</option>
-                  </select>
+                    <input
+                      id="shiftStart"
+                      type="time"
+                      style={{ ...styles.input, width: "3.5rem" }}
+                      value={shiftStart}
+                      onChange={(e) => setShiftStart(e.target.value)}
+                      placeholder="Start time"
+                    />
+                    <span style={styles.label}>to</span>
+                    <input
+                      id="shiftEnd"
+                      type="time"
+                      style={{ ...styles.input, width: "3.5rem" }}
+                      value={shiftEnd}
+                      onChange={(e) => setShiftEnd(e.target.value)}
+                      placeholder="End time"
+                    />
+                  </div>
                 </div>
                 <div style={styles.actionButtonsGroup}>
                   <button
@@ -1496,7 +1507,6 @@ const AddTargetSchedulePage = () => {
                 }}
               >
                 <div>
-                  {/* A11y fix: ini display doang, jangan pakai <label> */}
                   <div style={styles.label}>Request Date</div>
                   <p style={styles.dateDisplay}>{currentDate}</p>
                 </div>
@@ -1516,8 +1526,6 @@ const AddTargetSchedulePage = () => {
               </div>
             </div>
           </div>
-
-          {/* ====== Schedule List Table ====== */}
           <h2 style={styles.h2}>Schedule List</h2>
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
@@ -1545,7 +1553,23 @@ const AddTargetSchedulePage = () => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     <th style={styles.expandedTh}>No</th>
-                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>
+                      {savedProductionSchedules.length > 1 && (
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          style={{
+                            margin: "0 auto",
+                            display: "block",
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
+                          }}
+                          title="Select All"
+                        />
+                      )}
+                    </th>
                     <th style={styles.thWithLeftBorder}></th>
                     <th style={styles.thWithLeftBorder}>Date</th>
                     <th style={styles.thWithLeftBorder}>Line</th>
@@ -1561,7 +1585,7 @@ const AddTargetSchedulePage = () => {
                 <tbody>
                   {savedProductionSchedules.length === 0 ? (
                     <tr>
-                      <td
+                      {/* <td
                         colSpan="12"
                         style={{
                           ...styles.tdWithLeftBorder,
@@ -1570,7 +1594,7 @@ const AddTargetSchedulePage = () => {
                         }}
                       >
                         No schedules yet — click Insert to create one.
-                      </td>
+                      </td> */}
                     </tr>
                   ) : (
                     savedProductionSchedules.map((h, idx) => (
@@ -1681,7 +1705,6 @@ const AddTargetSchedulePage = () => {
                             onMouseEnter={showTooltip}
                             onMouseLeave={hideTooltip}
                           >
-                            {/* {h.createdBy} */}
                             {h.createdByDisplay || h.createdBy}
                           </td>
                           <td style={styles.tdWithLeftBorder}>
@@ -1753,7 +1776,7 @@ const AddTargetSchedulePage = () => {
                                   <tbody>
                                     {(!h.details || h.details.length === 0) && (
                                       <tr>
-                                        <td
+                                        {/* <td
                                           colSpan="10"
                                           style={{
                                             ...styles.expandedTd,
@@ -1761,7 +1784,7 @@ const AddTargetSchedulePage = () => {
                                           }}
                                         >
                                           Details not yet added.
-                                        </td>
+                                        </td> */}
                                       </tr>
                                     )}
                                     {h.details?.map((d, i) => (
@@ -1837,7 +1860,6 @@ const AddTargetSchedulePage = () => {
               </table>
             </div>
 
-            {/* Pagination (dummy, dipertahankan) */}
             <div style={styles.paginationBar}>
               <div style={styles.paginationControls}>
                 <button style={styles.paginationButton}>{"<<"}</button>
@@ -1857,20 +1879,21 @@ const AddTargetSchedulePage = () => {
           </div>
         </div>
 
-        <div style={styles.saveConfiguration}>
-          <button
-            style={{ ...styles.button, ...styles.primaryButton }}
-            onMouseEnter={(e) => handleButtonHover(e, true, "search")}
-            onMouseLeave={(e) => handleButtonHover(e, false, "search")}
-            onClick={handleInsertSchedule}
-          >
-            <Save size={16} />
-            Insert Schedule
-          </button>
-        </div>
+        {savedProductionSchedules.length > 0 && (
+          <div style={styles.saveConfiguration}>
+            <button
+              style={{ ...styles.button, ...styles.primaryButton }}
+              onMouseEnter={(e) => handleButtonHover(e, true, "search")}
+              onMouseLeave={(e) => handleButtonHover(e, false, "search")}
+              onClick={handleInsertSchedule}
+            >
+              <Save size={16} />
+              Input Schedule
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ====== POPUP ADD CUSTOMER DETAIL ====== */}
       {addCustomerDetail && (
         <div style={customerDetailStyles.popupOverlay}>
           <div style={customerDetailStyles.popupContainer}>
@@ -1879,21 +1902,6 @@ const AddTargetSchedulePage = () => {
                 Add Customer Detail
               </h3>
               <div>
-                {/* Reload tanpa ubah style global */}
-                <button
-                  type="button"
-                  onClick={loadCustomers}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "#3b82f6",
-                    fontWeight: 600,
-                  }}
-                  title="Reload customers"
-                >
-                  ↻ Reload
-                </button>
                 <button
                   style={customerDetailStyles.closeButton}
                   onClick={() => setAddCustomerDetail(false)}
@@ -1968,7 +1976,6 @@ const AddTargetSchedulePage = () => {
                 />
               </div>
 
-              {/* Tambahan: Model select (Veronicas / Heracles) */}
               <div style={customerDetailStyles.formGroup}>
                 <label style={customerDetailStyles.label}>Model:</label>
                 <select
@@ -2039,14 +2046,11 @@ const AddTargetSchedulePage = () => {
           </div>
         </div>
       )}
-
-      {/* Tooltip */}
       <div style={styles.tooltip}>{tooltip.content}</div>
     </div>
   );
 };
 
-/** Helper mini utk fragment tanpa import React.Fragment */
 const FragmentLike = ({ children }) => children;
 
 export default AddTargetSchedulePage;

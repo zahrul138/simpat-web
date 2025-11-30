@@ -35,13 +35,15 @@ import PartsEnquiryNonIdPage from "./pages/mhpage/PartsEnquiryNonIdPage";
 import UploadKanbanIdPage from "./pages/mhpage/UploadKanbanIdPage";
 import PartsReceivePage from "./pages/mhpage/PartsReceivePage";
 import AnnexReceivePage from "./pages/logpage/AnnexReceivePage";
+import VendorDetailsPage from "./pages/logpage/VendorDetailsPage";
+import AddVendorPage from "./pages/logpage/AddVendorPage";
+import PartDetailsPage from "./pages/logpage/PartDetailsPage";
+import AddPartsPage from "./pages/logpage/AddPartsPage";
 
 import UserControlPage from "./pages/admin/UserControlPage";
 import CreateUserPage from "./pages/admin/CreateUserPage";
 
-
 import { getUser as getAuthUser } from "./utils/auth";
-
 
 const MainLayout = ({
   children,
@@ -153,6 +155,8 @@ const LayoutHandler = () => {
       // Inventory Control routes
       "/local-schedule": { app: "inventory", dept: "SCN-LOG" },
       "/annex-receive": { app: "inventory", dept: "SCN-LOG" },
+      "/vendor-details": { app: "inventory", dept: "SCN-LOG" },
+      "/part-details": { app: "inventory", dept: "SCN-LOG" },
 
       // Quality Assurance routes
       "/iqc-local": { app: "quality", dept: "SCN-IQC" },
@@ -187,7 +191,6 @@ const LayoutHandler = () => {
     };
   };
 
- 
   return (
     <MainLayout
       toggleSidebar={toggleSidebar}
@@ -223,6 +226,10 @@ const LayoutHandler = () => {
       )}
       {location.pathname === "/local-schedule" && <LocalSchedulePage />}
       {location.pathname === "/local-schedule/add" && <AddLocalSchedulePage />}
+      {location.pathname === "/vendor-details" && <VendorDetailsPage />}
+      {location.pathname === "/vendor-parts/add-vendor" && <AddVendorPage />}
+      {location.pathname === "/part-details" && <PartDetailsPage />}
+      {location.pathname === "/vendor-parts/add-parts" && <AddPartsPage />}
       {location.pathname === "/received-local" && <ReceivedLocalSchedulePage />}
       {location.pathname === "/iqc-local" && <IQCLocalPage />}
 
@@ -251,12 +258,12 @@ const LayoutHandler = () => {
 
 const App = () => {
   useEffect(() => {
-  // clear session sekali di page-load (restart dev server / refresh full)
-  if (!sessionStorage.getItem("__boot_cleared")) {
-    clearAuth(); // hapus auth_token & auth_user
-    sessionStorage.setItem("__boot_cleared", "1");
-  }
-}, []);
+    // clear session sekali di page-load (restart dev server / refresh full)
+    if (!sessionStorage.getItem("__boot_cleared")) {
+      clearAuth(); // hapus auth_token & auth_user
+      sessionStorage.setItem("__boot_cleared", "1");
+    }
+  }, []);
   return (
     <Router>
       <Routes>

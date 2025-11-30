@@ -1,19 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
+
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const LocalSchedulePage = ({ sidebarVisible }) => {
   const navbarTotalHeight = 164;
   const sidebarWidth = 288;
   const navigate = useNavigate();
-  const tableData = [];
+  
+  // STATE UNTUK DATA DARI DATABASE
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // State yang sudah ada
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
-  const [selectedAnnexUpdate, setSelectedAnnexUpdate] =
-    useState("ZAHRUL ROMADHON");
+  const [selectedAnnexUpdate, setSelectedAnnexUpdate] = useState("ZAHRUL ROMADHON");
   const [scheduleDate, setScheduleDate] = useState("");
   const [expandedRows, setExpandedRows] = useState({});
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
@@ -24,6 +30,73 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     quantity: "",
   });
 
+  const [activeTab, setActiveTab] = useState("New");
+
+  // FUNGSI UNTUK AMBIL DATA DARI DATABASE
+  useEffect(() => {
+    fetchSchedules();
+  }, [activeTab]);
+
+  const fetchSchedules = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/local-schedules?status=${activeTab}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSchedules(result.data || []);
+      } else {
+        throw new Error(result.message || "Failed to fetch schedules");
+      }
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+      setSchedules([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // FUNGSI FORMAT TANGGAL
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return "-";
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    try {
+      if (!dateString) return "-";
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  // FUNGSI YANG SUDAH ADA (TETAP SAMA)
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
       const newExpandedRows = {
@@ -258,7 +331,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     selectFocus: {
       border: "2px solid #9fa8da",
     },
-    button: {
+   button: {
       padding: "8px 16px",
       borderRadius: "4px",
       border: "none",
@@ -269,6 +342,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       fontFamily: "inherit",
       backgroundColor: "#2563eb",
       color: "white",
+      gap: "8px",
+      display: "flex",
     },
     labelIdInput: {
       height: "32px",
@@ -740,7 +815,270 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState("Veronica");
+  // FUNGSI RENDER TABLE BODY DENGAN DATA DINAMIS
+  const renderTableBody = () => {
+    if (loading) {
+      return (
+        <tr>
+          <td colSpan="11" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+            Loading data...
+          </td>
+        </tr>
+      );
+    }
+
+    if (schedules.length === 0) {
+      return (
+        <tr>
+          <td colSpan="11" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+            No schedules found for {activeTab} tab
+          </td>
+        </tr>
+      );
+    }
+
+    return schedules.map((schedule, index) => (
+      <>
+        {/* Schedule Row */}
+        <tr
+          key={schedule.id}
+          onMouseEnter={(e) =>
+            (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+          }
+          onMouseLeave={(e) =>
+            (e.target.closest("tr").style.backgroundColor = "transparent")
+          }
+        >
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+          >
+            {index + 1}
+          </td>
+          <td style={styles.tdWithLeftBorder}>
+            <input
+              type="checkbox"
+              style={{
+                margin: "0 auto",
+                display: "block",
+                cursor: "pointer",
+                width: "12px",
+                height: "12px",
+              }}
+            />
+          </td>
+          <td
+            style={{
+              ...styles.tdWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() => toggleRowExpansion(schedule.id)}
+            >
+              {expandedRows[schedule.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder}>
+            {formatDate(schedule.schedule_date)}
+          </td>
+          <td style={styles.tdWithLeftBorder}>{schedule.stock_level}</td>
+          <td style={styles.tdWithLeftBorder}>{schedule.model_name}</td>
+          <td style={styles.tdWithLeftBorder}>{schedule.total_vendor || 0}</td>
+          <td style={styles.tdWithLeftBorder}>{schedule.total_pallet || 0}</td>
+          <td style={styles.tdWithLeftBorder}>{schedule.total_item || 0}</td>
+          <td style={styles.tdWithLeftBorder}>
+            {schedule.upload_by_name} | {formatDateTime(schedule.created_at)}
+          </td>
+          <td style={styles.tdWithLeftBorder}>
+            <button style={styles.deleteButton}>
+              <Trash2 size={10} />
+            </button>
+          </td>
+        </tr>
+
+        {/* Expanded Vendor Rows */}
+        {expandedRows[schedule.id] && (
+          <tr key={`expanded-${schedule.id}`}>
+            <td colSpan="11" style={{ padding: 0, border: "none" }}>
+              <div style={styles.expandedTableContainer}>
+                <table style={styles.expandedTable}>
+                  <colgroup>
+                    <col style={{ width: "25px" }} />
+                    <col style={{ width: "25px" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "50%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "10%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.expandedTh}>No</th>
+                      <th style={styles.expandedTh}></th>
+                      <th style={styles.expandedTh}>Trip</th>
+                      <th style={styles.expandedTh}>Vendor Name</th>
+                      <th style={styles.expandedTh}>DO Number</th>
+                      <th style={styles.expandedTh}>Arrival Time</th>
+                      <th style={styles.expandedTh}>Total Pallet</th>
+                      <th style={styles.expandedTh}>Total Item</th>
+                      <th style={styles.expandedTh}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedule.vendors && schedule.vendors.length > 0 ? (
+                      schedule.vendors.map((vendor, vendorIndex) => (
+                        <>
+                          <tr
+                            key={vendor.id}
+                            onMouseEnter={(e) =>
+                              (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.target.closest("tr").style.backgroundColor = "transparent")
+                            }
+                          >
+                            <td
+                              style={{
+                                ...styles.expandedTd,
+                                ...styles.expandedWithLeftBorder,
+                                ...styles.emptyColumn,
+                              }}
+                            >
+                              {vendorIndex + 1}
+                            </td>
+                            <td
+                              style={{
+                                ...styles.tdWithLeftBorder,
+                                ...styles.emptyColumn,
+                              }}
+                            >
+                              <button
+                                style={styles.arrowButton}
+                                onClick={() => toggleVendorRowExpansion(`vendor_${schedule.id}_${vendorIndex}`)}
+                              >
+                                {expandedVendorRows[`vendor_${schedule.id}_${vendorIndex}`] ? (
+                                  <MdArrowDropDown style={styles.arrowIcon} />
+                                ) : (
+                                  <MdArrowRight style={styles.arrowIcon} />
+                                )}
+                              </button>
+                            </td>
+                            <td style={styles.expandedTd}>{vendor.trip_no || "-"}</td>
+                            <td style={styles.expandedTd}>
+                              {vendor.vendor_code ? `${vendor.vendor_code} - ${vendor.vendor_name}` : "-"}
+                            </td>
+                            <td style={styles.expandedTd}>{vendor.do_numbers || "-"}</td>
+                            <td style={styles.expandedTd}>{vendor.arrival_time || "-"}</td>
+                            <td style={styles.expandedTd}>{vendor.total_pallet || 0}</td>
+                            <td style={styles.expandedTd}>{vendor.total_item || 0}</td>
+                            <td style={styles.expandedTd}>
+                              <button style={styles.deleteButton}>
+                                <Trash2 size={10} />
+                              </button>
+                            </td>
+                          </tr>
+
+                          {/* Expanded Parts Rows */}
+                          {expandedVendorRows[`vendor_${schedule.id}_${vendorIndex}`] && (
+                            <tr key={`parts-${vendor.id}`}>
+                              <td colSpan="9" style={{ padding: 0, border: "none" }}>
+                                <div style={styles.thirdLevelTableContainer}>
+                                  <table style={styles.thirdLevelTable}>
+                                    <colgroup>
+                                      <col style={{ width: "1.5%" }} />
+                                      <col style={{ width: "10%" }} />
+                                      <col style={{ width: "20%" }} />
+                                      <col style={{ width: "8%" }} />
+                                      <col style={{ width: "8%" }} />
+                                      <col style={{ width: "8%" }} />
+                                      <col style={{ width: "5%" }} />
+                                    </colgroup>
+                                    <thead>
+                                      <tr style={styles.thirdLevelTableHeader}>
+                                        <th style={styles.expandedTh}>No</th>
+                                        <th style={styles.thirdLevelTh}>Part Code</th>
+                                        <th style={styles.thirdLevelTh}>Part Name</th>
+                                        <th style={styles.thirdLevelTh}>Qty</th>
+                                        <th style={styles.thirdLevelTh}>Qty Box</th>
+                                        <th style={styles.thirdLevelTh}>Unit</th>
+                                        <th style={styles.thirdLevelTh}>Action</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {vendor.parts && vendor.parts.length > 0 ? (
+                                        vendor.parts.map((part, partIndex) => (
+                                          <tr
+                                            key={part.id}
+                                            onMouseEnter={(e) =>
+                                              (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                                            }
+                                            onMouseLeave={(e) =>
+                                              (e.target.closest("tr").style.backgroundColor = "transparent")
+                                            }
+                                          >
+                                            <td
+                                              style={{
+                                                ...styles.expandedTd,
+                                                ...styles.expandedWithLeftBorder,
+                                                ...styles.emptyColumn,
+                                              }}
+                                            >
+                                              {partIndex + 1}
+                                            </td>
+                                            <td style={styles.thirdLevelTd}>{part.part_code || "-"}</td>
+                                            <td style={styles.thirdLevelTd}>{part.part_name || "-"}</td>
+                                            <td style={styles.thirdLevelTd}>{part.qty || 0}</td>
+                                            <td style={styles.thirdLevelTd}>{part.qty_box || 0}</td>
+                                            <td style={styles.thirdLevelTd}>{part.unit || "PCS"}</td>
+                                            <td style={styles.thirdLevelTd}>
+                                              <button style={styles.deleteButton}>
+                                                <Trash2 size={10} />
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
+                                          <td colSpan="7" style={{ ...styles.thirdLevelTd, textAlign: "center" }}>
+                                            No parts found for this vendor
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="9" style={{ ...styles.expandedTd, textAlign: "center" }}>
+                          No vendors found for this schedule
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </>
+    ));
+  };
 
   return (
     <div style={styles.pageContainer}>
@@ -826,7 +1164,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             onClick={() => navigate("/local-schedule/add")}
           >
             <Plus size={16} />
-            Add
+            Create
           </button>
         </div>
 
@@ -951,478 +1289,65 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </button>
         </div>
 
-          <div style={styles.tableContainer}>
-            <div style={styles.tableBodyWrapper}>
-              <table
-                style={{
-                  ...styles.table,
-                  minWidth: "1200px",
-                  tableLayout: "fixed",
-                }}
-              >
-                <colgroup>
-                  <col style={{ width: "25px" }} />
-                  <col style={{ width: "2.5%" }} />
-                  <col style={{ width: "25px" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "25%" }} />
-                  <col style={{ width: "10%" }} />
-                </colgroup>
-                <thead>
-                  <tr style={styles.tableHeader}>
-                    <th style={styles.expandedTh}>No</th>
-                    <th style={styles.thWithLeftBorder}></th>
-                    <th style={styles.thWithLeftBorder}></th>
-                    <th style={styles.thWithLeftBorder}>Schedule Date</th>
-                    <th style={styles.thWithLeftBorder}>Stock Level</th>
-                    <th style={styles.thWithLeftBorder}>Model</th>
-                    <th style={styles.thWithLeftBorder}>Total Vendor</th>
-                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
-                    <th style={styles.thWithLeftBorder}>Total Item</th>
-                    <th style={styles.thWithLeftBorder}>Upload By</th>
-                    <th style={styles.thWithLeftBorder}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      1
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="checkbox"
-                        style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
-                        }}
-                      />
-                    </td>
-                    <td
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      <button
-                        style={styles.arrowButton}
-                        onClick={() => toggleRowExpansion(1)}
-                      >
-                        {expandedRows[1] ? (
-                          <MdArrowDropDown style={styles.arrowIcon} />
-                        ) : (
-                          <MdArrowRight style={styles.arrowIcon} />
-                        )}
-                      </button>
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>18/08/2025</td>
-                    <td style={styles.tdWithLeftBorder}>M101 | SCN-MH</td>
-                    <td style={styles.tdWithLeftBorder}>Veronicas</td>
-                    <td style={styles.tdWithLeftBorder}>2</td>
-                    <td style={styles.tdWithLeftBorder}>4</td>
-                    <td style={styles.tdWithLeftBorder}>12</td>
-                    <td style={styles.tdWithLeftBorder}>ZAHRUL ROMADHON</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <button style={styles.deleteButton}>
-                        <Trash2 size={10} />
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedRows[1] && (
-                    <tr>
-                      <td colSpan="11" style={{ padding: 0, border: "none" }}>
-                        <div style={styles.expandedTableContainer}>
-                          <table style={styles.expandedTable}>
-                            <colgroup>
-                              <col style={{ width: "25px" }} />
-                              <col style={{ width: "25px" }} />
-                              <col style={{ width: "10%" }} />
-                              <col style={{ width: "50%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "10%" }} />
-                            </colgroup>
-                            <thead>
-                              <tr style={styles.expandedTableHeader}>
-                                <th style={styles.expandedTh}>No</th>
-                                <th style={styles.expandedTh}></th>
-                                <th style={styles.expandedTh}>Trip</th>
-                                <th style={styles.expandedTh}>Vendor Name</th>
-                                <th style={styles.expandedTh}>DO Number</th>
-                                <th style={styles.expandedTh}>Arrival Time</th>
-                                <th style={styles.expandedTh}>Total Pallet</th>
-                                <th style={styles.expandedTh}>Total Item</th>
-                                <th style={styles.expandedTh}>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr
-                                onMouseEnter={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "#c7cde8")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "transparent")
-                                }
-                              >
-                                <td
-                                  style={{
-                                    ...styles.expandedTd,
-                                    ...styles.expandedWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  1
-                                </td>
-                                <td
-                                  style={{
-                                    ...styles.tdWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  <button
-                                    style={styles.arrowButton}
-                                    onClick={() =>
-                                      toggleVendorRowExpansion("vendor_1_1")
-                                    }
-                                  >
-                                    {expandedVendorRows["vendor_1_1"] ? (
-                                      <MdArrowDropDown
-                                        style={styles.arrowIcon}
-                                      />
-                                    ) : (
-                                      <MdArrowRight style={styles.arrowIcon} />
-                                    )}
-                                  </button>
-                                </td>
-                                <td style={styles.expandedTd}>Trip-01</td>
-                                <td style={styles.expandedTd}>
-                                  188646 - PT. DAIHO INDONESIA
-                                </td>
-                                <td style={styles.expandedTd}>DO-001</td>
-                                <td style={styles.expandedTd}>08:00</td>
-                                <td style={styles.expandedTd}>2</td>
-                                <td style={styles.expandedTd}>6</td>
-                                <td style={styles.expandedTd}>
-                                  <button style={styles.deleteButton}>
-                                    <Trash2 size={10} />
-                                  </button>
-                                </td>
-                              </tr>
-                              {expandedVendorRows["vendor_1_1"] && (
-                                <tr>
-                                  <td
-                                    colSpan="9"
-                                    style={{ padding: 0, border: "none" }}
-                                  >
-                                    <div
-                                      style={styles.thirdLevelTableContainer}
-                                    >
-                                      <table style={styles.thirdLevelTable}>
-                                        <colgroup>
-                                          <col style={{ width: "1.5%" }} />
-                                          <col style={{ width: "10%" }} />
-                                          <col style={{ width: "20%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "5%" }} />
-                                        </colgroup>
-                                        <thead>
-                                          <tr
-                                            style={styles.thirdLevelTableHeader}
-                                          >
-                                            <th style={styles.expandedTh}>
-                                              No
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Part Code
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Part Name
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Qty
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Qty Box
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Unit
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Action
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          <tr
-                                            onMouseEnter={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "#c7cde8")
-                                            }
-                                            onMouseLeave={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "transparent")
-                                            }
-                                          >
-                                            <td
-                                              style={{
-                                                ...styles.expandedTd,
-                                                ...styles.expandedWithLeftBorder,
-                                                ...styles.emptyColumn,
-                                              }}
-                                            >
-                                              1
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              213345432
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              Engine Part A
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              50
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              2
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              PCS
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              <button
-                                                style={styles.deleteButton}
-                                              >
-                                                <Trash2 size={10} />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                          <tr
-                                            onMouseEnter={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "#c7cde8")
-                                            }
-                                            onMouseLeave={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "transparent")
-                                            }
-                                          >
-                                            <td
-                                              style={{
-                                                ...styles.expandedTd,
-                                                ...styles.expandedWithLeftBorder,
-                                                ...styles.emptyColumn,
-                                              }}
-                                            >
-                                              2
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              214235654
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              Engine Part B
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              30
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              5
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              PCS
-                                            </td>
-                                            
-                                            <td style={styles.thirdLevelTd}>
-                                              <button
-                                                style={styles.deleteButton}
-                                              >
-                                                <Trash2 size={10} />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                              <tr
-                                onMouseEnter={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "#c7cde8")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "transparent")
-                                }
-                              >
-                                <td
-                                  style={{
-                                    ...styles.expandedTd,
-                                    ...styles.expandedWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  2
-                                </td>
-                                <td
-                                  style={{
-                                    ...styles.tdWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  <button
-                                    style={styles.arrowButton}
-                                    onClick={() =>
-                                      toggleVendorRowExpansion("vendor_1_2")
-                                    }
-                                  >
-                                    {expandedVendorRows["vendor_1_2"] ? (
-                                      <MdArrowDropDown
-                                        style={styles.arrowIcon}
-                                      />
-                                    ) : (
-                                      <MdArrowRight style={styles.arrowIcon} />
-                                    )}
-                                  </button>
-                                </td>
-                                <td style={styles.expandedTd}>Trip-02</td>
-                                <td style={styles.expandedTd}>
-                                  188651 - PT. SAT NUSAPERSADA TBK
-                                </td>
-                                <td style={styles.expandedTd}>DO-002</td>
-                                <td style={styles.expandedTd}>10:00</td>
-                                <td style={styles.expandedTd}>1</td>
-                                <td style={styles.expandedTd}>3</td>
-                                <td style={styles.expandedTd}>
-                                  <button style={styles.deleteButton}>
-                                    <Trash2 size={10} />
-                                  </button>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  <tr
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      2
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="checkbox"
-                        style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
-                        }}
-                      />
-                    </td>
-                    <td
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      <button
-                        style={styles.arrowButton}
-                        onClick={() => toggleRowExpansion(2)}
-                      >
-                        {expandedRows[2] ? (
-                          <MdArrowDropDown style={styles.arrowIcon} />
-                        ) : (
-                          <MdArrowRight style={styles.arrowIcon} />
-                        )}
-                      </button>
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>18/08/2025</td>
-                    <td style={styles.tdWithLeftBorder}>M101 | SCN-MH</td>
-                    <td style={styles.tdWithLeftBorder}>Veronicas</td>
-                    <td style={styles.tdWithLeftBorder}>2</td>
-                    <td style={styles.tdWithLeftBorder}>4</td>
-                    <td style={styles.tdWithLeftBorder}>12</td>
-                    <td style={styles.tdWithLeftBorder}>ZAHRUL ROMADHON</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <button style={styles.deleteButton}>
-                        <Trash2 size={10} />
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div style={styles.paginationBar}>
-              <div style={styles.paginationControls}>
-                <button style={styles.paginationButton}>{"<<"}</button>
-                <button style={styles.paginationButton}>{"<"}</button>
-                <span>Page</span>
-                <input
-                  type="text"
-                  value="1"
-                  style={styles.paginationInput}
-                  readOnly
-                />
-                <span>of 1</span>
-                <button style={styles.paginationButton}>{">"}</button>
-                <button style={styles.paginationButton}>{">>"}</button>
-              </div>
+        <div style={styles.tableContainer}>
+          <div style={styles.tableBodyWrapper}>
+            <table
+              style={{
+                ...styles.table,
+                minWidth: "1200px",
+                tableLayout: "fixed",
+              }}
+            >
+              <colgroup>
+                <col style={{ width: "25px" }} />
+                <col style={{ width: "2.5%" }} />
+                <col style={{ width: "25px" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "25%" }} />
+                <col style={{ width: "5%" }} />
+              </colgroup>
+              <thead>
+                <tr style={styles.tableHeader}>
+                  <th style={styles.expandedTh}>No</th>
+                  <th style={styles.thWithLeftBorder}></th>
+                  <th style={styles.thWithLeftBorder}></th>
+                  <th style={styles.thWithLeftBorder}>Schedule Date</th>
+                  <th style={styles.thWithLeftBorder}>Stock Level</th>
+                  <th style={styles.thWithLeftBorder}>Model</th>
+                  <th style={styles.thWithLeftBorder}>Total Vendor</th>
+                  <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                  <th style={styles.thWithLeftBorder}>Total Item</th>
+                  <th style={styles.thWithLeftBorder}>Upload By</th>
+                  <th style={styles.thWithLeftBorder}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {renderTableBody()}
+              </tbody>
+            </table>
+          </div>
+          <div style={styles.paginationBar}>
+            <div style={styles.paginationControls}>
+              <button style={styles.paginationButton}>{"<<"}</button>
+              <button style={styles.paginationButton}>{"<"}</button>
+              <span>Page</span>
+              <input
+                type="text"
+                value="1"
+                style={styles.paginationInput}
+                readOnly
+              />
+              <span>of 1</span>
+              <button style={styles.paginationButton}>{">"}</button>
+              <button style={styles.paginationButton}>{">>"}</button>
             </div>
           </div>
+        </div>
 
         <div style={styles.saveConfiguration}>
           <button style={{ ...styles.button, ...styles.primaryButton }}>
@@ -1431,7 +1356,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </button>
         </div>
       </div>
-
     </div>
   );
 };
