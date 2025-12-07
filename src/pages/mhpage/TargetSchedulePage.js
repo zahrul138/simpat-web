@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, Check } from "lucide-react";
 import { Helmet } from "react-helmet";
+import timerService from "../../utils/TimerService";
 
-// === FE CONFIG ===
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const API = {
   schedules: {
@@ -48,10 +48,8 @@ const toDDMMYYYY = (iso) => {
   if (!iso) return "-";
 
   try {
-    // Coba parse sebagai Date object
     const date = new Date(iso);
     if (isNaN(date.getTime())) {
-      // Jika parsing gagal, coba manual split
       if (iso.includes("-")) {
         const [y, m, d] = iso.split("-");
         if (y && m && d) return `${d}/${m}/${y}`;
@@ -59,7 +57,6 @@ const toDDMMYYYY = (iso) => {
       return iso;
     }
 
-    // Format sebagai DD/MM/YYYY
     const day = String(date.getDate()).padStart(2, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
@@ -71,8 +68,6 @@ const toDDMMYYYY = (iso) => {
 
 const TargetSchedulePage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
-
-  // === STATE UTAMA ===
   const [productionSchedules, setProductionSchedules] = useState([]);
   const [expandedRows, setExpandedRows] = useState({});
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
@@ -84,126 +79,280 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     poNumber: "",
     description: "",
   });
-
-  // === STATE BARU: Selection & Actions ===
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("New");
   const [autoCompleteLoading, setAutoCompleteLoading] = useState(false);
+
+  const [lastDataUpdate, setLastDataUpdate] = useState(Date.now());
+  const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
+
   const filteredSchedules = productionSchedules.filter(
     (schedule) => activeTab === "All" || schedule.status === activeTab
   );
-
-  // === STATE API ===
   const [loading, setLoading] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState({});
   const [error, setError] = useState(null);
   const [detailCache, setDetailCache] = useState({});
-
-  // Filter/search
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [searchBy, setSearchBy] = useState("Customer");
   const [keyword, setKeyword] = useState("");
-
-  // === TOAST NOTIFICATION ===
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const expandedRowsRef = useRef({});
+  const detailCacheRef = useRef({});
+  const selectedHeaderIdsRef = useRef(new Set());
 
-  // === FUNGSI AUTO-COMPLETE ===
-  const checkAndAutoCompleteSchedules = useCallback(async () => {
-    if (autoCompleteLoading) return;
+  const buildListQuery = useCallback(() => {
+    const q = {};
+    const resolvedStatus = ["New", "OnProgress", "Complete", "Reject"].includes(
+      activeTab
+    )
+      ? activeTab
+      : undefined;
+    if (resolvedStatus) q.status = resolvedStatus;
+    if (dateFrom) q.dateFrom = dateFrom;
+    if (dateTo) q.dateTo = dateTo;
+    if (keyword?.trim()) q.q = keyword.trim();
+    q.limit = 50;
+    q.page = 1;
+    return q;
+  }, [activeTab, dateFrom, dateTo, keyword]);
 
-    setAutoCompleteLoading(true);
-    try {
-      const result = await http("/api/production-schedules/auto-complete", {
-        method: "PATCH",
-      });
-
-      if (result.completed > 0) {
-        console.log(`Auto-completed ${result.completed} schedules`);
-        // Refresh data jika ada yang di-complete
-        await loadSchedulesFromServer();
+  const loadSchedulesFromServer = useCallback(
+    async (backgroundRefresh = false) => {
+      if (backgroundRefresh) {
+        setIsBackgroundRefreshing(true);
+      } else {
+        setLoading(true);
       }
-    } catch (err) {
-      console.error("Auto-complete error:", err);
-    } finally {
-      setAutoCompleteLoading(false);
-    }
-  }, [autoCompleteLoading]);
 
-  // === FUNGSI EMERGENCY COMPLETE ===
-  const handleEmergencyComplete = async (scheduleId) => {
-    if (!window.confirm("Force complete this schedule?")) return;
+      setError(null);
+      try {
+        const resp = await http(API.schedules.list(buildListQuery()));
+        const items = resp?.items || [];
+        const mapped = items.map((r) => ({
+          id: r.id,
+          date: r.target_date,
+          line: r.line_code,
+          shiftTime: r.shift_time,
+          total_input: r.total_input || 0,
+          total_customer: r.total_customer || 0,
+          total_model: r.total_model || 0,
+          total_pallet: r.total_pallet || 0,
+          createdBy: r.created_by_name || r.created_by || "-",
+          status: r.status || "New",
+        }));
 
-    try {
-      await http(API.schedules.updateStatus(scheduleId), {
-        method: "PATCH",
-        body: { status: "Complete" },
-      });
-
-      // Juga update details
-      const details = detailCache[scheduleId] || [];
-      for (const detail of details) {
-        if (detail.id) {
-          await http(`/api/production-schedule-details/${detail.id}/status`, {
-            method: "PATCH",
-            body: { status: "Complete" },
+        setProductionSchedules((prev) => {
+          const newSelected = new Set(selectedHeaderIdsRef.current);
+          const existingIds = new Set(prev.map((s) => s.id));
+          const newIds = new Set(mapped.map((s) => s.id));
+          newSelected.forEach((id) => {
+            if (!newIds.has(id)) {
+              newSelected.delete(id);
+            }
           });
+
+          selectedHeaderIdsRef.current = newSelected;
+          setSelectedHeaderIds(newSelected);
+
+          const currentFiltered = mapped.filter(
+            (schedule) => activeTab === "All" || schedule.status === activeTab
+          );
+          setSelectAll(
+            newSelected.size === currentFiltered.length &&
+              currentFiltered.length > 0
+          );
+
+          return mapped;
+        });
+
+        setLastDataUpdate(Date.now());
+      } catch (err) {
+        console.error("Background refresh error:", err);
+        if (!backgroundRefresh) {
+          setError(err.message || "Gagal memuat data.");
+          setProductionSchedules([]);
+        }
+      } finally {
+        if (backgroundRefresh) {
+          setIsBackgroundRefreshing(false);
+        } else {
+          setLoading(false);
         }
       }
+    },
+    [buildListQuery, activeTab]
+  );
 
-      await loadSchedulesFromServer();
-      setToastMessage("Schedule force completed");
-      setToastType("success");
+  const performBackgroundRefresh = useCallback(async () => {
+    if (isBackgroundRefreshing) return;
+
+    try {
+      expandedRowsRef.current = { ...expandedRows };
+      detailCacheRef.current = { ...detailCache };
+      selectedHeaderIdsRef.current = new Set(selectedHeaderIds);
+      const resp = await http(API.schedules.list(buildListQuery()));
+      const items = resp?.items || [];
+      const mapped = items.map((r) => ({
+        id: r.id,
+        date: r.target_date,
+        line: r.line_code,
+        shiftTime: r.shift_time,
+        total_input: r.total_input || 0,
+        total_customer: r.total_customer || 0,
+        total_model: r.total_model || 0,
+        total_pallet: r.total_pallet || 0,
+        createdBy: r.created_by_name || r.created_by || "-",
+        status: r.status || "New",
+      }));
+      setProductionSchedules((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(mapped)) {
+          return prev;
+        }
+        return mapped;
+      });
+
+      const newExpandedRows = {};
+      Object.keys(expandedRowsRef.current).forEach((id) => {
+        if (mapped.some((s) => s.id.toString() === id)) {
+          newExpandedRows[id] = expandedRowsRef.current[id];
+        }
+      });
+      const newDetailCache = {};
+      Object.keys(detailCacheRef.current).forEach((id) => {
+        if (mapped.some((s) => s.id.toString() === id)) {
+          newDetailCache[id] = detailCacheRef.current[id];
+        }
+      });
+      const newSelected = new Set();
+      selectedHeaderIdsRef.current.forEach((id) => {
+        if (mapped.some((s) => s.id === id)) {
+          newSelected.add(id);
+        }
+      });
+      setTimeout(() => {
+        if (Object.keys(newExpandedRows).length > 0) {
+          setExpandedRows((prev) => ({ ...prev, ...newExpandedRows }));
+        }
+
+        if (Object.keys(newDetailCache).length > 0) {
+          setDetailCache((prev) => ({ ...prev, ...newDetailCache }));
+        }
+
+        if (newSelected.size > 0) {
+          setSelectedHeaderIds(newSelected);
+        }
+      }, 10);
+
+      setLastDataUpdate(Date.now());
     } catch (err) {
-      alert("Failed to force complete: " + err.message);
+      console.log(
+        "Silent background refresh failed, will retry later:",
+        err.message
+      );
     }
-  };
+  }, [
+    buildListQuery,
+    expandedRows,
+    detailCache,
+    selectedHeaderIds,
+    isBackgroundRefreshing,
+  ]);
+
+  const autoCheckAndRefresh = useCallback(async () => {
+    try {
+      const now = timerService.getCurrentTime();
+      const currentTimeStr = now.toLocaleTimeString();
+      try {
+        await http("/api/production-schedules/auto-progress", {
+          method: "PATCH",
+        });
+      } catch (progressErr) {}
+
+      try {
+        await http("/api/production-schedules/auto-complete", {
+          method: "PATCH",
+        });
+      } catch (completeErr) {}
+      const timeSinceLastUpdate = Date.now() - lastDataUpdate;
+      if (timeSinceLastUpdate > 2000) {
+        console.log(
+          `[SILENT-REFRESH] Performing transparent refresh for tab: ${activeTab} at ${currentTimeStr}`
+        );
+        performBackgroundRefresh();
+      }
+    } catch (err) {
+      console.log("[SILENT-REFRESH] Error in background process:", err.message);
+    }
+  }, [performBackgroundRefresh, lastDataUpdate, activeTab]);
+
+  useEffect(() => {
+    loadSchedulesFromServer();
+  }, [loadSchedulesFromServer]);
+
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      autoCheckAndRefresh();
+    }, 1000);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        setTimeout(() => {
+          autoCheckAndRefresh();
+        }, 1000);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(refreshInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [autoCheckAndRefresh]);
 
   const toggleHeaderCheckbox = (headerId, checked) => {
-    setSelectedHeaderIds((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        next.add(headerId);
-      } else {
-        next.delete(headerId);
-      }
+    if (activeTab === "New") {
+      setSelectedHeaderIds((prev) => {
+        const next = new Set(prev);
+        if (checked) {
+          next.add(headerId);
+        } else {
+          next.delete(headerId);
+        }
+        if (checked && next.size === filteredSchedules.length) {
+          setSelectAll(true);
+        } else if (!checked) {
+          setSelectAll(false);
+        }
 
-      // Update selectAll state
-      if (checked && next.size === filteredSchedules.length) {
-        setSelectAll(true);
-      } else if (!checked) {
-        setSelectAll(false);
-      }
+        selectedHeaderIdsRef.current = next;
 
-      return next;
-    });
+        return next;
+      });
+    }
   };
 
   const toggleSelectAll = () => {
     if (selectAll) {
       setSelectedHeaderIds(new Set());
+      selectedHeaderIdsRef.current = new Set();
     } else {
-      let newScheduleIds = [];
-
       if (activeTab === "New") {
-        newScheduleIds = productionSchedules
-          .filter((schedule) => schedule.status === "New")
-          .map((schedule) => schedule.id);
-      } else if (activeTab === "OnProgress") {
-        newScheduleIds = productionSchedules
-          .filter((schedule) => schedule.status === "OnProgress")
-          .map((schedule) => schedule.id);
+        const newScheduleIds = filteredSchedules.map((schedule) => schedule.id);
+        const newSet = new Set(newScheduleIds);
+        setSelectedHeaderIds(newSet);
+        selectedHeaderIdsRef.current = newSet;
       }
-
-      setSelectedHeaderIds(new Set(newScheduleIds));
     }
     setSelectAll(!selectAll);
   };
 
-  // === FUNGSI SAVE SCHEDULE (Pindah ke OnProgress) ===
   const handleSaveSchedule = async () => {
     if (selectedHeaderIds.size === 0) {
       alert("Pilih minimal 1 schedule untuk disimpan!");
@@ -229,9 +378,9 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
 
       await Promise.all(updatePromises);
 
-      // Refresh data setelah update berhasil
       await loadSchedulesFromServer();
       setSelectedHeaderIds(new Set());
+      selectedHeaderIdsRef.current = new Set();
       setSelectAll(false);
 
       setToastMessage(
@@ -248,13 +397,11 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   const handleDeleteSchedule = async (scheduleId, scheduleCode = "") => {
     if (!scheduleId) return;
 
-    // Konfirmasi delete sederhana
     if (!window.confirm("Are you sure to delete this schedule?")) {
       return;
     }
 
     try {
-      // Tampilkan loading state jika diperlukan
       setLoadingDetail((prev) => ({ ...prev, [scheduleId]: true }));
 
       const result = await http(API.schedules.delete(scheduleId), {
@@ -262,38 +409,32 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       });
 
       if (result.success) {
-        // Show success message
         setToastMessage("Schedule successfully deleted");
         setToastType("success");
-
-        // Refresh data setelah delete berhasil
-        await loadSchedulesFromServer();
-
-        // Hapus dari cache jika ada
         setDetailCache((prev) => {
           const newCache = { ...prev };
           delete newCache[scheduleId];
           return newCache;
         });
 
-        // Hapus dari expanded rows jika ada
         setExpandedRows((prev) => {
           const newExpanded = { ...prev };
           delete newExpanded[scheduleId];
           return newExpanded;
         });
 
-        // Hapus dari selected jika ada
         setSelectedHeaderIds((prev) => {
           const newSelected = new Set(prev);
           newSelected.delete(scheduleId);
+          selectedHeaderIdsRef.current = newSelected;
           return newSelected;
         });
+
+        await loadSchedulesFromServer();
       } else {
         throw new Error(result.message || "Failed to delete schedule");
       }
     } catch (err) {
-      // Handle specific error cases
       if (
         err.status === 400 &&
         err.data?.error === "Foreign key constraint violation"
@@ -303,7 +444,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         );
       } else if (err.status === 404) {
         alert("Schedule not found. Maybe already deleted.");
-        // Refresh data karena schedule mungkin sudah dihapus
         await loadSchedulesFromServer();
       } else {
         alert(`Failed to delete schedule: ${err.message || "Unknown error"}`);
@@ -317,13 +457,11 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleDeleteDetail = async (detailId, scheduleId) => {
-    // VALIDASI LEBIH KETAT DAN DETAIL
     if (!detailId || !scheduleId) {
       alert("Error: Detail ID atau Schedule ID tidak valid");
       return;
     }
 
-    // Validasi tipe data dan format
     if (typeof detailId !== "number" || detailId <= 0) {
       alert("Error: Format Detail ID tidak valid. Harus berupa angka positif.");
       return;
@@ -347,14 +485,11 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         setToastMessage("Detail successfully deleted");
         setToastType("success");
 
-        // Refresh detail cache untuk schedule tersebut
         const updatedDetails = await http(API.schedules.detail(scheduleId));
         setDetailCache((prev) => ({
           ...prev,
           [scheduleId]: updatedDetails.details || [],
         }));
-
-        // Refresh header totals
         await loadSchedulesFromServer();
       } else {
         throw new Error(result.message || "Failed to delete detail");
@@ -384,23 +519,18 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       if (result) {
         setToastMessage("Schedule successfully marked as Complete");
         setToastType("success");
-
-        // Refresh data setelah update berhasil
-        await loadSchedulesFromServer();
-
-        // Hapus dari cache jika ada
         setDetailCache((prev) => {
           const newCache = { ...prev };
           delete newCache[scheduleId];
           return newCache;
         });
 
-        // Hapus dari expanded rows jika ada
         setExpandedRows((prev) => {
           const newExpanded = { ...prev };
           delete newExpanded[scheduleId];
           return newExpanded;
         });
+        await loadSchedulesFromServer();
       } else {
         throw new Error("Failed to complete schedule");
       }
@@ -437,10 +567,9 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       );
 
       await Promise.all(updatePromises);
-
-      // Refresh data setelah update berhasil
       await loadSchedulesFromServer();
       setSelectedHeaderIds(new Set());
+      selectedHeaderIdsRef.current = new Set();
       setSelectAll(false);
 
       setToastMessage(
@@ -456,7 +585,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fungsi toggle row expansion
   const toggleRowExpansion = async (rowId) => {
     setExpandedRows((prev) => {
       const newExpandedRows = {
@@ -479,10 +607,11 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
           return newVendorRows;
         });
       }
+      expandedRowsRef.current = newExpandedRows;
+
       return newExpandedRows;
     });
 
-    // load detail saat expand pertama
     if (!expandedRows[rowId] && !detailCache[rowId]) {
       try {
         setLoadingDetail((p) => ({ ...p, [rowId]: true }));
@@ -498,9 +627,13 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
           palletType: d.pallet_type || "Pallet R",
           palletUse: d.pallet_use || 1,
         }));
-        setDetailCache((p) => ({ ...p, [rowId]: details }));
+
+        setDetailCache((p) => {
+          const newCache = { ...p, [rowId]: details };
+          detailCacheRef.current = newCache;
+          return newCache;
+        });
       } catch (err) {
-        // Tetap tidak perlu log error di sini
       } finally {
         setLoadingDetail((p) => ({ ...p, [rowId]: false }));
       }
@@ -511,84 +644,13 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     setAddCustomerDetail(true);
   };
 
-  const toggleVendorRowExpansion = (vendorRowId) => {
-    setExpandedVendorRows((prev) => ({
-      ...prev,
-      [vendorRowId]: !prev[vendorRowId],
-    }));
-  };
-
-  // === LOAD DATA DARI SERVER ===
-  const resolvedStatus = useMemo(() => {
-    return ["New", "OnProgress", "Complete", "Reject"].includes(activeTab)
-      ? activeTab
-      : undefined;
-  }, [activeTab]);
-
-  const buildListQuery = () => {
-    const q = {};
-    if (resolvedStatus) q.status = resolvedStatus;
-    if (dateFrom) q.dateFrom = dateFrom;
-    if (dateTo) q.dateTo = dateTo;
-    if (keyword?.trim()) q.q = keyword.trim();
-    q.limit = 50;
-    q.page = 1;
-    return q;
-  };
-
-  const loadSchedulesFromServer = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const resp = await http(API.schedules.list(buildListQuery()));
-      const items = resp?.items || [];
-      const mapped = items.map((r) => ({
-        id: r.id,
-        date: r.target_date,
-        line: r.line_code,
-        shiftTime: r.shift_time,
-        total_input: r.total_input || 0,
-        total_customer: r.total_customer || 0,
-        total_model: r.total_model || 0,
-        total_pallet: r.total_pallet || 0,
-        createdBy: r.created_by_name || r.created_by || "-",
-        status: r.status || "New", // Pastikan status ada
-      }));
-      setProductionSchedules(mapped);
-    } catch (err) {
-      setError(err.message || "Gagal memuat data.");
-      setProductionSchedules([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadSchedulesFromServer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
-
-  // === AUTO-COMPLETE EFFECTS ===
-  useEffect(() => {
-    checkAndAutoCompleteSchedules();
-
-    const interval = setInterval(() => {
-      checkAndAutoCompleteSchedules();
-    }, 60000); // 1 menit
-
-    return () => clearInterval(interval);
-  }, [checkAndAutoCompleteSchedules]);
-
-  useEffect(() => {
-    checkAndAutoCompleteSchedules();
-  }, [activeTab, checkAndAutoCompleteSchedules]);
-
   const handleSearchClick = () => {
     loadSchedulesFromServer();
   };
 
   useEffect(() => {
     setSelectedHeaderIds(new Set());
+    selectedHeaderIdsRef.current = new Set();
     setSelectAll(false);
   }, [activeTab]);
 
@@ -603,7 +665,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     }
   }, [selectedHeaderIds, filteredSchedules]);
 
-  // Toast effect
   useEffect(() => {
     if (!toastMessage) return;
     const timer = setTimeout(() => {
@@ -613,7 +674,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
-  // ===== Tooltip =====
   const [tooltip, setTooltip] = useState({
     visible: false,
     content: "",
@@ -637,7 +697,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     setAddCustomerFormData((prev) => {
       const updated = { ...prev, [field]: value };
 
-      // Auto-fill Material Code based on Customer selection
       if (field === "partCode") {
         if (value === "EEB") {
           updated.partName = "B224401-1143";
@@ -740,12 +799,12 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     padding: "4px 8px",
   };
 
-  // Fungsi untuk menentukan colgroup berdasarkan activeTab
   const getColgroup = () => {
     if (activeTab === "New") {
       return (
         <colgroup>
           <col style={{ width: "25px" }} />
+          {/* KOLOM CHECKBOX SELALU ADA UNTUK TAB NEW */}
           <col style={{ width: "3.3%" }} />
           <col style={{ width: "23px" }} />
           <col style={{ width: "15%" }} />
@@ -763,11 +822,11 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       return (
         <colgroup>
           <col style={{ width: "25px" }} />
-          <col style={{ width: "3.3%" }} />
+          {/* TIDAK ADA KOLOM CHECKBOX untuk OnProgress */}
           <col style={{ width: "23px" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
+          <col style={{ width: "16%" }} />
+          <col style={{ width: "16%" }} />
+          <col style={{ width: "16%" }} />
           <col style={{ width: "12%" }} />
           <col style={{ width: "12%" }} />
           <col style={{ width: "12%" }} />
@@ -777,7 +836,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         </colgroup>
       );
     } else {
-      // Complete dan Reject - tanpa checkbox dan action
       return (
         <colgroup>
           <col style={{ width: "25px" }} />
@@ -795,11 +853,10 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fungsi untuk menentukan jumlah kolom berdasarkan activeTab
   const getColSpanCount = () => {
     if (activeTab === "New") return 12;
-    if (activeTab === "OnProgress") return 11;
-    return 10; // Complete dan Reject
+    if (activeTab === "OnProgress") return 10;
+    return 9;
   };
 
   const styles = {
@@ -1454,9 +1511,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
 
   const handleTabHover = (e, isHover, isActive) => {
     if (!isActive) {
-      e.target.style.color = isHover
-        ? styles.tabButtonHover?.color || "#2563eb"
-        : styles.tabButton?.color || "#6b7280";
+      e.target.style.color = isHover ? "#2563eb" : "#6b7280";
     }
   };
 
@@ -1566,7 +1621,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
             Create
           </button>
 
-          {/* Button untuk Complete Multiple Schedules (OnProgress tab) */}
           {activeTab === "OnProgress" && selectedHeaderIds.size > 0 && (
             <button
               style={{
@@ -1659,10 +1713,9 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
               <thead>
                 <tr style={styles.tableHeader}>
                   <th style={styles.expandedTh}>No</th>
-                  {/* Checkbox hanya untuk New dan OnProgress */}
-                  {(activeTab === "New" || activeTab === "OnProgress") && (
+                  {activeTab === "New" && (
                     <th style={styles.thWithLeftBorder}>
-                      {filteredSchedules.length > 0 && (
+                      {filteredSchedules.length > 1 && (
                         <input
                           type="checkbox"
                           checked={selectAll}
@@ -1687,7 +1740,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                   <th style={styles.thWithLeftBorder}>Total Model</th>
                   <th style={styles.thWithLeftBorder}>Total Pallet</th>
                   <th style={styles.thWithLeftBorder}>Created By</th>
-                  {/* Action hanya untuk New dan OnProgress */}
                   {(activeTab === "New" || activeTab === "OnProgress") && (
                     <th style={styles.thWithLeftBorder}>Action</th>
                   )}
@@ -1746,8 +1798,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                         >
                           {idx + 1}
                         </td>
-                        {/* Checkbox hanya untuk New dan OnProgress */}
-                        {(activeTab === "New" || activeTab === "OnProgress") && (
+                        {activeTab === "New" && (
                           <td style={styles.tdWithLeftBorder}>
                             <input
                               type="checkbox"
@@ -1838,8 +1889,8 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                         >
                           {String(h.createdBy).toUpperCase()}
                         </td>
-                        {/* Action hanya untuk New dan OnProgress */}
-                        {(activeTab === "New" || activeTab === "OnProgress") && (
+                        {(activeTab === "New" ||
+                          activeTab === "OnProgress") && (
                           <td style={styles.tdWithLeftBorder}>
                             <button
                               style={styles.addButton}
@@ -2246,7 +2297,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         </div>
       )}
 
-      {/* Tooltip */}
       <div style={styles.tooltip}>{tooltip.content}</div>
     </div>
   );

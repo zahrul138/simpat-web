@@ -1145,15 +1145,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               </button>
             </div>
           </div>
-          <div style={styles.inputGroup}>
-            <span style={styles.label}>Label ID</span>
-            <input
-              type="text"
-              style={styles.labelIdInput}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-            />
-          </div>
         </div>
 
         <div style={styles.actionButtonsGroup}>

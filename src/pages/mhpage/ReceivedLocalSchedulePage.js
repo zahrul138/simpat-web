@@ -169,12 +169,26 @@ const ReceivedLocalSchedulePage = ({ sidebarVisible }) => {
     });
   };
 
-  // Fungsi untuk menyembunyikan tooltip
+  const handleInputFocus = (e) => {
+    e.target.style.borderColor = "#9fa8da";
+  };
+
+  const handleInputBlur = (e) => {
+    e.target.style.borderColor = "#d1d5db";
+  };
+
   const hideTooltip = () => {
     setTooltip({
       ...tooltip,
       visible: false,
     });
+  };
+
+  const optionStyle = {
+    backgroundColor: "#d1d5db",
+    color: "#374151",
+    fontSize: "12px",
+    padding: "4px 8px",
   };
 
   const styles = {
@@ -197,27 +211,77 @@ const ReceivedLocalSchedulePage = ({ sidebarVisible }) => {
       borderRadius: "8px",
       boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
       border: "1px solid #e5e7eb",
-      marginBottom: "24px",
+      marginBottom: "20px",
     },
+
     headerRow: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: "24px",
     },
+
     title: {
       fontSize: "20px",
       fontWeight: "600",
       color: "#1f2937",
       margin: 0,
     },
-    actionButtonsGroup: {
-      display: "flex",
-      gap: "8px",
-      marginBottom: "24px",
-      marginTop: "10px",
-      right: "10px",
+
+    filterRow: {
+      display: "grid",
+      alignItems: "center",
+      gap: "12px",
+      marginBottom: "16px",
     },
+
+    inputGroup: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+
+    label: {
+      fontSize: "12px",
+      color: "#374151",
+      fontWeight: "500",
+    },
+
+    input: {
+      height: "32px",
+      border: "2px solid #d1d5db",
+      borderRadius: "4px",
+      padding: "0 12px",
+      fontSize: "12px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      minWidth: "120px",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+    },
+
+    inputFocus: {
+      border: "2px solid #9fa8da",
+    },
+
+    select: {
+      height: "32px",
+      border: "2px solid #d1d5db",
+      borderRadius: "4px",
+      padding: "0 8px",
+      fontSize: "12px",
+      backgroundColor: "#e0e7ff",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      minWidth: "120px",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+    },
+
+    selectFocus: {
+      border: "2px solid #9fa8da",
+    },
+
     button: {
       padding: "8px 16px",
       borderRadius: "4px",
@@ -227,10 +291,25 @@ const ReceivedLocalSchedulePage = ({ sidebarVisible }) => {
       fontWeight: "500",
       transition: "background-color 0.2s ease, color 0.2s ease",
       fontFamily: "inherit",
-      display: "flex",
-      alignItems: "center",
+      backgroundColor: "#2563eb",
+      color: "white",
       gap: "8px",
+      display: "flex",
     },
+    optionStyle: {
+      backgroundColor: "#d1d5db",
+      color: "#374151",
+      fontSize: "12px",
+      padding: "4px 8px",
+    },
+    actionButtonsGroup: {
+      display: "flex",
+      gap: "8px",
+      marginBottom: "24px",
+      marginTop: "10px",
+      right: "10px",
+    },
+  
     primaryButton: {
       backgroundColor: "#2563eb",
       color: "white",
@@ -238,52 +317,7 @@ const ReceivedLocalSchedulePage = ({ sidebarVisible }) => {
     primaryButtonHover: {
       backgroundColor: "#1d4ed8",
     },
-    filterRow: {
-      display: "flex",
-      alignItems: "center",
-      gap: "16px",
-      marginBottom: "16px",
-      flexWrap: "wrap",
-    },
-    inputGroup: {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-    },
-    label: {
-      fontSize: "12px",
-      fontWeight: "500",
-      color: "#4b5563",
-      marginBottom: "3px",
-      display: "block",
-    },
-    input: {
-      display: "flex",
-      height: "20px",
-      width: "25%",
-      borderRadius: "6px",
-      border: "1px solid #d1d5db",
-      backgroundColor: "#ffffff",
-      padding: "8px 12px",
-      fontSize: "12px",
-      outline: "none",
-      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-    },
-    select: {
-      display: "flex",
-      height: "35px",
-      width: "40%",
-      borderRadius: "6px",
-      border: "1px solid #d1d5db",
-      backgroundColor: "#ffffff",
-      padding: "8px 12px",
-      fontSize: "14px",
-      outline: "none",
-      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-      cursor: "pointer",
-    },
+  
     searchButton: {
       backgroundColor: "#2563eb",
       color: "white",
@@ -459,7 +493,7 @@ const ReceivedLocalSchedulePage = ({ sidebarVisible }) => {
       verticalAlign: "middle",
       overflow: "hidden",
     },
-        paginationBar: {
+    paginationBar: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
@@ -470,7 +504,7 @@ const ReceivedLocalSchedulePage = ({ sidebarVisible }) => {
       borderRadius: "0 0 8px 8px",
       fontSize: "12px",
       color: "#374151",
-      height: "20px"
+      height: "20px",
     },
     paginationControls: {
       display: "flex",
@@ -766,48 +800,61 @@ const ReceivedLocalSchedulePage = ({ sidebarVisible }) => {
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Local Part Schedule</h1>
+            <h1 style={styles.title}>Local Schedule</h1>
           </div>
 
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Date Filter</span>
-              <select style={styles.select}>
-                <option>Search Date</option>
+              <select
+                style={styles.select}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+              >
+                <option style={optionStyle}>Search Date</option>
               </select>
-              <input type="date" style={styles.input} placeholder="Date From" />
+              <input
+                type="date"
+                style={styles.input}
+                placeholder="Date From"
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+              />
               <span style={styles.label}>To</span>
-              <input type="date" style={styles.input} placeholder="Date To" />
+              <input
+                type="date"
+                style={styles.input}
+                placeholder="Date To"
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+              />
             </div>
-            {/* Vertical separator */}
-            <div
-              style={{ borderLeft: "1px solid #e5e7eb", height: "32px" }}
-            ></div>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
-              <select style={styles.select}>
-                <option>Search By</option>
+              <select
+                style={styles.select}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+              >
+                <option style={optionStyle}>Customer</option>
+                <option style={optionStyle}>Product Code</option>
+                <option style={optionStyle}>Product Description</option>
               </select>
               <input
                 type="text"
                 style={styles.input}
                 placeholder="Input Keyword"
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
               />
               <button
-                style={{ ...styles.button, ...styles.searchButton }}
+                style={styles.button}
                 onMouseEnter={(e) => handleButtonHover(e, true, "search")}
                 onMouseLeave={(e) => handleButtonHover(e, false, "search")}
               >
                 Search
               </button>
             </div>
-          </div>
-          <div style={styles.inputGroup}>
-            <span style={styles.label}>Label ID</span>
-            <input
-              type="text"
-              style={{ ...styles.input, ...styles.labelIdInput }}
-            />
           </div>
         </div>
 
@@ -932,458 +979,436 @@ const ReceivedLocalSchedulePage = ({ sidebarVisible }) => {
 
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
-                          <table
-                style={{
-                  ...styles.table,
-                  minWidth: "1200px",
-                  tableLayout: "fixed",
-                }}
-              >
-                <colgroup>
-                  <col style={{ width: "25px" }} />
-                  <col style={{ width: "2.5%" }} />
-                  <col style={{ width: "25px" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "25%" }} />
-                  <col style={{ width: "10%" }} />
-                </colgroup>
-                <thead>
-                  <tr style={styles.tableHeader}>
-                    <th style={styles.expandedTh}>No</th>
-                    <th style={styles.thWithLeftBorder}></th>
-                    <th style={styles.thWithLeftBorder}></th>
-                    <th style={styles.thWithLeftBorder}>Schedule Date</th>
-                    <th style={styles.thWithLeftBorder}>Stock Level</th>
-                    <th style={styles.thWithLeftBorder}>Model</th>
-                    <th style={styles.thWithLeftBorder}>Total Vendor</th>
-                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
-                    <th style={styles.thWithLeftBorder}>Total Item</th>
-                    <th style={styles.thWithLeftBorder}>Upload By</th>
-                    <th style={styles.thWithLeftBorder}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
+            <table
+              style={{
+                ...styles.table,
+                minWidth: "1200px",
+                tableLayout: "fixed",
+              }}
+            >
+              <colgroup>
+                <col style={{ width: "25px" }} />
+                <col style={{ width: "2.5%" }} />
+                <col style={{ width: "25px" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "25%" }} />
+                <col style={{ width: "10%" }} />
+              </colgroup>
+              <thead>
+                <tr style={styles.tableHeader}>
+                  <th style={styles.expandedTh}>No</th>
+                  <th style={styles.thWithLeftBorder}></th>
+                  <th style={styles.thWithLeftBorder}></th>
+                  <th style={styles.thWithLeftBorder}>Schedule Date</th>
+                  <th style={styles.thWithLeftBorder}>Stock Level</th>
+                  <th style={styles.thWithLeftBorder}>Model</th>
+                  <th style={styles.thWithLeftBorder}>Total Vendor</th>
+                  <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                  <th style={styles.thWithLeftBorder}>Total Item</th>
+                  <th style={styles.thWithLeftBorder}>Upload By</th>
+                  <th style={styles.thWithLeftBorder}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  onMouseEnter={(e) =>
+                    (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.target.closest("tr").style.backgroundColor =
+                      "transparent")
+                  }
+                >
+                  <td
+                    style={{
+                      ...styles.expandedTd,
+                      ...styles.expandedWithLeftBorder,
+                      ...styles.emptyColumn,
+                    }}
                   >
-                    <td
+                    1
+                  </td>
+                  <td style={styles.tdWithLeftBorder}>
+                    <input
+                      type="checkbox"
                       style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
+                        margin: "0 auto",
+                        display: "block",
+                        cursor: "pointer",
+                        width: "12px",
+                        height: "12px",
                       }}
-                    >
-                      1
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="checkbox"
-                        style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
-                        }}
-                      />
-                    </td>
-                    <td
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      <button
-                        style={styles.arrowButton}
-                        onClick={() => toggleRowExpansion(1)}
-                      >
-                        {expandedRows[1] ? (
-                          <MdArrowDropDown style={styles.arrowIcon} />
-                        ) : (
-                          <MdArrowRight style={styles.arrowIcon} />
-                        )}
-                      </button>
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>18/08/2025</td>
-                    <td style={styles.tdWithLeftBorder}>M101 | SCN-MH</td>
-                    <td style={styles.tdWithLeftBorder}>Veronicas</td>
-                    <td style={styles.tdWithLeftBorder}>2</td>
-                    <td style={styles.tdWithLeftBorder}>4</td>
-                    <td style={styles.tdWithLeftBorder}>12</td>
-                    <td style={styles.tdWithLeftBorder}>ZAHRUL ROMADHON</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <button style={styles.deleteButton}>
-                        <Trash2 size={10} />
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedRows[1] && (
-                    <tr>
-                      <td colSpan="11" style={{ padding: 0, border: "none" }}>
-                        <div style={styles.expandedTableContainer}>
-                          <table style={styles.expandedTable}>
-                            <colgroup>
-                              <col style={{ width: "25px" }} />
-                              <col style={{ width: "25px" }} />
-                              <col style={{ width: "10%" }} />
-                              <col style={{ width: "50%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "15%" }} />
-                              <col style={{ width: "10%" }} />
-                            </colgroup>
-                            <thead>
-                              <tr style={styles.expandedTableHeader}>
-                                <th style={styles.expandedTh}>No</th>
-                                <th style={styles.expandedTh}></th>
-                                <th style={styles.expandedTh}>Trip</th>
-                                <th style={styles.expandedTh}>Vendor Name</th>
-                                <th style={styles.expandedTh}>DO Number</th>
-                                <th style={styles.expandedTh}>Arrival Time</th>
-                                <th style={styles.expandedTh}>Total Pallet</th>
-                                <th style={styles.expandedTh}>Total Item</th>
-                                <th style={styles.expandedTh}>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr
-                                onMouseEnter={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "#c7cde8")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "transparent")
-                                }
-                              >
-                                <td
-                                  style={{
-                                    ...styles.expandedTd,
-                                    ...styles.expandedWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  1
-                                </td>
-                                <td
-                                  style={{
-                                    ...styles.tdWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  <button
-                                    style={styles.arrowButton}
-                                    onClick={() =>
-                                      toggleVendorRowExpansion("vendor_1_1")
-                                    }
-                                  >
-                                    {expandedVendorRows["vendor_1_1"] ? (
-                                      <MdArrowDropDown
-                                        style={styles.arrowIcon}
-                                      />
-                                    ) : (
-                                      <MdArrowRight style={styles.arrowIcon} />
-                                    )}
-                                  </button>
-                                </td>
-                                <td style={styles.expandedTd}>Trip-01</td>
-                                <td style={styles.expandedTd}>
-                                  188646 - PT. DAIHO INDONESIA
-                                </td>
-                                <td style={styles.expandedTd}>DO-001</td>
-                                <td style={styles.expandedTd}>08:00</td>
-                                <td style={styles.expandedTd}>2</td>
-                                <td style={styles.expandedTd}>6</td>
-                                <td style={styles.expandedTd}>
-                                  <button style={styles.deleteButton}>
-                                    <Trash2 size={10} />
-                                  </button>
-                                </td>
-                              </tr>
-                              {expandedVendorRows["vendor_1_1"] && (
-                                <tr>
-                                  <td
-                                    colSpan="9"
-                                    style={{ padding: 0, border: "none" }}
-                                  >
-                                    <div
-                                      style={styles.thirdLevelTableContainer}
-                                    >
-                                      <table style={styles.thirdLevelTable}>
-                                        <colgroup>
-                                          <col style={{ width: "1.5%" }} />
-                                          <col style={{ width: "10%" }} />
-                                          <col style={{ width: "20%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "8%" }} />
-                                          <col style={{ width: "5%" }} />
-                                        </colgroup>
-                                        <thead>
-                                          <tr
-                                            style={styles.thirdLevelTableHeader}
-                                          >
-                                            <th style={styles.expandedTh}>
-                                              No
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Part Code
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Part Name
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Qty
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Qty Box
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Unit
-                                            </th>
-                                            <th style={styles.thirdLevelTh}>
-                                              Action
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          <tr
-                                            onMouseEnter={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "#c7cde8")
-                                            }
-                                            onMouseLeave={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "transparent")
-                                            }
-                                          >
-                                            <td
-                                              style={{
-                                                ...styles.expandedTd,
-                                                ...styles.expandedWithLeftBorder,
-                                                ...styles.emptyColumn,
-                                              }}
-                                            >
-                                              1
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              213345432
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              Engine Part A
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              50
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              2
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              PCS
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              <button
-                                                style={styles.deleteButton}
-                                              >
-                                                <Trash2 size={10} />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                          <tr
-                                            onMouseEnter={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "#c7cde8")
-                                            }
-                                            onMouseLeave={(e) =>
-                                              (e.target.closest(
-                                                "tr"
-                                              ).style.backgroundColor =
-                                                "transparent")
-                                            }
-                                          >
-                                            <td
-                                              style={{
-                                                ...styles.expandedTd,
-                                                ...styles.expandedWithLeftBorder,
-                                                ...styles.emptyColumn,
-                                              }}
-                                            >
-                                              2
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              214235654
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              Engine Part B
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              30
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              5
-                                            </td>
-                                            <td style={styles.thirdLevelTd}>
-                                              PCS
-                                            </td>
-                                            
-                                            <td style={styles.thirdLevelTd}>
-                                              <button
-                                                style={styles.deleteButton}
-                                              >
-                                                <Trash2 size={10} />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                              <tr
-                                onMouseEnter={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "#c7cde8")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.target.closest(
-                                    "tr"
-                                  ).style.backgroundColor = "transparent")
-                                }
-                              >
-                                <td
-                                  style={{
-                                    ...styles.expandedTd,
-                                    ...styles.expandedWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  2
-                                </td>
-                                <td
-                                  style={{
-                                    ...styles.tdWithLeftBorder,
-                                    ...styles.emptyColumn,
-                                  }}
-                                >
-                                  <button
-                                    style={styles.arrowButton}
-                                    onClick={() =>
-                                      toggleVendorRowExpansion("vendor_1_2")
-                                    }
-                                  >
-                                    {expandedVendorRows["vendor_1_2"] ? (
-                                      <MdArrowDropDown
-                                        style={styles.arrowIcon}
-                                      />
-                                    ) : (
-                                      <MdArrowRight style={styles.arrowIcon} />
-                                    )}
-                                  </button>
-                                </td>
-                                <td style={styles.expandedTd}>Trip-02</td>
-                                <td style={styles.expandedTd}>
-                                  188651 - PT. SAT NUSAPERSADA TBK
-                                </td>
-                                <td style={styles.expandedTd}>DO-002</td>
-                                <td style={styles.expandedTd}>10:00</td>
-                                <td style={styles.expandedTd}>1</td>
-                                <td style={styles.expandedTd}>3</td>
-                                <td style={styles.expandedTd}>
-                                  <button style={styles.deleteButton}>
-                                    <Trash2 size={10} />
-                                  </button>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  <tr
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
+                    />
+                  </td>
+                  <td
+                    style={{
+                      ...styles.tdWithLeftBorder,
+                      ...styles.emptyColumn,
+                    }}
                   >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
+                    <button
+                      style={styles.arrowButton}
+                      onClick={() => toggleRowExpansion(1)}
                     >
-                      2
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="checkbox"
-                        style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
-                        }}
-                      />
-                    </td>
-                    <td
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      <button
-                        style={styles.arrowButton}
-                        onClick={() => toggleRowExpansion(2)}
-                      >
-                        {expandedRows[2] ? (
-                          <MdArrowDropDown style={styles.arrowIcon} />
-                        ) : (
-                          <MdArrowRight style={styles.arrowIcon} />
-                        )}
-                      </button>
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>18/08/2025</td>
-                    <td style={styles.tdWithLeftBorder}>M101 | SCN-MH</td>
-                    <td style={styles.tdWithLeftBorder}>Veronicas</td>
-                    <td style={styles.tdWithLeftBorder}>2</td>
-                    <td style={styles.tdWithLeftBorder}>4</td>
-                    <td style={styles.tdWithLeftBorder}>12</td>
-                    <td style={styles.tdWithLeftBorder}>ZAHRUL ROMADHON</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <button style={styles.deleteButton}>
-                        <Trash2 size={10} />
-                      </button>
+                      {expandedRows[1] ? (
+                        <MdArrowDropDown style={styles.arrowIcon} />
+                      ) : (
+                        <MdArrowRight style={styles.arrowIcon} />
+                      )}
+                    </button>
+                  </td>
+                  <td style={styles.tdWithLeftBorder}>18/08/2025</td>
+                  <td style={styles.tdWithLeftBorder}>M101 | SCN-MH</td>
+                  <td style={styles.tdWithLeftBorder}>Veronicas</td>
+                  <td style={styles.tdWithLeftBorder}>2</td>
+                  <td style={styles.tdWithLeftBorder}>4</td>
+                  <td style={styles.tdWithLeftBorder}>12</td>
+                  <td style={styles.tdWithLeftBorder}>ZAHRUL ROMADHON</td>
+                  <td style={styles.tdWithLeftBorder}>
+                    <button style={styles.deleteButton}>
+                      <Trash2 size={10} />
+                    </button>
+                  </td>
+                </tr>
+                {expandedRows[1] && (
+                  <tr>
+                    <td colSpan="11" style={{ padding: 0, border: "none" }}>
+                      <div style={styles.expandedTableContainer}>
+                        <table style={styles.expandedTable}>
+                          <colgroup>
+                            <col style={{ width: "25px" }} />
+                            <col style={{ width: "25px" }} />
+                            <col style={{ width: "10%" }} />
+                            <col style={{ width: "50%" }} />
+                            <col style={{ width: "15%" }} />
+                            <col style={{ width: "15%" }} />
+                            <col style={{ width: "15%" }} />
+                            <col style={{ width: "15%" }} />
+                            <col style={{ width: "10%" }} />
+                          </colgroup>
+                          <thead>
+                            <tr style={styles.expandedTableHeader}>
+                              <th style={styles.expandedTh}>No</th>
+                              <th style={styles.expandedTh}></th>
+                              <th style={styles.expandedTh}>Trip</th>
+                              <th style={styles.expandedTh}>Vendor Name</th>
+                              <th style={styles.expandedTh}>DO Number</th>
+                              <th style={styles.expandedTh}>Arrival Time</th>
+                              <th style={styles.expandedTh}>Total Pallet</th>
+                              <th style={styles.expandedTh}>Total Item</th>
+                              <th style={styles.expandedTh}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr
+                              onMouseEnter={(e) =>
+                                (e.target.closest("tr").style.backgroundColor =
+                                  "#c7cde8")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.target.closest("tr").style.backgroundColor =
+                                  "transparent")
+                              }
+                            >
+                              <td
+                                style={{
+                                  ...styles.expandedTd,
+                                  ...styles.expandedWithLeftBorder,
+                                  ...styles.emptyColumn,
+                                }}
+                              >
+                                1
+                              </td>
+                              <td
+                                style={{
+                                  ...styles.tdWithLeftBorder,
+                                  ...styles.emptyColumn,
+                                }}
+                              >
+                                <button
+                                  style={styles.arrowButton}
+                                  onClick={() =>
+                                    toggleVendorRowExpansion("vendor_1_1")
+                                  }
+                                >
+                                  {expandedVendorRows["vendor_1_1"] ? (
+                                    <MdArrowDropDown style={styles.arrowIcon} />
+                                  ) : (
+                                    <MdArrowRight style={styles.arrowIcon} />
+                                  )}
+                                </button>
+                              </td>
+                              <td style={styles.expandedTd}>Trip-01</td>
+                              <td style={styles.expandedTd}>
+                                188646 - PT. DAIHO INDONESIA
+                              </td>
+                              <td style={styles.expandedTd}>DO-001</td>
+                              <td style={styles.expandedTd}>08:00</td>
+                              <td style={styles.expandedTd}>2</td>
+                              <td style={styles.expandedTd}>6</td>
+                              <td style={styles.expandedTd}>
+                                <button style={styles.deleteButton}>
+                                  <Trash2 size={10} />
+                                </button>
+                              </td>
+                            </tr>
+                            {expandedVendorRows["vendor_1_1"] && (
+                              <tr>
+                                <td
+                                  colSpan="9"
+                                  style={{ padding: 0, border: "none" }}
+                                >
+                                  <div style={styles.thirdLevelTableContainer}>
+                                    <table style={styles.thirdLevelTable}>
+                                      <colgroup>
+                                        <col style={{ width: "1.5%" }} />
+                                        <col style={{ width: "10%" }} />
+                                        <col style={{ width: "20%" }} />
+                                        <col style={{ width: "8%" }} />
+                                        <col style={{ width: "8%" }} />
+                                        <col style={{ width: "8%" }} />
+                                        <col style={{ width: "5%" }} />
+                                      </colgroup>
+                                      <thead>
+                                        <tr
+                                          style={styles.thirdLevelTableHeader}
+                                        >
+                                          <th style={styles.expandedTh}>No</th>
+                                          <th style={styles.thirdLevelTh}>
+                                            Part Code
+                                          </th>
+                                          <th style={styles.thirdLevelTh}>
+                                            Part Name
+                                          </th>
+                                          <th style={styles.thirdLevelTh}>
+                                            Qty
+                                          </th>
+                                          <th style={styles.thirdLevelTh}>
+                                            Qty Box
+                                          </th>
+                                          <th style={styles.thirdLevelTh}>
+                                            Unit
+                                          </th>
+                                          <th style={styles.thirdLevelTh}>
+                                            Action
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr
+                                          onMouseEnter={(e) =>
+                                            (e.target.closest(
+                                              "tr"
+                                            ).style.backgroundColor = "#c7cde8")
+                                          }
+                                          onMouseLeave={(e) =>
+                                            (e.target.closest(
+                                              "tr"
+                                            ).style.backgroundColor =
+                                              "transparent")
+                                          }
+                                        >
+                                          <td
+                                            style={{
+                                              ...styles.expandedTd,
+                                              ...styles.expandedWithLeftBorder,
+                                              ...styles.emptyColumn,
+                                            }}
+                                          >
+                                            1
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>
+                                            213345432
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>
+                                            Engine Part A
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>
+                                            50
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>2</td>
+                                          <td style={styles.thirdLevelTd}>
+                                            PCS
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>
+                                            <button style={styles.deleteButton}>
+                                              <Trash2 size={10} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                        <tr
+                                          onMouseEnter={(e) =>
+                                            (e.target.closest(
+                                              "tr"
+                                            ).style.backgroundColor = "#c7cde8")
+                                          }
+                                          onMouseLeave={(e) =>
+                                            (e.target.closest(
+                                              "tr"
+                                            ).style.backgroundColor =
+                                              "transparent")
+                                          }
+                                        >
+                                          <td
+                                            style={{
+                                              ...styles.expandedTd,
+                                              ...styles.expandedWithLeftBorder,
+                                              ...styles.emptyColumn,
+                                            }}
+                                          >
+                                            2
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>
+                                            214235654
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>
+                                            Engine Part B
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>
+                                            30
+                                          </td>
+                                          <td style={styles.thirdLevelTd}>5</td>
+                                          <td style={styles.thirdLevelTd}>
+                                            PCS
+                                          </td>
+
+                                          <td style={styles.thirdLevelTd}>
+                                            <button style={styles.deleteButton}>
+                                              <Trash2 size={10} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            <tr
+                              onMouseEnter={(e) =>
+                                (e.target.closest("tr").style.backgroundColor =
+                                  "#c7cde8")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.target.closest("tr").style.backgroundColor =
+                                  "transparent")
+                              }
+                            >
+                              <td
+                                style={{
+                                  ...styles.expandedTd,
+                                  ...styles.expandedWithLeftBorder,
+                                  ...styles.emptyColumn,
+                                }}
+                              >
+                                2
+                              </td>
+                              <td
+                                style={{
+                                  ...styles.tdWithLeftBorder,
+                                  ...styles.emptyColumn,
+                                }}
+                              >
+                                <button
+                                  style={styles.arrowButton}
+                                  onClick={() =>
+                                    toggleVendorRowExpansion("vendor_1_2")
+                                  }
+                                >
+                                  {expandedVendorRows["vendor_1_2"] ? (
+                                    <MdArrowDropDown style={styles.arrowIcon} />
+                                  ) : (
+                                    <MdArrowRight style={styles.arrowIcon} />
+                                  )}
+                                </button>
+                              </td>
+                              <td style={styles.expandedTd}>Trip-02</td>
+                              <td style={styles.expandedTd}>
+                                188651 - PT. SAT NUSAPERSADA TBK
+                              </td>
+                              <td style={styles.expandedTd}>DO-002</td>
+                              <td style={styles.expandedTd}>10:00</td>
+                              <td style={styles.expandedTd}>1</td>
+                              <td style={styles.expandedTd}>3</td>
+                              <td style={styles.expandedTd}>
+                                <button style={styles.deleteButton}>
+                                  <Trash2 size={10} />
+                                </button>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </td>
                   </tr>
-                </tbody>
-              </table>
+                )}
+                <tr
+                  onMouseEnter={(e) =>
+                    (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.target.closest("tr").style.backgroundColor =
+                      "transparent")
+                  }
+                >
+                  <td
+                    style={{
+                      ...styles.expandedTd,
+                      ...styles.expandedWithLeftBorder,
+                      ...styles.emptyColumn,
+                    }}
+                  >
+                    2
+                  </td>
+                  <td style={styles.tdWithLeftBorder}>
+                    <input
+                      type="checkbox"
+                      style={{
+                        margin: "0 auto",
+                        display: "block",
+                        cursor: "pointer",
+                        width: "12px",
+                        height: "12px",
+                      }}
+                    />
+                  </td>
+                  <td
+                    style={{
+                      ...styles.tdWithLeftBorder,
+                      ...styles.emptyColumn,
+                    }}
+                  >
+                    <button
+                      style={styles.arrowButton}
+                      onClick={() => toggleRowExpansion(2)}
+                    >
+                      {expandedRows[2] ? (
+                        <MdArrowDropDown style={styles.arrowIcon} />
+                      ) : (
+                        <MdArrowRight style={styles.arrowIcon} />
+                      )}
+                    </button>
+                  </td>
+                  <td style={styles.tdWithLeftBorder}>18/08/2025</td>
+                  <td style={styles.tdWithLeftBorder}>M101 | SCN-MH</td>
+                  <td style={styles.tdWithLeftBorder}>Veronicas</td>
+                  <td style={styles.tdWithLeftBorder}>2</td>
+                  <td style={styles.tdWithLeftBorder}>4</td>
+                  <td style={styles.tdWithLeftBorder}>12</td>
+                  <td style={styles.tdWithLeftBorder}>ZAHRUL ROMADHON</td>
+                  <td style={styles.tdWithLeftBorder}>
+                    <button style={styles.deleteButton}>
+                      <Trash2 size={10} />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           <div style={styles.paginationBar}>
             <div style={styles.paginationControls}>

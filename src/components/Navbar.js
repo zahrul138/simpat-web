@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import timerService from "../utils/TimerService";
 
 import {
   FaRegEdit,
@@ -43,6 +44,20 @@ const Navbar = ({
   const authUser = getAuthUser();
   const isAdmin = authUser?.role === "Admin";
   const displayName = authUser?.emp_name || authUser?.name || "User";
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    timerService.start();
+
+    const unsubscribe = timerService.subscribe((newTime) => {
+      setCurrentTime(newTime);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (authUser) {
@@ -92,37 +107,30 @@ const Navbar = ({
     onApplicationChange?.(selectedApplication, newDept);
   };
 
-  const [currentTime, setCurrentTime] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const onLogout = () => {
     clearAuth();
     navigate("/login");
   };
 
   const handleToggleButtonHover = (e, isHover) => {
-    const button = e.currentTarget
-    const tab = button.querySelector(".bookmark-tab")
+    const button = e.currentTarget;
+    const tab = button.querySelector(".bookmark-tab");
 
     if (isHover) {
-      Object.assign(button.style, styles.toggleButtonHover)
+      Object.assign(button.style, styles.toggleButtonHover);
       if (tab) {
-        tab.style.borderLeftColor = styles.bookmarkTabHover.borderLeftColor
-        tab.style.borderRightColor = styles.bookmarkTabHover.borderRightColor
+        tab.style.borderLeftColor = styles.bookmarkTabHover.borderLeftColor;
+        tab.style.borderRightColor = styles.bookmarkTabHover.borderRightColor;
       }
     } else {
-      button.style.backgroundColor = styles.toggleButton.backgroundColor
-      button.style.transform = styles.toggleButton.transform
+      button.style.backgroundColor = styles.toggleButton.backgroundColor;
+      button.style.transform = styles.toggleButton.transform;
       if (tab) {
-        tab.style.borderLeftColor = styles.bookmarkTab.borderLeftColor
-        tab.style.borderRightColor = styles.bookmarkTab.borderRightColor
+        tab.style.borderLeftColor = styles.bookmarkTab.borderLeftColor;
+        tab.style.borderRightColor = styles.bookmarkTab.borderRightColor;
       }
     }
-  }
-
+  };
 
   const styles = {
     toggleButton: {
@@ -390,9 +398,6 @@ const Navbar = ({
               FY-2025
             </span>{" "}
             |
-            {/* <span style={{ ...styles.badge, ...styles.greenBadge }}>
-              App: {selectedApplication.toUpperCase()}
-            </span> */}
             <span
               style={{
                 fontWeight: "500",
@@ -410,9 +415,6 @@ const Navbar = ({
               })}
             </span>
             |
-            {/* <span style={{ ...styles.badge, ...styles.blueBadge }}>
-              Dept: {isAdmin ? "ADMIN" : selectedDepartment || "SCN-MH"}
-            </span> */}
             <span
               style={{
                 fontWeight: "500",
@@ -447,7 +449,8 @@ const Navbar = ({
             >
               <FaUserCircle style={{ fontSize: "14px" }} />
               {displayName}
-            </span>|
+            </span>
+            |
             <button
               style={styles.logoutButton}
               onMouseEnter={(e) => {
@@ -475,7 +478,7 @@ const Navbar = ({
                 style={styles.select}
                 value={selectedApplication}
                 onChange={handleApplicationChange}
-                disabled={!isAdmin} 
+                disabled={!isAdmin}
               >
                 <option value="production">
                   {applicationNames.production}
@@ -502,24 +505,33 @@ const Navbar = ({
             </div>
           </div>
 
-           <div style={styles.rightInfo}>
+          <div style={styles.rightInfo}>
             <span style={{ fontWeight: "500" }}>Main Menu SIMKOM</span>
             <span style={styles.formBadge}>Form No: 1</span>
             <div
               style={styles.editIconContainer}
               onMouseEnter={(e) => {
-                e.currentTarget.style.width = styles.editIconContainerHover.width
-                e.currentTarget.style.justifyContent = styles.editIconContainerHover.justifyContent
-                e.currentTarget.style.paddingLeft = styles.editIconContainerHover.paddingLeft
-                e.currentTarget.querySelector("span").style.opacity = styles.arrowIndicatorVisible.opacity
-                e.currentTarget.querySelector("span").style.width = styles.arrowIndicatorVisible.width
+                e.currentTarget.style.width =
+                  styles.editIconContainerHover.width;
+                e.currentTarget.style.justifyContent =
+                  styles.editIconContainerHover.justifyContent;
+                e.currentTarget.style.paddingLeft =
+                  styles.editIconContainerHover.paddingLeft;
+                e.currentTarget.querySelector("span").style.opacity =
+                  styles.arrowIndicatorVisible.opacity;
+                e.currentTarget.querySelector("span").style.width =
+                  styles.arrowIndicatorVisible.width;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.width = styles.editIconContainer.width
-                e.currentTarget.style.justifyContent = styles.editIconContainer.justifyContent
-                e.currentTarget.style.paddingLeft = styles.editIconContainer.padding
-                e.currentTarget.querySelector("span").style.opacity = styles.arrowIndicator.opacity
-                e.currentTarget.querySelector("span").style.width = styles.arrowIndicator.width
+                e.currentTarget.style.width = styles.editIconContainer.width;
+                e.currentTarget.style.justifyContent =
+                  styles.editIconContainer.justifyContent;
+                e.currentTarget.style.paddingLeft =
+                  styles.editIconContainer.padding;
+                e.currentTarget.querySelector("span").style.opacity =
+                  styles.arrowIndicator.opacity;
+                e.currentTarget.querySelector("span").style.width =
+                  styles.arrowIndicator.width;
               }}
             >
               <FaRegEdit style={styles.editIcon} />
@@ -533,9 +545,12 @@ const Navbar = ({
       </header>
       <div style={styles.periodBar}>
         <div style={styles.periodContent}>
-          <span style={styles.periodText}>Current Period: 2025-07-01 - 2025-09-30</span>
+          <span style={styles.periodText}>
+            Current Period: 2025-07-01 - 2025-09-30
+          </span>
           <div style={styles.statusInfo}>
-            <span style={styles.statusBadge}>System Online</span> |<span>Last Update: 2025-08-01 18:19</span>
+            <span style={styles.statusBadge}>System Online</span> |
+            <span>Last Update: 2025-08-01 18:19</span>
           </div>
         </div>
       </div>
@@ -557,8 +572,7 @@ const Navbar = ({
         </div>
       )}
     </>
-  )
-}
-
+  );
+};
 
 export default Navbar;

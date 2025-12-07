@@ -42,6 +42,7 @@ import AddPartsPage from "./pages/logpage/AddPartsPage";
 
 import UserControlPage from "./pages/admin/UserControlPage";
 import CreateUserPage from "./pages/admin/CreateUserPage";
+import timerService from "./utils/TimerService";
 
 import { getUser as getAuthUser } from "./utils/auth";
 
@@ -139,8 +140,6 @@ const LayoutHandler = () => {
 
   useEffect(() => {
     const path = location.pathname;
-
-    // Mapping rute ke aplikasi dan department
     const routeMapping = {
       // Production Management routes
       "/target-schedule": { app: "production", dept: "SCN-MH" },
@@ -171,7 +170,6 @@ const LayoutHandler = () => {
       "/dashboard": { app: "production", dept: "SCN-MH" },
     };
 
-    // Cari mapping untuk rute saat ini
     const matchedRoute = Object.keys(routeMapping).find((route) =>
       path.startsWith(route)
     );
@@ -258,20 +256,22 @@ const LayoutHandler = () => {
 
 const App = () => {
   useEffect(() => {
-    // clear session sekali di page-load (restart dev server / refresh full)
     if (!sessionStorage.getItem("__boot_cleared")) {
-      clearAuth(); // hapus auth_token & auth_user
       sessionStorage.setItem("__boot_cleared", "1");
     }
+    timerService.start();
+    console.log("[App] TimerService started");
+    return () => {
+      timerService.stop();
+      console.log("[App] TimerService stopped");
+    };
   }, []);
+
   return (
     <Router>
       <Routes>
-        {/* public */}
         <Route path="/login" element={<LoginPage />} />
-        {/* index redirect -> landing; nanti Protected yang nahan kalau belum login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
-        {/* protected */}
         <Route
           path="/*"
           element={

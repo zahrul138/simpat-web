@@ -297,7 +297,6 @@ useEffect(() => {
       doNumbers: [""],
       arrivalTime: "",
     });
-    alert("Vendor Detail Created.");
   };
 
   async function handleSubmitVendors() {
@@ -445,7 +444,6 @@ useEffect(() => {
     vendorData,
     vendorLabel
   ) => {
-    // simpan konteks vendor yang lagi diedit
     setActiveVendorContext({
       headerId,
       vendorIndex,
@@ -454,7 +452,6 @@ useEffect(() => {
       doNumbers: vendorData.do_numbers || [],
     });
 
-    // isi form popup dengan DO vendor tsb + part yang sudah pernah disimpan (kalau ada)
     setAddVendorPartFormData({
       trip: "",
       vendor: vendorLabel,
@@ -497,7 +494,6 @@ useEffect(() => {
     }
   };
 
-  // ====== PART DETAIL (LEVEL 3) – MASIH MOCK DATA UNTUK LIST DI POPUP ======
   const handleAddVendorPartInputChange = (field, value) => {
     setAddVendorPartFormData((prev) => ({
       ...prev,
@@ -678,7 +674,6 @@ useEffect(() => {
     });
   };
 
-  // ===================== STYLES (TIDAK DIUBAH) =====================
   const styles = {
     pageContainer: {
       transition: "margin-left 0.3s ease",
@@ -890,7 +885,7 @@ useEffect(() => {
     },
     expandedTableContainer: {
       marginBottom: "1px",
-      marginLeft: "49.8px",
+      marginLeft: "45px",
       backgroundColor: "white",
       boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
       overflowX: "auto",
@@ -1686,16 +1681,7 @@ useEffect(() => {
                 <tbody>
                   {headerDrafts.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan="11"
-                        style={{
-                          ...styles.tdWithLeftBorder,
-                          textAlign: "center",
-                        }}
-                      >
-                        Belum ada data. Klik <b>Insert</b> dulu buat bikin draft
-                        schedule.
-                      </td>
+                
                     </tr>
                   ) : (
                     headerDrafts.map((hdr, headerIndex) => {
@@ -1811,8 +1797,6 @@ useEffect(() => {
                             >
                               <Plus size={10} />
                             </button>
-
-                            {/* Delete draft: hanya bersihin state, tidak call API */}
                             <button
                               style={styles.deleteButton}
                               onClick={() => {
@@ -1900,16 +1884,6 @@ useEffect(() => {
                                 <tbody>
                                   {headerVendors.length === 0 ? (
                                     <tr>
-                                      <td
-                                        colSpan="9"
-                                        style={{
-                                          ...styles.expandedTd,
-                                          textAlign: "center",
-                                        }}
-                                      >
-                                        Belum ada vendor detail (klik tombol{" "}
-                                        <b>+</b> di kanan atas row header).
-                                      </td>
                                     </tr>
                                   ) : (
                                     headerVendors.map((vd, idx) => {
@@ -2190,7 +2164,6 @@ useEffect(() => {
                                                               style={
                                                                 styles.deleteButton
                                                               }
-                                                              // TODO: nanti kalau mau edit qty dll, isi handler di sini
                                                             >
                                                               <Pencil
                                                                 size={10}
@@ -2218,16 +2191,6 @@ useEffect(() => {
                                                     )
                                                   ) : (
                                                     <tr>
-                                                      <td
-                                                        colSpan="7"
-                                                        style={{
-                                                          ...styles.thirdLevelTd,
-                                                          textAlign: "center",
-                                                        }}
-                                                      >
-                                                        Belum ada part untuk
-                                                        vendor ini.
-                                                      </td>
                                                     </tr>
                                                   )}
                                                 </tbody>
@@ -2236,8 +2199,6 @@ useEffect(() => {
                                           </td>
                                         </tr>
                                       ) : null;
-
-                                      // kembalikan vendor row + optional part row, supaya level 3 tepat di bawah vendor tsb
                                       return [vendorRow, partRow];
                                     })
                                   )}
@@ -2391,7 +2352,7 @@ useEffect(() => {
                   style={vendorDetailStyles.addButton}
                 >
                   <Plus size={12} />
-                  Add Do Number
+                  Add Column
                 </button>
               </div>
               <div style={vendorDetailStyles.formGroup}>

@@ -138,7 +138,7 @@ const buildScheduleBody = (header) => {
       palletStatus: "Pending",
       model: d.model || "Veronicas",
       description: d.description || "",
-      status: "New"
+      status: "New",
     })),
   };
   return stripNullish(payload);
@@ -397,32 +397,37 @@ const AddTargetSchedulePage = () => {
   };
   const hideTooltip = () => setTooltip((t) => ({ ...t, visible: false }));
 
-  const checkScheduleExistsInDb = async ({ line, shiftTime, targetDate }) => {
-    try {
-      const resp = await http(
-        API.schedules.list({
-          dateFrom: targetDate,
-          dateTo: targetDate,
-          limit: 200,
-          page: 1,
-        })
-      );
-      const items = resp?.items || [];
-      const found = items.find(
-        (it) =>
-          it.line_code === line &&
-          it.shift_time === shiftTime &&
-          it.target_date === targetDate
-      );
-      return found || null;
-    } catch (err) {
-      throw new Error(
-        `Failed to check duplicate on server: ${err.message || err}`
-      );
-    }
-  };
+  // const checkScheduleExistsInDb = async ({ line, shiftTime, targetDate }) => {
+  //   try {
+  //     const resp = await http(
+  //       API.schedules.list({
+  //         dateFrom: targetDate,
+  //         dateTo: targetDate,
+  //         limit: 200,
+  //         page: 1,
+  //       })
+  //     );
+  //     const items = resp?.items || [];
+  //     const found = items.find(
+  //       (it) =>
+  //         it.line_code === line &&
+  //         it.shift_time === shiftTime &&
+  //         it.target_date === targetDate
+  //     );
+  //     return found || null;
+  //   } catch (err) {
+  //     throw new Error(
+  //       `Failed to check duplicate on server: ${err.message || err}`
+  //     );
+  //   }
+  // };
 
   const handleInsertHeader = async () => {
+    console.log("=== DEBUG handleInsertHeader ===");
+    console.log("targetDateFrom:", targetDateFrom);
+    console.log("shiftStart:", shiftStart, "shiftEnd:", shiftEnd);
+    console.log("savedProductionSchedules:", savedProductionSchedules);
+
     if (!targetDateFrom) {
       alert("Select target date first.");
       return;
@@ -454,40 +459,40 @@ const AddTargetSchedulePage = () => {
 
     const shiftTime = `${shiftStart} - ${shiftEnd}`;
 
-    const toYMD = (d) => {
-      const yy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yy}-${mm}-${dd}`;
-    };
+    // const toYMD = (d) => {
+    //   const yy = d.getFullYear();
+    //   const mm = String(d.getMonth() + 1).padStart(2, "0");
+    //   const dd = String(d.getDate()).padStart(2, "0");
+    //   return `${yy}-${mm}-${dd}`;
+    // };
 
-    const todayStr = toYMD(new Date());
-    const td = new Date(`${targetDateFrom}T00:00:00`);
-    const ty = new Date(`${todayStr}T00:00:00`);
+    // const todayStr = toYMD(new Date());
+    // const td = new Date(`${targetDateFrom}T00:00:00`);
+    // const ty = new Date(`${todayStr}T00:00:00`);
 
-    if (td <= ty) {
-      alert("Target Date must be greater than Request Date (today).");
-      return;
-    }
+    // if (td <= ty) {
+    //   alert("Target Date must be greater than Request Date (today.");
+    //   return;
+    // }
 
-    const existsLocalDate = savedProductionSchedules.some(
-      (h) => h.date === targetDateFrom && h.shiftTime === shiftTime
-    );
-    if (existsLocalDate) {
-      alert("Schedule with same date and shift already exists in local list.");
-      return;
-    }
+    // const existsLocalDate = savedProductionSchedules.some(
+    //   (h) => h.date === targetDateFrom && h.shiftTime === shiftTime
+    // );
+    // if (existsLocalDate) {
+    //   alert("Schedule with same date and shift already exists in local list.");
+    //   return;
+    // }
 
-    try {
-      const existsInDb = await checkTargetDateExists(targetDateFrom);
-      if (existsInDb) {
-        alert("Target Date has been created, select another Target Date");
-        return;
-      }
-    } catch (err) {
-      alert(err.message || "Failed to check duplicate on server.");
-      return;
-    }
+    // try {
+    //   const existsInDb = await checkTargetDateExists(targetDateFrom);
+    //   if (existsInDb) {
+    //     alert("Target Date has been created, select another Target Date");
+    //     return;
+    //   }
+    // } catch (err) {
+    //   alert(err.message || "Failed to check duplicate on server.");
+    //   return;
+    // }
 
     const line = "B1";
     const id = Date.now();
@@ -673,11 +678,11 @@ const AddTargetSchedulePage = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     for (const h of selected) {
-      const td = new Date(`${h.date}T00:00:00`);
-      if (td <= today) {
-        alert("Target Date must be greater than Request Date (today).");
-        return;
-      }
+      // const td = new Date(`${h.date}T00:00:00`);
+      // if (td <= today) {
+      //   alert("Target Date must be greater than Request Date (today).");
+      //   return;
+      // }
       const dupeLocal = savedProductionSchedules.some(
         (x) =>
           x !== h &&
