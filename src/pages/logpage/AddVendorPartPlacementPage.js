@@ -30,21 +30,19 @@ const getCurrentUser = () => {
   }
 };
 
-const AddVendorPage = () => {
+const AddVendorPartPlacementPage = () => {
   const navigate = useNavigate();
-  const [selectedModel, setSelectedModel] = useState("Veronicas");
   const [selectAll, setSelectAll] = useState(false);
 
-  const [vendorFormData, setVendorFormData] = useState({
-    vendor_name: "",
-    vendor_desc: "",
-    vendor_type_id: 1,
-    types: "Local",
-    vendor_country: "Indonesia",
-    vendor_city: "Batam",
+  const [placementFormData, setPlacementFormData] = useState({
+    placement_name: "",
+    length_cm: "",
+    width_cm: "",
+    height_cm: "",
+    placement_type: "Rack",
   });
 
-  const [tempVendors, setTempVendors] = useState([]);
+  const [tempPlacements, setTempPlacements] = useState([]);
   const [currentEmpName, setCurrentEmpName] = useState("");
   const [showSaveButton, setShowSaveButton] = useState(false);
 
@@ -63,186 +61,268 @@ const AddVendorPage = () => {
   }, []);
 
   useEffect(() => {
-    setShowSaveButton(tempVendors.length > 0);
-  }, [tempVendors]);
+    setShowSaveButton(tempPlacements.length > 0);
+  }, [tempPlacements]);
 
-  const handleVendorInputChange = (field, value) => {
-    setVendorFormData((prev) => ({
+  // Fungsi untuk validasi input decimal
+  const validateDecimalInput = (value) => {
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      const parts = value.split('.');
+      if (parts[0].length <= 3 && (!parts[1] || parts[1].length <= 2)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Fungsi helper untuk formatting
+  const formatDecimalOnBlur = (value) => {
+    if (!value) return "0.00";
+    
+    let formatted = value;
+    
+    // Kasus khusus: "03" → "0.3"
+    if (/^0[1-9]$/.test(formatted)) {
+      formatted = "0." + formatted.charAt(1);
+    }
+    
+    // Kasus: "3" → "3.00"
+    if (formatted && !formatted.includes('.')) {
+      formatted = formatted + '.00';
+    }
+    
+    // Kasus: "." → "0.00"
+    if (formatted === '.') {
+      formatted = '0.00';
+    }
+    
+    // Format ke 2 decimal places
+    if (formatted.includes('.')) {
+      const parts = formatted.split('.');
+      if (parts[1].length === 1) {
+        formatted = parts[0] + '.' + parts[1] + '0';
+      } else if (parts[1].length > 2) {
+        formatted = parts[0] + '.' + parts[1].substring(0, 2);
+      }
+    }
+    
+    return formatted;
+  };
+
+  // Handler untuk input change
+  const handlePlacementInputChange = (field, value) => {
+    setPlacementFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
-  const handleTypeChange = (type) => {
-    const typeId = type === "Local" ? 1 : 2;
-    const typesValue = type === "Local" ? "Local" : "Oversea";
-
-    setVendorFormData((prev) => ({
-      ...prev,
-      vendor_type_id: typeId,
-      types: typesValue,
-      vendor_country: type === "Local" ? "Indonesia" : "",
-      vendor_city: type === "Local" ? "Batam" : "",
-    }));
-
-    setSelectedModel(type === "Local" ? "Veronicas" : "Heracles");
-  };
-
+  // Handler untuk insert ke temporary list - TANPA VALIDASI DESCRIPTION
   const handleInsertToTemp = () => {
-    if (!vendorFormData.vendor_name.trim()) {
-      alert("Please fill in Vendor Name");
+    // Validasi required fields
+    if (!placementFormData.placement_name.trim()) {
+      alert("Please fill in Placement Name");
       return;
     }
 
-    if (!vendorFormData.vendor_desc.trim()) {
-      alert("Please fill in Description");
-      return;
-    }
-
-    if (vendorFormData.vendor_type_id === 2) {
-      if (!vendorFormData.vendor_country.trim()) {
-        alert("Please fill in Country for Oversea vendor");
+    // Validasi dimensions
+    const requiredDimensions = ['length_cm', 'width_cm', 'height_cm'];
+    for (const dimension of requiredDimensions) {
+      const value = placementFormData[dimension];
+      if (!value || isNaN(parseFloat(value)) || parseFloat(value) <= 0) {
+        alert(`Please enter valid ${dimension.replace('_cm', '')} (greater than 0)`);
         return;
       }
-      // Validasi city opsional untuk oversea
-      if (!vendorFormData.vendor_city.trim()) {
-        const proceed = window.confirm(
-          "City field is empty for Oversea vendor. Do you want to continue without city?"
-        );
-        if (!proceed) return;
-      }
     }
 
-    const tempVendor = {
+    // Check for duplicate placement name in temp list
+    const isDuplicate = tempPlacements.some(
+      (placement) => 
+        placement.placement_name.toLowerCase() === 
+        placementFormData.placement_name.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      alert("Placement name already exists in the list");
+      return;
+    }
+
+    // Format dimensions to 2 decimal places
+    const formattedLength = formatDecimalOnBlur(placementFormData.length_cm);
+    const formattedWidth = formatDecimalOnBlur(placementFormData.width_cm);
+    const formattedHeight = formatDecimalOnBlur(placementFormData.height_cm);
+
+    // Calculate volume
+    const volume = (
+      parseFloat(formattedLength) * 
+      parseFloat(formattedWidth) * 
+      parseFloat(formattedHeight)
+    ).toFixed(2);
+
+    const tempPlacement = {
       id: Date.now(),
-      vendor_name: vendorFormData.vendor_name.trim(),
-      vendor_desc: vendorFormData.vendor_desc.trim(),
-      vendor_type_id: vendorFormData.vendor_type_id,
-      types: vendorFormData.types,
-      vendor_country:
-        vendorFormData.vendor_type_id === 1
-          ? "Indonesia"
-          : vendorFormData.vendor_country.trim(),
-      vendor_city:
-        vendorFormData.vendor_type_id === 1
-          ? "Batam"
-          : vendorFormData.vendor_city.trim(),
+      placement_name: placementFormData.placement_name.trim(),
+      length_cm: formattedLength,
+      width_cm: formattedWidth,
+      height_cm: formattedHeight,
+      volume_cm3: volume,
+      placement_type: placementFormData.placement_type,
       is_active: true,
       created_at: new Date().toISOString(),
       isSelected: false,
     };
 
-    setTempVendors((prev) => [...prev, tempVendor]);
+    setTempPlacements((prev) => [...prev, tempPlacement]);
 
-    setVendorFormData({
-      vendor_name: "",
-      vendor_desc: "",
-      vendor_type_id: 1,
-      types: "Local",
-      vendor_country: "Indonesia",
-      vendor_city: "Batam",
+    // Reset form
+    setPlacementFormData({
+      placement_name: "",
+      length_cm: "",
+      width_cm: "",
+      height_cm: "",
+      placement_type: "Rack",
     });
-
-    setSelectedModel("Veronicas");
   };
 
+  // Handler untuk select all checkbox
   const handleSelectAllChange = () => {
     const newSelectAll = !selectAll;
     setSelectAll(newSelectAll);
-    setTempVendors((prev) =>
-      prev.map((vendor) => ({
-        ...vendor,
+    setTempPlacements((prev) =>
+      prev.map((placement) => ({
+        ...placement,
         isSelected: newSelectAll,
       }))
     );
   };
 
-  const handleCheckboxChange = (vendorId) => {
-    setTempVendors((prev) =>
-      prev.map((vendor) =>
-        vendor.id === vendorId
-          ? { ...vendor, isSelected: !vendor.isSelected }
-          : vendor
+  // Handler untuk individual checkbox
+  const handleCheckboxChange = (placementId) => {
+    setTempPlacements((prev) =>
+      prev.map((placement) =>
+        placement.id === placementId
+          ? { ...placement, isSelected: !placement.isSelected }
+          : placement
       )
     );
   };
 
   useEffect(() => {
-    if (tempVendors.length > 0) {
-      const allSelected = tempVendors.every((vendor) => vendor.isSelected);
+    if (tempPlacements.length > 0) {
+      const allSelected = tempPlacements.every((placement) => placement.isSelected);
       setSelectAll(allSelected);
     } else {
       setSelectAll(false);
     }
-  }, [tempVendors]);
+  }, [tempPlacements]);
 
-  const handleDeleteTempVendor = (vendorId) => {
-    setTempVendors((prev) => prev.filter((vendor) => vendor.id !== vendorId));
+  // Handler untuk delete dari temporary list
+  const handleDeleteTempPlacement = (placementId) => {
+    setTempPlacements((prev) => 
+      prev.filter((placement) => placement.id !== placementId)
+    );
   };
 
+  // Handler untuk save ke database
   const handleSaveConfiguration = async () => {
-  console.log("=== SAVE CONFIGURATION STARTED ===");
-  
-  const selectedVendors = tempVendors.filter((vendor) => vendor.isSelected);
-  console.log("Selected vendors:", selectedVendors);
+    console.log("=== SAVE CONFIGURATION STARTED ===");
 
-  if (selectedVendors.length === 0) {
-    alert("Please select at least one vendor to save!");
-    return;
-  }
+    const selectedPlacements = tempPlacements.filter((placement) => placement.isSelected);
+    console.log("Selected placements:", selectedPlacements);
 
-  try {
-    const currentUser = getCurrentUser();
-    console.log("Current user:", currentUser);
-
-    const vendor = selectedVendors[0];
-    
-    const vendorData = {
-      vendor_name: vendor.vendor_name,
-      vendor_desc: vendor.vendor_desc,
-      vendor_type_id: vendor.vendor_type_id,
-      types: vendor.types,
-      vendor_country: vendor.vendor_country,
-      vendor_city: vendor.vendor_city,
-      is_active: true,
-      created_by: currentUser,
-    };
-
-    console.log("Sending data to API:", vendorData);
-
-    const response = await fetch(`${API_BASE}/api/vendors`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(vendorData),
-    });
-
-    console.log("Response status:", response.status);
-    console.log("Response ok:", response.ok);
-
-    const result = await response.json();
-    console.log("API Response:", result);
-
-    if (!response.ok) {
-      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+    if (selectedPlacements.length === 0) {
+      alert("Please select at least one placement to save!");
+      return;
     }
 
-    if (result.success) {
-      alert(`Vendor "${vendor.vendor_name}" saved successfully!`);
-      // Hapus vendor yang berhasil disimpan
-      setTempVendors((prev) => prev.filter((v) => v.id !== vendor.id));
-      navigate("/vendor-details");
-    } else {
-      throw new Error(result.message || "Failed to save vendor");
+    try {
+      const currentUser = getCurrentUser();
+      console.log("Current user:", currentUser);
+
+      // Save placements one by one
+      const savePromises = selectedPlacements.map(async (placement) => {
+        const placementData = {
+          placement_name: placement.placement_name,
+          length_cm: placement.length_cm,
+          width_cm: placement.width_cm,
+          height_cm: placement.height_cm,
+          placement_type: placement.placement_type,
+          is_active: true,
+          created_by: currentUser,
+        };
+
+        console.log("Sending data to API:", placementData);
+
+        const response = await fetch(`${API_BASE}/api/vendor-placements`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(placementData),
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(
+            result.message || `HTTP error! status: ${response.status}`
+          );
+        }
+
+        return {
+          id: placement.id,
+          success: true,
+          data: result.data,
+        };
+      });
+
+      const results = await Promise.allSettled(savePromises);
+      
+      // Check results
+      const successfulSaves = results.filter(r => r.status === 'fulfilled' && r.value.success);
+      const failedSaves = results.filter(r => r.status === 'rejected');
+      
+      if (failedSaves.length > 0) {
+        console.error("Some saves failed:", failedSaves);
+        
+        if (successfulSaves.length === 0) {
+          // All failed
+          alert("Failed to save placements. Please try again.");
+          return;
+        } else {
+          // Some succeeded, some failed
+          const confirmContinue = window.confirm(
+            `${successfulSaves.length} placements saved successfully, ` +
+            `${failedSaves.length} failed. Do you want to continue?`
+          );
+          
+          if (!confirmContinue) return;
+        }
+      }
+
+      // Remove successfully saved placements from temp list
+      const savedIds = successfulSaves.map(r => r.value.id);
+      setTempPlacements((prev) => 
+        prev.filter((placement) => !savedIds.includes(placement.id))
+      );
+
+      // Show success message
+      if (successfulSaves.length > 0) {
+        alert(`Data successfully saved.`);
+      }
+      
+      // Navigate if all saved
+      if (tempPlacements.length === successfulSaves.length) {
+        navigate("/vendor-placement");
+      }
+      
+    } catch (error) {
+      console.error("Save error:", error);
+      alert(`Failed to save placements: ${error.message}`);
     }
+  };
 
-  } catch (error) {
-    console.error("Save error:", error);
-    alert(`Failed to save vendor: ${error.message}`);
-  }
-};
-
+  // Format date for display
   const formatDateForDisplay = (dateString) => {
     try {
       const date = new Date(dateString);
@@ -367,6 +447,16 @@ const AddVendorPage = () => {
       cursor: "pointer",
       maxWidth: "100%",
     },
+    cmFix: {
+      position: "absolute",
+      right: "35px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      color: "#6b7280",
+      fontSize: "11px",
+      pointerEvents: "none",
+      fontWeight: 500,
+    },
     formGroup: {
       display: "flex",
       flexDirection: "column",
@@ -489,7 +579,7 @@ const AddVendorPage = () => {
       backgroundColor: "white",
       boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
       overflowX: "auto",
-      width: "calc(100% - 10px)",
+      width: "calc(100% - 30px)",
     },
     tableBodyWrapper: {
       overflowX: "auto",
@@ -810,36 +900,48 @@ const AddVendorPage = () => {
         <div style={styles.gridContainer}>
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
-              <h2 style={styles.h2}>Add Vendor</h2>
+              <h2 style={styles.h2}>Add Vendor Placement</h2>
             </div>
             <div
               style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}
             >
               <div style={{ flex: "2", display: "grid", gap: "35px" }}>
                 <div>
-                  <label style={styles.label}>Vendor Name *</label>
+                  <label style={styles.label}>Placement Name</label>
                   <input
                     type="text"
                     style={styles.inputPartCode}
-                    placeholder="Enter vendor name"
-                    value={vendorFormData.vendor_name}
+                    placeholder="Enter placement name"
+                    value={placementFormData.placement_name}
                     onChange={(e) =>
-                      handleVendorInputChange("vendor_name", e.target.value)
+                      handlePlacementInputChange("placement_name", e.target.value)
                     }
                   />
                 </div>
 
                 <div>
-                  <label style={styles.label}>Description *</label>
-                  <input
-                    type="text"
-                    style={styles.inputPartCode}
-                    placeholder="Enter description"
-                    value={vendorFormData.vendor_desc}
-                    onChange={(e) =>
-                      handleVendorInputChange("vendor_desc", e.target.value)
-                    }
-                  />
+                  <label style={styles.label}>Length</label>
+                  <div
+                    style={{ position: "relative", display: "inline-block" }}
+                  >
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      style={styles.inputPartCode}
+                      placeholder="0.00"
+                      value={placementFormData.length_cm || ""}
+                      onChange={(e) => {
+                        if (validateDecimalInput(e.target.value)) {
+                          handlePlacementInputChange("length_cm", e.target.value);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const formatted = formatDecimalOnBlur(e.target.value);
+                        handlePlacementInputChange("length_cm", formatted);
+                      }}
+                    />
+                    <span style={styles.cmFix}>cm</span>
+                  </div>
 
                   <div style={styles.actionButtonsGroup}>
                     <button
@@ -855,21 +957,56 @@ const AddVendorPage = () => {
 
               <div style={{ flex: "2", display: "grid", gap: "35px" }}>
                 <div>
-                  <label style={styles.label}>Types *</label>
-                  <select
-                    style={styles.select}
-                    value={selectedModel}
-                    onChange={(e) =>
-                      handleTypeChange(
-                        e.target.value === "Veronicas" ? "Local" : "Oversea"
-                      )
-                    }
+                  <label style={styles.label}>Width</label>
+                  <div
+                    style={{ position: "relative", display: "inline-block" }}
                   >
-                    <option value="Veronicas">Local</option>
-                    <option value="Heracles">Oversea</option>
-                  </select>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      style={styles.inputPartCode}
+                      placeholder="0.00"
+                      value={placementFormData.width_cm || ""}
+                      onChange={(e) => {
+                        if (validateDecimalInput(e.target.value)) {
+                          handlePlacementInputChange("width_cm", e.target.value);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const formatted = formatDecimalOnBlur(e.target.value);
+                        handlePlacementInputChange("width_cm", formatted);
+                      }}
+                    />
+                    <span style={styles.cmFix}>cm</span>
+                  </div>
                 </div>
+                <div>
+                  <label style={styles.label}>Height</label>
+                  <div
+                    style={{ position: "relative", display: "inline-block" }}
+                  >
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      style={styles.inputPartCode}
+                      placeholder="0.00"
+                      value={placementFormData.height_cm || ""}
+                      onChange={(e) => {
+                        if (validateDecimalInput(e.target.value)) {
+                          handlePlacementInputChange("height_cm", e.target.value);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const formatted = formatDecimalOnBlur(e.target.value);
+                        handlePlacementInputChange("height_cm", formatted);
+                      }}
+                    />
+                    <span style={styles.cmFix}>cm</span>
+                  </div>
+                </div>
+              </div>
 
+              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
                 <div>
                   <label style={styles.label}>Created By</label>
                   <input
@@ -881,95 +1018,25 @@ const AddVendorPage = () => {
                   />
                 </div>
               </div>
-
-              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
-                {vendorFormData.vendor_type_id === 2 ? (
-                  <>
-                    <div>
-                      <label style={styles.label}>Country *</label>
-                      <input
-                        type="text"
-                        style={styles.inputPartCode}
-                        placeholder="Enter country"
-                        value={vendorFormData.vendor_country}
-                        onChange={(e) =>
-                          handleVendorInputChange(
-                            "vendor_country",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label style={styles.label}>City</label>
-                      <input
-                        type="text"
-                        style={styles.inputPartCode}
-                        placeholder="Enter city (optional)"
-                        value={vendorFormData.vendor_city}
-                        onChange={(e) =>
-                          handleVendorInputChange("vendor_city", e.target.value)
-                        }
-                      />
-                    </div>
-                  </>
-                ) : (
-                  // 🔥 TAMPILAN UNTUK LOCAL (READ-ONLY)
-                  <>
-                    <div>
-                      <label style={styles.label}>Country</label>
-                      <input
-                        type="text"
-                        style={{
-                          ...styles.inputPartCode,
-                          backgroundColor: "#f3f4f6",
-                          color: "#6b7280",
-                          cursor: "not-allowed",
-                        }}
-                        value="Indonesia"
-                        readOnly
-                      />
-                    </div>
-
-                    <div>
-                      <label style={styles.label}>City</label>
-                      <input
-                        type="text"
-                        style={{
-                          ...styles.inputPartCode,
-                          backgroundColor: "#f3f4f6",
-                          color: "#6b7280",
-                          cursor: "not-allowed",
-                        }}
-                        value="Batam"
-                        readOnly
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
           </div>
-
-          <h2 style={styles.h2}>Vendor List</h2>
+          <h2 style={styles.h2}>Placement List</h2>
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
               <table
                 style={{
                   ...styles.table,
-                  minWidth: "900px",
+                  minWidth: "300px",
                   tableLayout: "fixed",
                 }}
               >
                 <colgroup>
-                  <col style={{ width: "26px" }} />
+                  <col style={{ width: "25px" }} />
                   <col style={{ width: "2.5%" }} />
                   <col style={{ width: "20%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "23%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "15%" }} />
                   <col style={{ width: "25%" }} />
                   <col style={{ width: "6%" }} />
                 </colgroup>
@@ -977,7 +1044,7 @@ const AddVendorPage = () => {
                   <tr style={styles.tableHeader}>
                     <th style={styles.expandedTh}>No</th>
                     <th style={styles.thWithLeftBorder}>
-                      {tempVendors.length > 1 && (
+                      {tempPlacements.length > 1 && (
                         <div
                           style={{
                             display: "flex",
@@ -999,24 +1066,23 @@ const AddVendorPage = () => {
                         </div>
                       )}
                     </th>
-                    <th style={styles.thWithLeftBorder}>Vendor Name</th>
-                    <th style={styles.thWithLeftBorder}>Types</th>
-                    <th style={styles.thWithLeftBorder}>Description</th>
-                    <th style={styles.thWithLeftBorder}>Country</th>
-                    <th style={styles.thWithLeftBorder}>City</th>
+                    <th style={styles.thWithLeftBorder}>Placement Name</th>
+                    <th style={styles.thWithLeftBorder}>Length (cm)</th>
+                    <th style={styles.thWithLeftBorder}>Width (cm)</th>
+                    <th style={styles.thWithLeftBorder}>Height (cm)</th>
                     <th style={styles.thWithLeftBorder}>Created By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tempVendors.length === 0 ? (
+                  {tempPlacements.length === 0 ? (
                     <tr>
-                      
+                     
                     </tr>
                   ) : (
-                    tempVendors.map((vendor, index) => (
+                    tempPlacements.map((placement, index) => (
                       <tr
-                        key={vendor.id}
+                        key={placement.id}
                         onMouseEnter={(e) =>
                           (e.target.closest("tr").style.backgroundColor =
                             "#c7cde8")
@@ -1028,8 +1094,7 @@ const AddVendorPage = () => {
                       >
                         <td
                           style={{
-                            ...styles.expandedTd,
-                            ...styles.expandedWithLeftBorder,
+                            ...styles.tdWithLeftBorder,
                             ...styles.emptyColumn,
                           }}
                         >
@@ -1038,8 +1103,8 @@ const AddVendorPage = () => {
                         <td style={styles.tdWithLeftBorder}>
                           <input
                             type="checkbox"
-                            checked={vendor.isSelected}
-                            onChange={() => handleCheckboxChange(vendor.id)}
+                            checked={placement.isSelected}
+                            onChange={() => handleCheckboxChange(placement.id)}
                             style={{
                               margin: "0 auto",
                               display: "block",
@@ -1050,26 +1115,26 @@ const AddVendorPage = () => {
                           />
                         </td>
                         <td style={styles.tdWithLeftBorder}>
-                          {vendor.vendor_name}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>{vendor.types}</td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {vendor.vendor_desc}
+                          {placement.placement_name}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
-                          {vendor.vendor_country || "-"}
+                          {placement.length_cm} cm
                         </td>
                         <td style={styles.tdWithLeftBorder}>
-                          {vendor.vendor_city || "-"}
+                          {placement.width_cm} cm
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          {placement.height_cm} cm
                         </td>
                         <td style={styles.tdWithLeftBorder}>
                           {currentEmpName} |{" "}
-                          {formatDateForDisplay(vendor.created_at)}
+                          {formatDateForDisplay(placement.created_at)}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
                           <button
                             style={styles.deleteButton}
-                            onClick={() => handleDeleteTempVendor(vendor.id)}
+                            onClick={() => handleDeleteTempPlacement(placement.id)}
+                            title="Delete"
                           >
                             <Trash2 size={10} />
                           </button>
@@ -1115,4 +1180,4 @@ const AddVendorPage = () => {
   );
 };
 
-export default AddVendorPage;
+export default AddVendorPartPlacementPage;

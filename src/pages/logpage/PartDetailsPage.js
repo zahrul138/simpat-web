@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
-import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
+import { Plus, Trash2, Pencil, Save, X, RefreshCw } from "lucide-react";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -15,13 +15,47 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // State untuk popup edit
+  const [showEditPopup, setShowEditPopup] = useState(false);
+  const [editingPart, setEditingPart] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    part_code: "",
+    part_name: "",
+    part_size: "",
+    size_id: "",
+    part_material: "",
+    part_types: "Regular",
+    qty_per_box: "",
+    part_price: "",
+    part_weight: "",
+    weight_unit: "kg",
+    customer_id: "",
+    customer_special: [],
+    model: "",
+    vendor_id: "",
+    vendor_type: "",
+    stock_level_to: "",
+    placement_id: "",
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState(null);
+
+  // Data untuk dropdowns
+  const [customers, setCustomers] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [models, setModels] = useState([]);
+  const [partSizes, setPartSizes] = useState([]);
+  const [placements, setPlacements] = useState([]);
+  const [stockLevels] = useState([
+    { value: "M101 | SCN-MH", label: "M101 | SCN-MH" },
+    { value: "M136 | SCN-LOG", label: "M136 | SCN-LOG" },
+  ]);
+
   // State lainnya yang sudah ada
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
   const [selectedAnnexUpdate, setSelectedAnnexUpdate] =
     useState("ZAHRUL ROMADHON");
-
-  const [customers, setCustomers] = useState([]);
   const [scheduleDate, setScheduleDate] = useState("");
   const [expandedRows, setExpandedRows] = useState({});
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
@@ -39,7 +73,21 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  // Fetch customers data
+  // Fetch semua data yang diperlukan
+  const fetchAllData = async () => {
+    try {
+      await Promise.all([
+        fetchCustomers(),
+        fetchVendors(),
+        fetchModels(),
+        fetchPartSizes(),
+        fetchPlacements(),
+      ]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
   const fetchCustomers = async () => {
     try {
       const response = await fetch(`${API_BASE}/api/customers/active-minimal`);
@@ -50,7 +98,93 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Function untuk get customer name by ID (hanya cust_name) - DIPINDAHKAN KE ATAS
+  const fetchVendors = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/vendors`);
+      const data = await response.json();
+      if (data.success) {
+        setVendors(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching vendors:", error);
+    }
+  };
+
+  const fetchModels = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/masters/models`);
+      const data = await response.json();
+
+      if (data.success) {
+        if (Array.isArray(data.data) && data.data.length > 0) {
+          if (typeof data.data[0] === "string") {
+            setModels(data.data);
+          } else {
+            setModels(data.data.map((item) => item.name || item));
+          }
+        } else {
+          setModels(["Veronicas", "Heracles"]);
+        }
+      } else {
+        setModels(["Veronicas", "Heracles"]);
+      }
+    } catch (error) {
+      console.error("Error fetching models:", error);
+      setModels(["Veronicas", "Heracles"]);
+    }
+  };
+
+  const fetchPartSizes = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/masters/part-sizes`);
+      const data = await response.json();
+
+      if (data.success) {
+        if (Array.isArray(data.data) && data.data.length > 0) {
+          setPartSizes(
+            data.data.map((item) => ({
+              id: item.id,
+              size_name: item.size_name || item,
+            }))
+          );
+        } else {
+          setPartSizes([
+            { id: 1, size_name: "SMALL" },
+            { id: 2, size_name: "MEDIUM" },
+            { id: 3, size_name: "LARGE" },
+          ]);
+        }
+      } else {
+        setPartSizes([
+          { id: 1, size_name: "SMALL" },
+          { id: 2, size_name: "MEDIUM" },
+          { id: 3, size_name: "LARGE" },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error fetching part sizes:", error);
+      setPartSizes([
+        { id: 1, size_name: "SMALL" },
+        { id: 2, size_name: "MEDIUM" },
+        { id: 3, size_name: "LARGE" },
+      ]);
+    }
+  };
+
+  const fetchPlacements = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/vendor-placements`);
+      const result = await response.json();
+
+      if (result.success) {
+        setPlacements(result.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching placements:", error);
+    }
+  };
+
+  // Function untuk get customer name by ID
   const getCustomerName = useCallback(
     (customerSpecial) => {
       if (!customerSpecial) return null;
@@ -106,13 +240,231 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fetch data saat komponen mount
   useEffect(() => {
     fetchPartsData();
-    fetchCustomers();
+    fetchAllData();
   }, []);
 
-  // Fungsi untuk handle search
+  const handleEditClick = (part) => {
+    setEditingPart(part);
+
+    let customerSpecialArray = [];
+    if (part.customer_special) {
+      try {
+        customerSpecialArray = Array.isArray(part.customer_special)
+          ? part.customer_special
+          : JSON.parse(part.customer_special);
+      } catch (error) {
+        console.error("Error parsing customer_special:", error);
+        customerSpecialArray = [];
+      }
+    }
+
+    setEditFormData({
+      part_code: part.part_code || "",
+      part_name: part.part_name || "",
+      part_size: part.part_size || "",
+      size_id: part.size_id || "",
+      part_material: part.part_material || "",
+      part_types: part.part_types || "Regular",
+      qty_per_box: part.qty_per_box || "",
+      part_price: part.part_price || "",
+      part_weight: part.part_weight || "",
+      weight_unit: part.weight_unit || "kg",
+      customer_id:
+        customerSpecialArray.length > 0 ? customerSpecialArray[0] : "",
+      customer_special: customerSpecialArray,
+      model: part.model || "",
+      vendor_id: part.vendor_id || "",
+      vendor_type: part.vendor_type || "",
+      stock_level_to: part.stock_level_to || "",
+      placement_id: part.placement_id || "",
+    });
+
+    setEditError(null);
+    setShowEditPopup(true);
+  };
+
+  // Fungsi untuk menutup popup edit
+  const handleCloseEditPopup = () => {
+    setShowEditPopup(false);
+    setEditingPart(null);
+    setEditFormData({
+      part_code: "",
+      part_name: "",
+      part_size: "",
+      size_id: "",
+      part_material: "",
+      part_types: "Regular",
+      qty_per_box: "",
+      part_price: "",
+      part_weight: "",
+      customer_id: "",
+      customer_special: [],
+      model: "",
+      vendor_id: "",
+      vendor_type: "",
+      stock_level_to: "",
+      placement_id: "",
+    });
+    setEditError(null);
+  };
+
+  // Fungsi untuk menangani perubahan form edit
+  const handleEditFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    if (name === "vendor_id") {
+      // Update vendor_type jika vendor berubah
+      const selectedVendor = vendors.find((v) => v.id.toString() === value);
+      setEditFormData({
+        ...editFormData,
+        [name]: value,
+        vendor_type: selectedVendor?.types || "",
+      });
+    } else if (name === "part_types" && value === "Regular") {
+      // Reset customer jika part types berubah ke Regular
+      setEditFormData({
+        ...editFormData,
+        [name]: value,
+        customer_id: "",
+        customer_special: [],
+      });
+    } else {
+      setEditFormData({
+        ...editFormData,
+        [name]: type === "checkbox" ? checked : value,
+      });
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPart) return;
+
+    if (!editFormData.part_code.trim()) {
+      setEditError("Part Code is required");
+      return;
+    }
+
+    if (!editFormData.part_name.trim()) {
+      setEditError("Part Name is required");
+      return;
+    }
+
+    if (!editFormData.vendor_id) {
+      setEditError("Vendor is required");
+      return;
+    }
+
+    if (!editFormData.part_size) {
+      setEditError("Part Size is required");
+      return;
+    }
+
+    if (!editFormData.model) {
+      setEditError("Model is required");
+      return;
+    }
+
+    if (!editFormData.stock_level_to) {
+      setEditError("Stock Level is required");
+      return;
+    }
+
+    if (editFormData.part_types === "Special" && !editFormData.customer_id) {
+      setEditError("Please select Customer for Special part");
+      return;
+    }
+
+    if (
+      editFormData.part_weight !== "" &&
+      isNaN(parseFloat(editFormData.part_weight))
+    ) {
+      setEditError("Part Weight must be a valid number");
+      return;
+    }
+
+    if (
+      editFormData.part_weight !== "" &&
+      parseFloat(editFormData.part_weight) < 0
+    ) {
+      setEditError("Part Weight cannot be negative");
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      setEditError(null);
+      let customerSpecialData = null;
+      if (editFormData.part_types === "Special" && editFormData.customer_id) {
+        customerSpecialData = [editFormData.customer_id];
+      }
+
+      const selectedSize = partSizes.find(
+        (size) => size.size_name === editFormData.part_size
+      );
+
+      const vendorIdNum = editFormData.vendor_id
+        ? parseInt(editFormData.vendor_id)
+        : null;
+      const placementIdNum = editFormData.placement_id
+        ? parseInt(editFormData.placement_id)
+        : null;
+
+      const updateData = {
+        part_code: editFormData.part_code.trim(),
+        part_name: editFormData.part_name.trim(),
+        part_size: editFormData.part_size,
+        size_id: selectedSize ? selectedSize.id : null,
+        part_material: editFormData.part_material.trim() || null,
+        part_types: editFormData.part_types,
+        qty_per_box: parseInt(editFormData.qty_per_box) || 1,
+        part_price: parseFloat(editFormData.part_price) || 0,
+        part_weight: parseFloat(editFormData.part_weight) || null,
+        weight_unit: editFormData.weight_unit || "kg",
+        customer_special: customerSpecialData,
+        model: editFormData.model,
+        vendor_id: vendorIdNum,
+        vendor_type: editFormData.vendor_type,
+        stock_level_to: editFormData.stock_level_to,
+        placement_id: placementIdNum,
+      };
+
+      const response = await fetch(
+        `${API_BASE}/api/kanban-master/${editingPart.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateData),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      if (result.success) {
+        handleCloseEditPopup();
+        fetchPartsData();
+        alert("Part updated successfully!");
+      } else {
+        throw new Error(result.message || "Failed to update part");
+      }
+    } catch (err) {
+      console.error("Error updating part:", err);
+      setEditError(err.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Fungsi untuk handle search (existing)
   const handleSearchClick = async () => {
     try {
       setLoading(true);
@@ -134,8 +486,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             params.push(`part_name=${encodeURIComponent(keyword)}`);
             break;
           case "Customers":
-            // Untuk customer, kita akan filter di frontend karena backend belum support
-            // Atau bisa implement backend filter nanti
             break;
           default:
             break;
@@ -166,7 +516,37 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Filter data berdasarkan search - DIUBAH MENGGUNAKAN useCallback
+ const handleDeletePart = async (partId, partCode) => {
+  if (!window.confirm(`Are you sure you want to permanently delete part "${partCode}"? This action cannot be undone!`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/kanban-master/${partId}`, {
+      method: "DELETE",
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.message || `HTTP error! status: ${response.status}`
+      );
+    }
+
+    if (result.success) {
+      alert(`Part "${partCode}" has been permanently deleted!`);
+      fetchPartsData(); // Refresh data
+    } else {
+      throw new Error(result.message || "Failed to delete part");
+    }
+  } catch (err) {
+    console.error("Error deleting part:", err);
+    alert(`Failed to delete part: ${err.message}`);
+  }
+};
+
+  // Filter data berdasarkan search
   const filteredData = useMemo(() => {
     if (!keyword) return partsData;
 
@@ -187,12 +567,10 @@ const PartDetailsPage = ({ sidebarVisible }) => {
         );
       case "Customers":
         return partsData.filter((part) => {
-          // Filter untuk special customers
           if (part.part_types === "Special") {
             const customerName = getCustomerName(part.customer_special);
             return customerName?.toLowerCase().includes(searchTerm);
           }
-          // Untuk regular parts, cek jika "All Customers" match dengan search
           return "all customers".includes(searchTerm);
         });
       default:
@@ -223,37 +601,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fungsi untuk handle delete part
-  const handleDeletePart = async (partId, partCode) => {
-    if (!window.confirm(`Are you sure you want to delete part ${partCode}?`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/api/kanban-master/${partId}`, {
-        method: "DELETE",
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      if (result.success) {
-        alert(`Part ${partCode} deleted successfully!`);
-        // Refresh data setelah delete
-        fetchPartsData();
-      } else {
-        throw new Error(result.message || "Failed to delete part");
-      }
-    } catch (err) {
-      console.error("Error deleting part:", err);
-      alert(`Failed to delete part: ${err.message}`);
-    }
-  };
+  const getSelectedPlacement = useMemo(() => {
+    if (!editFormData.placement_id) return null;
+    return placements.find(
+      (p) => p.id.toString() === editFormData.placement_id.toString()
+    );
+  }, [editFormData.placement_id, placements]);
 
   // Toggle row expansion (fungsi yang sudah ada)
   const toggleRowExpansion = (rowId) => {
@@ -305,6 +658,46 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       ...prev,
       [field]: value,
     }));
+  };
+
+  // Fungsi helper untuk konversi ke kg
+  const convertToKg = (value, unit) => {
+    if (!value || !unit) return 0;
+
+    const numValue = parseFloat(value);
+
+    switch (unit.toLowerCase()) {
+      case "g":
+        return numValue / 1000;
+      case "lbs":
+        return numValue * 0.453592;
+      case "oz":
+        return numValue * 0.0283495;
+      case "kg":
+        return numValue;
+      default:
+        return numValue;
+    }
+  };
+
+  // Fungsi untuk format display
+  const formatWeightDisplay = (weight, unit) => {
+    if (!weight) return "-";
+
+    const numWeight = parseFloat(weight);
+    let displayWeight = numWeight;
+    let displayUnit = unit || "kg";
+
+    // Jika gram dan nilai besar, konversi ke kg untuk display
+    if (unit === "g" && numWeight >= 1000) {
+      displayWeight = numWeight / 1000;
+      displayUnit = "kg";
+    }
+
+    return `${displayWeight.toLocaleString(undefined, {
+      minimumFractionDigits: displayWeight < 1 ? 3 : 1,
+      maximumFractionDigits: 3,
+    })} ${displayUnit}`;
   };
 
   const openThirdLevelPopup = () => {
@@ -991,6 +1384,194 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
     },
+
+    popupEditOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 2000,
+    },
+    popupEditContainer: {
+      backgroundColor: "white",
+      borderRadius: "12px",
+      padding: "30px",
+      width: "800px",
+      maxWidth: "90vw",
+      maxHeight: "90vh",
+      overflowY: "auto",
+      boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+    },
+    popupEditHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "2px solid #e5e7eb",
+      paddingBottom: "15px",
+      marginBottom: "25px",
+    },
+    popupEditTitle: {
+      fontSize: "22px",
+      fontWeight: "700",
+      color: "#1f2937",
+      margin: 0,
+    },
+    popupEditCloseButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "8px",
+      borderRadius: "6px",
+      color: "#6b7280",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all 0.2s ease",
+    },
+    popupEditCloseButtonHover: {
+      backgroundColor: "#f3f4f6",
+      color: "#374151",
+    },
+    popupEditForm: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "20px",
+    },
+    popupEditFormGroup: {
+      marginBottom: "15px",
+    },
+    popupEditLabel: {
+      display: "block",
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#4b5563",
+      marginBottom: "6px",
+    },
+    popupEditInput: {
+      width: "100%",
+      height: "38px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "6px",
+      padding: "0 12px",
+      fontSize: "13px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      boxSizing: "border-box",
+    },
+    popupEditInputFocus: {
+      borderColor: "#6366f1",
+    },
+    popupEditSelect: {
+      width: "100%",
+      height: "38px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "6px",
+      padding: "0 12px",
+      fontSize: "13px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      cursor: "pointer",
+      boxSizing: "border-box",
+    },
+    popupEditTextarea: {
+      width: "100%",
+      minHeight: "80px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "6px",
+      padding: "10px 12px",
+      fontSize: "13px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      resize: "vertical",
+      boxSizing: "border-box",
+    },
+    popupEditError: {
+      color: "#dc2626",
+      fontSize: "12px",
+      marginTop: "5px",
+      fontWeight: "500",
+    },
+    popupEditButtonGroup: {
+      gridColumn: "1 / -1",
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "12px",
+      marginTop: "25px",
+      paddingTop: "20px",
+      borderTop: "2px solid #e5e7eb",
+    },
+    popupEditCancelButton: {
+      backgroundColor: "#f3f4f6",
+      color: "#374151",
+      padding: "10px 20px",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      transition: "all 0.2s ease",
+    },
+    popupEditCancelButtonHover: {
+      backgroundColor: "#e5e7eb",
+    },
+    popupEditSaveButton: {
+      backgroundColor: "#2563eb",
+      color: "white",
+      padding: "10px 24px",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      transition: "all 0.2s ease",
+    },
+    popupEditSaveButtonHover: {
+      backgroundColor: "#1d4ed8",
+    },
+    popupEditSaveButtonDisabled: {
+      backgroundColor: "#93c5fd",
+      color: "white",
+      padding: "10px 24px",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "not-allowed",
+      fontFamily: "inherit",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    popupEditLoadingSpinner: {
+      width: "18px",
+      height: "18px",
+      border: "3px solid rgba(255, 255, 255, 0.3)",
+      borderRadius: "50%",
+      borderTopColor: "white",
+      animation: "spin 1s linear infinite",
+    },
+    editButtonHover: {
+      backgroundColor: "#c7d2fe",
+    },
+    deleteButtonHover: {
+      backgroundColor: "#c7d2fe",
+    },
   };
 
   return (
@@ -1128,7 +1709,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             </div>
           </div>
         </div>
-        {/* Error Message */}
         {error && (
           <div
             style={{
@@ -1152,10 +1732,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             onClick={() => navigate("/vendor-parts/add-parts")}
           >
             <Plus size={16} />
-            New Part
+            Create
           </button>
         </div>
-        {/* Loading State */}
         {loading && (
           <div
             style={{
@@ -1169,7 +1748,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        {/* Table Data */}
         {!loading && (
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
@@ -1181,20 +1759,22 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 }}
               >
                 <colgroup>
-                  <col style={{ width: "3%" }} />
-                  <col style={{ width: "10%" }} /> {/* Part Code */}
-                  <col style={{ width: "20%" }} /> {/* Part Name */}
-                  <col style={{ width: "8%" }} /> {/* Part Size */}
-                  <col style={{ width: "8%" }} /> {/* QTY Per Box */}
-                  <col style={{ width: "12%" }} /> {/* Part Material */}
-                  <col style={{ width: "10%" }} /> {/* Part Types */}
-                  <col style={{ width: "15%" }} /> {/* Customer */}
-                  <col style={{ width: "10%" }} /> {/* Model */}
-                  <col style={{ width: "15%" }} /> {/* Vendor */}
-                  <col style={{ width: "12%" }} /> {/* Vendor Types */}
-                  <col style={{ width: "12%" }} /> {/* Stock Level To */}
-                  <col style={{ width: "15%" }} /> {/* Created By */}
-                  <col style={{ width: "5%" }} /> {/* Action */}
+                  <col style={{ width: "2.5%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "25%" }} />
+                  <col style={{ width: "8%" }} />
                 </colgroup>
                 <thead>
                   <tr style={styles.tableHeader}>
@@ -1205,6 +1785,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>QTY Per Box</th>
                     <th style={styles.thWithLeftBorder}>Part Material</th>
                     <th style={styles.thWithLeftBorder}>Part Types</th>
+                    <th style={styles.thWithLeftBorder}>Part Placement</th>
+                    <th style={styles.thWithLeftBorder}>Part Weight</th>
                     <th style={styles.thWithLeftBorder}>Customer</th>
                     <th style={styles.thWithLeftBorder}>Model</th>
                     <th style={styles.thWithLeftBorder}>Vendor</th>
@@ -1216,22 +1798,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 </thead>
                 <tbody>
                   {currentData.length === 0 ? (
-                    <tr>
-                      {/* <td
-                        colSpan="16"
-                        style={{
-                          ...styles.tdWithLeftBorder,
-                          textAlign: "center",
-                          fontStyle: "italic",
-                          color: "#6b7280",
-                          padding: "20px",
-                        }}
-                      >
-                        {partsData.length === 0
-                          ? "No parts data available."
-                          : "No parts match your search criteria."}
-                      </td> */}
-                    </tr>
+                    <tr></tr>
                   ) : (
                     currentData.map((part, index) => (
                       <tr
@@ -1254,25 +1821,72 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         >
                           {(currentPage - 1) * itemsPerPage + index + 1}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.part_code}
+                        >
                           {part.part_code}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.part_name}
+                        >
                           {part.part_name}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.part_size}
+                        >
                           {part.part_size}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.qty_per_box}
+                        >
                           {part.qty_per_box}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.part_material || "-"}
+                        >
                           {part.part_material || "-"}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.part_types}
+                        >
                           {part.part_types}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
+                          {part.placement_name
+                            ? `${part.placement_name} (${part.placement_length}x${part.placement_width}x${part.placement_height} cm)`
+                            : "Not Set"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.part_weight}
+                        >
+                          {part.part_weight ? (
+                            <div>
+                              <div style={{ fontWeight: "500" }}>
+                                {parseFloat(part.part_weight).toLocaleString(
+                                  undefined,
+                                  {
+                                    minimumFractionDigits: 3,
+                                    maximumFractionDigits: 3,
+                                  }
+                                )}{" "}
+                                {part.weight_unit || "kg"}
+                              </div>
+                            </div>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.cust_name}
+                        >
                           {part.part_types === "Special" ? (
                             <div
                               title={
@@ -1311,11 +1925,34 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         </td>
                         <td style={styles.tdWithLeftBorder}>
                           <button
+                            style={styles.editButton}
+                            onClick={() => handleEditClick(part)}
+                            title="Edit"
+                            onMouseEnter={(e) =>
+                              (e.target.style.backgroundColor =
+                                styles.editButtonHover.backgroundColor)
+                            }
+                            onMouseLeave={(e) =>
+                              (e.target.style.backgroundColor =
+                                styles.editButton.backgroundColor)
+                            }
+                          >
+                            <Pencil size={10} />
+                          </button>
+                          <button
                             style={styles.deleteButton}
                             onClick={() =>
                               handleDeletePart(part.id, part.part_code)
                             }
-                            title="Delete Part"
+                            title="Delete"
+                            onMouseEnter={(e) =>
+                              (e.target.style.backgroundColor =
+                                styles.deleteButtonHover.backgroundColor)
+                            }
+                            onMouseLeave={(e) =>
+                              (e.target.style.backgroundColor =
+                                styles.deleteButton.backgroundColor)
+                            }
                           >
                             <Trash2 size={10} />
                           </button>
@@ -1398,32 +2035,27 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 </button>
               </div>
               <div style={{ fontSize: "12px", color: "#374151" }}>
-                Total Row : {filteredData.length} 
+                Total Row : {filteredData.length}
               </div>
             </div>
           </div>
         )}
+        {/* Popup Edit Vendor Detail (existing) */}
         {addVendorDetail && (
           <div style={styles.popupOverlay}>
-            {" "}
             <div style={styles.popupContainer}>
-              {" "}
               <div style={styles.popupHeader}>
-                {" "}
-                <h3 style={styles.popupTitle}>Add Vendor Detail</h3>{" "}
+                <h3 style={styles.popupTitle}>Add Vendor Detail</h3>
                 <button
                   style={styles.closeButton}
                   onClick={() => setAddVendorDetail(false)}
                 >
-                  {" "}
-                  <X size={20} />{" "}
-                </button>{" "}
-              </div>{" "}
+                  <X size={20} />
+                </button>
+              </div>
               <form onSubmit={handleAddVendorSubmit}>
-                {" "}
                 <div style={styles.formGroup}>
-                  {" "}
-                  <label style={styles.labelPopUp}>Trip</label>{" "}
+                  <label style={styles.labelPopUp}>Trip</label>
                   <select
                     style={styles.inputPopUp}
                     value={addVendorFormData.partCode}
@@ -1432,18 +2064,16 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     }
                     required
                   >
-                    {" "}
-                    <option value="">Select Trip</option>{" "}
-                    <option value="Trip-01">Trip-01</option>{" "}
-                    <option value="Trip-02">Trip-02</option>{" "}
-                    <option value="Trip-03">Trip-03</option>{" "}
-                    <option value="Trip-04">Trip-04</option>{" "}
-                    <option value="Trip-05">Trip-05</option>{" "}
-                  </select>{" "}
-                </div>{" "}
+                    <option value="">Select Trip</option>
+                    <option value="Trip-01">Trip-01</option>
+                    <option value="Trip-02">Trip-02</option>
+                    <option value="Trip-03">Trip-03</option>
+                    <option value="Trip-04">Trip-04</option>
+                    <option value="Trip-05">Trip-05</option>
+                  </select>
+                </div>
                 <div style={styles.formGroup}>
-                  {" "}
-                  <label style={styles.labelPopUp}>Vendor Name</label>{" "}
+                  <label style={styles.labelPopUp}>Vendor Name</label>
                   <select
                     style={styles.inputPopUp}
                     value={addVendorFormData.partName}
@@ -1452,29 +2082,23 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     }
                     required
                   >
-                    {" "}
-                    <option value="">Select Vendor</option>{" "}
+                    <option value="">Select Vendor</option>
                     <option value="188646 - PT. DAIHO INDONESIA">
-                      {" "}
-                      188646 - PT. DAIHO INDONESIA{" "}
-                    </option>{" "}
+                      188646 - PT. DAIHO INDONESIA
+                    </option>
                     <option value="188651 - PT SAT NUSAPERSADA TBK">
-                      {" "}
-                      188651 - PT SAT NUSAPERSADA TBK{" "}
-                    </option>{" "}
+                      188651 - PT SAT NUSAPERSADA TBK
+                    </option>
                     <option value="199869 - PT PRIMA LABELING">
-                      {" "}
-                      199869 - PT PRIMA LABELING{" "}
-                    </option>{" "}
+                      199869 - PT PRIMA LABELING
+                    </option>
                     <option value="192447 - SANSYU PRECISION SINGAPORE PTE LTD">
-                      {" "}
-                      192447 - SANSYU PRECISION SINGAPORE PTE LTD{" "}
-                    </option>{" "}
-                  </select>{" "}
-                </div>{" "}
+                      192447 - SANSYU PRECISION SINGAPORE PTE LTD
+                    </option>
+                  </select>
+                </div>
                 <div style={styles.formGroup}>
-                  {" "}
-                  <label style={styles.labelPopUp}>DO Number</label>{" "}
+                  <label style={styles.labelPopUp}>DO Number</label>
                   <input
                     style={styles.inputPopUpDO}
                     onChange={(e) =>
@@ -1483,11 +2107,10 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     placeholder=""
                     min="1"
                     required
-                  />{" "}
-                </div>{" "}
+                  />
+                </div>
                 <div style={styles.formGroup}>
-                  {" "}
-                  <label style={styles.labelPopUp}>Arrival Time</label>{" "}
+                  <label style={styles.labelPopUp}>Arrival Time</label>
                   <input
                     type="time"
                     style={styles.input}
@@ -1496,28 +2119,469 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       handleAddVendorInputChange("quantity", e.target.value)
                     }
                     placeholder=""
-                  />{" "}
-                </div>{" "}
+                  />
+                </div>
                 <div style={styles.buttonGroup}>
-                  {" "}
                   <button
                     type="button"
                     style={styles.cancelButton}
                     onClick={() => setAddVendorDetail(false)}
                   >
-                    {" "}
-                    Cancel{" "}
-                  </button>{" "}
+                    Cancel
+                  </button>
                   <button type="submit" style={styles.submitButton}>
-                    {" "}
-                    Add{" "}
-                  </button>{" "}
-                </div>{" "}
-              </form>{" "}
-            </div>{" "}
+                    Add
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Popup Edit Part (new) */}
+        {showEditPopup && (
+          <div style={styles.popupEditOverlay}>
+            <div style={styles.popupEditContainer}>
+              <div style={styles.popupEditHeader}>
+                <h2 style={styles.popupEditTitle}>
+                  Edit Part: {editingPart?.part_code}
+                </h2>
+                <button
+                  style={styles.popupEditCloseButton}
+                  onClick={handleCloseEditPopup}
+                  title="Close"
+                  onMouseEnter={(e) =>
+                    (e.target.style.backgroundColor =
+                      styles.popupEditCloseButtonHover.backgroundColor)
+                  }
+                  onMouseLeave={(e) =>
+                    (e.target.style.backgroundColor = "transparent")
+                  }
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveEdit();
+                }}
+              >
+                <div style={styles.popupEditForm}>
+                  <div>
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Part Code</label>
+                      <input
+                        type="text"
+                        name="part_code"
+                        value={editFormData.part_code}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditInput}
+                        placeholder="Enter part code"
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Part Name *</label>
+                      <input
+                        type="text"
+                        name="part_name"
+                        value={editFormData.part_name}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditInput}
+                        placeholder="Enter part name"
+                        required
+                      />
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Part Size</label>
+                      <select
+                        name="part_size"
+                        value={editFormData.part_size}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditSelect}
+                        required
+                      >
+                        <option value="">Select Size</option>
+                        {partSizes.map((size) => (
+                          <option key={size.id} value={size.size_name}>
+                            {size.size_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Part Types</label>
+                      <select
+                        name="part_types"
+                        value={editFormData.part_types}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditSelect}
+                      >
+                        <option value="Regular">REGULAR</option>
+                        <option value="Special">SPECIAL</option>
+                      </select>
+                    </div>
+
+                    {editFormData.part_types === "Special" && (
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Customer *</label>
+                        <select
+                          name="customer_id"
+                          value={editFormData.customer_id}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditSelect}
+                          required={editFormData.part_types === "Special"}
+                        >
+                          <option value="">Select Customer</option>
+                          {customers.map((customer) => (
+                            <option key={customer.id} value={customer.id}>
+                              {customer.mat_code} | {customer.cust_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Kolom 2 */}
+                  <div>
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Part Material</label>
+                      <input
+                        type="text"
+                        name="part_material"
+                        value={editFormData.part_material}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditInput}
+                        placeholder="Enter part material"
+                      />
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>
+                        Part Price (USD)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        name="part_price"
+                        value={editFormData.part_price}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditInput}
+                        placeholder="0.00"
+                      />
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Part Weight</label>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          alignItems: "center",
+                        }}
+                      >
+                        {/* Input untuk nilai */}
+                        <input
+                          type="number"
+                          step="0.001"
+                          min="0"
+                          name="part_weight"
+                          value={editFormData.part_weight}
+                          onChange={handleEditFormChange}
+                          style={{
+                            ...styles.popupEditInput,
+                            flex: "3",
+                            textAlign: "right",
+                          }}
+                          placeholder="Enter weight"
+                        />
+
+                        {/* Selector untuk unit */}
+                        <select
+                          name="weight_unit"
+                          value={editFormData.weight_unit}
+                          onChange={handleEditFormChange}
+                          style={{
+                            ...styles.popupEditSelect,
+                            flex: "1",
+                            minWidth: "80px",
+                            padding: "0 8px",
+                          }}
+                        >
+                          <option value="kg">kg</option>
+                          <option value="g">g</option>
+                          <option value="lbs">lbs</option>
+                          <option value="oz">oz</option>
+                        </select>
+                      </div>
+
+                      {/* Info konversi */}
+                      <div
+                        style={{
+                          fontSize: "10px",
+                          color: "#6b7280",
+                          marginTop: "4px",
+                          padding: "4px",
+                          backgroundColor: "#f9fafb",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {editFormData.weight_unit === "g" && "1 kg = 1000 g"}
+                        {editFormData.weight_unit === "lbs" &&
+                          "1 kg = 2.20462 lbs"}
+                        {editFormData.weight_unit === "oz" &&
+                          "1 kg = 35.274 oz"}
+                        {editFormData.weight_unit === "kg" && "1 g = 0.001 kg"}
+                      </div>
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>QTY Per Box</label>
+                      <input
+                        type="number"
+                        name="qty_per_box"
+                        value={editFormData.qty_per_box}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditInput}
+                        placeholder="Enter quantity"
+                        min="1"
+                      />
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Model *</label>
+                      <select
+                        name="model"
+                        value={editFormData.model}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditSelect}
+                        required
+                      >
+                        <option value="">Select Model</option>
+                        {models.map((model, idx) => (
+                          <option key={idx} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Kolom 3 */}
+                  <div>
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Vendor *</label>
+                      <select
+                        name="vendor_id"
+                        value={editFormData.vendor_id}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditSelect}
+                        required
+                      >
+                        <option value="">Select Vendor</option>
+                        {vendors.map((vendor) => (
+                          <option key={vendor.id} value={vendor.id}>
+                            {vendor.vendor_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Vendor Types</label>
+                      <input
+                        type="text"
+                        style={styles.popupEditInput}
+                        value={editFormData.vendor_type}
+                        readOnly
+                        placeholder="Auto from vendor"
+                      />
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>
+                        Stock Level To *
+                      </label>
+                      <select
+                        name="stock_level_to"
+                        value={editFormData.stock_level_to}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditSelect}
+                        required
+                      >
+                        <option value="">Select Stock Level</option>
+                        {stockLevels.map((level, idx) => (
+                          <option key={idx} value={level.value}>
+                            {level.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>Placement</label>
+                      <select
+                        name="placement_id"
+                        value={editFormData.placement_id}
+                        onChange={handleEditFormChange}
+                        style={styles.popupEditSelect}
+                      >
+                        <option value="">Select Placement</option>
+                        {placements
+                          .filter((p) => p.is_active)
+                          .map((placement) => (
+                            <option key={placement.id} value={placement.id}>
+                              {placement.placement_name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Kolom 4 - Placement Dimensions (Read-only) */}
+                  <div>
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>
+                        Placement Length
+                      </label>
+                      <input
+                        type="text"
+                        style={{
+                          ...styles.popupEditInput,
+                          backgroundColor: "#f9fafb",
+                          cursor: "not-allowed",
+                        }}
+                        value={
+                          getSelectedPlacement
+                            ? `${getSelectedPlacement.length_cm} cm`
+                            : ""
+                        }
+                        readOnly
+                        placeholder="Auto from placement"
+                      />
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>
+                        Placement Width
+                      </label>
+                      <input
+                        type="text"
+                        style={{
+                          ...styles.popupEditInput,
+                          backgroundColor: "#f9fafb",
+                          cursor: "not-allowed",
+                        }}
+                        value={
+                          getSelectedPlacement
+                            ? `${getSelectedPlacement.width_cm} cm`
+                            : ""
+                        }
+                        readOnly
+                        placeholder="Auto from placement"
+                      />
+                    </div>
+
+                    <div style={styles.popupEditFormGroup}>
+                      <label style={styles.popupEditLabel}>
+                        Placement Height
+                      </label>
+                      <input
+                        type="text"
+                        style={{
+                          ...styles.popupEditInput,
+                          backgroundColor: "#f9fafb",
+                          cursor: "not-allowed",
+                        }}
+                        value={
+                          getSelectedPlacement
+                            ? `${getSelectedPlacement.height_cm} cm`
+                            : ""
+                        }
+                        readOnly
+                        placeholder="Auto from placement"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {editError && (
+                  <div style={styles.popupEditError}>Error: {editError}</div>
+                )}
+
+                <div style={styles.popupEditButtonGroup}>
+                  <button
+                    type="button"
+                    style={styles.popupEditCancelButton}
+                    onClick={handleCloseEditPopup}
+                    disabled={editLoading}
+                    onMouseEnter={(e) =>
+                      (e.target.style.backgroundColor =
+                        styles.popupEditCancelButtonHover.backgroundColor)
+                    }
+                    onMouseLeave={(e) =>
+                      (e.target.style.backgroundColor =
+                        styles.popupEditCancelButton.backgroundColor)
+                    }
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={
+                      editLoading
+                        ? styles.popupEditSaveButtonDisabled
+                        : styles.popupEditSaveButton
+                    }
+                    disabled={editLoading}
+                    onMouseEnter={(e) => {
+                      if (!editLoading) {
+                        e.target.style.backgroundColor =
+                          styles.popupEditSaveButtonHover.backgroundColor;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!editLoading) {
+                        e.target.style.backgroundColor =
+                          styles.popupEditSaveButton.backgroundColor;
+                      }
+                    }}
+                  >
+                    {editLoading ? (
+                      <>
+                        <div style={styles.popupEditLoadingSpinner}></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Tambahkan CSS animation untuk spinner */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };

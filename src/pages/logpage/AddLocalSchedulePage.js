@@ -17,18 +17,23 @@ const getAuthUserLocal = () => {
 
 const AddLocalSchedulePage = () => {
   const navigate = useNavigate();
-
-  // ====== FORM ATAS (INPUT HEADER BARU) ======
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101 | SCN-MH");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
   const [scheduleDate, setScheduleDate] = useState("");
 
-  // emp_name user login (ambil dari auth_user di localStorage)
+  // Tooltip state
+  const [tooltip, setTooltip] = useState({
+    visible: false,
+    content: "",
+    x: 0,
+    y: 0,
+  });
+
   const [currentEmpName, setCurrentEmpName] = useState("Unknown User");
 
   useEffect(() => {
     try {
-      const u = getAuthUserLocal(); // baca dari localStorage.auth_user
+      const u = getAuthUserLocal();
       if (!u) {
         setCurrentEmpName("Unknown User");
         return;
@@ -43,33 +48,24 @@ const AddLocalSchedulePage = () => {
         "";
 
       setCurrentEmpName(name || "Unknown User");
-
-      // optional: kalau mau dipakai di tempat lain juga sebagai string
-      // localStorage.setItem("emp_name", name || "");
     } catch (err) {
       console.error("Failed reading auth_user from localStorage", err);
       setCurrentEmpName("Unknown User");
     }
   }, []);
 
-  // ====== STATE LIST HEADER & VENDOR DRAFT ======
-  // Multi header
-  const [headerDrafts, setHeaderDrafts] = useState([]); // [{id, stockLevel, modelName, scheduleDate, uploadByName, createdAt}]
-  // Vendor per header: { [headerId]: [ {trip_id, vendor_id, do_numbers[]} ] }
+  const [headerDrafts, setHeaderDrafts] = useState([]);
   const [vendorDraftsByHeader, setVendorDraftsByHeader] = useState({});
-  const [expandedRows, setExpandedRows] = useState({}); // expand header row
-  const [expandedVendorRows, setExpandedVendorRows] = useState({}); // expand vendor row (level 3)
+  const [expandedRows, setExpandedRows] = useState({});
+  const [expandedVendorRows, setExpandedVendorRows] = useState({});
   const [activeVendorContext, setActiveVendorContext] = useState(null);
-
-  // header mana yang sedang ditambah vendor-nya (untuk popup)
+  const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [selectedPartsInPopup, setSelectedPartsInPopup] = useState([]);
   const [activeHeaderIdForVendorForm, setActiveHeaderIdForVendorForm] =
     useState(null);
-
-  // master data
   const [tripOptions, setTripOptions] = useState([]);
   const [vendorOptions, setVendorOptions] = useState([]);
-
-  // ====== POPUP VENDOR DETAIL (LEVEL 2) ======
   const [addVendorDetail, setAddVendorDetail] = useState(false);
   const [addVendorFormData, setAddVendorFormData] = useState({
     trip: "",
@@ -77,40 +73,35 @@ const AddLocalSchedulePage = () => {
     doNumbers: [""],
     arrivalTime: "",
   });
-
-  // ====== POPUP VENDOR PART DETAIL (LEVEL 3) – masih mock ======
   const [addVendorPartDetail, setAddVendorPartDetail] = useState(false);
   const [addVendorPartFormData, setAddVendorPartFormData] = useState({
     trip: "",
     vendor: "",
     doNumbers: [""],
     arrivalTime: "",
-    parts: [], // Array of {doNumber, partCode, id}
+    parts: [],
   });
 
-  // ========== INSERT HEADER (TAMBAH ROW BARU DI SCHEDULE LIST) ==========
   async function handleInsertSchedule() {
     try {
       if (!scheduleDate) {
-        alert("Pilih Schedule Date dulu");
+        alert("Please fill the data first ");
         return;
       }
 
-      // Validasi FE: Tanggal harus LEBIH BESAR dari hari ini (bukan sama, bukan kurang)
       const sel = new Date(`${scheduleDate}T00:00:00`);
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       if (!(sel instanceof Date) || Number.isNaN(sel.getTime())) {
-        alert("Format Schedule Date tidak valid");
+        alert("Format Schedule Date not valid");
         return;
       }
       if (sel <= today) {
-        alert("Schedule Date harus lebih besar dari hari ini");
+        alert("The schedule date must be later than today.");
         return;
       }
 
-      // 🚫 CEK DUPLIKAT SCHEDULE DATE DI DATABASE
       const resp = await fetch(
         `${API_BASE}/api/local-schedules/check-date?scheduleDate=${scheduleDate}`
       );
@@ -121,22 +112,12 @@ const AddLocalSchedulePage = () => {
       }
 
       if (data.exists) {
-        const [year, month, day] = scheduleDate.split("-");
-        const formattedDate = `${day}/${month}/${year}`;
-
         alert(
-          // `❌ Schedule Date ${formattedDate} sudah ada di database!\n\n` +
-          //   `Detail Schedule yang sudah ada:\n` +
-          //   `• Kode: ${data.schedule.schedule_code}\n` +
-          //   `• Stock Level: ${data.schedule.stock_level}\n` +
-          //   `• Model: ${data.schedule.model_name}\n\n` +
-          //   `Silakan pilih tanggal lain.`
-          'Schedule Date has been created. Try creating another Schedule Date.'
+          "Schedule Date has been created. Try creating another Schedule Date."
         );
         return;
       }
 
-      // 🚫 CEK DUPLIKAT SCHEDULE DATE DI DRAFT
       const isDuplicateDate = headerDrafts.some(
         (hdr) => hdr.scheduleDate === scheduleDate
       );
@@ -146,7 +127,6 @@ const AddLocalSchedulePage = () => {
         return;
       }
 
-      // Jika tidak ada duplikat, buat draft baru
       const createdAt = new Date().toISOString();
       const newId = `draft-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -164,49 +144,48 @@ const AddLocalSchedulePage = () => {
         ...prev,
         [newId]: [],
       }));
-
     } catch (e) {
       alert("Error: " + e.message);
     }
   }
 
+  useEffect(() => {
+    if (addVendorDetail) {
+      (async () => {
+        try {
+          const [tRes, vRes] = await Promise.all([
+            fetch(`${API_BASE}/api/masters/trips`),
+            fetch(`${API_BASE}/api/vendors`),
+          ]);
 
-useEffect(() => {
-  if (addVendorDetail) {
-    (async () => {
-      try {
-        const [tRes, vRes] = await Promise.all([
-          fetch(`${API_BASE}/api/masters/trips`),
-          fetch(`${API_BASE}/api/vendors`), 
-        ]);
-        
-        const tripsData = await tRes.json();
-        const vendorsData = await vRes.json();
-        
+          const tripsData = await tRes.json();
+          const vendorsData = await vRes.json();
 
-        setTripOptions(Array.isArray(tripsData) ? tripsData : []);
-        
+          setTripOptions(Array.isArray(tripsData) ? tripsData : []);
 
-        let vendorsArray = [];
-        if (Array.isArray(vendorsData)) {
-          vendorsArray = vendorsData;
-        } else if (vendorsData && Array.isArray(vendorsData.data)) {
-          vendorsArray = vendorsData.data;
-        } else if (vendorsData && vendorsData.success && Array.isArray(vendorsData.data)) {
-          vendorsArray = vendorsData.data;
+          let vendorsArray = [];
+          if (Array.isArray(vendorsData)) {
+            vendorsArray = vendorsData;
+          } else if (vendorsData && Array.isArray(vendorsData.data)) {
+            vendorsArray = vendorsData.data;
+          } else if (
+            vendorsData &&
+            vendorsData.success &&
+            Array.isArray(vendorsData.data)
+          ) {
+            vendorsArray = vendorsData.data;
+          }
+
+          console.log("Vendors data:", vendorsArray);
+          setVendorOptions(vendorsArray);
+        } catch (error) {
+          console.error("Error fetching master data:", error);
+          setTripOptions([]);
+          setVendorOptions([]);
         }
-        
-        console.log("Vendors data:", vendorsArray); 
-        setVendorOptions(vendorsArray);
-        
-      } catch (error) {
-        console.error("Error fetching master data:", error);
-        setTripOptions([]);
-        setVendorOptions([]);
-      }
-    })();
-  }
-}, [addVendorDetail]);
+      })();
+    }
+  }, [addVendorDetail]);
 
   function onTripChange(e) {
     const tripLabel = e.target.value;
@@ -224,16 +203,22 @@ useEffect(() => {
     }));
   };
 
+  const autoExpandHeaderOnVendorAdd = (headerId) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [headerId]: true,
+    }));
+  };
+
   const handleAddVendorSubmit = (e) => {
     e.preventDefault();
 
     if (!activeHeaderIdForVendorForm) {
       alert(
-        "Header schedule tidak ditemukan. Klik tombol + pada schedule yang ingin ditambahkan vendor-nya."
+        "Header schedule not found. Click the + button on the schedule to which you want to add a vendor."
       );
       return;
     }
-
 
     const clean = (addVendorFormData.doNumbers || [])
       .map((s) => String(s || "").trim())
@@ -247,13 +232,11 @@ useEffect(() => {
       return;
     }
 
-
     const dup = clean.filter((v, i, a) => a.indexOf(v) !== i);
     if (dup.length) {
       alert("DO Number duplikat di form: " + [...new Set(dup)].join(", "));
       return;
     }
-
 
     const t = tripOptions.find(
       (x) => String(x.trip_no) === String(addVendorFormData.trip)
@@ -263,7 +246,7 @@ useEffect(() => {
       return;
     }
 
-    const vendorLabel = addVendorFormData.vendor; 
+    const vendorLabel = addVendorFormData.vendor;
     const v = vendorOptions.find(
       (x) => `${x.vendor_code} - ${x.vendor_name}` === vendorLabel
     );
@@ -273,6 +256,9 @@ useEffect(() => {
     }
 
     const headerId = activeHeaderIdForVendorForm;
+
+    // Auto-expand header row
+    autoExpandHeaderOnVendorAdd(headerId);
 
     setVendorDraftsByHeader((prev) => {
       const existing = prev[headerId] || [];
@@ -299,15 +285,97 @@ useEffect(() => {
     });
   };
 
+  const autoExpandVendorOnPartAdd = (headerId, vendorIndex) => {
+    // Auto-expand header row jika belum terbuka
+    setExpandedRows((prev) => ({
+      ...prev,
+      [headerId]: true,
+    }));
+
+    // Auto-expand vendor row jika belum terbuka
+    const vendorRowId = `${headerId}_vendor_${vendorIndex + 1}`;
+    setExpandedVendorRows((prev) => ({
+      ...prev,
+      [vendorRowId]: true,
+    }));
+  };
+
+  // Fungsi untuk menghapus draft schedule (header)
+  const handleDeleteHeader = (headerId) => {
+    // Hapus header dari headerDrafts
+    setHeaderDrafts((prev) => prev.filter((h) => h.id !== headerId));
+
+    // Hapus vendor yang terkait dengan header ini
+    setVendorDraftsByHeader((prev) => {
+      const copy = { ...prev };
+      delete copy[headerId];
+      return copy;
+    });
+
+    // Tutup expansion header jika sedang terbuka
+    setExpandedRows((prev) => {
+      const copy = { ...prev };
+      delete copy[headerId];
+      return copy;
+    });
+
+    // Tutup semua expansion vendor di bawah header ini
+    setExpandedVendorRows((prev) => {
+      const copy = { ...prev };
+      Object.keys(copy).forEach((key) => {
+        if (key.startsWith(`${headerId}_vendor_`)) {
+          delete copy[key];
+        }
+      });
+      return copy;
+    });
+
+    // Hapus dari selectedHeaderIds jika ada
+    setSelectedHeaderIds((prev) => {
+      const next = new Set(prev);
+      next.delete(headerId);
+      return next;
+    });
+  };
+
   async function handleSubmitVendors() {
     try {
       if (!headerDrafts.length) {
         alert("Belum ada draft schedule. Klik Insert dulu.");
         return;
       }
+      if (selectedHeaderIds.size === 0) {
+        alert("Please select schedule data");
+        return;
+      }
+      const selected = [...selectedHeaderIds].map((id) =>
+        headerDrafts.find((x) => x.id === id)
+      );
 
-      for (let i = 0; i < headerDrafts.length; i++) {
-        const hdr = headerDrafts[i];
+      const tanpaVendor = selected.filter(
+        (h) =>
+          !h ||
+          !vendorDraftsByHeader[h.id] ||
+          vendorDraftsByHeader[h.id].length === 0
+      );
+
+      if (tanpaVendor.length > 0) {
+        alert("Please add vendor details before input");
+        return;
+      }
+      for (const hdr of selected) {
+        const vendors = vendorDraftsByHeader[hdr.id] || [];
+        for (const vendor of vendors) {
+          if (!vendor.parts || vendor.parts.length === 0) {
+            alert(
+              `Schedule tanggal ${hdr.scheduleDate} memiliki vendor yang belum memiliki parts. Silakan tambahkan part details terlebih dahulu.`
+            );
+            return;
+          }
+        }
+      }
+      for (let i = 0; i < selected.length; i++) {
+        const hdr = selected[i];
 
         const body = {
           stockLevel: hdr.stockLevel,
@@ -321,10 +389,11 @@ useEffect(() => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
+
         const data = await resp.json();
         if (!resp.ok) {
           throw new Error(
-            `Gagal membuat schedule ke-${i + 1}: ${
+            `Gagal membuat schedule: ${
               data.message || "Failed to create schedule"
             }`
           );
@@ -332,7 +401,7 @@ useEffect(() => {
 
         const scheduleId = data.schedule?.id;
         if (!scheduleId) {
-          throw new Error(`Schedule ke-${i + 1}: Schedule ID tidak ditemukan`);
+          throw new Error(`Schedule ID tidak ditemukan`);
         }
 
         const vendors = vendorDraftsByHeader[hdr.id] || [];
@@ -353,15 +422,17 @@ useEffect(() => {
               body: JSON.stringify(vendorPayload),
             }
           );
+
           const data2 = await resp2.json();
           if (!resp2.ok) {
             throw new Error(
-              `Gagal menyimpan vendor untuk schedule ke-${i + 1}: ${
+              `Gagal menyimpan vendor: ${
                 data2.message || "Failed to submit vendors"
               }`
             );
           }
 
+          // Submit parts untuk setiap vendor
           for (let j = 0; j < vendors.length; j++) {
             const vendor = vendors[j];
             const vendorId = data2.vendors[j]?.id;
@@ -384,12 +455,13 @@ useEffect(() => {
                   body: JSON.stringify({ items: partsData }),
                 }
               );
+
               const data3 = await resp3.json();
               if (!resp3.ok) {
                 throw new Error(
-                  `Gagal menyimpan parts untuk vendor ke-${j + 1} schedule ke-${
-                    i + 1
-                  }: ${data3.message || "Failed to submit parts"}`
+                  `Gagal menyimpan parts: ${
+                    data3.message || "Failed to submit parts"
+                  }`
                 );
               }
             }
@@ -399,15 +471,86 @@ useEffect(() => {
 
       alert("Semua schedule, vendor details, dan parts berhasil disimpan.");
 
-      setHeaderDrafts([]);
-      setVendorDraftsByHeader({});
-      setExpandedRows({});
-      setExpandedVendorRows({});
+      const nextHeaders = headerDrafts.filter(
+        (h) => !selectedHeaderIds.has(h.id)
+      );
+      setHeaderDrafts(nextHeaders);
+
+      const nextVendors = { ...vendorDraftsByHeader };
+      selectedHeaderIds.forEach((id) => {
+        delete nextVendors[id];
+      });
+      setVendorDraftsByHeader(nextVendors);
+
+      // Reset selection
+      setSelectedHeaderIds(new Set());
+      setSelectAll(false);
+
+      // Reset expanded rows untuk schedule yang dihapus
+      setExpandedRows((prev) => {
+        const next = { ...prev };
+        selectedHeaderIds.forEach((id) => {
+          delete next[id];
+        });
+        return next;
+      });
+
+      setExpandedVendorRows((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((key) => {
+          selectedHeaderIds.forEach((id) => {
+            if (key.startsWith(`${id}_vendor_`)) {
+              delete next[key];
+            }
+          });
+        });
+        return next;
+      });
+
       navigate("/local-schedule");
     } catch (e) {
       alert("Error: " + e.message);
     }
   }
+
+  const handleDeleteVendor = (headerId, vendorIndex) => {
+    setVendorDraftsByHeader((prev) => {
+      const vendors = [...(prev[headerId] || [])];
+      vendors.splice(vendorIndex, 1);
+
+      return {
+        ...prev,
+        [headerId]: vendors,
+      };
+    });
+
+    // Hapus expansion state untuk vendor ini
+    const vendorRowId = `${headerId}_vendor_${vendorIndex + 1}`;
+    setExpandedVendorRows((prev) => {
+      const next = { ...prev };
+      delete next[vendorRowId];
+      return next;
+    });
+  };
+
+  const handleDeletePart = (headerId, vendorIndex, partId) => {
+    setVendorDraftsByHeader((prev) => {
+      const vendors = [...(prev[headerId] || [])];
+      if (!vendors[vendorIndex]) return prev;
+
+      vendors[vendorIndex] = {
+        ...vendors[vendorIndex],
+        parts: (vendors[vendorIndex].parts || []).filter(
+          (p) => p.id !== partId
+        ),
+      };
+
+      return {
+        ...prev,
+        [headerId]: vendors,
+      };
+    });
+  };
 
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
@@ -431,6 +574,41 @@ useEffect(() => {
     });
   };
 
+  const toggleHeaderCheckbox = (headerId, checked) => {
+    setSelectedHeaderIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(headerId);
+      else next.delete(headerId);
+      if (checked && next.size === headerDrafts.length) {
+        setSelectAll(true);
+      } else if (!checked) {
+        setSelectAll(false);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked) => {
+    setSelectAll(checked);
+    if (checked) {
+      const allIds = new Set(headerDrafts.map((h) => h.id));
+      setSelectedHeaderIds(allIds);
+    } else {
+      setSelectedHeaderIds(new Set());
+    }
+  };
+
+  useEffect(() => {
+    if (
+      headerDrafts.length > 0 &&
+      selectedHeaderIds.size === headerDrafts.length
+    ) {
+      setSelectAll(true);
+    } else {
+      setSelectAll(false);
+    }
+  }, [selectedHeaderIds, headerDrafts]);
+
   const toggleVendorRowExpansion = (vendorRowId) => {
     setExpandedVendorRows((prev) => ({
       ...prev,
@@ -444,6 +622,13 @@ useEffect(() => {
     vendorData,
     vendorLabel
   ) => {
+    // Auto-expand header dan vendor row
+    autoExpandVendorOnPartAdd(headerId, vendorIndex);
+
+    // Ambil parts yang sudah ada di vendor row (expandedVendorRows)
+    const existingPartsInVendor = vendorData.parts || [];
+    const existingPartCodes = existingPartsInVendor.map((p) => p.partCode);
+
     setActiveVendorContext({
       headerId,
       vendorIndex,
@@ -451,6 +636,12 @@ useEffect(() => {
       vendorLabel,
       doNumbers: vendorData.do_numbers || [],
     });
+
+    // Filter out parts yang sudah ada di expandedVendorRows
+    const currentPartsInForm = vendorData.parts ? [...vendorData.parts] : [];
+    const filteredParts = currentPartsInForm.filter(
+      (part) => !existingPartCodes.includes(part.partCode)
+    );
 
     setAddVendorPartFormData({
       trip: "",
@@ -460,11 +651,36 @@ useEffect(() => {
           ? [...vendorData.do_numbers]
           : [""],
       arrivalTime: "",
-      parts: vendorData.parts ? [...vendorData.parts] : [],
+      parts: filteredParts, // Gunakan filtered parts
     });
+
+    // Reset selected parts saat buka popup
+    setSelectedPartsInPopup([]);
 
     setAddVendorPartDetail(true);
   };
+
+  // Fungsi untuk menghitung total part dari semua vendor dalam satu schedule
+const calculateTotalPartsForHeader = (headerId) => {
+  const vendors = vendorDraftsByHeader[headerId] || [];
+  
+  let totalParts = 0;
+  vendors.forEach(vendor => {
+    if (vendor.parts && Array.isArray(vendor.parts)) {
+      totalParts += vendor.parts.length;
+    }
+  });
+  
+  return totalParts;
+};
+
+const calculateTotalPartsForVendor = (vendorData) => {
+  if (!vendorData || !vendorData.parts || !Array.isArray(vendorData.parts)) {
+    return 0;
+  }
+  return vendorData.parts.length;
+};
+
 
   const handleDoNumberChange = (index, value) => {
     const updatedDoNumbers = [...addVendorFormData.doNumbers];
@@ -494,99 +710,33 @@ useEffect(() => {
     }
   };
 
-  const handleAddVendorPartInputChange = (field, value) => {
-    setAddVendorPartFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleVendorPartDoNumberChange = (index, value) => {
-    const updatedDoNumbers = [...addVendorPartFormData.doNumbers];
-    updatedDoNumbers[index] = value;
-    setAddVendorPartFormData((prev) => ({
-      ...prev,
-      doNumbers: updatedDoNumbers,
-    }));
-  };
-
-  const addVendorPartDoNumberField = () => {
-    setAddVendorPartFormData((prev) => ({
-      ...prev,
-      doNumbers: [...prev.doNumbers, ""],
-    }));
-  };
-
-  const removeVendorPartDoNumberField = (index) => {
-    if (addVendorPartFormData.doNumbers.length > 1) {
-      const updatedDoNumbers = addVendorPartFormData.doNumbers.filter(
-        (_, i) => i !== index
-      );
-      setAddVendorPartFormData((prev) => ({
-        ...prev,
-        doNumbers: updatedDoNumbers,
-      }));
-    }
-  };
-
-  const handleAddVendorPartSubmit = (e) => {
-    e.preventDefault();
-
-    if (!activeVendorContext) {
-      alert("Vendor context tidak ditemukan.");
-      return;
-    }
-
-    const { headerId, vendorIndex } = activeVendorContext;
-
-    // Update parts di vendorDraftsByHeader
-    setVendorDraftsByHeader((prev) => {
-      const vendors = [...(prev[headerId] || [])];
-      if (!vendors[vendorIndex]) return prev;
-
-      vendors[vendorIndex] = {
-        ...vendors[vendorIndex],
-        parts: [...addVendorPartFormData.parts],
-      };
-
-      return {
-        ...prev,
-        [headerId]: vendors,
-      };
-    });
-
-    setAddVendorPartDetail(false);
-    setActiveVendorContext(null);
-    setAddVendorPartFormData({
-      trip: "",
-      vendor: "",
-      doNumbers: [""],
-      arrivalTime: "",
-      parts: [],
-    });
-
-    alert("Part details berhasil disimpan ke draft.");
-  };
-
   const handleAddPart = async (rawPartCode) => {
     const partCode = String(rawPartCode || "").trim();
-    if (!partCode) return;
+    if (!partCode) {
+      // Hanya validasi jika partCode kosong
+      return;
+    }
 
     if (!activeVendorContext) {
       alert("Vendor context tidak ditemukan. Buka popup dari baris vendor.");
       return;
     }
 
-    const availableDoNumbers =
-      activeVendorContext.doNumbers && activeVendorContext.doNumbers.length
-        ? activeVendorContext.doNumbers.filter((d) => String(d || "").trim())
-        : [];
+    // Ambil semua part code yang sudah ada di vendor ini (baik di expandedVendorRows maupun di popup)
+    const existingPartCodes = [];
 
-    if (!availableDoNumbers.length) {
-      alert(
-        "DO Number untuk vendor ini belum ada. Tambahkan dulu di Vendor Detail."
+    // 1. Cek part yang sudah ada di expandedVendorRows (sudah di-insert sebelumnya)
+    const { headerId, vendorIndex } = activeVendorContext;
+    const vendorData = vendorDraftsByHeader[headerId]?.[vendorIndex];
+    if (vendorData?.parts) {
+      existingPartCodes.push(...vendorData.parts.map((p) => p.partCode));
+    }
+
+    // 2. Cek part yang sudah ada di popup form (belum di-insert)
+    if (addVendorPartFormData.parts) {
+      existingPartCodes.push(
+        ...addVendorPartFormData.parts.map((p) => p.partCode)
       );
-      return;
     }
 
     try {
@@ -608,6 +758,16 @@ useEffect(() => {
         return;
       }
 
+      // Cek apakah part sudah ada (baik di expandedVendorRows maupun di popup form)
+      const isDuplicate = existingPartCodes.some(
+        (code) => String(code) === String(item.part_code)
+      );
+
+      if (isDuplicate) {
+        alert("Part already insert in this vendor");
+        return;
+      }
+
       // Validasi vendor (opsional, bisa di-comment jika tidak diperlukan)
       if (
         activeVendorContext.vendorId &&
@@ -618,15 +778,20 @@ useEffect(() => {
         return;
       }
 
-      setAddVendorPartFormData((prev) => {
-        const already = prev.parts?.some(
-          (p) => String(p.partCode) === String(item.part_code)
-        );
-        if (already) {
-          alert("Part code sudah ada di daftar.");
-          return prev;
-        }
+      // Ambil DO Number dari parts yang dipilih di checkbox
+      const availableDoNumbers =
+        activeVendorContext.doNumbers && activeVendorContext.doNumbers.length
+          ? activeVendorContext.doNumbers.filter((d) => String(d || "").trim())
+          : [];
 
+      if (!availableDoNumbers.length) {
+        alert(
+          "DO Number untuk vendor ini belum ada. Tambahkan dulu di Vendor Detail."
+        );
+        return;
+      }
+
+      setAddVendorPartFormData((prev) => {
         const newPart = {
           id: Date.now(),
           doNumber: availableDoNumbers[0],
@@ -642,9 +807,34 @@ useEffect(() => {
           parts: [...(prev.parts || []), newPart],
         };
       });
+
+      // Reset checkbox setelah berhasil add
+      setSelectedPartsInPopup([]);
     } catch (err) {
       console.error(err);
       alert(err.message || "Terjadi kesalahan saat cek Part Code.");
+    }
+  };
+
+  const handlePopupCheckboxChange = (e, partId) => {
+    if (e.target.checked) {
+      // Add part id to selected
+      setSelectedPartsInPopup((prev) => [...prev, partId]);
+    } else {
+      // Remove part id from selected
+      setSelectedPartsInPopup((prev) => prev.filter((id) => id !== partId));
+    }
+  };
+
+  // Fungsi untuk handle select all checkbox
+  const handleSelectAllInPopup = (e) => {
+    if (e.target.checked) {
+      // Select semua part yang ada di popup
+      const allPartIds = addVendorPartFormData.parts.map((part) => part.id);
+      setSelectedPartsInPopup(allPartIds);
+    } else {
+      // Unselect semua
+      setSelectedPartsInPopup([]);
     }
   };
 
@@ -653,6 +843,9 @@ useEffect(() => {
       ...prev,
       parts: (prev.parts || []).filter((p) => p.id !== partId),
     }));
+
+    // Hapus juga dari selectedPartsInPopup jika ada
+    setSelectedPartsInPopup((prev) => prev.filter((id) => id !== partId));
   };
 
   const handleRemoveVendorPart = (headerId, vendorIndex, partId) => {
@@ -672,6 +865,165 @@ useEffect(() => {
         [headerId]: vendors,
       };
     });
+  };
+
+  const handleAddVendorPartSubmit = (e) => {
+    e.preventDefault();
+
+    if (!activeVendorContext) {
+      alert("Vendor context tidak ditemukan.");
+      return;
+    }
+
+    // VALIDASI: Cek jika ada parts di form tapi tidak ada yang dipilih checkbox
+    if (
+      addVendorPartFormData.parts.length > 0 &&
+      selectedPartsInPopup.length === 0
+    ) {
+      alert("Select part before insert");
+      return;
+    }
+
+    const { headerId, vendorIndex } = activeVendorContext;
+
+    // Auto-expand header dan vendor row setelah save
+    autoExpandVendorOnPartAdd(headerId, vendorIndex);
+
+    // Filter hanya parts yang dipilih checkbox
+    const partsToInsert = addVendorPartFormData.parts.filter((part) =>
+      selectedPartsInPopup.includes(part.id)
+    );
+
+    setVendorDraftsByHeader((prev) => {
+      const vendors = [...(prev[headerId] || [])];
+      if (!vendors[vendorIndex]) return prev;
+
+      // Ambil existing parts dari vendor
+      const existingParts = vendors[vendorIndex].parts || [];
+
+      // Filter untuk menghindari duplikasi (safety check)
+      const existingPartCodes = existingParts.map((p) => p.partCode);
+      const uniquePartsToInsert = partsToInsert.filter(
+        (part) => !existingPartCodes.includes(part.partCode)
+      );
+
+      // Gabungkan existing parts dengan new parts
+      vendors[vendorIndex] = {
+        ...vendors[vendorIndex],
+        parts: [...existingParts, ...uniquePartsToInsert],
+      };
+
+      return {
+        ...prev,
+        [headerId]: vendors,
+      };
+    });
+
+    // Kosongkan form (karena parts sudah di-insert ke expandedVendorRows)
+    setAddVendorPartDetail(false);
+    setActiveVendorContext(null);
+    setAddVendorPartFormData({
+      trip: "",
+      vendor: "",
+      doNumbers: [""],
+      arrivalTime: "",
+      parts: [], // Kosongkan karena sudah di-insert
+    });
+
+    // Reset selected parts setelah submit
+    setSelectedPartsInPopup([]);
+  };
+
+  const resetVendorPartForm = () => {
+    setAddVendorPartFormData({
+      trip: "",
+      vendor: "",
+      doNumbers: [""],
+      arrivalTime: "",
+      parts: [],
+    });
+    setSelectedPartsInPopup([]);
+    setActiveVendorContext(null);
+  };
+
+  const showTooltip = (e) => {
+    e.stopPropagation();
+
+    const target = e.target;
+    let content = "";
+    if (target.dataset.tooltip) {
+      content = target.dataset.tooltip;
+    } else if (target.closest("[data-tooltip]")) {
+      content = target.closest("[data-tooltip]").dataset.tooltip;
+    } else if (target.title) {
+      content = target.title;
+    }
+    // Logika lainnya tetap sama...
+    else if (target.tagName === "BUTTON" || target.closest("button")) {
+      const button =
+        target.tagName === "BUTTON" ? target : target.closest("button");
+
+      if (button.querySelector("svg")) {
+        if (button.querySelector('[size="10"]')) {
+          content = "Add";
+        } else if (button.classList.contains("delete-button")) {
+          content = "Delete";
+        } else if (button.querySelector('[data-icon="pencil"]')) {
+          content = "Edit";
+        } else if (button.querySelector('[data-icon="save"]')) {
+          content = "Save";
+        } else if (
+          button.querySelector('[data-icon="arrow-right"]') ||
+          button.querySelector('[data-icon="arrow-drop-down"]')
+        ) {
+          content = "Expand/collapse details";
+        }
+      }
+
+      if (!content && button.title) {
+        content = button.title;
+      }
+    } else if (target.type === "checkbox") {
+      content = "Select this row";
+    } else if (
+      (target.tagName === "TD" || target.tagName === "TH") &&
+      target.textContent.trim()
+    ) {
+      content = target.textContent.trim();
+    }
+
+    // Default content jika masih kosong
+    if (!content) {
+      content = "Information";
+    }
+
+    const rect = target.getBoundingClientRect();
+    setTooltip({
+      visible: true,
+      content,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10,
+    });
+  };
+
+  const hideTooltip = () => {
+    setTooltip((prev) => ({
+      ...prev,
+      visible: false,
+    }));
+  };
+
+  // Fungsi untuk handle input focus dan blur
+  const handleInputFocus = (e) => {
+    e.target.style.borderColor = "#9fa8da";
+  };
+
+  const handleInputBlur = (e) => {
+    e.target.style.borderColor = "#d1d5db";
+  };
+
+  const handleButtonHover = (e, isHover) => {
+    e.target.style.backgroundColor = isHover ? "#1d4ed8" : "#2563eb";
   };
 
   const styles = {
@@ -885,7 +1237,7 @@ useEffect(() => {
     },
     expandedTableContainer: {
       marginBottom: "1px",
-      marginLeft: "45px",
+      marginLeft: "76.1px",
       backgroundColor: "white",
       boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
       overflowX: "auto",
@@ -1151,6 +1503,31 @@ useEffect(() => {
         backgroundColor: "#f3f4f6",
         cursor: "pointer",
       },
+    },
+    // TOOLTIP STYLE (SAMA SEPERTI TARGETSCHEDULEPAGE.JS)
+    tooltip: {
+      position: "fixed",
+      top: tooltip.y,
+      left: tooltip.x,
+      transform: "translateX(-50%)",
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      color: "white",
+      padding: "6px 10px",
+      borderRadius: "4px",
+      fontSize: "12px",
+      fontWeight: "500",
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+      zIndex: 9999,
+      opacity: tooltip.visible ? 1 : 0,
+      transition: "opacity 0.2s ease",
+      maxWidth: "300px",
+      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+    },
+    cellContent: {
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
     },
   };
 
@@ -1551,12 +1928,10 @@ useEffect(() => {
     },
   };
 
-  // ===================== RENDER =====================
   return (
     <div style={styles.pageContainer}>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
-          {/* CARD ATAS: STOCK LEVEL CONFIGURATION */}
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
               <h2 style={styles.h2}>Stock Level Configuration</h2>
@@ -1638,7 +2013,6 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* SCHEDULE LIST */}
           <h2 style={styles.h2}>Schedule List</h2>
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
@@ -1651,7 +2025,7 @@ useEffect(() => {
               >
                 <colgroup>
                   <col style={{ width: "26px" }} />
-                  <col style={{ width: "1.8%" }} />
+                  <col style={{ width: "2.4%" }} />
                   <col style={{ width: "25px" }} />
                   <col style={{ width: "15%" }} />
                   <col style={{ width: "15%" }} />
@@ -1665,14 +2039,30 @@ useEffect(() => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     <th style={styles.expandedTh}>No</th>
-                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>
+                      {headerDrafts.length > 1 && (
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          style={{
+                            margin: "0 auto",
+                            display: "block",
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
+                          }}
+                          title="Select All"
+                        />
+                      )}
+                    </th>
                     <th style={styles.thWithLeftBorder}></th>
                     <th style={styles.thWithLeftBorder}>Schedule Date</th>
                     <th style={styles.thWithLeftBorder}>Stock Level</th>
                     <th style={styles.thWithLeftBorder}>Model</th>
                     <th style={styles.thWithLeftBorder}>Total Vendor</th>
                     <th style={styles.thWithLeftBorder}>Total Pallet</th>
-                    <th style={styles.thWithLeftBorder}>Total Item</th>
+                    <th style={styles.thWithLeftBorder}>Total Part</th>
                     <th style={styles.thWithLeftBorder}>Upload By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
@@ -1680,9 +2070,7 @@ useEffect(() => {
 
                 <tbody>
                   {headerDrafts.length === 0 ? (
-                    <tr>
-                
-                    </tr>
+                    <tr></tr>
                   ) : (
                     headerDrafts.map((hdr, headerIndex) => {
                       const headerVendors = vendorDraftsByHeader[hdr.id] || [];
@@ -1711,6 +2099,10 @@ useEffect(() => {
                           <td style={styles.tdWithLeftBorder}>
                             <input
                               type="checkbox"
+                              checked={selectedHeaderIds.has(hdr.id)}
+                              onChange={(e) =>
+                                toggleHeaderCheckbox(hdr.id, e.target.checked)
+                              }
                               style={{
                                 margin: "0 auto",
                                 display: "block",
@@ -1738,8 +2130,11 @@ useEffect(() => {
                             </button>
                           </td>
 
-                          {/* Schedule Date -> format dd/mm/yyyy */}
-                          <td style={styles.tdWithLeftBorder}>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            onMouseEnter={showTooltip}
+                            onMouseLeave={hideTooltip}
+                          >
                             {(() => {
                               try {
                                 const d = new Date(hdr.scheduleDate);
@@ -1756,20 +2151,49 @@ useEffect(() => {
                             })()}
                           </td>
 
-                          <td style={styles.tdWithLeftBorder}>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            onMouseEnter={showTooltip}
+                            onMouseLeave={hideTooltip}
+                            title={hdr.stockLevel}
+                          >
                             {hdr.stockLevel}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            onMouseEnter={showTooltip}
+                            onMouseLeave={hideTooltip}
+                            title={hdr.modelName}
+                          >
                             {hdr.modelName}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            onMouseEnter={showTooltip}
+                            onMouseLeave={hideTooltip}
+                          >
                             {headerVendors.length}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>0</td>
-                          <td style={styles.tdWithLeftBorder}>0</td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            onMouseEnter={showTooltip}
+                            onMouseLeave={hideTooltip}
+                          >
+                            0
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            onMouseEnter={showTooltip}
+                            onMouseLeave={hideTooltip}
+                          >
+                            {calculateTotalPartsForHeader(hdr.id)}
+                          </td>
 
-                          {/* Upload By label: emp_name | yyyy/mm/dd hh:mm */}
-                          <td style={styles.tdWithLeftBorder}>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            onMouseEnter={showTooltip}
+                            onMouseLeave={hideTooltip}
+                          >
                             {(() => {
                               try {
                                 const d = new Date(hdr.createdAt || Date.now());
@@ -1791,48 +2215,21 @@ useEffect(() => {
                               style={styles.addButton}
                               onClick={() => {
                                 setActiveHeaderIdForVendorForm(hdr.id);
+                                autoExpandHeaderOnVendorAdd(hdr.id);
                                 setAddVendorDetail(true);
                               }}
-                              title="Add Vendor Detail"
+                              onMouseEnter={showTooltip}
+                              onMouseLeave={hideTooltip}
+                              data-tooltip="Add Vendor"
                             >
                               <Plus size={10} />
                             </button>
                             <button
                               style={styles.deleteButton}
-                              onClick={() => {
-                                const ok = window.confirm(
-                                  "Delete this draft schedule?"
-                                );
-                                if (!ok) return;
-
-                                // hapus header
-                                setHeaderDrafts((prev) =>
-                                  prev.filter((h) => h.id !== hdr.id)
-                                );
-                                // hapus vendor2 nya
-                                setVendorDraftsByHeader((prev) => {
-                                  const copy = { ...prev };
-                                  delete copy[hdr.id];
-                                  return copy;
-                                });
-                                // tutup expansion header
-                                setExpandedRows((prev) => {
-                                  const copy = { ...prev };
-                                  delete copy[hdr.id];
-                                  return copy;
-                                });
-                                // tutup semua expansion vendor di bawah header ini
-                                setExpandedVendorRows((prev) => {
-                                  const copy = { ...prev };
-                                  Object.keys(copy).forEach((key) => {
-                                    if (key.startsWith(`${hdr.id}_vendor_`)) {
-                                      delete copy[key];
-                                    }
-                                  });
-                                  return copy;
-                                });
-                              }}
-                              title="Delete Schedule"
+                              onClick={() => handleDeleteHeader(hdr.id)}
+                              onMouseEnter={showTooltip}
+                              onMouseLeave={hideTooltip}
+                              data-tooltip="Delete"
                             >
                               <Trash2 size={10} />
                             </button>
@@ -1840,7 +2237,6 @@ useEffect(() => {
                         </tr>
                       );
 
-                      // EXPANDED: VENDOR LIST (LEVEL 2) + LEVEL 3 DI BAWAH SETIAP ROW
                       const expandedRow = expandedRows[hdr.id] ? (
                         <tr key={`hdr-${hdr.id}-expanded`}>
                           <td
@@ -1858,7 +2254,7 @@ useEffect(() => {
                                   <col style={{ width: "15%" }} />
                                   <col style={{ width: "15%" }} />
                                   <col style={{ width: "15%" }} />
-                                  <col style={{ width: "6%" }} />
+                                  <col style={{ width: "9%" }} />
                                 </colgroup>
                                 <thead>
                                   <tr style={styles.expandedTableHeader}>
@@ -1876,15 +2272,14 @@ useEffect(() => {
                                       Total Pallet
                                     </th>
                                     <th style={styles.expandedTh}>
-                                      Total Item
+                                      Total Part
                                     </th>
                                     <th style={styles.expandedTh}>Action</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {headerVendors.length === 0 ? (
-                                    <tr>
-                                    </tr>
+                                    <tr></tr>
                                   ) : (
                                     headerVendors.map((vd, idx) => {
                                       const trip = tripOptions.find(
@@ -1958,20 +2353,48 @@ useEffect(() => {
                                               )}
                                             </button>
                                           </td>
-                                          <td style={styles.expandedTd}>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
                                             {tripLabel}
                                           </td>
-                                          <td style={styles.expandedTd}>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
                                             {vendorLabel}
                                           </td>
-                                          <td style={styles.expandedTd}>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
                                             {doJoined}
                                           </td>
-                                          <td style={styles.expandedTd}>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
                                             {arrival}
                                           </td>
-                                          <td style={styles.expandedTd}>0</td>
-                                          <td style={styles.expandedTd}>0</td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            0
+                                          </td>
+                                          <td
+                                            style={styles.expandedTd}
+                                            onMouseEnter={showTooltip}
+                                            onMouseLeave={hideTooltip}
+                                          >
+                                            {calculateTotalPartsForVendor(vd)}
+                                          </td>
                                           <td style={styles.expandedTd}>
                                             <button
                                               style={styles.addButton}
@@ -1983,9 +2406,23 @@ useEffect(() => {
                                                   vendorLabel
                                                 )
                                               }
-                                              title="Add Part Details"
+                                              onMouseEnter={showTooltip}
+                                              onMouseLeave={hideTooltip}
+                                              data-tooltip="Add Part Detail"
                                             >
                                               <Plus size={10} />
+                                            </button>
+
+                                            <button
+                                              style={styles.deleteButton}
+                                              onClick={() =>
+                                                handleDeleteVendor(hdr.id, idx)
+                                              }
+                                              onMouseEnter={showTooltip}
+                                              onMouseLeave={hideTooltip}
+                                              data-tooltip="Delete Vendor"
+                                            >
+                                              <Trash2 size={10} />
                                             </button>
                                           </td>
                                         </tr>
@@ -2123,6 +2560,12 @@ useEffect(() => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
+                                                            onMouseEnter={
+                                                              showTooltip
+                                                            }
+                                                            onMouseLeave={
+                                                              hideTooltip
+                                                            }
                                                           >
                                                             {part.partCode}
                                                           </td>
@@ -2130,6 +2573,16 @@ useEffect(() => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
+                                                            onMouseEnter={
+                                                              showTooltip
+                                                            }
+                                                            onMouseLeave={
+                                                              hideTooltip
+                                                            }
+                                                            title={`Part Name: ${
+                                                              part.partName ||
+                                                              "—"
+                                                            }`}
                                                           >
                                                             {part.partName ||
                                                               "—"}
@@ -2138,6 +2591,15 @@ useEffect(() => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
+                                                            onMouseEnter={
+                                                              showTooltip
+                                                            }
+                                                            onMouseLeave={
+                                                              hideTooltip
+                                                            }
+                                                            title={`Quantity: ${
+                                                              part.qty ?? 0
+                                                            }`}
                                                           >
                                                             {part.qty ?? 0}
                                                           </td>
@@ -2145,6 +2607,15 @@ useEffect(() => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
+                                                            onMouseEnter={
+                                                              showTooltip
+                                                            }
+                                                            onMouseLeave={
+                                                              hideTooltip
+                                                            }
+                                                            title={`Quantity Box: ${
+                                                              part.qtyBox ?? 0
+                                                            }`}
                                                           >
                                                             {part.qtyBox ?? 0}
                                                           </td>
@@ -2152,6 +2623,15 @@ useEffect(() => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
+                                                            onMouseEnter={
+                                                              showTooltip
+                                                            }
+                                                            onMouseLeave={
+                                                              hideTooltip
+                                                            }
+                                                            title={`Unit: ${
+                                                              part.unit || "PCS"
+                                                            }`}
                                                           >
                                                             {part.unit || "PCS"}
                                                           </td>
@@ -2164,6 +2644,13 @@ useEffect(() => {
                                                               style={
                                                                 styles.deleteButton
                                                               }
+                                                              onMouseEnter={
+                                                                showTooltip
+                                                              }
+                                                              onMouseLeave={
+                                                                hideTooltip
+                                                              }
+                                                              title="Edit part"
                                                             >
                                                               <Pencil
                                                                 size={10}
@@ -2174,12 +2661,19 @@ useEffect(() => {
                                                                 styles.deleteButton
                                                               }
                                                               onClick={() =>
-                                                                handleRemoveVendorPart(
+                                                                handleDeletePart(
                                                                   hdr.id,
                                                                   idx,
                                                                   part.id
                                                                 )
                                                               }
+                                                              onMouseEnter={
+                                                                showTooltip
+                                                              }
+                                                              onMouseLeave={
+                                                                hideTooltip
+                                                              }
+                                                              title="Delete part"
                                                             >
                                                               <Trash2
                                                                 size={10}
@@ -2190,8 +2684,7 @@ useEffect(() => {
                                                       )
                                                     )
                                                   ) : (
-                                                    <tr>
-                                                    </tr>
+                                                    <tr></tr>
                                                   )}
                                                 </tbody>
                                               </table>
@@ -2208,8 +2701,6 @@ useEffect(() => {
                           </td>
                         </tr>
                       ) : null;
-
-                      // gabungkan row header + row expanded (kalau ada)
                       return [headerRow, expandedRow];
                     })
                   )}
@@ -2235,19 +2726,23 @@ useEffect(() => {
             </div>
           </div>
 
-          <div style={styles.saveConfiguration}>
-            <button
-              style={{ ...styles.button, ...styles.primaryButton }}
-              onClick={handleSubmitVendors}
-            >
-              <Save size={16} />
-              Input Schedule
-            </button>
-          </div>
+          {headerDrafts.length > 0 && (
+            <div style={styles.saveConfiguration}>
+              <button
+                style={{
+                  ...styles.button,
+                  ...styles.primaryButton,
+                }}
+                onClick={handleSubmitVendors}
+              >
+                <Save size={16} />
+                Input Schedule
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* POPUP ADD VENDOR DETAIL (LEVEL 2) */}
       {addVendorDetail && (
         <div style={vendorDetailStyles.popupOverlay}>
           <div style={vendorDetailStyles.popupContainer}>
@@ -2292,7 +2787,17 @@ useEffect(() => {
                 </select>
               </div>
 
-              {/* VENDOR (from DB) */}
+              <div style={vendorDetailStyles.formGroup}>
+                <label style={vendorDetailStyles.label}>Arrival Time:</label>
+                <input
+                  type="time"
+                  value={(addVendorFormData.arrivalTime || "").slice(0, 5)}
+                  readOnly
+                  style={vendorDetailStyles.timeInput}
+                  required
+                />
+              </div>
+
               <div style={vendorDetailStyles.formGroup}>
                 <label style={vendorDetailStyles.label}>Vendor:</label>
                 <select
@@ -2355,17 +2860,6 @@ useEffect(() => {
                   Add Column
                 </button>
               </div>
-              <div style={vendorDetailStyles.formGroup}>
-                <label style={vendorDetailStyles.label}>Arrival Time:</label>
-                <input
-                  type="time"
-                  value={(addVendorFormData.arrivalTime || "").slice(0, 5)}
-                  readOnly
-                  title="Auto-filled from selected trip (arv_to)"
-                  style={vendorDetailStyles.timeInput}
-                  required
-                />
-              </div>
 
               <div style={vendorDetailStyles.buttonGroup}>
                 <button
@@ -2387,7 +2881,6 @@ useEffect(() => {
         </div>
       )}
 
-      {/* POPUP VENDOR PART DETAIL (LEVEL 3) */}
       {addVendorPartDetail && (
         <div style={vendorPartStyles.popupOverlay}>
           <div style={vendorPartStyles.popupContainer}>
@@ -2399,6 +2892,14 @@ useEffect(() => {
                 onClick={() => {
                   setAddVendorPartDetail(false);
                   setActiveVendorContext(null);
+                  setAddVendorPartFormData({
+                    trip: "",
+                    vendor: "",
+                    doNumbers: [""],
+                    arrivalTime: "",
+                    parts: [], // Kosongkan parts
+                  });
+                  setSelectedPartsInPopup([]); // Reset checkbox
                 }}
                 style={vendorPartStyles.closeButton}
               >
@@ -2428,7 +2929,6 @@ useEffect(() => {
                     type="button"
                     style={vendorPartStyles.addPartButton}
                     onClick={(e) => {
-                      // SELALU tombol <button>, bukan icon <svg>
                       const input =
                         e.currentTarget.parentElement.querySelector("input");
 
@@ -2446,34 +2946,6 @@ useEffect(() => {
                   </button>
                 </div>
               </div>
-
-              {/* {addVendorPartFormData.parts.length > 0 && (
-                <div style={vendorPartStyles.partsList}>
-                  <div style={vendorPartStyles.partsListHeader}>
-                    Added Parts ({addVendorPartFormData.parts.length})
-                  </div>
-                  {addVendorPartFormData.parts.map((part) => (
-                    <div key={part.id} style={vendorPartStyles.partItem}>
-                      <div style={vendorPartStyles.partInfo}>
-                        <span style={vendorPartStyles.partCode}>
-                          {part.partCode}
-                        </span>
-                        <span style={vendorPartStyles.doNumber}>
-                          DO: {part.doNumber}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        style={vendorPartStyles.removePartButton}
-                        onClick={() => handleRemovePart(part.id)}
-                      >
-                        <Trash2 size={12} />
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )} */}
 
               <div style={vendorPartStyles.partDetailsSection}>
                 <h4 style={vendorPartStyles.sectionTitle}>Part List</h4>
@@ -2499,7 +2971,25 @@ useEffect(() => {
                       <thead>
                         <tr style={vendorPartStyles.tableHeader}>
                           <th style={vendorPartStyles.th}>No</th>
-                          <th style={vendorPartStyles.th}></th>
+                          <th style={vendorPartStyles.th}>
+                            {addVendorPartFormData.parts.length > 1 && (
+                              <input
+                                type="checkbox"
+                                onChange={handleSelectAllInPopup}
+                                checked={
+                                  addVendorPartFormData.parts.length > 0 &&
+                                  selectedPartsInPopup.length ===
+                                    addVendorPartFormData.parts.length
+                                }
+                                style={{
+                                  cursor: "pointer",
+                                  width: "12px",
+                                  height: "12px",
+                                }}
+                              />
+                            )}
+                          </th>
+
                           <th style={vendorPartStyles.th}>Part Code</th>
                           <th style={vendorPartStyles.th}>Part Name</th>
                           <th style={vendorPartStyles.th}>Qty</th>
@@ -2510,18 +3000,7 @@ useEffect(() => {
                       </thead>
                       <tbody>
                         {addVendorPartFormData.parts.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan="8"
-                              style={{
-                                ...vendorPartStyles.td,
-                                textAlign: "center",
-                              }}
-                            >
-                              Belum ada part di daftar (input Part Code lalu
-                              klik Add).
-                            </td>
-                          </tr>
+                          <tr></tr>
                         ) : (
                           addVendorPartFormData.parts.map((part, index) => (
                             <tr
@@ -2540,10 +3019,16 @@ useEffect(() => {
                                 {index + 1}
                               </td>
 
-                              {/* Checkbox */}
+                              {/* Checkbox untuk select part */}
                               <td style={styles.tdWithLeftBorder}>
                                 <input
                                   type="checkbox"
+                                  checked={selectedPartsInPopup.includes(
+                                    part.id
+                                  )}
+                                  onChange={(e) =>
+                                    handlePopupCheckboxChange(e, part.id)
+                                  }
                                   style={{
                                     margin: "0 auto",
                                     display: "block",
@@ -2555,27 +3040,52 @@ useEffect(() => {
                               </td>
 
                               {/* Part Code */}
-                              <td style={vendorPartStyles.td}>
+                              <td
+                                style={vendorPartStyles.td}
+                                onMouseEnter={showTooltip}
+                                onMouseLeave={hideTooltip}
+                                data-tooltip={`${part.partCode}`}
+                              >
                                 {part.partCode}
                               </td>
 
                               {/* Part Name */}
-                              <td style={vendorPartStyles.td}>
+                              <td
+                                style={vendorPartStyles.td}
+                                onMouseEnter={showTooltip}
+                                onMouseLeave={hideTooltip}
+                                data-tooltip={`${part.partName || "—"}`}
+                              >
                                 {part.partName || "—"}
                               </td>
 
                               {/* Qty (qty_unit) */}
-                              <td style={vendorPartStyles.td}>
+                              <td
+                                style={vendorPartStyles.td}
+                                onMouseEnter={showTooltip}
+                                onMouseLeave={hideTooltip}
+                                data-tooltip={`${part.qty ?? 0}`}
+                              >
                                 {part.qty ?? 0}
                               </td>
 
                               {/* Qty Box */}
-                              <td style={vendorPartStyles.td}>
+                              <td
+                                style={vendorPartStyles.td}
+                                onMouseEnter={showTooltip}
+                                onMouseLeave={hideTooltip}
+                                data-tooltip={`${part.qtyBox ?? 0}`}
+                              >
                                 {part.qtyBox ?? 0}
                               </td>
 
                               {/* Unit */}
-                              <td style={vendorPartStyles.td}>
+                              <td
+                                style={vendorPartStyles.td}
+                                onMouseEnter={showTooltip}
+                                onMouseLeave={hideTooltip}
+                                data-tooltip={`${part.unit || "PCS"}`}
+                              >
                                 {part.unit || "PCS"}
                               </td>
 
@@ -2583,13 +3093,18 @@ useEffect(() => {
                               <td style={vendorPartStyles.td}>
                                 <button
                                   style={vendorPartStyles.deleteButton}
-                                  // nanti kalau mau edit qty, isi handler di sini
+                                  onMouseEnter={showTooltip}
+                                  onMouseLeave={hideTooltip}
+                                  data-tooltip="Edit"
                                 >
                                   <Pencil size={10} />
                                 </button>
                                 <button
                                   style={vendorPartStyles.deleteButton}
                                   onClick={() => handleRemovePart(part.id)}
+                                  onMouseEnter={showTooltip}
+                                  onMouseLeave={hideTooltip}
+                                  data-tooltip="Delete"
                                 >
                                   <Trash2 size={10} />
                                 </button>
@@ -2647,6 +3162,8 @@ useEffect(() => {
           </div>
         </div>
       )}
+
+      <div style={styles.tooltip}>{tooltip.content}</div>
     </div>
   );
 };

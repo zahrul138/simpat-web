@@ -221,13 +221,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     });
   };
 
-  const hideTooltip = () => {
-    setTooltip({
-      ...tooltip,
-      visible: false,
-    });
-  };
-
   const handleInputFocus = (e) => {
     e.target.style.borderColor = "#9fa8da";
   };
@@ -278,10 +271,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       margin: 0,
     },
     actionButtonsGroup: {
-      display: "flex",
+       display: "flex",
       gap: "8px",
-      marginBottom: "24px",
-      marginTop: "10px",
+      marginBottom: "10px",
+      marginTop: "15px",
       right: "10px",
     },
     filterRow: {
@@ -815,7 +808,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // FUNGSI RENDER TABLE BODY DENGAN DATA DINAMIS
   const renderTableBody = () => {
     if (loading) {
       return (
@@ -827,15 +819,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
     }
 
-    if (schedules.length === 0) {
-      return (
-        <tr>
-          <td colSpan="11" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
-            No schedules found for {activeTab} tab
-          </td>
-        </tr>
-      );
-    }
+   
 
     return schedules.map((schedule, index) => (
       <>
@@ -905,7 +889,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </td>
         </tr>
 
-        {/* Expanded Vendor Rows */}
         {expandedRows[schedule.id] && (
           <tr key={`expanded-${schedule.id}`}>
             <td colSpan="11" style={{ padding: 0, border: "none" }}>
@@ -989,7 +972,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             </td>
                           </tr>
 
-                          {/* Expanded Parts Rows */}
                           {expandedVendorRows[`vendor_${schedule.id}_${vendorIndex}`] && (
                             <tr key={`parts-${vendor.id}`}>
                               <td colSpan="9" style={{ padding: 0, border: "none" }}>

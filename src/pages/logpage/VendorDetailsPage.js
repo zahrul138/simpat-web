@@ -43,47 +43,51 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     y: 0,
   });
 
-  // ==================== API FUNCTIONS ====================
   const fetchVendors = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const token = localStorage.getItem("auth_token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-
-      const response = await fetch(`${API_BASE}/api/vendors`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        setVendors(result.data || []);
-      } else {
-        throw new Error(result.message || "Failed to fetch vendors");
-      }
-    } catch (err) {
-      console.error("Error fetching vendors:", err);
-      setError(err.message);
-      setVendors([]);
-    } finally {
-      setLoading(false);
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      throw new Error("No authentication token found");
     }
-  };
+
+    const response = await fetch(`${API_BASE}/api/vendors`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! status: ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      // TAMBAHKAN SORTING TAMBAHAN UNTUK STABILITAS LEBIH
+      const sortedVendors = (result.data || []).sort((a, b) => {
+        // Sort by ID secara descending untuk konsistensi maksimal
+        return b.id - a.id;
+      });
+      setVendors(sortedVendors);
+    } else {
+      throw new Error(result.message || "Failed to fetch vendors");
+    }
+  } catch (err) {
+    console.error("Error fetching vendors:", err);
+    setError(err.message);
+    setVendors([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDeleteVendor = async (vendorId) => {
     if (
@@ -168,25 +172,51 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // 🔥 UPDATE FUNGSI FILTERED VENDORS - TAMBAHKAN PAGINATION
-  const filteredVendors = useMemo(() => {
-    if (!keyword.trim()) return vendors;
+  // Perbaiki filteredVendors untuk lebih stabil
+const filteredVendors = useMemo(() => {
+  if (!keyword.trim() && !dateFrom && !dateTo) return vendors;
 
-    const searchTerm = keyword.toLowerCase().trim();
+  const searchTerm = keyword.toLowerCase().trim();
 
-    return vendors.filter((vendor) => {
+  return vendors.filter((vendor) => {
+    // Filter by keyword
+    let matchesKeyword = true;
+    if (keyword.trim()) {
       switch (searchBy) {
         case "Vendor":
-          return vendor.vendor_name?.toLowerCase().includes(searchTerm);
+          matchesKeyword = vendor.vendor_name?.toLowerCase().includes(searchTerm);
+          break;
         case "Product Code":
-          return vendor.vendor_code?.toLowerCase().includes(searchTerm);
+          matchesKeyword = vendor.vendor_code?.toLowerCase().includes(searchTerm);
+          break;
         case "Product Description":
-          return vendor.vendor_desc?.toLowerCase().includes(searchTerm);
+          matchesKeyword = vendor.vendor_desc?.toLowerCase().includes(searchTerm);
+          break;
         default:
-          return true;
+          matchesKeyword = true;
       }
-    });
-  }, [vendors, keyword, searchBy]);
+    }
+
+    // Filter by date
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      const vendorDate = new Date(vendor.created_at);
+      
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        matchesDate = matchesDate && vendorDate >= fromDate;
+      }
+      
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        matchesDate = matchesDate && vendorDate <= toDate;
+      }
+    }
+
+    return matchesKeyword && matchesDate;
+  });
+}, [vendors, keyword, searchBy, dateFrom, dateTo]);
 
   // 🔥 FUNGSI PAGINATION BARU
   const paginatedVendors = useMemo(() => {
@@ -1206,7 +1236,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                               ...styles.emptyColumn,
                             }}
                           >
-                            {globalIndex} {/* 🔥 GUNAKAN GLOBAL INDEX */}
+                            {globalIndex}
                           </td>
                           <td style={styles.tdWithLeftBorder}>
                             {vendor.vendor_code}
@@ -1285,7 +1315,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 </button>
                 <span>Page</span>
                 <input
-                  type="number"
+                  type="text"
                   value={currentPage}
                   style={styles.paginationInput}
                   onChange={(e) => {

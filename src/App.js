@@ -39,6 +39,8 @@ import VendorDetailsPage from "./pages/logpage/VendorDetailsPage";
 import AddVendorPage from "./pages/logpage/AddVendorPage";
 import PartDetailsPage from "./pages/logpage/PartDetailsPage";
 import AddPartsPage from "./pages/logpage/AddPartsPage";
+import VendorPartPlacementPage from "./pages/logpage/VendorPartPlacementPage";
+import AddVendorPartPlacementPage from "./pages/logpage/AddVendorPartPlacementPage";
 
 import UserControlPage from "./pages/admin/UserControlPage";
 import CreateUserPage from "./pages/admin/CreateUserPage";
@@ -156,6 +158,7 @@ const LayoutHandler = () => {
       "/annex-receive": { app: "inventory", dept: "SCN-LOG" },
       "/vendor-details": { app: "inventory", dept: "SCN-LOG" },
       "/part-details": { app: "inventory", dept: "SCN-LOG" },
+      "/vendor-placement": { app: "inventory", dept: "SCN-LOG" },
 
       // Quality Assurance routes
       "/iqc-local": { app: "quality", dept: "SCN-IQC" },
@@ -247,6 +250,8 @@ const LayoutHandler = () => {
       {location.pathname === "/part-receive" && <PartsReceivePage />}
       {location.pathname === "/annex-receive" && <AnnexReceivePage />}
       {location.pathname === "/return-parts" && <ReturnPartsPage />}
+      {location.pathname === "/vendor-placement" && <VendorPartPlacementPage />}
+      {location.pathname === "/vendor-placement/add" && <AddVendorPartPlacementPage />}
 
       {location.pathname === "/user-control" && <UserControlPage />}
       {location.pathname === "/create-user" && <CreateUserPage />}

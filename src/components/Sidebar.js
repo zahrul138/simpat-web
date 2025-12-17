@@ -126,16 +126,18 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
           icon: FactoryIcon,
           isActive:
             location.pathname.startsWith("/local-schedule") ||
-            location.pathname.startsWith("/vendor-details") ||
             location.pathname.startsWith("/part-details") ||
+            location.pathname.startsWith("/vendor-details") ||
+            location.pathname.startsWith("/vendor-placement") ||
             location.pathname.startsWith("/annex-receive"),
+
             
           subItems: [
             { title: "Local Schedule", href: "/local-schedule", icon: PackageIcon },
-            { title: "Vendor Details", href: "/vendor-details", icon: PackageIcon },
             { title: "Part Details", href: "/part-details", icon: PackageIcon },
+            { title: "Vendor Details", href: "/vendor-details", icon: PackageIcon },
+            { title: "Vendor Placement", href: "/vendor-placement", icon: PackageIcon },
             { title: "Receive Request", href: "/annex-receive", icon: PackageIcon },
-            
           ],
         },
       ],

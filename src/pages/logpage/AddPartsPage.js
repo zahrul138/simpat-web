@@ -43,10 +43,13 @@ const AddPartsPage = () => {
     part_types: "Regular",
     qty_per_box: "",
     part_price: "",
+    placement_id: "",
     customer_id: "",
     model: "",
     vendor_id: "",
     stock_level_to: "",
+    part_weight: "",
+    weight_unit: "kg",
   });
 
   const [customers, setCustomers] = useState([]);
@@ -63,7 +66,9 @@ const AddPartsPage = () => {
   const [currentEmpName, setCurrentEmpName] = useState("");
   const [currentEmpId, setCurrentEmpId] = useState(null);
   const [showSaveButton, setShowSaveButton] = useState(false);
-
+  const [placements, setPlacements] = useState([]);
+  const [selectedPlacement, setSelectedPlacement] = useState(null);
+  const [isSaving, setIsSaving] = useState(false); 
   // Generate random 6-digit part_id
   const generateRandomPartId = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -208,16 +213,42 @@ const AddPartsPage = () => {
         { size_name: "LARGE", total_parts: 0 },
       ]);
     }
-  }; // <--- INI KURUNG TUTUP YANG HILANG
+  };
 
-  // Handle perubahan form
+  useEffect(() => {
+    fetchAllData();
+    setCurrentEmpName(getCurrentUser());
+    setCurrentEmpId(getCurrentUserId());
+    fetchPlacements(); 
+  }, []);
+
+  const fetchPlacements = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/vendor-placements`);
+      const result = await response.json();
+
+      if (result.success) {
+        setPlacements(result.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching placements:", error);
+    }
+  };
+
+  const handlePlacementChange = (e) => {
+    const placementId = e.target.value;
+    handlePartInputChange("placement_id", placementId);
+
+    // Find placement untuk auto-fill dimensions
+    const placement = placements.find((p) => p.id.toString() === placementId);
+    setSelectedPlacement(placement);
+  };
+
   const handlePartInputChange = (field, value) => {
     const newFormData = {
       ...partFormData,
       [field]: value,
     };
-
-    // Jika field vendor_id berubah, update vendor type
     if (field === "vendor_id") {
       const selectedVendor = vendors.find((v) => v.id.toString() === value);
       if (selectedVendor) {
@@ -280,6 +311,21 @@ const AddPartsPage = () => {
       ? customers.find((c) => c.id.toString() === partFormData.customer_id)
       : null;
 
+    const selectedPlacementObj = placements.find(
+      (p) => p.id.toString() === partFormData.placement_id
+    );
+
+    // ==================== PERBAIKAN: Simpan sebagai integer ====================
+    const vendorIdNum = partFormData.vendor_id
+      ? parseInt(partFormData.vendor_id)
+      : null;
+    const customerIdNum = partFormData.customer_id
+      ? parseInt(partFormData.customer_id)
+      : null;
+    const placementIdNum = partFormData.placement_id
+      ? parseInt(partFormData.placement_id)
+      : null;
+
     const tempPart = {
       id: Date.now(),
       part_code: partFormData.part_code.trim(),
@@ -289,12 +335,18 @@ const AddPartsPage = () => {
       part_types: partFormData.part_types,
       qty_per_box: parseInt(partFormData.qty_per_box) || 1,
       part_price: parseFloat(partFormData.part_price) || 0,
-      customer_id: partFormData.customer_id,
+      part_weight: parseFloat(partFormData.part_weight) || null,
+      customer_id: customerIdNum,
+      placement_id: placementIdNum,
+      placement_name: selectedPlacementObj?.placement_name || "",
+      placement_length: selectedPlacementObj?.length_cm || "",
+      placement_width: selectedPlacementObj?.width_cm || "",
+      placement_height: selectedPlacementObj?.height_cm || "",
       customer_name: selectedCustomer
         ? `${selectedCustomer.mat_code} | ${selectedCustomer.cust_name}`
         : "All Customers",
       model: partFormData.model,
-      vendor_id: partFormData.vendor_id,
+      vendor_id: vendorIdNum,
       vendor_name: selectedVendor?.vendor_name,
       vendor_type: selectedVendor?.types,
       stock_level_to: partFormData.stock_level_to,
@@ -314,6 +366,7 @@ const AddPartsPage = () => {
       part_types: "Regular",
       qty_per_box: "",
       part_price: "",
+      part_weight: "",
       customer_id: "",
       model: "",
       vendor_id: "",
@@ -352,11 +405,44 @@ const AddPartsPage = () => {
     setShowSaveButton(tempParts.length > 0);
   }, [tempParts]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/vendors`);
+        const data = await response.json();
+
+        if (isMounted && data.success) {
+          // Sort vendors secara konsisten
+          const sortedVendors = [...data.data].sort((a, b) =>
+            a.vendor_name.localeCompare(b.vendor_name)
+          );
+          setVendors(sortedVendors);
+        }
+      } catch (error) {
+        console.error("Error fetching vendors:", error);
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleDeleteTempPart = (partId) => {
     setTempParts((prev) => prev.filter((part) => part.id !== partId));
   };
 
-  const handleSaveConfiguration = async () => {
+   const handleSaveConfiguration = async () => {
+    // CEGAH MULTIPLE CLICKS
+    if (isSaving) {
+      console.log("Already saving, please wait...");
+      return;
+    }
+
     const selectedParts = tempParts.filter((part) => part.isSelected);
 
     if (selectedParts.length === 0) {
@@ -365,6 +451,8 @@ const AddPartsPage = () => {
     }
 
     try {
+      setIsSaving(true); // SET KE TRUE
+      
       const currentUser = getCurrentUser();
       const currentUserId = getCurrentUserId();
       let successCount = 0;
@@ -372,40 +460,51 @@ const AddPartsPage = () => {
 
       for (const part of selectedParts) {
         try {
-          // Cari size_id berdasarkan part_size yang dipilih
+          // Validasi required fields
+          if (!part.part_code || !part.part_name || !part.vendor_id || !part.part_size || !part.model || !part.stock_level_to) {
+            throw new Error(`Missing required fields for part ${part.part_code}`);
+          }
+
+          // Cek apakah part code sudah ada
+          const checkDuplicate = await fetch(
+            `${API_BASE}/api/kanban-master/by-part-code?part_code=${part.part_code}`
+          );
+          const duplicateResult = await checkDuplicate.json();
+          
+          if (duplicateResult.item) {
+            throw new Error(`Part code ${part.part_code} already exists`);
+          }
+
           const selectedSize = partSizes.find(
             (size) => size.size_name === part.part_size
           );
 
+          // Prepare data
           const partData = {
             part_code: part.part_code,
             part_name: part.part_name,
             part_size: part.part_size,
-            size_id: selectedSize ? selectedSize.id : null, 
-            part_material: part.part_material,
+            size_id: selectedSize ? parseInt(selectedSize.id) : null,
+            part_material: part.part_material || null,
             part_types: part.part_types,
-            qty_per_box: part.qty_per_box,
-            part_price: part.part_price || 0,
-            customer_special: part.customer_id ? [part.customer_id] : null,
+            qty_per_box: parseInt(part.qty_per_box) || 1,
+            part_price: parseFloat(part.part_price) || 0,
+            part_weight: part.part_weight ? parseFloat(part.part_weight) : null,
+            weight_unit: partFormData.weight_unit || 'kg',
+            customer_special: part.customer_id ? [parseInt(part.customer_id)] : null,
             model: part.model,
-            vendor_id: part.vendor_id,
+            vendor_id: parseInt(part.vendor_id),
             vendor_type: part.vendor_type,
             stock_level_to: part.stock_level_to,
-            unit: part.unit,
-            is_active: true,
-            created_by: currentUserId,
-            kanban_id: `KB-${part.vendor_name?.replace(/\s+/g, "-")}-${
-              part.part_code
-            }`,
-            quantity_per_kanban: 1,
-            max_kanban_quantity: 100,
-            current_quantity: 0,
-            kanban_status: "Active",
-            qty_unit: 0,
-            qty_box: 0,
+            unit: part.unit || 'PCS',
+            created_by: currentUserId ? parseInt(currentUserId) : null,
+            placement_id: part.placement_id ? parseInt(part.placement_id) : null,
           };
 
-          console.log("Sending part data with size_id:", partData);
+          console.log("Saving part:", partData);
+
+          // TAMBAHKAN TIMEOUT untuk mencegah rapid clicks
+          await new Promise(resolve => setTimeout(resolve, 100));
 
           const response = await fetch(`${API_BASE}/api/kanban-master`, {
             method: "POST",
@@ -427,12 +526,8 @@ const AddPartsPage = () => {
             throw new Error(result.message || "Failed to save part");
           }
 
-          // Update customer special parts jika part special
-          if (part.part_types === "Special" && part.customer_id) {
-            await updateCustomerSpecialParts(part.customer_id);
-          }
-
           successCount++;
+          
         } catch (error) {
           console.error(`Error saving part ${part.part_code}:`, error);
           errorMessages.push(`Part ${part.part_code}: ${error.message}`);
@@ -441,61 +536,24 @@ const AddPartsPage = () => {
 
       if (errorMessages.length > 0) {
         alert(
-          `Successfully saved ${successCount} part(s). Errors:\n${errorMessages.join(
-            "\n"
-          )}`
+          `Successfully saved ${successCount} part(s). Errors:\n${errorMessages.join("\n")}`
         );
       } else {
-        alert(`${successCount} part(s) saved successfully!`);
+        alert(`All ${successCount} parts saved successfully!`);
+        navigate("/part-details");
       }
 
-      setTempParts((prev) => prev.filter((part) => !part.isSelected));
+      // Hapus hanya yang berhasil disimpan
+      setTempParts((prev) => prev.filter((part) => !selectedParts.includes(part)));
+      
     } catch (error) {
       console.error("Save error:", error);
       alert(`Failed to save parts: ${error.message}`);
+    } finally {
+      setIsSaving(false); // RESET KE FALSE
     }
   };
 
-  // Update vendor total_parts
-  const updateVendorTotalParts = async (vendorId) => {
-    try {
-      const response = await fetch(
-        `${API_BASE}/api/vendors/${vendorId}/increment-parts`,
-        {
-          method: "PUT",
-        }
-      );
-
-      const result = await response.json();
-      if (!response.ok) {
-        console.error("Failed to update vendor total parts:", result.message);
-      }
-    } catch (error) {
-      console.error("Error updating vendor total parts:", error);
-    }
-  };
-
-  // TAMBAHKAN FUNGSI INI - Update customer special parts
-  const updateCustomerSpecialParts = async (customerId) => {
-    try {
-      const response = await fetch(
-        `${API_BASE}/api/customers/${customerId}/increment-special-parts`,
-        {
-          method: "PUT",
-        }
-      );
-
-      const result = await response.json();
-      if (!response.ok) {
-        console.error(
-          "Failed to update customer special parts:",
-          result.message
-        );
-      }
-    } catch (error) {
-      console.error("Error updating customer special parts:", error);
-    }
-  };
 
   const formatDateForDisplay = (dateString) => {
     try {
@@ -1070,19 +1128,20 @@ const AddPartsPage = () => {
               {/* Kolom 1 */}
               <div style={{ flex: "2", display: "grid", gap: "35px" }}>
                 <div>
-                  <label style={styles.label}>Part Code *</label>
+                  <label style={styles.label}>Part Code</label>
                   <input
                     type="text"
                     style={styles.inputPartCode}
                     placeholder="Enter part code"
                     value={partFormData.part_code}
-                    onChange={(e) =>
-                      handlePartInputChange("part_code", e.target.value)
-                    }
+                    onChange={(e) => {
+                      const numbersOnly = e.target.value.replace(/\D/g, "");
+                      handlePartInputChange("part_code", numbersOnly);
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={styles.label}>Part Name *</label>
+                  <label style={styles.label}>Part Name</label>
                   <input
                     type="text"
                     style={styles.inputPartCode}
@@ -1127,7 +1186,6 @@ const AddPartsPage = () => {
                   </select>
                 </div>
 
-                {/* Tampilkan customer selection hanya untuk part special */}
                 {partFormData.part_types === "Special" && (
                   <div>
                     <label style={styles.label}>Customer</label>
@@ -1158,7 +1216,6 @@ const AddPartsPage = () => {
                 </div>
               </div>
 
-              {/* Kolom 2 */}
               <div style={{ flex: "2", display: "grid", gap: "35px" }}>
                 <div>
                   <label style={styles.label}>Part Material</label>
@@ -1201,6 +1258,102 @@ const AddPartsPage = () => {
                 </div>
 
                 <div>
+                  <label style={styles.label}>Part Weight (Per Parts)</label>
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "4px",
+                      overflow: "hidden",
+                      width: "175px",
+                      height: "2rem",
+                      backgroundColor: "#f3f4f6",
+                    }}
+                  >
+                    {/* Input Number */}
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      style={{
+                        flex: 1,
+                        border: "none",
+                        padding: "0 8px",
+                        fontSize: "11px",
+                        backgroundColor: "transparent",
+                        outline: "none",
+                        minWidth: 0,
+                        fontFamily: "inherit",
+                      }}
+                      placeholder="Weight"
+                      value={partFormData.part_weight}
+                      onChange={(e) =>
+                        handlePartInputChange("part_weight", e.target.value)
+                      }
+                    />
+
+                    {/* Unit Selector - Separator */}
+                    <div
+                      style={{
+                        width: "1px",
+                        backgroundColor: "#d1d5db",
+                        alignSelf: "stretch",
+                      }}
+                    ></div>
+
+                    {/* Unit Dropdown */}
+                    <div
+                      style={{
+                        position: "relative",
+                        minWidth: "45px",
+                      }}
+                    >
+                      <select
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          border: "none",
+                          backgroundColor: "transparent",
+                          fontSize: "11px",
+                          color: "#374151",
+                          cursor: "pointer",
+                          outline: "none",
+                          padding: "0 20px 0 8px",
+                          appearance: "none",
+                          fontFamily: "inherit",
+                        }}
+                        value={partFormData.weight_unit}
+                        onChange={(e) =>
+                          handlePartInputChange("weight_unit", e.target.value)
+                        }
+                      >
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="lbs">lbs</option>
+                        <option value="oz">oz</option>
+                      </select>
+                      {/* Custom dropdown arrow */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: "6px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: "0",
+                          height: "0",
+                          borderLeft: "3px solid transparent",
+                          borderRight: "3px solid transparent",
+                          borderTop: "3px solid #6b7280",
+                          pointerEvents: "none",
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
+                <div>
                   <label style={styles.label}>Model</label>
                   <select
                     style={styles.select}
@@ -1217,12 +1370,8 @@ const AddPartsPage = () => {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              {/* Kolom 3 */}
-              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
                 <div>
-                  <label style={styles.label}>Vendor *</label>
+                  <label style={styles.label}>Vendor</label>
                   <select
                     style={styles.select}
                     value={partFormData.vendor_id}
@@ -1272,7 +1421,7 @@ const AddPartsPage = () => {
                     ))}
                   </select>
                 </div>
-                <div>
+                {/* <div>
                   <label style={styles.label}>Created By</label>
                   <input
                     type="text"
@@ -1281,12 +1430,88 @@ const AddPartsPage = () => {
                     readOnly
                     placeholder="User not logged in"
                   />
+                </div> */}
+              </div>
+
+              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
+                <div>
+                  <label style={styles.label}>Placement Name</label>
+                  <select
+                    style={styles.select}
+                    value={partFormData.placement_id}
+                    onChange={handlePlacementChange}
+                  >
+                    <option value="">Select Placement</option>
+                    {placements
+                      .filter((placement) => placement.is_active)
+                      .map((placement) => (
+                        <option key={placement.id} value={placement.id}>
+                          {placement.placement_name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={styles.label}>Placement Length</label>
+                  <input
+                    type="text"
+                    style={{
+                      ...styles.inputPartCode,
+                      backgroundColor: "#f3f4f6",
+                      cursor: "not-allowed",
+                      color: selectedPlacement ? "#374151" : "#9ca3af",
+                    }}
+                    value={
+                      selectedPlacement
+                        ? `${selectedPlacement.length_cm} cm`
+                        : ""
+                    }
+                    readOnly
+                    placeholder="Auto from placement"
+                  />
+                </div>
+                <div>
+                  <label style={styles.label}>Placement Width</label>
+                  <input
+                    type="text"
+                    style={{
+                      ...styles.inputPartCode,
+                      backgroundColor: "#f3f4f6",
+                      cursor: "not-allowed",
+                      color: selectedPlacement ? "#374151" : "#9ca3af",
+                    }}
+                    value={
+                      selectedPlacement
+                        ? `${selectedPlacement.width_cm} cm`
+                        : ""
+                    }
+                    readOnly
+                    placeholder="Auto from placement"
+                  />
+                </div>
+                <div>
+                  <label style={styles.label}>Placement Height</label>
+                  <input
+                    type="text"
+                    style={{
+                      ...styles.inputPartCode,
+                      backgroundColor: "#f3f4f6",
+                      cursor: "not-allowed",
+                      color: selectedPlacement ? "#374151" : "#9ca3af",
+                    }}
+                    value={
+                      selectedPlacement
+                        ? `${selectedPlacement.height_cm} cm`
+                        : ""
+                    }
+                    readOnly
+                    placeholder="Auto from placement"
+                  />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Table Part Detail List */}
           <h2 style={styles.h2}>Part Detail List</h2>
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
@@ -1298,15 +1523,17 @@ const AddPartsPage = () => {
                 }}
               >
                 <colgroup>
-                  <col style={{ width: "3%" }} />
+                  <col style={{ width: "2.5%" }} />
                   <col style={{ width: "3%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "15%" }} />
-                  <col style={{ width: "8%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
                   <col style={{ width: "8%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "15%" }} />
                   <col style={{ width: "13%" }} />
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "12%" }} />
@@ -1348,6 +1575,8 @@ const AddPartsPage = () => {
                     <th style={styles.thWithLeftBorder}>Part Types</th>
                     <th style={styles.thWithLeftBorder}>QTY Per Box</th>
                     <th style={styles.thWithLeftBorder}>Part Price</th>
+                    <th style={styles.thWithLeftBorder}>Part Weight</th>
+                    <th style={styles.thWithLeftBorder}>Part Placement</th>
                     <th style={styles.thWithLeftBorder}>Customer</th>
                     <th style={styles.thWithLeftBorder}>Model</th>
                     <th style={styles.thWithLeftBorder}>Vendor</th>
@@ -1429,6 +1658,14 @@ const AddPartsPage = () => {
                         </td>
                         <td style={styles.tdWithLeftBorder}>
                           {part.part_price}
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          {part.part_weight ? `${part.part_weight} kg` : "-"}{" "}
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          {part.placement_name
+                            ? `${part.placement_name} (${part.placement_length}×${part.placement_width}×${part.placement_height} cm)`
+                            : "Not Set"}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
                           {part.customer_name}
