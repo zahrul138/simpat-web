@@ -43,7 +43,7 @@ const AddPartsPage = () => {
     qty_per_box: "",
     part_price: "",
     placement_id: "",
-    customer_id: "",
+    customer_ids: [],
     model: "",
     vendor_id: "",
     stock_level_to: "",
@@ -52,6 +52,7 @@ const AddPartsPage = () => {
   });
 
   const [customers, setCustomers] = useState([]);
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [models, setModels] = useState([]);
   const [stockLevels, setStockLevels] = useState([
@@ -68,13 +69,10 @@ const AddPartsPage = () => {
   const [placements, setPlacements] = useState([]);
   const [selectedPlacement, setSelectedPlacement] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Generate random 6-digit part_id
   const generateRandomPartId = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  // ==================== FUNGSI FETCH DATA ====================
   const fetchCustomers = async () => {
     try {
       const response = await fetch(`${API_BASE}/api/customers/active-minimal`);
@@ -206,12 +204,11 @@ const AddPartsPage = () => {
     }
   };
 
-  // ==================== FUNGSI UTAMA FETCH ALL DATA ====================
   const fetchAllData = async () => {
     try {
       await Promise.all([
         fetchCustomers(),
-        fetchVendors(), // ✅ Vendor akan diurutkan berdasarkan ID (1, 2, 3, ...)
+        fetchVendors(),
         fetchModels(),
         fetchPartSizesWithKanban(),
       ]);
@@ -255,121 +252,134 @@ const AddPartsPage = () => {
       }
     }
 
-    if (field === "part_types" && value === "Regular") {
-      newFormData.customer_id = "";
+    if (field === "part_types") {
+      if (value === "Regular") {
+        newFormData.customer_ids = [];
+        setSelectedCustomers([]);
+      } else if (value === "Special") {
+        newFormData.customer_ids = [];
+        setSelectedCustomers([]);
+      }
     }
 
     setPartFormData(newFormData);
   };
 
- const handleInsertToTemp = () => {
-  if (!partFormData.part_code.trim()) {
-    alert("Please fill in Part Code");
-    return;
-  }
+  const handleInsertToTemp = () => {
+    if (!partFormData.part_code.trim()) {
+      alert("Please fill in Part Code");
+      return;
+    }
 
-  if (!partFormData.part_name.trim()) {
-    alert("Please fill in Part Name");
-    return;
-  }
-  
-  const missingFields = [];
+    if (!partFormData.part_name.trim()) {
+      alert("Please fill in Part Name");
+      return;
+    }
 
-  if (!partFormData.part_size) {
-    missingFields.push("Part Size");
-  }
+    const missingFields = [];
 
-  if (!partFormData.part_types) {
-    missingFields.push("Part Types");
-  }
+    if (!partFormData.part_size) {
+      missingFields.push("Part Size");
+    }
 
-  if (!partFormData.model) {
-    missingFields.push("Model");
-  }
+    if (!partFormData.part_types) {
+      missingFields.push("Part Types");
+    }
 
-  if (!partFormData.vendor_id) {
-    missingFields.push("Vendor");
-  }
+    if (partFormData.part_types === "Special") {
+      if (selectedCustomers.length === 0) {
+        missingFields.push(
+          "Customer (Special part requires at least one customer)"
+        );
+      }
+    }
 
-  if (!partFormData.stock_level_to) {
-    missingFields.push("Stock Level To");
-  }
+    if (!partFormData.model) {
+      missingFields.push("Model");
+    }
 
-  // Placement tidak wajib lagi (optional)
-  // if (!partFormData.placement_id) {
-  //   missingFields.push("Placement Name");
-  // }
+    if (!partFormData.vendor_id) {
+      missingFields.push("Vendor");
+    }
 
-  if (partFormData.part_types === "Special" && !partFormData.customer_id) {
-    missingFields.push("Customer (Special part requires customer selection)");
-  }
+    if (!partFormData.stock_level_to) {
+      missingFields.push("Stock Level To");
+    }
 
-  if (missingFields.length > 0) {
-    const errorMessage =
-      missingFields.length === 1
-        ? `Please select ${missingFields[0]}`
-        : `Please select the following options:\n- ${missingFields.join("\n- ")}`;
+    // Placement tidak wajib lagi (optional)
+    // if (!partFormData.placement_id) {
+    //   missingFields.push("Placement Name");
+    // }
 
-    alert(errorMessage);
-    return;
-  }
+    if (missingFields.length > 0) {
+      const errorMessage =
+        missingFields.length === 1
+          ? `Please select ${missingFields[0]}`
+          : `Please select the following options:\n- ${missingFields.join(
+              "\n- "
+            )}`;
 
-  const selectedVendor = vendors.find(
-    (v) => v.id.toString() === partFormData.vendor_id
-  );
-  const selectedCustomer = partFormData.customer_id
-    ? customers.find((c) => c.id.toString() === partFormData.customer_id)
-    : null;
+      alert(errorMessage);
+      return;
+    }
 
-  const selectedPlacementObj = partFormData.placement_id && partFormData.placement_id !== "no-placement"
-    ? placements.find((p) => p.id.toString() === partFormData.placement_id)
-    : null;
+    const selectedVendor = vendors.find(
+      (v) => v.id.toString() === partFormData.vendor_id
+    );
 
-  const vendorIdNum = partFormData.vendor_id
-    ? parseInt(partFormData.vendor_id)
-    : null;
-  const customerIdNum = partFormData.customer_id
-    ? parseInt(partFormData.customer_id)
-    : null;
-  const placementIdNum = partFormData.placement_id && partFormData.placement_id !== "no-placement"
-    ? parseInt(partFormData.placement_id)
-    : null;
+    const selectedPlacementObj =
+      partFormData.placement_id && partFormData.placement_id !== "no-placement"
+        ? placements.find((p) => p.id.toString() === partFormData.placement_id)
+        : null;
 
-  const tempPart = {
-    id: Date.now(),
-    part_code: partFormData.part_code.trim(),
-    part_name: partFormData.part_name.trim(),
-    part_size: partFormData.part_size,
-    part_material: partFormData.part_material.trim(),
-    part_types: partFormData.part_types,
-    qty_per_box: parseInt(partFormData.qty_per_box) || 1,
-    part_price: parseFloat(partFormData.part_price) || 0,
-    part_weight: parseFloat(partFormData.part_weight) || null,
-    weight_unit: partFormData.weight_unit || "kg",
-    customer_id: customerIdNum,
-    placement_id: placementIdNum,
-    placement_name: selectedPlacementObj?.placement_name || "No Placement",
-    placement_length: selectedPlacementObj?.length_cm || "",
-    placement_width: selectedPlacementObj?.width_cm || "",
-    placement_height: selectedPlacementObj?.height_cm || "",
-    customer_name: selectedCustomer
-      ? `${selectedCustomer.mat_code} | ${selectedCustomer.cust_name}`
-      : "All Customers",
-    model: partFormData.model,
-    vendor_id: vendorIdNum,
-    vendor_name: selectedVendor?.vendor_name,
-    vendor_type: selectedVendor?.types,
-    stock_level_to: partFormData.stock_level_to,
-    unit: "PCS",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    isSelected: false,
+    const vendorIdNum = partFormData.vendor_id
+      ? parseInt(partFormData.vendor_id)
+      : null;
+
+    const placementIdNum =
+      partFormData.placement_id && partFormData.placement_id !== "no-placement"
+        ? parseInt(partFormData.placement_id)
+        : null;
+    const customerNames =
+      selectedCustomers.length > 0
+        ? selectedCustomers
+            .map((c) => `${c.mat_code} | ${c.cust_name}`)
+            .join(", ")
+        : "All Customers";
+
+    const tempPart = {
+      id: Date.now(),
+      part_code: partFormData.part_code.trim(),
+      part_name: partFormData.part_name.trim(),
+      part_size: partFormData.part_size,
+      part_material: partFormData.part_material.trim(),
+      part_types: partFormData.part_types,
+      qty_per_box: parseInt(partFormData.qty_per_box) || 1,
+      part_price: parseFloat(partFormData.part_price) || 0,
+      part_weight: parseFloat(partFormData.part_weight) || null,
+      weight_unit: partFormData.weight_unit || "kg",
+      customer_ids: partFormData.customer_ids || [],
+      placement_id: placementIdNum,
+      placement_name: selectedPlacementObj?.placement_name || "No Placement",
+      placement_length: selectedPlacementObj?.length_cm || "",
+      placement_width: selectedPlacementObj?.width_cm || "",
+      placement_height: selectedPlacementObj?.height_cm || "",
+      customer_names: customerNames,
+      model: partFormData.model,
+      vendor_id: vendorIdNum,
+      vendor_name: selectedVendor?.vendor_name,
+      vendor_type: selectedVendor?.types,
+      stock_level_to: partFormData.stock_level_to,
+      unit: "PCS",
+      is_active: true,
+      created_at: new Date().toISOString(),
+      isSelected: false,
+    };
+
+    setTempParts((prev) => [...prev, tempPart]);
+
+    resetForm();
   };
-
-  setTempParts((prev) => [...prev, tempPart]);
-
-  resetForm();
-};  
 
   const handleSelectAllChange = () => {
     const newSelectAll = !selectAll;
@@ -415,12 +425,13 @@ const AddPartsPage = () => {
       part_price: "",
       part_weight: "",
       weight_unit: "kg",
-      customer_id: "",
+      customer_ids: [],
       model: "",
       vendor_id: "",
       stock_level_to: "",
       placement_id: "",
     });
+    setSelectedCustomers([]);
     setSelectedPlacement(null);
     setSelectedVendorType("");
   };
@@ -484,9 +495,10 @@ const AddPartsPage = () => {
             part_price: parseFloat(part.part_price) || 0,
             part_weight: part.part_weight ? parseFloat(part.part_weight) : null,
             weight_unit: part.weight_unit || "kg",
-            customer_special: part.customer_id
-              ? [parseInt(part.customer_id)]
-              : null,
+            customer_special:
+              part.customer_ids && part.customer_ids.length > 0
+                ? part.customer_ids.map((id) => parseInt(id))
+                : null,
             model: part.model,
             vendor_id: parseInt(part.vendor_id),
             vendor_type: part.vendor_type,
@@ -549,6 +561,55 @@ const AddPartsPage = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Fungsi untuk menambah customer ke list
+  const handleAddCustomer = (customerId) => {
+    if (!customerId) return;
+
+    const customer = customers.find(
+      (c) => c.id.toString() === customerId.toString()
+    );
+    if (!customer) return;
+
+    // Cek apakah customer sudah dipilih
+    if (
+      selectedCustomers.some((c) => c.id.toString() === customerId.toString())
+    ) {
+      alert("Customer already selected!");
+      return;
+    }
+
+    const newSelectedCustomers = [...selectedCustomers, customer];
+    setSelectedCustomers(newSelectedCustomers);
+
+    // Update partFormData
+    const newCustomerIds = newSelectedCustomers.map((c) => c.id);
+    setPartFormData({
+      ...partFormData,
+      customer_ids: newCustomerIds,
+    });
+  };
+
+  const handleRemoveCustomer = (customerId) => {
+    const newSelectedCustomers = selectedCustomers.filter(
+      (c) => c.id.toString() !== customerId.toString()
+    );
+    setSelectedCustomers(newSelectedCustomers);
+
+    const newCustomerIds = newSelectedCustomers.map((c) => c.id);
+    setPartFormData({
+      ...partFormData,
+      customer_ids: newCustomerIds,
+    });
+  };
+
+  const handleClearAllCustomers = () => {
+    setSelectedCustomers([]);
+    setPartFormData({
+      ...partFormData,
+      customer_ids: [],
+    });
   };
 
   const formatDateForDisplay = (dateString) => {
@@ -1185,21 +1246,101 @@ const AddPartsPage = () => {
 
                 {partFormData.part_types === "Special" && (
                   <div>
-                    <label style={styles.label}>Customer</label>
-                    <select
-                      style={styles.select}
-                      value={partFormData.customer_id}
-                      onChange={(e) =>
-                        handlePartInputChange("customer_id", e.target.value)
-                      }
+                    <label style={styles.label}>Select Customers *</label>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems: "center",
+                      }}
                     >
-                      <option value="">Select Customer</option>
-                      {customers.map((customer) => (
-                        <option key={customer.id} value={customer.id}>
-                          {customer.mat_code} | {customer.cust_name}
-                        </option>
-                      ))}
-                    </select>
+                      <select
+                        style={styles.select}
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleAddCustomer(e.target.value);
+                            e.target.value = "";
+                          }
+                        }}
+                      >
+                        <option value="">Select Customer</option>
+                        {customers
+                          .filter(
+                            (customer) =>
+                              !selectedCustomers.some(
+                                (sc) => sc.id === customer.id
+                              )
+                          )
+                          .map((customer) => (
+                            <option key={customer.id} value={customer.id}>
+                              {customer.mat_code} | {customer.cust_name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {/* Display selected customers */}
+                    {selectedCustomers.length > 0 && (
+                      <div style={{ marginTop: "8px" }}>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#4b5563",
+                            marginBottom: "4px",
+                            fontWeight: "500",
+                          }}
+                        >
+                          Selected For Customers :
+                        </div>
+                        <div
+                          style={{
+                            maxHeight: "100px",
+                            overflowY: "auto",
+                            border: "1px solid #d1d5db",
+                            borderRadius: "4px",
+                            padding: "8px",
+                            backgroundColor: "#f9fafb",
+                          }}
+                        >
+                          {selectedCustomers.map((customer) => (
+                            <div
+                              key={customer.id}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "4px 8px",
+                                marginBottom: "4px",
+                                backgroundColor: "white",
+                                border: "1px solid #e5e7eb",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              <span style={{ fontSize: "11px" }}>
+                                {customer.mat_code} | {customer.cust_name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRemoveCustomer(customer.id)
+                                }
+                                style={{
+                                  backgroundColor: "transparent",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  fontSize: "12px",
+                                  padding: "2px 4px",
+                                }}
+                                title="Delete"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div style={styles.actionButtonsGroup}>
@@ -1708,8 +1849,8 @@ const AddPartsPage = () => {
                         <td style={styles.tdWithLeftBorder}>
                           {part.placement_name}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {part.customer_name}
+                        <td style={styles.tdWithLeftBorder} title={part.customer_names}>
+                          {part.customer_names}
                         </td>
                         <td style={styles.tdWithLeftBorder} title={part.model}>
                           {part.model}

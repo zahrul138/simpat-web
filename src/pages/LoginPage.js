@@ -133,7 +133,7 @@ const LoginPage = () => {
       border: "1px solid #cbd5e1",
       borderRadius: "8px",
       padding: "0 16px",
-      fontSize: "16px",
+      fontSize: "13px",
       backgroundColor: "white",
       fontFamily: "inherit",
       width: "100%",

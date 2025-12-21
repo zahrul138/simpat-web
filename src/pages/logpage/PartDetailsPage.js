@@ -184,31 +184,34 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Function untuk get customer name by ID
-  const getCustomerName = useCallback(
-    (customerSpecial) => {
-      if (!customerSpecial) return null;
+ const getCustomerName = useCallback(
+  (customerSpecial) => {
+    if (!customerSpecial) return "All Customers";
 
-      try {
-        const customerIds = Array.isArray(customerSpecial)
-          ? customerSpecial
-          : JSON.parse(customerSpecial);
+    try {
+      const customerIds = Array.isArray(customerSpecial)
+        ? customerSpecial
+        : JSON.parse(customerSpecial);
 
-        const customerNames = customerIds.map((id) => {
-          const customer = customers.find(
-            (c) => c.id.toString() === id.toString()
-          );
-          return customer ? customer.cust_name : `Customer ${id}`;
-        });
-
-        return customerNames.join(", ");
-      } catch (error) {
-        console.error("Error parsing customer_special:", error);
-        return "Special Customer";
+      if (!customerIds || customerIds.length === 0) {
+        return "All Customers";
       }
-    },
-    [customers]
-  );
+
+      const customerNames = customerIds.map((id) => {
+        const customer = customers.find(
+          (c) => c.id.toString() === id.toString()
+        );
+        return customer ? `${customer.mat_code} | ${customer.cust_name}` : `Customer ${id}`;
+      });
+
+      return customerNames.join(", ");
+    } catch (error) {
+      console.error("Error parsing customer_special:", error);
+      return "Special Customer(s)";
+    }
+  },
+  [customers]
+);
 
   const fetchPartsData = async () => {
     try {
@@ -228,17 +231,19 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       if (result.success) {
         // Debug log untuk melihat data yang diterima
         console.log("Parts data received:", result.data);
-        if (result.data.length > 0) {
-          console.log("First part weight data:", {
-            part_code: result.data[0].part_code,
-            part_weight: result.data[0].part_weight,
-            weight_unit: result.data[0].weight_unit,
-            part_weight_type: typeof result.data[0].part_weight,
-            has_weight_unit: result.data[0].hasOwnProperty("weight_unit"),
-          });
-        }
 
-        setPartsData(result.data || []);
+        // Tambahkan logic untuk handle null placement
+        const processedData = (result.data || []).map((part) => ({
+          ...part,
+          placement_name: part.placement_name || "No Placement",
+          placement_length: part.placement_length || "",
+          placement_width: part.placement_width || "",
+          placement_height: part.placement_height || "",
+        }));
+
+        console.log("Processed parts data with placement:", processedData);
+
+        setPartsData(processedData);
       } else {
         throw new Error(result.message || "Failed to fetch parts data");
       }
@@ -271,6 +276,10 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       }
     }
 
+    const placementId = part.placement_id
+      ? part.placement_id.toString()
+      : "no-placement";
+
     setEditFormData({
       part_code: part.part_code || "",
       part_name: part.part_name || "",
@@ -289,14 +298,13 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       vendor_id: part.vendor_id || "",
       vendor_type: part.vendor_type || "",
       stock_level_to: part.stock_level_to || "",
-      placement_id: part.placement_id || "",
+      placement_id: placementId,
     });
 
     setEditError(null);
     setShowEditPopup(true);
   };
 
-  // Fungsi untuk menutup popup edit
   const handleCloseEditPopup = () => {
     setShowEditPopup(false);
     setEditingPart(null);
@@ -343,6 +351,19 @@ const PartDetailsPage = ({ sidebarVisible }) => {
         ...editFormData,
         [name]: value,
       });
+    } else if (name === "placement_id") {
+      // Handle "No Placement"
+      if (value === "no-placement") {
+        setEditFormData({
+          ...editFormData,
+          [name]: null,
+        });
+      } else {
+        setEditFormData({
+          ...editFormData,
+          [name]: value,
+        });
+      }
     } else {
       setEditFormData({
         ...editFormData,
@@ -421,7 +442,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
         ? parseInt(editFormData.vendor_id)
         : null;
       const placementIdNum = editFormData.placement_id
-        ? parseInt(editFormData.placement_id)
+        ? editFormData.placement_id === "no-placement"
+          ? null
+          : parseInt(editFormData.placement_id)
         : null;
 
       const updateData = {
@@ -545,7 +568,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
 
       if (result.success) {
         alert(`Part succesfully deleted`);
-        fetchPartsData(); 
+        fetchPartsData();
       } else {
         throw new Error(result.message || "Failed to delete part");
       }
@@ -611,13 +634,16 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   };
 
   const getSelectedPlacement = useMemo(() => {
-    if (!editFormData.placement_id) return null;
+    if (
+      !editFormData.placement_id ||
+      editFormData.placement_id === "no-placement"
+    )
+      return null;
     return placements.find(
       (p) => p.id.toString() === editFormData.placement_id.toString()
     );
   }, [editFormData.placement_id, placements]);
 
-  // Toggle row expansion (fungsi yang sudah ada)
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
       const newExpandedRows = {
@@ -1694,7 +1720,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                   ))}
                 </select>
               ) : (
-                // Input text untuk Product Code / Product Description
                 <input
                   type="text"
                   style={styles.input}
@@ -1867,7 +1892,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           {part.part_types}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
-                          {part.placement_name}
+                          {part.placement_name || "No Placement"}
                         </td>
                         <td
                           style={styles.tdWithLeftBorder}
@@ -1875,7 +1900,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         >
                           {part.part_weight ? (
                             <div>
-                              <div style={{ textAlign: "right", }} >
+                              <div style={{ textAlign: "right" }}>
                                 {(() => {
                                   const weight = parseFloat(part.part_weight);
                                   if (Number.isInteger(weight)) {
@@ -1894,32 +1919,19 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             "-"
                           )}
                         </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.cust_name}
-                        >
-                          {part.part_types === "Special" ? (
-                            <div
-                              title={
-                                getCustomerName(part.customer_special) ||
-                                "Special Customer"
-                              }
-                            >
-                              <div>
-                                {getCustomerName(part.customer_special)
-                                  ? getCustomerName(part.customer_special)
-                                      .length > 25
-                                    ? getCustomerName(
-                                        part.customer_special
-                                      ).substring(0, 25) + "..."
-                                    : getCustomerName(part.customer_special)
-                                  : "Special Customer"}
-                              </div>
-                            </div>
-                          ) : (
-                            <span>All Customers</span>
-                          )}
-                        </td>
+                       <td style={styles.tdWithLeftBorder} title={part.cust_name}>
+  {part.part_types === "Special" ? (
+    <div title={getCustomerName(part.customer_special)}>
+      <div>
+        {getCustomerName(part.customer_special).length > 25
+          ? getCustomerName(part.customer_special).substring(0, 25) + "..."
+          : getCustomerName(part.customer_special)}
+      </div>
+    </div>
+  ) : (
+    <span>All Customers</span>
+  )}
+</td>
                         <td style={styles.tdWithLeftBorder}>{part.model}</td>
                         <td style={styles.tdWithLeftBorder}>
                           {part.vendor_name || "-"}
@@ -2296,7 +2308,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           alignItems: "center",
                         }}
                       >
-                        {/* Input untuk nilai */}
                         <input
                           type="number"
                           step="0.001"
@@ -2311,8 +2322,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           }}
                           placeholder="Enter weight"
                         />
-
-                        {/* Selector untuk unit */}
                         <select
                           name="weight_unit"
                           value={editFormData.weight_unit}
@@ -2331,7 +2340,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         </select>
                       </div>
 
-                      {/* Info konversi */}
                       <div
                         style={{
                           fontSize: "10px",
@@ -2383,7 +2391,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     </div>
                   </div>
 
-                  {/* Kolom 3 */}
                   <div>
                     <div style={styles.popupEditFormGroup}>
                       <label style={styles.popupEditLabel}>Vendor *</label>
@@ -2438,11 +2445,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       <label style={styles.popupEditLabel}>Placement</label>
                       <select
                         name="placement_id"
-                        value={editFormData.placement_id}
+                        value={editFormData.placement_id || ""}
                         onChange={handleEditFormChange}
                         style={styles.popupEditSelect}
                       >
                         <option value="">Select Placement</option>
+                        <option value="no-placement">No Placement</option>
                         {placements
                           .filter((p) => p.is_active)
                           .map((placement) => (
@@ -2468,12 +2476,20 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           cursor: "not-allowed",
                         }}
                         value={
-                          getSelectedPlacement
+                          editFormData.placement_id === "no-placement" ||
+                          !editFormData.placement_id
+                            ? "No Placement"
+                            : getSelectedPlacement
                             ? `${getSelectedPlacement.length_cm} cm`
                             : ""
                         }
                         readOnly
-                        placeholder="Auto from placement"
+                        placeholder={
+                          editFormData.placement_id === "no-placement" ||
+                          !editFormData.placement_id
+                            ? "No Placement"
+                            : "Auto from placement"
+                        }
                       />
                     </div>
 
@@ -2489,12 +2505,20 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           cursor: "not-allowed",
                         }}
                         value={
-                          getSelectedPlacement
+                          editFormData.placement_id === "no-placement" ||
+                          !editFormData.placement_id
+                            ? "No Placement"
+                            : getSelectedPlacement
                             ? `${getSelectedPlacement.width_cm} cm`
                             : ""
                         }
                         readOnly
-                        placeholder="Auto from placement"
+                        placeholder={
+                          editFormData.placement_id === "no-placement" ||
+                          !editFormData.placement_id
+                            ? "No Placement"
+                            : "Auto from placement"
+                        }
                       />
                     </div>
 
@@ -2510,12 +2534,20 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           cursor: "not-allowed",
                         }}
                         value={
-                          getSelectedPlacement
+                          editFormData.placement_id === "no-placement" ||
+                          !editFormData.placement_id
+                            ? "No Placement"
+                            : getSelectedPlacement
                             ? `${getSelectedPlacement.height_cm} cm`
                             : ""
                         }
                         readOnly
-                        placeholder="Auto from placement"
+                        placeholder={
+                          editFormData.placement_id === "no-placement" ||
+                          !editFormData.placement_id
+                            ? "No Placement"
+                            : "Auto from placement"
+                        }
                       />
                     </div>
                   </div>
