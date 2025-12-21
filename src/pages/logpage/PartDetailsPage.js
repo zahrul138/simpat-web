@@ -71,7 +71,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   const [searchBy, setSearchBy] = useState("Vendor");
   const [keyword, setKeyword] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(20);
 
   // Fetch semua data yang diperlukan
   const fetchAllData = async () => {
@@ -210,7 +210,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     [customers]
   );
 
-  // Fungsi untuk fetch data dari kanban_master
   const fetchPartsData = async () => {
     try {
       setLoading(true);
@@ -227,6 +226,18 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       const result = await response.json();
 
       if (result.success) {
+        // Debug log untuk melihat data yang diterima
+        console.log("Parts data received:", result.data);
+        if (result.data.length > 0) {
+          console.log("First part weight data:", {
+            part_code: result.data[0].part_code,
+            part_weight: result.data[0].part_weight,
+            weight_unit: result.data[0].weight_unit,
+            part_weight_type: typeof result.data[0].part_weight,
+            has_weight_unit: result.data[0].hasOwnProperty("weight_unit"),
+          });
+        }
+
         setPartsData(result.data || []);
       } else {
         throw new Error(result.message || "Failed to fetch parts data");
@@ -310,12 +321,10 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     setEditError(null);
   };
 
-  // Fungsi untuk menangani perubahan form edit
   const handleEditFormChange = (e) => {
     const { name, value, type, checked } = e.target;
 
     if (name === "vendor_id") {
-      // Update vendor_type jika vendor berubah
       const selectedVendor = vendors.find((v) => v.id.toString() === value);
       setEditFormData({
         ...editFormData,
@@ -323,12 +332,16 @@ const PartDetailsPage = ({ sidebarVisible }) => {
         vendor_type: selectedVendor?.types || "",
       });
     } else if (name === "part_types" && value === "Regular") {
-      // Reset customer jika part types berubah ke Regular
       setEditFormData({
         ...editFormData,
         [name]: value,
         customer_id: "",
         customer_special: [],
+      });
+    } else if (name === "weight_unit") {
+      setEditFormData({
+        ...editFormData,
+        [name]: value,
       });
     } else {
       setEditFormData({
@@ -516,35 +529,31 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
- const handleDeletePart = async (partId, partCode) => {
-  if (!window.confirm(`Are you sure you want to permanently delete part "${partCode}"? This action cannot be undone!`)) {
-    return;
-  }
+  const handleDeletePart = async (partId, partCode) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/kanban-master/${partId}`, {
+        method: "DELETE",
+      });
 
-  try {
-    const response = await fetch(`${API_BASE}/api/kanban-master/${partId}`, {
-      method: "DELETE",
-    });
+      const result = await response.json();
 
-    const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.message || `HTTP error! status: ${response.status}`
+        );
+      }
 
-    if (!response.ok) {
-      throw new Error(
-        result.message || `HTTP error! status: ${response.status}`
-      );
+      if (result.success) {
+        alert(`Part succesfully deleted`);
+        fetchPartsData(); 
+      } else {
+        throw new Error(result.message || "Failed to delete part");
+      }
+    } catch (err) {
+      console.error("Error deleting part:", err);
+      alert(`Failed to delete part: ${err.message}`);
     }
-
-    if (result.success) {
-      alert(`Part "${partCode}" has been permanently deleted!`);
-      fetchPartsData(); // Refresh data
-    } else {
-      throw new Error(result.message || "Failed to delete part");
-    }
-  } catch (err) {
-    console.error("Error deleting part:", err);
-    alert(`Failed to delete part: ${err.message}`);
-  }
-};
+  };
 
   // Filter data berdasarkan search
   const filteredData = useMemo(() => {
@@ -1759,14 +1768,14 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 }}
               >
                 <colgroup>
-                  <col style={{ width: "2.5%" }} />
+                  <col style={{ width: "3%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "20%" }} />
-                  <col style={{ width: "8%" }} />
-                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
                   <col style={{ width: "12%" }} />
                   <col style={{ width: "10%" }} />
-                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "15%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "15%" }} />
                   <col style={{ width: "10%" }} />
@@ -1858,9 +1867,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           {part.part_types}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
-                          {part.placement_name
-                            ? `${part.placement_name} (${part.placement_length}x${part.placement_width}x${part.placement_height} cm)`
-                            : "Not Set"}
+                          {part.placement_name}
                         </td>
                         <td
                           style={styles.tdWithLeftBorder}
@@ -1868,14 +1875,18 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         >
                           {part.part_weight ? (
                             <div>
-                              <div style={{ fontWeight: "500" }}>
-                                {parseFloat(part.part_weight).toLocaleString(
-                                  undefined,
-                                  {
-                                    minimumFractionDigits: 3,
-                                    maximumFractionDigits: 3,
+                              <div style={{ textAlign: "right", }} >
+                                {(() => {
+                                  const weight = parseFloat(part.part_weight);
+                                  if (Number.isInteger(weight)) {
+                                    return weight.toLocaleString();
+                                  } else {
+                                    return weight.toLocaleString(undefined, {
+                                      minimumFractionDigits: 1,
+                                      maximumFractionDigits: 3,
+                                    });
                                   }
-                                )}{" "}
+                                })()}{" "}
                                 {part.weight_unit || "kg"}
                               </div>
                             </div>
@@ -1963,8 +1974,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination - SELALU TAMPIL walaupun tidak ada data */}
             <div style={styles.paginationBar}>
               <div style={styles.paginationControls}>
                 <button
@@ -2002,7 +2011,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       setCurrentPage(page);
                     }
                   }}
-                  disabled={filteredData.length === 0}
+                  // disabled={filteredData.length === 0}
                 />
                 <span>of {totalPages}</span>
                 <button
@@ -2572,8 +2581,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
           </div>
         )}
       </div>
-
-      {/* Tambahkan CSS animation untuk spinner */}
       <style>
         {`
           @keyframes spin {

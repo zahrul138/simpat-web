@@ -713,7 +713,6 @@ const calculateTotalPartsForVendor = (vendorData) => {
   const handleAddPart = async (rawPartCode) => {
     const partCode = String(rawPartCode || "").trim();
     if (!partCode) {
-      // Hanya validasi jika partCode kosong
       return;
     }
 
@@ -721,18 +720,13 @@ const calculateTotalPartsForVendor = (vendorData) => {
       alert("Vendor context tidak ditemukan. Buka popup dari baris vendor.");
       return;
     }
-
-    // Ambil semua part code yang sudah ada di vendor ini (baik di expandedVendorRows maupun di popup)
     const existingPartCodes = [];
 
-    // 1. Cek part yang sudah ada di expandedVendorRows (sudah di-insert sebelumnya)
     const { headerId, vendorIndex } = activeVendorContext;
     const vendorData = vendorDraftsByHeader[headerId]?.[vendorIndex];
     if (vendorData?.parts) {
       existingPartCodes.push(...vendorData.parts.map((p) => p.partCode));
     }
-
-    // 2. Cek part yang sudah ada di popup form (belum di-insert)
     if (addVendorPartFormData.parts) {
       existingPartCodes.push(
         ...addVendorPartFormData.parts.map((p) => p.partCode)
@@ -754,11 +748,9 @@ const calculateTotalPartsForVendor = (vendorData) => {
       const item = json.item || json.data || json;
 
       if (!item || !item.part_code) {
-        alert("Part code tidak ditemukan di kanban_master.");
+        alert("Part code not found.");
         return;
       }
-
-      // Cek apakah part sudah ada (baik di expandedVendorRows maupun di popup form)
       const isDuplicate = existingPartCodes.some(
         (code) => String(code) === String(item.part_code)
       );
@@ -767,8 +759,6 @@ const calculateTotalPartsForVendor = (vendorData) => {
         alert("Part already insert in this vendor");
         return;
       }
-
-      // Validasi vendor (opsional, bisa di-comment jika tidak diperlukan)
       if (
         activeVendorContext.vendorId &&
         item.vendor_id &&
@@ -777,8 +767,6 @@ const calculateTotalPartsForVendor = (vendorData) => {
         alert("Part code in another vendor.");
         return;
       }
-
-      // Ambil DO Number dari parts yang dipilih di checkbox
       const availableDoNumbers =
         activeVendorContext.doNumbers && activeVendorContext.doNumbers.length
           ? activeVendorContext.doNumbers.filter((d) => String(d || "").trim())
@@ -2897,9 +2885,9 @@ const calculateTotalPartsForVendor = (vendorData) => {
                     vendor: "",
                     doNumbers: [""],
                     arrivalTime: "",
-                    parts: [], // Kosongkan parts
+                    parts: [],
                   });
-                  setSelectedPartsInPopup([]); // Reset checkbox
+                  setSelectedPartsInPopup([]); 
                 }}
                 style={vendorPartStyles.closeButton}
               >
