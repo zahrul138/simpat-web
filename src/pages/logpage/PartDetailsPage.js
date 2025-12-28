@@ -184,34 +184,36 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
- const getCustomerName = useCallback(
-  (customerSpecial) => {
-    if (!customerSpecial) return "All Customers";
+  const getCustomerName = useCallback(
+    (customerSpecial) => {
+      if (!customerSpecial) return "All Customers";
 
-    try {
-      const customerIds = Array.isArray(customerSpecial)
-        ? customerSpecial
-        : JSON.parse(customerSpecial);
+      try {
+        const customerIds = Array.isArray(customerSpecial)
+          ? customerSpecial
+          : JSON.parse(customerSpecial);
 
-      if (!customerIds || customerIds.length === 0) {
-        return "All Customers";
+        if (!customerIds || customerIds.length === 0) {
+          return "All Customers";
+        }
+
+        const customerNames = customerIds.map((id) => {
+          const customer = customers.find(
+            (c) => c.id.toString() === id.toString()
+          );
+          return customer
+            ? `${customer.mat_code} | ${customer.cust_name}`
+            : `Customer ${id}`;
+        });
+
+        return customerNames.join(", ");
+      } catch (error) {
+        console.error("Error parsing customer_special:", error);
+        return "Special Customer(s)";
       }
-
-      const customerNames = customerIds.map((id) => {
-        const customer = customers.find(
-          (c) => c.id.toString() === id.toString()
-        );
-        return customer ? `${customer.mat_code} | ${customer.cust_name}` : `Customer ${id}`;
-      });
-
-      return customerNames.join(", ");
-    } catch (error) {
-      console.error("Error parsing customer_special:", error);
-      return "Special Customer(s)";
-    }
-  },
-  [customers]
-);
+    },
+    [customers]
+  );
 
   const fetchPartsData = async () => {
     try {
@@ -695,7 +697,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }));
   };
 
-  // Fungsi helper untuk konversi ke kg
   const convertToKg = (value, unit) => {
     if (!value || !unit) return 0;
 
@@ -1919,19 +1920,25 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             "-"
                           )}
                         </td>
-                       <td style={styles.tdWithLeftBorder} title={part.cust_name}>
-  {part.part_types === "Special" ? (
-    <div title={getCustomerName(part.customer_special)}>
-      <div>
-        {getCustomerName(part.customer_special).length > 25
-          ? getCustomerName(part.customer_special).substring(0, 25) + "..."
-          : getCustomerName(part.customer_special)}
-      </div>
-    </div>
-  ) : (
-    <span>All Customers</span>
-  )}
-</td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.cust_name}
+                        >
+                          {part.part_types === "Special" ? (
+                            <div title={getCustomerName(part.customer_special)}>
+                              <div>
+                                {getCustomerName(part.customer_special).length >
+                                25
+                                  ? getCustomerName(
+                                      part.customer_special
+                                    ).substring(0, 25) + "..."
+                                  : getCustomerName(part.customer_special)}
+                              </div>
+                            </div>
+                          ) : (
+                            <span>All Customers</span>
+                          )}
+                        </td>
                         <td style={styles.tdWithLeftBorder}>{part.model}</td>
                         <td style={styles.tdWithLeftBorder}>
                           {part.vendor_name || "-"}

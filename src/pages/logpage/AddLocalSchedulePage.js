@@ -20,40 +20,13 @@ const AddLocalSchedulePage = () => {
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101 | SCN-MH");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
   const [scheduleDate, setScheduleDate] = useState("");
-
-  // Tooltip state
   const [tooltip, setTooltip] = useState({
     visible: false,
     content: "",
     x: 0,
     y: 0,
   });
-
   const [currentEmpName, setCurrentEmpName] = useState("Unknown User");
-
-  useEffect(() => {
-    try {
-      const u = getAuthUserLocal();
-      if (!u) {
-        setCurrentEmpName("Unknown User");
-        return;
-      }
-
-      const name =
-        u.emp_name ||
-        u.employeeName ||
-        u.fullname ||
-        u.name ||
-        u.username ||
-        "";
-
-      setCurrentEmpName(name || "Unknown User");
-    } catch (err) {
-      console.error("Failed reading auth_user from localStorage", err);
-      setCurrentEmpName("Unknown User");
-    }
-  }, []);
-
   const [headerDrafts, setHeaderDrafts] = useState([]);
   const [vendorDraftsByHeader, setVendorDraftsByHeader] = useState({});
   const [expandedRows, setExpandedRows] = useState({});
@@ -81,6 +54,837 @@ const AddLocalSchedulePage = () => {
     arrivalTime: "",
     parts: [],
   });
+
+  const [editingPart, setEditingPart] = useState({
+    headerId: null,
+    vendorIndex: null,
+    partIndex: null,
+    partId: null,
+    qty: "",
+    showInput: false,
+  });
+  const [loadingParts, setLoadingParts] = useState({});
+  const [palletCalculations, setPalletCalculations] = useState({});
+
+  const palletConfig = {
+    large: {
+      width: 110,
+      length: 110,
+      maxHeight: 170,
+      baseHeight: 15,
+      name: "Large Pallet (110x110)",
+    },
+    small: {
+      width: 76,
+      length: 96,
+      maxHeight: 150,
+      baseHeight: 15,
+      name: "Small Pallet (76x96)",
+    },
+  };
+
+  const [editingExpandedPart, setEditingExpandedPart] = useState({
+    headerId: null,
+    vendorIndex: null,
+    partIndex: null,
+    partId: null,
+    qty: "",
+    showInput: false,
+  });
+
+  useEffect(() => {
+    try {
+      const u = getAuthUserLocal();
+      if (!u) {
+        setCurrentEmpName("Unknown User");
+        return;
+      }
+      const name =
+        u.emp_name ||
+        u.employeeName ||
+        u.fullname ||
+        u.name ||
+        u.username ||
+        "";
+      setCurrentEmpName(name || "Unknown User");
+    } catch (err) {
+      console.error("Failed reading auth_user from localStorage", err);
+      setCurrentEmpName("Unknown User");
+    }
+  }, []);
+
+  // Fungsi untuk menghitung kapasitas box di pallet
+  const calculateBoxCapacity = (pallet, boxLength, boxWidth, boxHeight) => {
+    // Hitung berapa box yang muat di satu layer pallet
+    // Coba kedua orientasi dan ambil yang terbaik
+
+    // Orientasi normal
+    const boxesPerLayerNormal = {
+      lengthwise: Math.floor(pallet.length / boxLength),
+      widthwise: Math.floor(pallet.width / boxWidth),
+    };
+    const boxesPerLayer1 =
+      boxesPerLayerNormal.lengthwise * boxesPerLayerNormal.widthwise;
+
+    // Orientasi diputar 90 derajat
+    const boxesPerLayerRotated = {
+      lengthwise: Math.floor(pallet.length / boxWidth),
+      widthwise: Math.floor(pallet.width / boxLength),
+    };
+    const boxesPerLayer2 =
+      boxesPerLayerRotated.lengthwise * boxesPerLayerRotated.widthwise;
+
+    // Ambil yang terbaik
+    const boxesPerLayer = Math.max(boxesPerLayer1, boxesPerLayer2, 1);
+
+    // Hitung tinggi yang tersedia untuk stacking
+    const availableHeight = pallet.maxHeight - pallet.baseHeight;
+    const maxStackHeight = Math.floor(availableHeight / boxHeight);
+
+    // Gunakan safety factor (80% dari tinggi maksimal)
+    const safeStackHeight = Math.max(1, Math.floor(maxStackHeight * 0.8));
+
+    // Total boxes per pallet
+    const totalBoxesPerPallet = boxesPerLayer * safeStackHeight;
+
+    return {
+      boxesPerLayer,
+      maxStackHeight,
+      safeStackHeight,
+      totalBoxesPerPallet,
+      efficiency: boxesPerLayer1 >= boxesPerLayer2 ? "normal" : "rotated",
+    };
+  };
+
+  // ==================== FUNGSI PERHITUNGAN PALLET SEDERHANA ====================
+
+  const calculatePalletForVendor = async (headerId, vendorIndex) => {
+    try {
+      const vendor = vendorDraftsByHeader[headerId]?.[vendorIndex];
+      if (!vendor || !vendor.parts || vendor.parts.length === 0) {
+        return {
+          largePallets: 0,
+          smallPallets: 0,
+          totalPallets: 0,
+          details: [],
+        };
+      }
+
+      console.log(`=== CALCULATING PALLET FOR VENDOR ${vendorIndex + 1} ===`);
+
+      // Kelompokkan part berdasarkan placement (ukuran box sama)
+      const boxGroups = {};
+
+      for (const part of vendor.parts) {
+        const partCode = part.partCode;
+        const qtyBox = part.qtyBox || 0;
+
+        if (qtyBox <= 0) continue;
+
+        // Cari placement data
+        let placementData = null;
+
+        // Coba dari part data dulu
+        if (part.placementId) {
+          try {
+            const placementResp = await fetch(
+              `${API_BASE}/api/vendor-placements/${part.placementId}`
+            );
+            if (placementResp.ok) {
+              const result = await placementResp.json();
+              placementData = result.data || result;
+            }
+          } catch (err) {
+            console.warn(`Error fetching placement:`, err);
+          }
+        }
+
+        // Jika tidak ada, coba dari kanban master
+        if (!placementData) {
+          try {
+            const partResp = await fetch(
+              `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
+                partCode
+              )}`
+            );
+            if (partResp.ok) {
+              const partResult = await partResp.json();
+              const kanbanData =
+                partResult.item || partResult.data || partResult;
+
+              if (kanbanData.placement_id) {
+                const placementResp = await fetch(
+                  `${API_BASE}/api/vendor-placements/${kanbanData.placement_id}`
+                );
+                if (placementResp.ok) {
+                  const placementResult = await placementResp.json();
+                  placementData = placementResult.data || placementResult;
+                }
+              }
+            }
+          } catch (err) {
+            console.warn(`Error fetching part data:`, err);
+          }
+        }
+
+        if (
+          placementData &&
+          placementData.length_cm &&
+          placementData.width_cm &&
+          placementData.height_cm
+        ) {
+          const boxKey = `${placementData.length_cm}-${placementData.width_cm}-${placementData.height_cm}`;
+
+          if (!boxGroups[boxKey]) {
+            boxGroups[boxKey] = {
+              boxLength: parseFloat(placementData.length_cm),
+              boxWidth: parseFloat(placementData.width_cm),
+              boxHeight: parseFloat(placementData.height_cm),
+              totalBoxes: 0,
+              partsList: [],
+            };
+          }
+
+          boxGroups[boxKey].totalBoxes += qtyBox;
+          boxGroups[boxKey].partsList.push({
+            partCode,
+            qtyBox,
+            placementName:
+              placementData.placement_name || `Placement ${placementData.id}`,
+          });
+
+          console.log(
+            `Added ${qtyBox} boxes of ${boxKey} for part ${partCode}`
+          );
+        }
+      }
+
+      console.log("Box groups:", boxGroups);
+
+      let totalLargePallets = 0;
+      let totalSmallPallets = 0;
+      const partDetails = [];
+
+      // Hitung pallet untuk setiap kelompok box
+      for (const boxKey in boxGroups) {
+        const group = boxGroups[boxKey];
+        const { boxLength, boxWidth, boxHeight, totalBoxes, partsList } = group;
+
+        console.log(
+          `Processing ${totalBoxes} boxes of ${boxLength}x${boxWidth}x${boxHeight}cm`
+        );
+
+        if (totalBoxes <= 0) continue;
+
+        // Tentukan pallet type
+        const canFitSmall = canBoxFitPallet(boxLength, boxWidth, 76, 96);
+        const canFitLarge = canBoxFitPallet(boxLength, boxWidth, 110, 110);
+
+        let palletType = "oversized";
+        let palletInfo = null;
+
+        if (canFitLarge) {
+          palletType = "large";
+          palletInfo = calculatePalletCapacity(
+            boxLength,
+            boxWidth,
+            boxHeight,
+            "large",
+            totalBoxes
+          );
+        } else if (canFitSmall) {
+          palletType = "small";
+          palletInfo = calculatePalletCapacity(
+            boxLength,
+            boxWidth,
+            boxHeight,
+            "small",
+            totalBoxes
+          );
+        }
+
+        if (palletInfo) {
+          if (palletType === "large") {
+            totalLargePallets += palletInfo.palletsNeeded;
+          } else if (palletType === "small") {
+            totalSmallPallets += palletInfo.palletsNeeded;
+          }
+
+          partDetails.push({
+            boxSize: `${boxLength}×${boxWidth}×${boxHeight}cm`,
+            totalBoxes,
+            palletType,
+            ...palletInfo,
+            parts: partsList,
+          });
+
+          console.log(
+            `Result: ${palletInfo.palletsNeeded} ${palletType} pallet(s)`
+          );
+        }
+      }
+
+      // Optimasi: gabung small ke large jika efisien
+      if (totalSmallPallets >= 2) {
+        const largeFromSmall = Math.floor(totalSmallPallets / 2);
+        totalLargePallets += largeFromSmall;
+        totalSmallPallets = totalSmallPallets % 2;
+        console.log(
+          `Optimized: ${largeFromSmall} small pallets converted to ${largeFromSmall} large pallet(s)`
+        );
+      }
+
+      const totalPallets = totalLargePallets + totalSmallPallets;
+
+      console.log(
+        `Final result: ${totalPallets} pallets (${totalLargePallets} large, ${totalSmallPallets} small)`
+      );
+
+      return {
+        largePallets: totalLargePallets,
+        smallPallets: totalSmallPallets,
+        totalPallets,
+        details: partDetails,
+      };
+    } catch (error) {
+      console.error("Error calculating pallet:", error);
+      return {
+        largePallets: 0,
+        smallPallets: 0,
+        totalPallets: 0,
+        details: [],
+      };
+    }
+  };
+
+  // Helper function: cek apakah box muat di pallet
+  const canBoxFitPallet = (boxLength, boxWidth, palletLength, palletWidth) => {
+    return (
+      (boxLength <= palletLength && boxWidth <= palletWidth) ||
+      (boxWidth <= palletLength && boxLength <= palletWidth)
+    );
+  };
+
+  // Helper function: hitung kapasitas pallet
+  const calculatePalletCapacity = (
+    boxLength,
+    boxWidth,
+    boxHeight,
+    palletType,
+    totalBoxes
+  ) => {
+    // Konfigurasi pallet
+    const palletConfigs = {
+      small: { length: 96, width: 76, maxHeight: 170, baseHeight: 15 },
+      large: { length: 110, width: 110, maxHeight: 170, baseHeight: 15 },
+    };
+
+    const config = palletConfigs[palletType];
+    const palletLength = config.length;
+    const palletWidth = config.width;
+    const availableHeight = config.maxHeight - config.baseHeight;
+
+    // Hitung boxes per layer dengan orientasi terbaik
+    let bestBoxesPerLayer = 0;
+    let bestOrientation = "";
+
+    // Coba semua kombinasi orientasi
+    const orientations = [
+      { name: "normal", l: boxLength, w: boxWidth },
+      { name: "rotated", l: boxWidth, w: boxLength },
+      {
+        name: "mixed",
+        l: Math.max(boxLength, boxWidth),
+        w: Math.min(boxLength, boxWidth),
+      },
+    ];
+
+    for (const orient of orientations) {
+      const boxesLengthwise = Math.floor(palletLength / orient.l);
+      const boxesWidthwise = Math.floor(palletWidth / orient.w);
+      const boxesPerLayer = boxesLengthwise * boxesWidthwise;
+
+      if (boxesPerLayer > bestBoxesPerLayer) {
+        bestBoxesPerLayer = boxesPerLayer;
+        bestOrientation = orient.name;
+      }
+    }
+
+    // Untuk large pallet, coba kombinasi mixed orientation
+    if (palletType === "large" && bestBoxesPerLayer < 4) {
+      // Coba kombinasi: 2 normal + 2 rotated
+      const boxesNormal =
+        Math.floor(palletLength / boxLength) *
+        Math.floor(palletWidth / boxWidth);
+      const boxesRotated =
+        Math.floor(palletLength / boxWidth) *
+        Math.floor(palletWidth / boxLength);
+
+      if (boxesNormal + boxesRotated > bestBoxesPerLayer) {
+        bestBoxesPerLayer = Math.min(4, boxesNormal + boxesRotated);
+        bestOrientation = "mixed-combination";
+      }
+    }
+
+    // Hitung max layers dengan toleransi tinggi
+    const maxLayers = Math.floor(availableHeight / boxHeight);
+
+    // Tambah 1 layer untuk toleransi (jika memungkinkan)
+    let safeLayers = maxLayers;
+    const extraSpace = availableHeight - maxLayers * boxHeight;
+    if (extraSpace >= 10) {
+      // Toleransi 10cm
+      safeLayers = maxLayers + 1;
+    }
+
+    // Minimum 1 layer
+    safeLayers = Math.max(1, safeLayers);
+
+    const boxesPerPallet = bestBoxesPerLayer * safeLayers;
+    const palletsNeeded = Math.ceil(totalBoxes / boxesPerPallet);
+
+    return {
+      boxesPerLayer: bestBoxesPerLayer,
+      safeLayers,
+      boxesPerPallet,
+      palletsNeeded,
+      orientation: bestOrientation,
+    };
+  };
+
+  const recalculatePalletForVendor = async (headerId, vendorIndex) => {
+    try {
+      console.log(
+        `Recalculating pallet for vendor ${
+          vendorIndex + 1
+        } in schedule ${headerId}`
+      );
+
+      const result = await calculatePalletForVendor(headerId, vendorIndex);
+
+      setPalletCalculations((prev) => ({
+        ...prev,
+        [`${headerId}_${vendorIndex}`]: result,
+      }));
+
+      console.log(`Pallet result for ${headerId}_${vendorIndex}:`, result);
+
+      return result;
+    } catch (error) {
+      console.error("Error recalculating pallet:", error);
+      setPalletCalculations((prev) => ({
+        ...prev,
+        [`${headerId}_${vendorIndex}`]: {
+          largePallets: 0,
+          smallPallets: 0,
+          totalPallets: 0,
+          details: [],
+          summary: "Calculation error",
+        },
+      }));
+      return null;
+    }
+  };
+
+  const getTotalPalletForVendor = (headerId, vendorIndex) => {
+    const palletKey = `${headerId}_${vendorIndex}`;
+    const calculation = palletCalculations[palletKey];
+    return calculation ? calculation.totalPallets : 0;
+  };
+
+  const getPalletCalculationDetails = (headerId, vendorIndex) => {
+    const palletKey = `${headerId}_${vendorIndex}`;
+    const calculation = palletCalculations[palletKey];
+
+    if (!calculation || calculation.totalPallets === 0) return "0 pallet";
+
+    let details = [];
+    if (calculation.largePallets > 0)
+      details.push(`${calculation.largePallets} large`);
+    if (calculation.smallPallets > 0)
+      details.push(`${calculation.smallPallets} small`);
+
+    return details.length > 0 ? details.join(" + ") : "0 pallet";
+  };
+
+  const getPalletTooltipDetails = (headerId, vendorIndex) => {
+    const palletKey = `${headerId}_${vendorIndex}`;
+    const calculation = palletCalculations[palletKey];
+
+    if (!calculation) return "Calculating...";
+
+    let tooltipText = `Total: ${calculation.totalPallets} pallets\n`;
+    tooltipText += `Large: ${calculation.largePallets} pallets\n`;
+    tooltipText += `Small: ${calculation.smallPallets} pallets\n`;
+
+    if (calculation.details && calculation.details.length > 0) {
+      tooltipText += `\nPart Details:\n`;
+      calculation.details.forEach((detail, index) => {
+        tooltipText += `${index + 1}. ${detail.partCode}: ${
+          detail.qtyBox
+        } boxes\n`;
+        tooltipText += `   Box: ${detail.boxLength}×${detail.boxWidth}×${detail.boxHeight}cm\n`;
+        tooltipText += `   Type: ${detail.palletType} pallet\n`;
+      });
+    }
+
+    return tooltipText;
+  };
+
+  const calculateTotalPalletForHeader = (headerId) => {
+    const vendors = vendorDraftsByHeader[headerId] || [];
+    let totalLarge = 0;
+    let totalSmall = 0;
+    let total = 0;
+
+    vendors.forEach((_, vendorIndex) => {
+      const palletKey = `${headerId}_${vendorIndex}`;
+      const calculation = palletCalculations[palletKey];
+      if (calculation) {
+        totalLarge += calculation.largePallets;
+        totalSmall += calculation.smallPallets;
+        total += calculation.totalPallets;
+      }
+    });
+
+    return { totalLarge, totalSmall, total };
+  };
+
+  const handleEditPartClick = (
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId,
+    currentQty
+  ) => {
+    setEditingPart({
+      headerId,
+      vendorIndex,
+      partIndex,
+      partId,
+      qty: currentQty.toString(),
+      showInput: true,
+    });
+  };
+
+  const handleSavePartQty = async (
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId,
+    newQty
+  ) => {
+    try {
+      const qty = parseInt(newQty);
+      if (isNaN(qty) || qty < 0) {
+        alert("Qty must be a valid positive number");
+        return;
+      }
+
+      setLoadingParts((prev) => ({ ...prev, [partId]: true }));
+
+      const partData =
+        vendorDraftsByHeader[headerId]?.[vendorIndex]?.parts?.[partIndex];
+      if (!partData?.partCode) {
+        alert("Part data not found");
+        return;
+      }
+
+      const resp = await fetch(
+        `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
+          partData.partCode
+        )}`
+      );
+
+      if (!resp.ok) throw new Error("Failed to fetch part details");
+      const json = await resp.json();
+      const kanbanData = json.item || json.data || json;
+
+      if (!kanbanData) {
+        alert("Part details not found in kanban master");
+        return;
+      }
+
+      // Ambil qty_per_box
+      let qtyPerBox = 1;
+      if (
+        kanbanData.qty_per_box !== undefined &&
+        kanbanData.qty_per_box !== null
+      ) {
+        qtyPerBox = Number(kanbanData.qty_per_box);
+      } else if (
+        partData.qtyPerBoxFromMaster !== undefined &&
+        partData.qtyPerBoxFromMaster !== null
+      ) {
+        qtyPerBox = Number(partData.qtyPerBoxFromMaster);
+      } else if (
+        kanbanData.qty_unit &&
+        kanbanData.qty_box &&
+        kanbanData.qty_box > 0
+      ) {
+        qtyPerBox = Math.ceil(kanbanData.qty_unit / kanbanData.qty_box);
+      }
+
+      qtyPerBox = Math.max(1, qtyPerBox);
+
+      // Hitung Qty Box: pembulatan ke atas (ceil)
+      const qtyBox = Math.ceil(qty / qtyPerBox);
+
+      console.log(
+        `Saving part ${partData.partCode}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}`
+      );
+
+      setVendorDraftsByHeader((prev) => {
+        const newVendors = [...(prev[headerId] || [])];
+        if (!newVendors[vendorIndex]) return prev;
+
+        const newParts = [...(newVendors[vendorIndex].parts || [])];
+        newParts[partIndex] = {
+          ...newParts[partIndex],
+          qty: qty,
+          qtyBox: qtyBox,
+          qtyPerBoxFromMaster: qtyPerBox,
+          placementId: kanbanData.placement_id,
+        };
+
+        newVendors[vendorIndex] = {
+          ...newVendors[vendorIndex],
+          parts: newParts,
+        };
+        return { ...prev, [headerId]: newVendors };
+      });
+
+      // Trigger perhitungan ulang pallet setelah update qty
+      await recalculatePalletForVendor(headerId, vendorIndex);
+
+      setEditingPart({
+        headerId: null,
+        vendorIndex: null,
+        partIndex: null,
+        partId: null,
+        qty: "",
+        showInput: false,
+      });
+      setLoadingParts((prev) => ({ ...prev, [partId]: false }));
+    } catch (error) {
+      console.error("Error saving part qty:", error);
+      alert("Failed to save qty: " + error.message);
+      setLoadingParts((prev) => ({ ...prev, [partId]: false }));
+    }
+  };
+
+  const handleEditExpandedPartClick = (
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId,
+    currentQty
+  ) => {
+    setEditingExpandedPart({
+      headerId,
+      vendorIndex,
+      partIndex,
+      partId,
+      qty: currentQty.toString(),
+      showInput: true,
+    });
+  };
+
+  const handleSaveExpandedPartQty = async (
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId,
+    newQty
+  ) => {
+    try {
+      const qty = parseInt(newQty);
+      if (isNaN(qty) || qty < 0) {
+        alert("Qty must be a valid positive number");
+        return;
+      }
+
+      setLoadingParts((prev) => ({ ...prev, [partId]: true }));
+
+      const partData =
+        vendorDraftsByHeader[headerId]?.[vendorIndex]?.parts?.[partIndex];
+
+      if (!partData?.partCode) {
+        alert("Part data not found");
+        return;
+      }
+
+      const resp = await fetch(
+        `${API_BASE}/api/kanban-master/qty-per-box?part_code=${encodeURIComponent(
+          partData.partCode
+        )}`
+      );
+
+      if (!resp.ok) throw new Error("Failed to fetch part details");
+      const json = await resp.json();
+      const kanbanData = json.item || json.data || json;
+
+      if (!kanbanData) {
+        alert("Part details not found in kanban master");
+        return;
+      }
+
+      let qtyPerBox = 1;
+      if (
+        kanbanData.qty_per_box !== undefined &&
+        kanbanData.qty_per_box !== null
+      ) {
+        qtyPerBox = Number(kanbanData.qty_per_box);
+      } else if (
+        partData.qtyPerBoxFromMaster !== undefined &&
+        partData.qtyPerBoxFromMaster !== null
+      ) {
+        qtyPerBox = Number(partData.qtyPerBoxFromMaster);
+      } else if (
+        kanbanData.qty_unit &&
+        kanbanData.qty_box &&
+        kanbanData.qty_box > 0
+      ) {
+        qtyPerBox = Math.ceil(kanbanData.qty_unit / kanbanData.qty_box);
+      }
+
+      qtyPerBox = Math.max(1, qtyPerBox);
+
+      const qtyBox = Math.ceil(qty / qtyPerBox);
+
+      console.log(
+        `Saving part ${partData.partCode}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}`
+      );
+
+      setVendorDraftsByHeader((prev) => {
+        const newVendors = [...(prev[headerId] || [])];
+        if (!newVendors[vendorIndex]) return prev;
+
+        const newParts = [...(newVendors[vendorIndex].parts || [])];
+        newParts[partIndex] = {
+          ...newParts[partIndex],
+          qty: qty,
+          qtyBox: qtyBox,
+          qtyPerBoxFromMaster: qtyPerBox,
+          placementId: kanbanData.placement_id, // Simpan placementId
+        };
+
+        newVendors[vendorIndex] = {
+          ...newVendors[vendorIndex],
+          parts: newParts,
+        };
+        return { ...prev, [headerId]: newVendors };
+      });
+
+      await recalculatePalletForVendor(headerId, vendorIndex);
+
+      setEditingExpandedPart({
+        headerId: null,
+        vendorIndex: null,
+        partIndex: null,
+        partId: null,
+        qty: "",
+        showInput: false,
+      });
+      setLoadingParts((prev) => ({ ...prev, [partId]: false }));
+    } catch (error) {
+      console.error("Error saving expanded part qty:", error);
+      alert("Failed to save qty: " + error.message);
+      setLoadingParts((prev) => ({ ...prev, [partId]: false }));
+    }
+  };
+
+  const handleEditExpandedPartKeyPress = (
+    e,
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId
+  ) => {
+    if (e.key === "Enter") {
+      handleSaveExpandedPartQty(
+        headerId,
+        vendorIndex,
+        partIndex,
+        partId,
+        editingExpandedPart.qty
+      );
+    } else if (e.key === "Escape") {
+      setEditingExpandedPart({
+        headerId: null,
+        vendorIndex: null,
+        partIndex: null,
+        partId: null,
+        qty: "",
+        showInput: false,
+      });
+    }
+  };
+
+  useEffect(() => {
+    // Hitung ulang pallet setiap kali vendorDraftsByHeader berubah
+    headerDrafts.forEach((header) => {
+      const vendors = vendorDraftsByHeader[header.id] || [];
+      vendors.forEach((_, vendorIndex) => {
+        recalculatePalletForVendor(header.id, vendorIndex);
+      });
+    });
+  }, [vendorDraftsByHeader]);
+
+  const handleEditPartKeyPress = (
+    e,
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId
+  ) => {
+    if (e.key === "Enter") {
+      handleSavePartQty(
+        headerId,
+        vendorIndex,
+        partIndex,
+        partId,
+        editingPart.qty
+      );
+    } else if (e.key === "Escape") {
+      setEditingPart({
+        headerId: null,
+        vendorIndex: null,
+        partIndex: null,
+        partId: null,
+        qty: "",
+        showInput: false,
+      });
+    }
+  };
+
+  const handlePopupPartQtyChange = (partId, newQty) => {
+    console.log("Changing qty for part", partId, "to", newQty);
+
+    setAddVendorPartFormData((prev) => {
+      const updatedParts = (prev.parts || []).map((part) => {
+        if (part.id === partId) {
+          const qty = parseInt(newQty) || 0;
+          const qtyPerBox = part.qtyPerBoxFromMaster || 1;
+          const qtyBox = Math.ceil(qty / qtyPerBox);
+
+          console.log(`Calculated qtyBox: ${qty} / ${qtyPerBox} = ${qtyBox}`);
+
+          return {
+            ...part,
+            qty: qty,
+            qtyBox: qtyBox,
+          };
+        }
+        return part;
+      });
+
+      return {
+        ...prev,
+        parts: updatedParts,
+      };
+    });
+  };
 
   async function handleInsertSchedule() {
     try {
@@ -140,10 +944,7 @@ const AddLocalSchedulePage = () => {
       };
 
       setHeaderDrafts((prev) => [...prev, newHeader]);
-      setVendorDraftsByHeader((prev) => ({
-        ...prev,
-        [newId]: [],
-      }));
+      setVendorDraftsByHeader((prev) => ({ ...prev, [newId]: [] }));
     } catch (e) {
       alert("Error: " + e.message);
     }
@@ -197,17 +998,11 @@ const AddLocalSchedulePage = () => {
   }
 
   const handleAddVendorInputChange = (field, value) => {
-    setAddVendorFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setAddVendorFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const autoExpandHeaderOnVendorAdd = (headerId) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [headerId]: true,
-    }));
+    setExpandedRows((prev) => ({ ...prev, [headerId]: true }));
   };
 
   const handleAddVendorSubmit = (e) => {
@@ -256,8 +1051,6 @@ const AddLocalSchedulePage = () => {
     }
 
     const headerId = activeHeaderIdForVendorForm;
-
-    // Auto-expand header row
     autoExpandHeaderOnVendorAdd(headerId);
 
     setVendorDraftsByHeader((prev) => {
@@ -270,6 +1063,7 @@ const AddLocalSchedulePage = () => {
             trip_id: Number(t.id),
             vendor_id: Number(v.id),
             do_numbers: clean,
+            parts: [],
           },
         ],
       };
@@ -286,55 +1080,43 @@ const AddLocalSchedulePage = () => {
   };
 
   const autoExpandVendorOnPartAdd = (headerId, vendorIndex) => {
-    // Auto-expand header row jika belum terbuka
-    setExpandedRows((prev) => ({
-      ...prev,
-      [headerId]: true,
-    }));
-
-    // Auto-expand vendor row jika belum terbuka
+    setExpandedRows((prev) => ({ ...prev, [headerId]: true }));
     const vendorRowId = `${headerId}_vendor_${vendorIndex + 1}`;
-    setExpandedVendorRows((prev) => ({
-      ...prev,
-      [vendorRowId]: true,
-    }));
+    setExpandedVendorRows((prev) => ({ ...prev, [vendorRowId]: true }));
   };
 
-  // Fungsi untuk menghapus draft schedule (header)
   const handleDeleteHeader = (headerId) => {
-    // Hapus header dari headerDrafts
     setHeaderDrafts((prev) => prev.filter((h) => h.id !== headerId));
-
-    // Hapus vendor yang terkait dengan header ini
     setVendorDraftsByHeader((prev) => {
       const copy = { ...prev };
       delete copy[headerId];
       return copy;
     });
-
-    // Tutup expansion header jika sedang terbuka
     setExpandedRows((prev) => {
       const copy = { ...prev };
       delete copy[headerId];
       return copy;
     });
-
-    // Tutup semua expansion vendor di bawah header ini
     setExpandedVendorRows((prev) => {
       const copy = { ...prev };
       Object.keys(copy).forEach((key) => {
-        if (key.startsWith(`${headerId}_vendor_`)) {
-          delete copy[key];
-        }
+        if (key.startsWith(`${headerId}_vendor_`)) delete copy[key];
       });
       return copy;
     });
-
-    // Hapus dari selectedHeaderIds jika ada
     setSelectedHeaderIds((prev) => {
       const next = new Set(prev);
       next.delete(headerId);
       return next;
+    });
+
+    // Hapus juga perhitungan pallet untuk header ini
+    setPalletCalculations((prev) => {
+      const copy = { ...prev };
+      Object.keys(copy).forEach((key) => {
+        if (key.startsWith(`${headerId}_`)) delete copy[key];
+      });
+      return copy;
     });
   };
 
@@ -358,7 +1140,6 @@ const AddLocalSchedulePage = () => {
           !vendorDraftsByHeader[h.id] ||
           vendorDraftsByHeader[h.id].length === 0
       );
-
       if (tanpaVendor.length > 0) {
         alert("Please add vendor details before input");
         return;
@@ -376,33 +1157,26 @@ const AddLocalSchedulePage = () => {
       }
       for (let i = 0; i < selected.length; i++) {
         const hdr = selected[i];
-
         const body = {
           stockLevel: hdr.stockLevel,
           modelName: hdr.modelName,
           scheduleDate: hdr.scheduleDate,
           uploadByName: hdr.uploadByName,
         };
-
         const resp = await fetch(`${API_BASE}/api/local-schedules`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-
         const data = await resp.json();
-        if (!resp.ok) {
+        if (!resp.ok)
           throw new Error(
             `Gagal membuat schedule: ${
               data.message || "Failed to create schedule"
             }`
           );
-        }
-
         const scheduleId = data.schedule?.id;
-        if (!scheduleId) {
-          throw new Error(`Schedule ID tidak ditemukan`);
-        }
+        if (!scheduleId) throw new Error(`Schedule ID tidak ditemukan`);
 
         const vendors = vendorDraftsByHeader[hdr.id] || [];
         if (vendors.length) {
@@ -413,7 +1187,6 @@ const AddLocalSchedulePage = () => {
               do_numbers: vendor.do_numbers || [],
             })),
           };
-
           const resp2 = await fetch(
             `${API_BASE}/api/local-schedules/${scheduleId}/vendors/bulk`,
             {
@@ -422,21 +1195,17 @@ const AddLocalSchedulePage = () => {
               body: JSON.stringify(vendorPayload),
             }
           );
-
           const data2 = await resp2.json();
-          if (!resp2.ok) {
+          if (!resp2.ok)
             throw new Error(
               `Gagal menyimpan vendor: ${
                 data2.message || "Failed to submit vendors"
               }`
             );
-          }
 
-          // Submit parts untuk setiap vendor
           for (let j = 0; j < vendors.length; j++) {
             const vendor = vendors[j];
             const vendorId = data2.vendors[j]?.id;
-
             if (vendorId && vendor.parts && vendor.parts.length > 0) {
               const partsData = vendor.parts.map((part) => ({
                 part_code: part.partCode,
@@ -446,7 +1215,6 @@ const AddLocalSchedulePage = () => {
                 unit: part.unit || "PCS",
                 do_number: part.doNumber || "",
               }));
-
               const resp3 = await fetch(
                 `${API_BASE}/api/local-schedules/${vendorId}/parts/bulk`,
                 {
@@ -455,38 +1223,30 @@ const AddLocalSchedulePage = () => {
                   body: JSON.stringify({ items: partsData }),
                 }
               );
-
               const data3 = await resp3.json();
-              if (!resp3.ok) {
+              if (!resp3.ok)
                 throw new Error(
                   `Gagal menyimpan parts: ${
                     data3.message || "Failed to submit parts"
                   }`
                 );
-              }
             }
           }
         }
       }
 
       alert("Semua schedule, vendor details, dan parts berhasil disimpan.");
-
       const nextHeaders = headerDrafts.filter(
         (h) => !selectedHeaderIds.has(h.id)
       );
       setHeaderDrafts(nextHeaders);
-
       const nextVendors = { ...vendorDraftsByHeader };
       selectedHeaderIds.forEach((id) => {
         delete nextVendors[id];
       });
       setVendorDraftsByHeader(nextVendors);
-
-      // Reset selection
       setSelectedHeaderIds(new Set());
       setSelectAll(false);
-
-      // Reset expanded rows untuk schedule yang dihapus
       setExpandedRows((prev) => {
         const next = { ...prev };
         selectedHeaderIds.forEach((id) => {
@@ -494,14 +1254,22 @@ const AddLocalSchedulePage = () => {
         });
         return next;
       });
-
       setExpandedVendorRows((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((key) => {
           selectedHeaderIds.forEach((id) => {
-            if (key.startsWith(`${id}_vendor_`)) {
-              delete next[key];
-            }
+            if (key.startsWith(`${id}_vendor_`)) delete next[key];
+          });
+        });
+        return next;
+      });
+
+      // Hapus perhitungan pallet untuk header yang sudah disubmit
+      setPalletCalculations((prev) => {
+        const next = { ...prev };
+        selectedHeaderIds.forEach((id) => {
+          Object.keys(next).forEach((key) => {
+            if (key.startsWith(`${id}_`)) delete next[key];
           });
         });
         return next;
@@ -513,22 +1281,114 @@ const AddLocalSchedulePage = () => {
     }
   }
 
+  const handleUniversalEditPartClick = (
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId,
+    currentQty,
+    source = "expanded"
+  ) => {
+    if (source === "popup") {
+      handleEditPartClick(headerId, vendorIndex, partIndex, partId, currentQty);
+    } else {
+      handleEditExpandedPartClick(
+        headerId,
+        vendorIndex,
+        partIndex,
+        partId,
+        currentQty
+      );
+    }
+  };
+
+  const handleUniversalSavePartQty = async (
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId,
+    newQty,
+    source = "expanded"
+  ) => {
+    if (source === "popup") {
+      await handleSavePartQty(headerId, vendorIndex, partIndex, partId, newQty);
+    } else {
+      await handleSaveExpandedPartQty(
+        headerId,
+        vendorIndex,
+        partIndex,
+        partId,
+        newQty
+      );
+    }
+  };
+
+  const handleUniversalKeyPress = (
+    e,
+    headerId,
+    vendorIndex,
+    partIndex,
+    partId,
+    source = "expanded"
+  ) => {
+    if (source === "popup") {
+      handleEditPartKeyPress(e, headerId, vendorIndex, partIndex, partId);
+    } else {
+      handleEditExpandedPartKeyPress(
+        e,
+        headerId,
+        vendorIndex,
+        partIndex,
+        partId
+      );
+    }
+  };
+
+  useEffect(() => {
+    const syncLoadingState = () => {};
+
+    syncLoadingState();
+  }, [loadingParts]);
+
+  useEffect(() => {
+    return () => {
+      setEditingPart({
+        headerId: null,
+        vendorIndex: null,
+        partIndex: null,
+        partId: null,
+        qty: "",
+        showInput: false,
+      });
+      setEditingExpandedPart({
+        headerId: null,
+        vendorIndex: null,
+        partIndex: null,
+        partId: null,
+        qty: "",
+        showInput: false,
+      });
+      setLoadingParts({});
+    };
+  }, []);
+
   const handleDeleteVendor = (headerId, vendorIndex) => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       vendors.splice(vendorIndex, 1);
-
-      return {
-        ...prev,
-        [headerId]: vendors,
-      };
+      return { ...prev, [headerId]: vendors };
     });
-
-    // Hapus expansion state untuk vendor ini
     const vendorRowId = `${headerId}_vendor_${vendorIndex + 1}`;
     setExpandedVendorRows((prev) => {
       const next = { ...prev };
       delete next[vendorRowId];
+      return next;
+    });
+
+    // Hapus perhitungan pallet untuk vendor ini
+    setPalletCalculations((prev) => {
+      const next = { ...prev };
+      delete next[`${headerId}_${vendorIndex}`];
       return next;
     });
   };
@@ -537,35 +1397,26 @@ const AddLocalSchedulePage = () => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
-
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
         parts: (vendors[vendorIndex].parts || []).filter(
           (p) => p.id !== partId
         ),
       };
-
-      return {
-        ...prev,
-        [headerId]: vendors,
-      };
+      return { ...prev, [headerId]: vendors };
     });
+
+    recalculatePalletForVendor(headerId, vendorIndex);
   };
 
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
-      const newExpandedRows = {
-        ...prev,
-        [rowId]: !prev[rowId],
-      };
-
+      const newExpandedRows = { ...prev, [rowId]: !prev[rowId] };
       if (prev[rowId]) {
         setExpandedVendorRows((prevVendor) => {
           const newVendorRows = { ...prevVendor };
           Object.keys(newVendorRows).forEach((key) => {
-            if (key.startsWith(`${rowId}_vendor_`)) {
-              delete newVendorRows[key];
-            }
+            if (key.startsWith(`${rowId}_vendor_`)) delete newVendorRows[key];
           });
           return newVendorRows;
         });
@@ -579,11 +1430,8 @@ const AddLocalSchedulePage = () => {
       const next = new Set(prev);
       if (checked) next.add(headerId);
       else next.delete(headerId);
-      if (checked && next.size === headerDrafts.length) {
-        setSelectAll(true);
-      } else if (!checked) {
-        setSelectAll(false);
-      }
+      if (checked && next.size === headerDrafts.length) setSelectAll(true);
+      else if (!checked) setSelectAll(false);
       return next;
     });
   };
@@ -602,11 +1450,9 @@ const AddLocalSchedulePage = () => {
     if (
       headerDrafts.length > 0 &&
       selectedHeaderIds.size === headerDrafts.length
-    ) {
+    )
       setSelectAll(true);
-    } else {
-      setSelectAll(false);
-    }
+    else setSelectAll(false);
   }, [selectedHeaderIds, headerDrafts]);
 
   const toggleVendorRowExpansion = (vendorRowId) => {
@@ -622,10 +1468,7 @@ const AddLocalSchedulePage = () => {
     vendorData,
     vendorLabel
   ) => {
-    // Auto-expand header dan vendor row
     autoExpandVendorOnPartAdd(headerId, vendorIndex);
-
-    // Ambil parts yang sudah ada di vendor row (expandedVendorRows)
     const existingPartsInVendor = vendorData.parts || [];
     const existingPartCodes = existingPartsInVendor.map((p) => p.partCode);
 
@@ -636,8 +1479,6 @@ const AddLocalSchedulePage = () => {
       vendorLabel,
       doNumbers: vendorData.do_numbers || [],
     });
-
-    // Filter out parts yang sudah ada di expandedVendorRows
     const currentPartsInForm = vendorData.parts ? [...vendorData.parts] : [];
     const filteredParts = currentPartsInForm.filter(
       (part) => !existingPartCodes.includes(part.partCode)
@@ -651,44 +1492,32 @@ const AddLocalSchedulePage = () => {
           ? [...vendorData.do_numbers]
           : [""],
       arrivalTime: "",
-      parts: filteredParts, // Gunakan filtered parts
+      parts: filteredParts,
     });
-
-    // Reset selected parts saat buka popup
     setSelectedPartsInPopup([]);
-
     setAddVendorPartDetail(true);
   };
 
-  // Fungsi untuk menghitung total part dari semua vendor dalam satu schedule
-const calculateTotalPartsForHeader = (headerId) => {
-  const vendors = vendorDraftsByHeader[headerId] || [];
-  
-  let totalParts = 0;
-  vendors.forEach(vendor => {
-    if (vendor.parts && Array.isArray(vendor.parts)) {
-      totalParts += vendor.parts.length;
-    }
-  });
-  
-  return totalParts;
-};
+  const calculateTotalPartsForHeader = (headerId) => {
+    const vendors = vendorDraftsByHeader[headerId] || [];
+    let totalParts = 0;
+    vendors.forEach((vendor) => {
+      if (vendor.parts && Array.isArray(vendor.parts))
+        totalParts += vendor.parts.length;
+    });
+    return totalParts;
+  };
 
-const calculateTotalPartsForVendor = (vendorData) => {
-  if (!vendorData || !vendorData.parts || !Array.isArray(vendorData.parts)) {
-    return 0;
-  }
-  return vendorData.parts.length;
-};
-
+  const calculateTotalPartsForVendor = (vendorData) => {
+    if (!vendorData || !vendorData.parts || !Array.isArray(vendorData.parts))
+      return 0;
+    return vendorData.parts.length;
+  };
 
   const handleDoNumberChange = (index, value) => {
     const updatedDoNumbers = [...addVendorFormData.doNumbers];
     updatedDoNumbers[index] = value;
-    setAddVendorFormData((prev) => ({
-      ...prev,
-      doNumbers: updatedDoNumbers,
-    }));
+    setAddVendorFormData((prev) => ({ ...prev, doNumbers: updatedDoNumbers }));
   };
 
   const addDoNumberField = () => {
@@ -712,53 +1541,49 @@ const calculateTotalPartsForVendor = (vendorData) => {
 
   const handleAddPart = async (rawPartCode) => {
     const partCode = String(rawPartCode || "").trim();
-    if (!partCode) {
-      return;
-    }
-
+    if (!partCode) return;
     if (!activeVendorContext) {
       alert("Vendor context tidak ditemukan. Buka popup dari baris vendor.");
       return;
     }
-    const existingPartCodes = [];
 
+    const existingPartCodes = [];
     const { headerId, vendorIndex } = activeVendorContext;
     const vendorData = vendorDraftsByHeader[headerId]?.[vendorIndex];
-    if (vendorData?.parts) {
+    if (vendorData?.parts)
       existingPartCodes.push(...vendorData.parts.map((p) => p.partCode));
-    }
-    if (addVendorPartFormData.parts) {
+    if (addVendorPartFormData.parts)
       existingPartCodes.push(
         ...addVendorPartFormData.parts.map((p) => p.partCode)
       );
-    }
 
     try {
       const resp = await fetch(
-        `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
+        `${API_BASE}/api/kanban-master/qty-per-box?part_code=${encodeURIComponent(
           partCode
         )}`
       );
 
-      if (!resp.ok) {
-        throw new Error("Gagal cek Part Code ke server.");
-      }
-
+      if (!resp.ok) throw new Error("Gagal cek Part Code ke server.");
       const json = await resp.json();
-      const item = json.item || json.data || json;
 
-      if (!item || !item.part_code) {
-        alert("Part code not found.");
+      if (!json.success || !json.item) {
+        alert("Part code not found atau tidak memiliki qty_per_box.");
         return;
       }
+
+      const item = json.item;
+
+      console.log("API Response with qty_per_box:", item);
+
       const isDuplicate = existingPartCodes.some(
         (code) => String(code) === String(item.part_code)
       );
-
       if (isDuplicate) {
         alert("Part already insert in this vendor");
         return;
       }
+
       if (
         activeVendorContext.vendorId &&
         item.vendor_id &&
@@ -767,11 +1592,11 @@ const calculateTotalPartsForVendor = (vendorData) => {
         alert("Part code in another vendor.");
         return;
       }
+
       const availableDoNumbers =
         activeVendorContext.doNumbers && activeVendorContext.doNumbers.length
           ? activeVendorContext.doNumbers.filter((d) => String(d || "").trim())
           : [];
-
       if (!availableDoNumbers.length) {
         alert(
           "DO Number untuk vendor ini belum ada. Tambahkan dulu di Vendor Detail."
@@ -779,51 +1604,110 @@ const calculateTotalPartsForVendor = (vendorData) => {
         return;
       }
 
+      let qtyPerBox = item.qty_per_box || 1;
+
+      if (qtyPerBox <= 0) {
+        qtyPerBox = 1;
+        console.warn(
+          `Invalid qty_per_box for part ${item.part_code}: ${item.qty_per_box}, using default 1`
+        );
+      }
+
+      console.log(`Part ${item.part_code}: qtyPerBox = ${qtyPerBox}`);
+
+      const qty = 0;
+      const qtyBox = Math.ceil(qty / qtyPerBox);
+
+      console.log(
+        `Adding part ${item.part_code}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}`
+      );
+
       setAddVendorPartFormData((prev) => {
         const newPart = {
           id: Date.now(),
           doNumber: availableDoNumbers[0],
           partCode: item.part_code,
           partName: item.part_name || "",
-          qty: item.qty_unit ?? 0,
-          qtyBox: item.qty_box ?? 0,
+          qty: qty,
+          qtyBox: qtyBox,
           unit: item.unit || "PCS",
+          qtyPerBoxFromMaster: qtyPerBox,
+          placementId: item.placement_id,
         };
-
-        return {
-          ...prev,
-          parts: [...(prev.parts || []), newPart],
-        };
+        return { ...prev, parts: [...(prev.parts || []), newPart] };
       });
-
-      // Reset checkbox setelah berhasil add
       setSelectedPartsInPopup([]);
     } catch (err) {
-      console.error(err);
+      console.error("Error adding part:", err);
       alert(err.message || "Terjadi kesalahan saat cek Part Code.");
     }
   };
 
-  const handlePopupCheckboxChange = (e, partId) => {
-    if (e.target.checked) {
-      // Add part id to selected
-      setSelectedPartsInPopup((prev) => [...prev, partId]);
-    } else {
-      // Remove part id from selected
-      setSelectedPartsInPopup((prev) => prev.filter((id) => id !== partId));
+  useEffect(() => {
+    const initializePartsWithQtyPerBox = async () => {
+      for (const headerId in vendorDraftsByHeader) {
+        const vendors = vendorDraftsByHeader[headerId];
+        for (let i = 0; i < vendors.length; i++) {
+          const vendor = vendors[i];
+          if (vendor.parts && vendor.parts.length > 0) {
+            for (let j = 0; j < vendor.parts.length; j++) {
+              const part = vendor.parts[j];
+              if (!part.qtyPerBoxFromMaster && part.partCode) {
+                try {
+                  const resp = await fetch(
+                    `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
+                      part.partCode
+                    )}`
+                  );
+                  if (resp.ok) {
+                    const data = await resp.json();
+                    const kanbanData = data.item || data.data || data;
+                    if (kanbanData && kanbanData.qty_per_box) {
+                      setVendorDraftsByHeader((prev) => {
+                        const newVendors = [...(prev[headerId] || [])];
+                        if (!newVendors[i]) return prev;
+
+                        const newParts = [...(newVendors[i].parts || [])];
+                        newParts[j] = {
+                          ...newParts[j],
+                          qtyPerBoxFromMaster: kanbanData.qty_per_box,
+                          placementId: kanbanData.placement_id,
+                        };
+
+                        newVendors[i] = { ...newVendors[i], parts: newParts };
+                        return { ...prev, [headerId]: newVendors };
+                      });
+                    }
+                  }
+                } catch (error) {
+                  console.error(
+                    "Error fetching qty_per_box for part:",
+                    part.partCode,
+                    error
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    if (Object.keys(vendorDraftsByHeader).length > 0) {
+      initializePartsWithQtyPerBox();
     }
+  }, [vendorDraftsByHeader]);
+
+  const handlePopupCheckboxChange = (e, partId) => {
+    if (e.target.checked) setSelectedPartsInPopup((prev) => [...prev, partId]);
+    else setSelectedPartsInPopup((prev) => prev.filter((id) => id !== partId));
   };
 
-  // Fungsi untuk handle select all checkbox
   const handleSelectAllInPopup = (e) => {
     if (e.target.checked) {
-      // Select semua part yang ada di popup
       const allPartIds = addVendorPartFormData.parts.map((part) => part.id);
       setSelectedPartsInPopup(allPartIds);
-    } else {
-      // Unselect semua
-      setSelectedPartsInPopup([]);
-    }
+    } else setSelectedPartsInPopup([]);
   };
 
   const handleRemovePart = (partId) => {
@@ -831,8 +1715,6 @@ const calculateTotalPartsForVendor = (vendorData) => {
       ...prev,
       parts: (prev.parts || []).filter((p) => p.id !== partId),
     }));
-
-    // Hapus juga dari selectedPartsInPopup jika ada
     setSelectedPartsInPopup((prev) => prev.filter((id) => id !== partId));
   };
 
@@ -840,30 +1722,24 @@ const calculateTotalPartsForVendor = (vendorData) => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
-
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
         parts: (vendors[vendorIndex].parts || []).filter(
           (p) => p.id !== partId
         ),
       };
-
-      return {
-        ...prev,
-        [headerId]: vendors,
-      };
+      return { ...prev, [headerId]: vendors };
     });
+
+    recalculatePalletForVendor(headerId, vendorIndex);
   };
 
-  const handleAddVendorPartSubmit = (e) => {
+  const handleAddVendorPartSubmit = async (e) => {
     e.preventDefault();
-
     if (!activeVendorContext) {
       alert("Vendor context tidak ditemukan.");
       return;
     }
-
-    // VALIDASI: Cek jika ada parts di form tapi tidak ada yang dipilih checkbox
     if (
       addVendorPartFormData.parts.length > 0 &&
       selectedPartsInPopup.length === 0
@@ -871,13 +1747,8 @@ const calculateTotalPartsForVendor = (vendorData) => {
       alert("Select part before insert");
       return;
     }
-
     const { headerId, vendorIndex } = activeVendorContext;
-
-    // Auto-expand header dan vendor row setelah save
     autoExpandVendorOnPartAdd(headerId, vendorIndex);
-
-    // Filter hanya parts yang dipilih checkbox
     const partsToInsert = addVendorPartFormData.parts.filter((part) =>
       selectedPartsInPopup.includes(part.id)
     );
@@ -885,29 +1756,20 @@ const calculateTotalPartsForVendor = (vendorData) => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
-
-      // Ambil existing parts dari vendor
       const existingParts = vendors[vendorIndex].parts || [];
-
-      // Filter untuk menghindari duplikasi (safety check)
       const existingPartCodes = existingParts.map((p) => p.partCode);
       const uniquePartsToInsert = partsToInsert.filter(
         (part) => !existingPartCodes.includes(part.partCode)
       );
-
-      // Gabungkan existing parts dengan new parts
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
         parts: [...existingParts, ...uniquePartsToInsert],
       };
-
-      return {
-        ...prev,
-        [headerId]: vendors,
-      };
+      return { ...prev, [headerId]: vendors };
     });
+    // Recalculate pallet setelah menambahkan parts
+    await recalculatePalletForVendor(headerId, vendorIndex);
 
-    // Kosongkan form (karena parts sudah di-insert ke expandedVendorRows)
     setAddVendorPartDetail(false);
     setActiveVendorContext(null);
     setAddVendorPartFormData({
@@ -915,12 +1777,29 @@ const calculateTotalPartsForVendor = (vendorData) => {
       vendor: "",
       doNumbers: [""],
       arrivalTime: "",
-      parts: [], // Kosongkan karena sudah di-insert
+      parts: [],
     });
-
-    // Reset selected parts setelah submit
     setSelectedPartsInPopup([]);
   };
+
+  useEffect(() => {
+    // Hitung ulang pallet setiap kali vendorDraftsByHeader berubah
+    const calculateAllPallets = async () => {
+      console.log("=== CALCULATING ALL PALLETS ===");
+
+      for (const header of headerDrafts) {
+        const vendors = vendorDraftsByHeader[header.id] || [];
+
+        for (let i = 0; i < vendors.length; i++) {
+          await recalculatePalletForVendor(header.id, i);
+        }
+      }
+    };
+
+    if (headerDrafts.length > 0) {
+      calculateAllPallets();
+    }
+  }, [vendorDraftsByHeader]);
 
   const resetVendorPartForm = () => {
     setAddVendorPartFormData({
@@ -936,23 +1815,59 @@ const calculateTotalPartsForVendor = (vendorData) => {
 
   const showTooltip = (e) => {
     e.stopPropagation();
-
     const target = e.target;
     let content = "";
-    if (target.dataset.tooltip) {
-      content = target.dataset.tooltip;
-    } else if (target.closest("[data-tooltip]")) {
+
+    // Check for data-tooltip attribute first
+    if (target.dataset.tooltip) content = target.dataset.tooltip;
+    else if (target.closest("[data-tooltip]"))
       content = target.closest("[data-tooltip]").dataset.tooltip;
-    } else if (target.title) {
-      content = target.title;
+    else if (target.title) content = target.title;
+    // Check for pallet cell
+    else if (
+      target.tagName === "TD" &&
+      target.textContent.trim().match(/^\d+$/)
+    ) {
+      const cell = target;
+      const row = cell.closest("tr");
+
+      // Try to get pallet information
+      if (row) {
+        const cells = Array.from(row.querySelectorAll("td"));
+        const cellIndex = cells.indexOf(cell);
+
+        // Check if this is the pallet column (usually column 7 or 8)
+        if (cellIndex >= 0) {
+          const table = row.closest("table");
+          if (table) {
+            const headers = table.querySelectorAll("thead th");
+            if (headers[cellIndex]) {
+              const headerText = headers[cellIndex].textContent
+                .trim()
+                .toLowerCase();
+              if (headerText.includes("pallet")) {
+                // This is a pallet cell
+                if (cell.title) {
+                  content = cell.title;
+                } else {
+                  content = `Total Pallet: ${target.textContent.trim()}`;
+                }
+              }
+            }
+          }
+        }
+      }
     }
-    // Logika lainnya tetap sama...
+
+    // Check for buttons
     else if (target.tagName === "BUTTON" || target.closest("button")) {
       const button =
         target.tagName === "BUTTON" ? target : target.closest("button");
 
       if (button.querySelector("svg")) {
-        if (button.querySelector('[size="10"]')) {
+        const icon = button.querySelector("svg");
+
+        if (icon.getAttribute("size") === "10") {
           content = "Add";
         } else if (button.classList.contains("delete-button")) {
           content = "Delete";
@@ -968,22 +1883,24 @@ const calculateTotalPartsForVendor = (vendorData) => {
         }
       }
 
-      if (!content && button.title) {
-        content = button.title;
-      }
-    } else if (target.type === "checkbox") {
+      if (!content && button.title) content = button.title;
+    }
+
+    // Check for checkboxes
+    else if (target.type === "checkbox") {
       content = "Select this row";
-    } else if (
+    }
+
+    // Default for table cells
+    else if (
       (target.tagName === "TD" || target.tagName === "TH") &&
       target.textContent.trim()
     ) {
       content = target.textContent.trim();
     }
 
-    // Default content jika masih kosong
-    if (!content) {
-      content = "Information";
-    }
+    // Fallback
+    if (!content) content = "Information";
 
     const rect = target.getBoundingClientRect();
     setTooltip({
@@ -995,13 +1912,9 @@ const calculateTotalPartsForVendor = (vendorData) => {
   };
 
   const hideTooltip = () => {
-    setTooltip((prev) => ({
-      ...prev,
-      visible: false,
-    }));
+    setTooltip((prev) => ({ ...prev, visible: false }));
   };
 
-  // Fungsi untuk handle input focus dan blur
   const handleInputFocus = (e) => {
     e.target.style.borderColor = "#9fa8da";
   };
@@ -1512,6 +2425,31 @@ const calculateTotalPartsForVendor = (vendorData) => {
       maxWidth: "300px",
       boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
     },
+    cellContent: {
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+    tooltip: {
+      position: "fixed",
+      top: tooltip.y,
+      left: tooltip.x,
+      transform: "translateX(-50%)",
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      color: "white",
+      padding: "6px 10px",
+      borderRadius: "4px",
+      fontSize: "12px",
+      fontWeight: "500",
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+      zIndex: 9999,
+      opacity: tooltip.visible ? 1 : 0,
+      transition: "opacity 0.2s ease",
+      maxWidth: "300px",
+      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+    },
+
     cellContent: {
       overflow: "hidden",
       textOverflow: "ellipsis",
@@ -2062,6 +3000,9 @@ const calculateTotalPartsForVendor = (vendorData) => {
                   ) : (
                     headerDrafts.map((hdr, headerIndex) => {
                       const headerVendors = vendorDraftsByHeader[hdr.id] || [];
+                      const headerPalletTotal = calculateTotalPalletForHeader(
+                        hdr.id
+                      );
 
                       const headerRow = (
                         <tr
@@ -2166,8 +3107,9 @@ const calculateTotalPartsForVendor = (vendorData) => {
                             style={styles.tdWithLeftBorder}
                             onMouseEnter={showTooltip}
                             onMouseLeave={hideTooltip}
+                            title={`Total Pallet: ${headerPalletTotal.total}\nLarge: ${headerPalletTotal.totalLarge}\nSmall: ${headerPalletTotal.totalSmall}`}
                           >
-                            0
+                            {headerPalletTotal.total}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
@@ -2373,8 +3315,19 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                             style={styles.expandedTd}
                                             onMouseEnter={showTooltip}
                                             onMouseLeave={hideTooltip}
+                                            title={getPalletTooltipDetails(
+                                              hdr.id,
+                                              idx
+                                            )}
+                                            data-tooltip={getPalletTooltipDetails(
+                                              hdr.id,
+                                              idx
+                                            )}
                                           >
-                                            0
+                                            {getTotalPalletForVendor(
+                                              hdr.id,
+                                              idx
+                                            )}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
@@ -2579,17 +3532,107 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
-                                                            onMouseEnter={
-                                                              showTooltip
-                                                            }
-                                                            onMouseLeave={
-                                                              hideTooltip
-                                                            }
-                                                            title={`Quantity: ${
-                                                              part.qty ?? 0
-                                                            }`}
                                                           >
-                                                            {part.qty ?? 0}
+                                                            {(() => {
+                                                              const isEditing =
+                                                                editingExpandedPart.showInput &&
+                                                                editingExpandedPart.headerId ===
+                                                                  hdr.id &&
+                                                                editingExpandedPart.vendorIndex ===
+                                                                  idx &&
+                                                                editingExpandedPart.partIndex ===
+                                                                  pIndex;
+
+                                                              if (isEditing) {
+                                                                return (
+                                                                  <input
+                                                                    type="number"
+                                                                    value={
+                                                                      editingExpandedPart.qty
+                                                                    }
+                                                                    onChange={(
+                                                                      e
+                                                                    ) =>
+                                                                      setEditingExpandedPart(
+                                                                        (
+                                                                          prev
+                                                                        ) => ({
+                                                                          ...prev,
+                                                                          qty: e
+                                                                            .target
+                                                                            .value,
+                                                                        })
+                                                                      )
+                                                                    }
+                                                                    onKeyDown={(
+                                                                      e
+                                                                    ) =>
+                                                                      handleEditExpandedPartKeyPress(
+                                                                        e,
+                                                                        hdr.id,
+                                                                        idx,
+                                                                        pIndex,
+                                                                        part.id
+                                                                      )
+                                                                    }
+                                                                    onBlur={() =>
+                                                                      handleSaveExpandedPartQty(
+                                                                        hdr.id,
+                                                                        idx,
+                                                                        pIndex,
+                                                                        part.id,
+                                                                        editingExpandedPart.qty
+                                                                      )
+                                                                    }
+                                                                    autoFocus
+                                                                    style={{
+                                                                      width:
+                                                                        "60px",
+                                                                      padding:
+                                                                        "2px",
+                                                                      fontSize:
+                                                                        "12px",
+                                                                      textAlign:
+                                                                        "center",
+                                                                      border:
+                                                                        "1px solid #9fa8da",
+                                                                      borderRadius:
+                                                                        "3px",
+                                                                    }}
+                                                                    min="0"
+                                                                  />
+                                                                );
+                                                              } else {
+                                                                return (
+                                                                  <span
+                                                                    onMouseEnter={
+                                                                      showTooltip
+                                                                    }
+                                                                    onMouseLeave={
+                                                                      hideTooltip
+                                                                    }
+                                                                  >
+                                                                    {loadingParts[
+                                                                      part.id
+                                                                    ] ? (
+                                                                      <span
+                                                                        style={{
+                                                                          fontSize:
+                                                                            "10px",
+                                                                          color:
+                                                                            "#6b7280",
+                                                                        }}
+                                                                      >
+                                                                        ...
+                                                                      </span>
+                                                                    ) : (
+                                                                      part.qty ??
+                                                                      0
+                                                                    )}
+                                                                  </span>
+                                                                );
+                                                              }
+                                                            })()}
                                                           </td>
                                                           <td
                                                             style={
@@ -2632,17 +3675,44 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                                               style={
                                                                 styles.deleteButton
                                                               }
+                                                              onClick={() =>
+                                                                handleEditExpandedPartClick(
+                                                                  hdr.id,
+                                                                  idx,
+                                                                  pIndex,
+                                                                  part.id,
+                                                                  part.qty || 0
+                                                                )
+                                                              }
                                                               onMouseEnter={
                                                                 showTooltip
                                                               }
                                                               onMouseLeave={
                                                                 hideTooltip
                                                               }
-                                                              title="Edit part"
+                                                              title="Edit quantity"
+                                                              disabled={
+                                                                loadingParts[
+                                                                  part.id
+                                                                ]
+                                                              }
                                                             >
-                                                              <Pencil
-                                                                size={10}
-                                                              />
+                                                              {loadingParts[
+                                                                part.id
+                                                              ] ? (
+                                                                <span
+                                                                  style={{
+                                                                    fontSize:
+                                                                      "8px",
+                                                                  }}
+                                                                >
+                                                                  ...
+                                                                </span>
+                                                              ) : (
+                                                                <Pencil
+                                                                  size={10}
+                                                                />
+                                                              )}
                                                             </button>
                                                             <button
                                                               style={
@@ -2662,6 +3732,11 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                                                 hideTooltip
                                                               }
                                                               title="Delete part"
+                                                              disabled={
+                                                                loadingParts[
+                                                                  part.id
+                                                                ]
+                                                              }
                                                             >
                                                               <Trash2
                                                                 size={10}
@@ -2751,7 +3826,6 @@ const calculateTotalPartsForVendor = (vendorData) => {
               onSubmit={handleAddVendorSubmit}
               style={vendorDetailStyles.form}
             >
-              {/* TRIP (from DB) */}
               <div style={vendorDetailStyles.formGroup}>
                 <label style={vendorDetailStyles.label}>Trip:</label>
                 <select
@@ -2887,7 +3961,7 @@ const calculateTotalPartsForVendor = (vendorData) => {
                     arrivalTime: "",
                     parts: [],
                   });
-                  setSelectedPartsInPopup([]); 
+                  setSelectedPartsInPopup([]);
                 }}
                 style={vendorPartStyles.closeButton}
               >
@@ -3002,12 +4076,10 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                   "transparent")
                               }
                             >
-                              {/* No */}
                               <td style={vendorPartStyles.tdNumber}>
                                 {index + 1}
                               </td>
 
-                              {/* Checkbox untuk select part */}
                               <td style={styles.tdWithLeftBorder}>
                                 <input
                                   type="checkbox"
@@ -3027,7 +4099,6 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                 />
                               </td>
 
-                              {/* Part Code */}
                               <td
                                 style={vendorPartStyles.td}
                                 onMouseEnter={showTooltip}
@@ -3037,7 +4108,6 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                 {part.partCode}
                               </td>
 
-                              {/* Part Name */}
                               <td
                                 style={vendorPartStyles.td}
                                 onMouseEnter={showTooltip}
@@ -3047,27 +4117,43 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                 {part.partName || "—"}
                               </td>
 
-                              {/* Qty (qty_unit) */}
-                              <td
-                                style={vendorPartStyles.td}
-                                onMouseEnter={showTooltip}
-                                onMouseLeave={hideTooltip}
-                                data-tooltip={`${part.qty ?? 0}`}
-                              >
-                                {part.qty ?? 0}
+                              <td style={vendorPartStyles.td}>
+                                <input
+                                  type="number"
+                                  value={part.qty || 0}
+                                  onChange={(e) =>
+                                    handlePopupPartQtyChange(
+                                      part.id,
+                                      e.target.value
+                                    )
+                                  }
+                                  style={{
+                                    width: "60px",
+                                    padding: "2px",
+                                    fontSize: "12px",
+                                    textAlign: "center",
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: "3px",
+                                  }}
+                                  min="0"
+                                />
                               </td>
 
-                              {/* Qty Box */}
-                              <td
-                                style={vendorPartStyles.td}
-                                onMouseEnter={showTooltip}
-                                onMouseLeave={hideTooltip}
-                                data-tooltip={`${part.qtyBox ?? 0}`}
-                              >
-                                {part.qtyBox ?? 0}
+                              <td style={vendorPartStyles.td}>
+                                <div>
+                                  <div>{part.qtyBox || 0}</div>
+                                  {part.qtyPerBoxFromMaster &&
+                                    part.qtyPerBoxFromMaster > 0 && (
+                                      <div
+                                        style={{
+                                          fontSize: "9px",
+                                          color: "#6b7280",
+                                        }}
+                                      ></div>
+                                    )}
+                                </div>
                               </td>
 
-                              {/* Unit */}
                               <td
                                 style={vendorPartStyles.td}
                                 onMouseEnter={showTooltip}
@@ -3077,16 +4163,7 @@ const calculateTotalPartsForVendor = (vendorData) => {
                                 {part.unit || "PCS"}
                               </td>
 
-                              {/* Action */}
                               <td style={vendorPartStyles.td}>
-                                <button
-                                  style={vendorPartStyles.deleteButton}
-                                  onMouseEnter={showTooltip}
-                                  onMouseLeave={hideTooltip}
-                                  data-tooltip="Edit"
-                                >
-                                  <Pencil size={10} />
-                                </button>
                                 <button
                                   style={vendorPartStyles.deleteButton}
                                   onClick={() => handleRemovePart(part.id)}

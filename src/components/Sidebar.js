@@ -4,12 +4,11 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation, Link } from "react-router-dom";
 
 const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => {
-  const [expandedItems, setExpandedItems] = useState([]); // single-open: akan diisi max 1 title
+  const [expandedItems, setExpandedItems] = useState([]); 
   const [subMenuHeights, setSubMenuHeights] = useState({});
   const [prevPathname, setPrevPathname] = useState("");
   const location = useLocation();
 
-  /** ================== ICONS ================== */
   const PackageIcon = ({ size = 12 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M16.5 9.4 7.55 4.24" />
@@ -74,7 +73,7 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
     </svg>
   );
 
-  /** ================== MENU DATA ================== */
+
   const getMenuItemsByApplication = (app) => {
     const baseItems = {
       production: [
@@ -259,15 +258,39 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
   const handleMenuButtonHover = (e, isHover, isActive = false) => {
     if (!isActive) e.currentTarget.style.backgroundColor = isHover ? "#475569" : "transparent";
   };
-  const handleSubMenuButtonHover = (e, isHover) => {
-    const to = e.currentTarget.getAttribute("data-to");
-    if (location.pathname !== to) {
-      e.currentTarget.style.backgroundColor = isHover ? "#475569" : "transparent";
-      e.currentTarget.style.color = isHover ? "white" : "#cbd5e1";
-    }
-  };
 
-  /** ================== STYLES ================== */
+const handleSubMenuButtonHover = (e, isHover) => {
+  const to = e.currentTarget.getAttribute("data-to");
+  const isActive = location.pathname === to;
+  
+  if (isActive) {
+    e.currentTarget.style.backgroundColor = "#475569";
+    e.currentTarget.style.color = "white";
+  } else {
+    e.currentTarget.style.backgroundColor = isHover ? "#475569" : "transparent";
+    e.currentTarget.style.color = isHover ? "white" : "#cbd5e1";
+  }
+};
+
+useEffect(() => {
+  const resetSubMenuButtons = () => {
+    const buttons = document.querySelectorAll('[data-to]');
+    buttons.forEach(button => {
+      const href = button.getAttribute('data-to');
+      const isActive = location.pathname === href;
+      
+      if (!isActive) {
+        button.style.backgroundColor = 'transparent';
+        button.style.color = '#cbd5e1';
+      } else {
+        button.style.backgroundColor = '#475569';
+        button.style.color = 'white';
+      }
+    });
+  };
+  resetSubMenuButtons();
+}, [location.pathname]);
+
   const navbarHeight = 140;
   const styles = {
     sidebar: {
@@ -377,11 +400,10 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
     subMenuButtonActive: {
       fontWeight: "600",
       color: "white",
-      backgroundColor: "transparent",
-    },
+      backgroundColor: "#475569",
+    },  
   };
 
-  /** ================== SCROLLBAR CSS INJECT ================== */
   useEffect(() => {
     const style = document.createElement("style");
     style.textContent = `
@@ -418,7 +440,7 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
         <nav style={styles.nav}>
           <ul style={styles.menuList}>
             {menuItems.map((item) => {
-              const expanded = expandedItems[0] === item.title; // single-open
+              const expanded = expandedItems[0] === item.title; 
               return (
                 <li key={item.title} style={styles.menuItem}>
                   {/* Parent (toggle only) */}
