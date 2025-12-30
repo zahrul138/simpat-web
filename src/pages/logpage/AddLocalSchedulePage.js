@@ -72,6 +72,7 @@ const AddLocalSchedulePage = () => {
       length: 110,
       maxHeight: 170,
       baseHeight: 15,
+      maxWeight: 150,
       name: "Large Pallet (110x110)",
     },
     small: {
@@ -79,6 +80,7 @@ const AddLocalSchedulePage = () => {
       length: 96,
       maxHeight: 150,
       baseHeight: 15,
+      maxWeight: 60,
       name: "Small Pallet (76x96)",
     },
   };
@@ -157,6 +159,154 @@ const AddLocalSchedulePage = () => {
   };
 
   // ==================== FUNGSI PERHITUNGAN PALLET SEDERHANA ====================
+  // Helper function: hitung kapasitas pallet DENGAN MEMPERTIMBANGKAN BERAT
+  const calculatePalletCapacityWithWeight = (
+    boxLength,
+    boxWidth,
+    boxHeight,
+    boxWeight, // berat per box (kg)
+    palletType,
+    totalBoxes
+  ) => {
+    // Konfigurasi pallet (sudah termasuk maxWeight)
+    const palletConfigs = {
+      small: {
+        length: 96,
+        width: 76,
+        maxHeight: 150,
+        baseHeight: 15,
+        maxWeight: 60,
+      },
+      large: {
+        length: 110,
+        width: 110,
+        maxHeight: 180,
+        baseHeight: 15,
+        maxWeight: 150,
+      },
+    };
+
+    const config = palletConfigs[palletType];
+    const palletLength = config.length;
+    const palletWidth = config.width;
+    const availableHeight = config.maxHeight - config.baseHeight;
+    const maxWeight = config.maxWeight;
+
+    // Hitung boxes per layer dengan orientasi terbaik
+    let bestBoxesPerLayer = 0;
+    let bestOrientation = "";
+
+    // Coba semua kombinasi orientasi
+    const orientations = [
+      { name: "normal", l: boxLength, w: boxWidth },
+      { name: "rotated", l: boxWidth, w: boxLength },
+      {
+        name: "mixed",
+        l: Math.max(boxLength, boxWidth),
+        w: Math.min(boxLength, boxWidth),
+      },
+    ];
+
+    for (const orient of orientations) {
+      const boxesLengthwise = Math.floor(palletLength / orient.l);
+      const boxesWidthwise = Math.floor(palletWidth / orient.w);
+      const boxesPerLayer = boxesLengthwise * boxesWidthwise;
+
+      if (boxesPerLayer > bestBoxesPerLayer) {
+        bestBoxesPerLayer = boxesPerLayer;
+        bestOrientation = orient.name;
+      }
+    }
+
+    // Untuk large pallet, coba kombinasi mixed orientation
+    if (palletType === "large" && bestBoxesPerLayer < 4) {
+      // Coba kombinasi: 2 normal + 2 rotated
+      const boxesNormal =
+        Math.floor(palletLength / boxLength) *
+        Math.floor(palletWidth / boxWidth);
+      const boxesRotated =
+        Math.floor(palletLength / boxWidth) *
+        Math.floor(palletWidth / boxLength);
+
+      if (boxesNormal + boxesRotated > bestBoxesPerLayer) {
+        bestBoxesPerLayer = Math.min(4, boxesNormal + boxesRotated);
+        bestOrientation = "mixed-combination";
+      }
+    }
+
+    // Hitung max layers berdasarkan tinggi
+    const maxLayersByHeight = Math.floor(availableHeight / boxHeight);
+
+    // Tambah 1 layer untuk toleransi (jika memungkinkan)
+    let maxLayers = maxLayersByHeight;
+    const extraSpace = availableHeight - maxLayersByHeight * boxHeight;
+    if (extraSpace >= 10) {
+      // Toleransi 10cm
+      maxLayers = maxLayersByHeight + 1;
+    }
+
+    // Minimum 1 layer
+    maxLayers = Math.max(1, maxLayers);
+
+    // Hitung berat per layer
+    const weightPerLayer = bestBoxesPerLayer * boxWeight;
+
+    // Hitung max layers berdasarkan berat
+    const maxLayersByWeight = Math.floor(maxWeight / weightPerLayer);
+
+    // Ambil yang lebih kecil antara batas tinggi dan batas berat
+    const safeLayers = Math.min(maxLayers, maxLayersByWeight);
+
+    // Pastikan minimal 1 layer
+    const finalLayers = Math.max(1, safeLayers);
+
+    // Hitung boxes per pallet
+    const boxesPerPallet = bestBoxesPerLayer * finalLayers;
+
+    // Hitung berat per pallet
+    const weightPerPallet = boxesPerPallet * boxWeight;
+
+    // Pastikan tidak melebihi berat maksimal
+    if (weightPerPallet > maxWeight) {
+      // Kurangi boxes sampai berat sesuai
+      const maxBoxesByWeight = Math.floor(maxWeight / boxWeight);
+      const maxLayersByWeightAdjusted = Math.floor(
+        maxBoxesByWeight / bestBoxesPerLayer
+      );
+      const adjustedLayers = Math.max(
+        1,
+        Math.min(finalLayers, maxLayersByWeightAdjusted)
+      );
+      const adjustedBoxesPerPallet = bestBoxesPerLayer * adjustedLayers;
+
+      console.log(
+        `Weight constraint applied: ${adjustedBoxesPerPallet} boxes per pallet (${adjustedLayers} layers)`
+      );
+
+      const palletsNeeded = Math.ceil(totalBoxes / adjustedBoxesPerPallet);
+      return {
+        boxesPerLayer: bestBoxesPerLayer,
+        safeLayers: adjustedLayers,
+        boxesPerPallet: adjustedBoxesPerPallet,
+        weightPerPallet: adjustedBoxesPerPallet * boxWeight,
+        palletsNeeded,
+        orientation: bestOrientation,
+        weightLimited: weightPerPallet > maxWeight,
+      };
+    }
+
+    const palletsNeeded = Math.ceil(totalBoxes / boxesPerPallet);
+
+    return {
+      boxesPerLayer: bestBoxesPerLayer,
+      safeLayers: finalLayers,
+      boxesPerPallet,
+      weightPerPallet,
+      palletsNeeded,
+      orientation: bestOrientation,
+      weightLimited: false,
+    };
+  };
 
   const calculatePalletForVendor = async (headerId, vendorIndex) => {
     try {
@@ -167,6 +317,8 @@ const AddLocalSchedulePage = () => {
           smallPallets: 0,
           totalPallets: 0,
           details: [],
+          totalWeight: 0,
+          weightDistribution: {},
         };
       }
 
@@ -175,6 +327,7 @@ const AddLocalSchedulePage = () => {
       // Kelompokkan part berdasarkan placement (ukuran box sama)
       const boxGroups = {};
 
+      // Pertama, kumpulkan semua data part termasuk berat
       for (const part of vendor.parts) {
         const partCode = part.partCode;
         const qtyBox = part.qtyBox || 0;
@@ -183,6 +336,7 @@ const AddLocalSchedulePage = () => {
 
         // Cari placement data
         let placementData = null;
+        let partWeight = 0; // Default weight 0 jika tidak ada
 
         // Coba dari part data dulu
         if (part.placementId) {
@@ -199,8 +353,8 @@ const AddLocalSchedulePage = () => {
           }
         }
 
-        // Jika tidak ada, coba dari kanban master
-        if (!placementData) {
+        // Cari berat part dari kanban master
+        if (!partWeight && partCode) {
           try {
             const partResp = await fetch(
               `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
@@ -212,18 +366,23 @@ const AddLocalSchedulePage = () => {
               const kanbanData =
                 partResult.item || partResult.data || partResult;
 
-              if (kanbanData.placement_id) {
-                const placementResp = await fetch(
-                  `${API_BASE}/api/vendor-placements/${kanbanData.placement_id}`
-                );
-                if (placementResp.ok) {
-                  const placementResult = await placementResp.json();
-                  placementData = placementResult.data || placementResult;
+              // Ambil berat part
+              if (kanbanData.part_weight) {
+                partWeight = parseFloat(kanbanData.part_weight);
+
+                // Konversi ke kg jika perlu
+                if (kanbanData.weight_unit === "g") {
+                  partWeight = partWeight / 1000;
+                } else if (kanbanData.weight_unit === "lbs") {
+                  partWeight = partWeight * 0.453592;
+                } else if (kanbanData.weight_unit === "oz") {
+                  partWeight = partWeight * 0.0283495;
                 }
+                // Jika sudah kg, biarkan saja
               }
             }
           } catch (err) {
-            console.warn(`Error fetching part data:`, err);
+            console.warn(`Error fetching part weight:`, err);
           }
         }
 
@@ -241,42 +400,58 @@ const AddLocalSchedulePage = () => {
               boxWidth: parseFloat(placementData.width_cm),
               boxHeight: parseFloat(placementData.height_cm),
               totalBoxes: 0,
+              totalWeight: 0,
               partsList: [],
             };
           }
 
           boxGroups[boxKey].totalBoxes += qtyBox;
+          boxGroups[boxKey].totalWeight += partWeight * qtyBox;
           boxGroups[boxKey].partsList.push({
             partCode,
             qtyBox,
+            weightPerBox: partWeight,
+            totalWeight: partWeight * qtyBox,
             placementName:
               placementData.placement_name || `Placement ${placementData.id}`,
           });
 
           console.log(
-            `Added ${qtyBox} boxes of ${boxKey} for part ${partCode}`
+            `Added ${qtyBox} boxes of ${boxKey} for part ${partCode}, weight: ${partWeight} kg per box`
           );
         }
       }
 
-      console.log("Box groups:", boxGroups);
+      console.log("Box groups with weights:", boxGroups);
 
       let totalLargePallets = 0;
       let totalSmallPallets = 0;
       const partDetails = [];
+      let totalWeight = 0;
 
-      // Hitung pallet untuk setiap kelompok box
+      // Hitung pallet untuk setiap kelompok box DENGAN MEMPERTIMBANGKAN BERAT
       for (const boxKey in boxGroups) {
         const group = boxGroups[boxKey];
-        const { boxLength, boxWidth, boxHeight, totalBoxes, partsList } = group;
+        const {
+          boxLength,
+          boxWidth,
+          boxHeight,
+          totalBoxes,
+          totalWeight: groupWeight,
+          partsList,
+        } = group;
 
         console.log(
-          `Processing ${totalBoxes} boxes of ${boxLength}x${boxWidth}x${boxHeight}cm`
+          `Processing ${totalBoxes} boxes (${groupWeight.toFixed(
+            2
+          )} kg) of ${boxLength}x${boxWidth}x${boxHeight}cm`
         );
 
         if (totalBoxes <= 0) continue;
 
-        // Tentukan pallet type
+        totalWeight += groupWeight;
+
+        // Tentukan pallet type berdasarkan dimensi box
         const canFitSmall = canBoxFitPallet(boxLength, boxWidth, 76, 96);
         const canFitLarge = canBoxFitPallet(boxLength, boxWidth, 110, 110);
 
@@ -285,19 +460,21 @@ const AddLocalSchedulePage = () => {
 
         if (canFitLarge) {
           palletType = "large";
-          palletInfo = calculatePalletCapacity(
+          palletInfo = calculatePalletCapacityWithWeight(
             boxLength,
             boxWidth,
             boxHeight,
+            groupWeight / totalBoxes, // weight per box
             "large",
             totalBoxes
           );
         } else if (canFitSmall) {
           palletType = "small";
-          palletInfo = calculatePalletCapacity(
+          palletInfo = calculatePalletCapacityWithWeight(
             boxLength,
             boxWidth,
             boxHeight,
+            groupWeight / totalBoxes, // weight per box
             "small",
             totalBoxes
           );
@@ -313,13 +490,16 @@ const AddLocalSchedulePage = () => {
           partDetails.push({
             boxSize: `${boxLength}×${boxWidth}×${boxHeight}cm`,
             totalBoxes,
+            totalWeight: groupWeight,
             palletType,
             ...palletInfo,
             parts: partsList,
           });
 
           console.log(
-            `Result: ${palletInfo.palletsNeeded} ${palletType} pallet(s)`
+            `Result: ${
+              palletInfo.palletsNeeded
+            } ${palletType} pallet(s), weight: ${groupWeight.toFixed(2)} kg`
           );
         }
       }
@@ -337,13 +517,16 @@ const AddLocalSchedulePage = () => {
       const totalPallets = totalLargePallets + totalSmallPallets;
 
       console.log(
-        `Final result: ${totalPallets} pallets (${totalLargePallets} large, ${totalSmallPallets} small)`
+        `Final result: ${totalPallets} pallets (${totalLargePallets} large, ${totalSmallPallets} small), total weight: ${totalWeight.toFixed(
+          2
+        )} kg`
       );
 
       return {
         largePallets: totalLargePallets,
         smallPallets: totalSmallPallets,
         totalPallets,
+        totalWeight,
         details: partDetails,
       };
     } catch (error) {
@@ -352,6 +535,7 @@ const AddLocalSchedulePage = () => {
         largePallets: 0,
         smallPallets: 0,
         totalPallets: 0,
+        totalWeight: 0,
         details: [],
       };
     }
@@ -513,22 +697,38 @@ const AddLocalSchedulePage = () => {
 
     if (!calculation) return "Calculating...";
 
-    let tooltipText = `Total: ${calculation.totalPallets} pallets\n`;
-    tooltipText += `Large: ${calculation.largePallets} pallets\n`;
-    tooltipText += `Small: ${calculation.smallPallets} pallets\n`;
+    const { totalPallets, largePallets, smallPallets } = calculation;
 
-    if (calculation.details && calculation.details.length > 0) {
-      tooltipText += `\nPart Details:\n`;
-      calculation.details.forEach((detail, index) => {
-        tooltipText += `${index + 1}. ${detail.partCode}: ${
-          detail.qtyBox
-        } boxes\n`;
-        tooltipText += `   Box: ${detail.boxLength}×${detail.boxWidth}×${detail.boxHeight}cm\n`;
-        tooltipText += `   Type: ${detail.palletType} pallet\n`;
-      });
+    if (totalPallets === 0) return "0 pallet";
+
+    let details = `Total: ${totalPallets} pallet`;
+    if (largePallets > 0) details += ` (${largePallets} large`;
+    if (smallPallets > 0) {
+      if (largePallets > 0) details += `, ${smallPallets} small)`;
+      else details += ` (${smallPallets} small)`;
+    } else if (largePallets > 0) {
+      details += `)`;
     }
 
-    return tooltipText;
+    return details;
+  };
+
+  const getPalletTooltipDetailsForHeader = (headerId) => {
+    const { totalLarge, totalSmall, total } =
+      calculateTotalPalletForHeader(headerId);
+
+    if (total === 0) return "0 pallet";
+
+    let details = `Total: ${total} pallet`;
+    if (totalLarge > 0) details += ` (${totalLarge} large`;
+    if (totalSmall > 0) {
+      if (totalLarge > 0) details += `, ${totalSmall} small)`;
+      else details += ` (${totalSmall} small)`;
+    } else if (totalLarge > 0) {
+      details += `)`;
+    }
+
+    return details;
   };
 
   const calculateTotalPalletForHeader = (headerId) => {
@@ -536,6 +736,7 @@ const AddLocalSchedulePage = () => {
     let totalLarge = 0;
     let totalSmall = 0;
     let total = 0;
+    let totalWeight = 0;
 
     vendors.forEach((_, vendorIndex) => {
       const palletKey = `${headerId}_${vendorIndex}`;
@@ -544,10 +745,11 @@ const AddLocalSchedulePage = () => {
         totalLarge += calculation.largePallets;
         totalSmall += calculation.smallPallets;
         total += calculation.totalPallets;
+        totalWeight += calculation.totalWeight || 0;
       }
     });
 
-    return { totalLarge, totalSmall, total };
+    return { totalLarge, totalSmall, total, totalWeight };
   };
 
   const handleEditPartClick = (
@@ -645,6 +847,9 @@ const AddLocalSchedulePage = () => {
           qtyBox: qtyBox,
           qtyPerBoxFromMaster: qtyPerBox,
           placementId: kanbanData.placement_id,
+          // Simpan juga berat part jika ada
+          partWeight: kanbanData.part_weight || 0,
+          weightUnit: kanbanData.weight_unit || "kg",
         };
 
         newVendors[vendorIndex] = {
@@ -654,7 +859,7 @@ const AddLocalSchedulePage = () => {
         return { ...prev, [headerId]: newVendors };
       });
 
-      // Trigger perhitungan ulang pallet setelah update qty
+      // Trigger perhitungan ulang pallet setelah update qty (DENGAN BERAT)
       await recalculatePalletForVendor(headerId, vendorIndex);
 
       setEditingPart({
@@ -1618,8 +1823,21 @@ const AddLocalSchedulePage = () => {
       const qty = 0;
       const qtyBox = Math.ceil(qty / qtyPerBox);
 
+      // Ambil berat part
+      let partWeight = item.part_weight || 0;
+      // Konversi ke kg jika perlu
+      if (item.weight_unit === "g") {
+        partWeight = partWeight / 1000;
+      } else if (item.weight_unit === "lbs") {
+        partWeight = partWeight * 0.453592;
+      } else if (item.weight_unit === "oz") {
+        partWeight = partWeight * 0.0283495;
+      }
+
+      console.log(`Part ${item.part_code}: weight = ${partWeight} kg`);
+
       console.log(
-        `Adding part ${item.part_code}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}`
+        `Adding part ${item.part_code}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}, weight=${partWeight} kg`
       );
 
       setAddVendorPartFormData((prev) => {
@@ -1633,6 +1851,8 @@ const AddLocalSchedulePage = () => {
           unit: item.unit || "PCS",
           qtyPerBoxFromMaster: qtyPerBox,
           placementId: item.placement_id,
+          partWeight: partWeight, // Simpan berat
+          weightUnit: "kg", // Selalu simpan dalam kg
         };
         return { ...prev, parts: [...(prev.parts || []), newPart] };
       });
@@ -3107,7 +3327,7 @@ const AddLocalSchedulePage = () => {
                             style={styles.tdWithLeftBorder}
                             onMouseEnter={showTooltip}
                             onMouseLeave={hideTooltip}
-                            title={`Total Pallet: ${headerPalletTotal.total}\nLarge: ${headerPalletTotal.totalLarge}\nSmall: ${headerPalletTotal.totalSmall}`}
+                            title={getPalletTooltipDetailsForHeader(hdr.id)}
                           >
                             {headerPalletTotal.total}
                           </td>

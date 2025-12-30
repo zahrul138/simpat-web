@@ -39,6 +39,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState(null);
+  const [selectedRowId, setSelectedRowId] = useState(null);
 
   // Data untuk dropdowns
   const [customers, setCustomers] = useState([]);
@@ -50,8 +51,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     { value: "M101 | SCN-MH", label: "M101 | SCN-MH" },
     { value: "M136 | SCN-LOG", label: "M136 | SCN-LOG" },
   ]);
-
-  // State lainnya yang sudah ada
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
   const [selectedAnnexUpdate, setSelectedAnnexUpdate] =
@@ -73,7 +72,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
-  // Fetch semua data yang diperlukan
   const fetchAllData = async () => {
     try {
       await Promise.all([
@@ -838,6 +836,14 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       e.target.style.color = isHover
         ? styles.paginationButtonHover.color
         : styles.paginationButton.color;
+    }
+  };
+
+  const handleRowClick = (partId) => {
+    if (selectedRowId === partId) {
+      setSelectedRowId(null);
+    } else {
+      setSelectedRowId(partId);
     }
   };
 
@@ -1835,160 +1841,185 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                   {currentData.length === 0 ? (
                     <tr></tr>
                   ) : (
-                    currentData.map((part, index) => (
-                      <tr
-                        key={part.id}
-                        onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
-                        }
-                      >
-                        <td
+                    currentData.map((part, index) => {
+                      // Cek apakah row ini sedang dipilih
+                      const isSelected = selectedRowId === part.id;
+
+                      return (
+                        <tr
+                          key={part.id}
+                          // Tambahkan onClick handler
+                          onClick={() => handleRowClick(part.id)}
+                          // Style untuk row yang dipilih
                           style={{
-                            ...styles.expandedTd,
-                            ...styles.expandedWithLeftBorder,
-                            ...styles.emptyColumn,
+                            cursor: "pointer",
+                            backgroundColor: isSelected
+                              ? "#c7cde8"
+                              : "transparent",
+                            transition: "background-color 0.2s ease",
+                          }}
+                          // Hover effect hanya jika tidak dipilih
+                          onMouseEnter={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.backgroundColor = "#c7cde8";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.backgroundColor =
+                                "transparent";
+                            }
                           }}
                         >
-                          {(currentPage - 1) * itemsPerPage + index + 1}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.part_code}
-                        >
-                          {part.part_code}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.part_name}
-                        >
-                          {part.part_name}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.part_size}
-                        >
-                          {part.part_size}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.qty_per_box}
-                        >
-                          {part.qty_per_box}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.part_material || "-"}
-                        >
-                          {part.part_material || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.part_types}
-                        >
-                          {part.part_types}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {part.placement_name || "No Placement"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.part_weight}
-                        >
-                          {part.part_weight ? (
-                            <div>
-                              <div style={{ textAlign: "right" }}>
-                                {(() => {
-                                  const weight = parseFloat(part.part_weight);
-                                  if (Number.isInteger(weight)) {
-                                    return weight.toLocaleString();
-                                  } else {
-                                    return weight.toLocaleString(undefined, {
-                                      minimumFractionDigits: 1,
-                                      maximumFractionDigits: 3,
-                                    });
-                                  }
-                                })()}{" "}
-                                {part.weight_unit || "kg"}
-                              </div>
-                            </div>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={part.cust_name}
-                        >
-                          {part.part_types === "Special" ? (
-                            <div title={getCustomerName(part.customer_special)}>
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                          >
+                            {(currentPage - 1) * itemsPerPage + index + 1}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.part_code}
+                          >
+                            {part.part_code}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.part_name}
+                          >
+                            {part.part_name}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.part_size}
+                          >
+                            {part.part_size}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.qty_per_box}
+                          >
+                            {part.qty_per_box}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.part_material || "-"}
+                          >
+                            {part.part_material || "-"}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.part_types}
+                          >
+                            {part.part_types}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.placement_name || "No Placement"}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.part_weight}
+                          >
+                            {part.part_weight ? (
                               <div>
-                                {getCustomerName(part.customer_special).length >
-                                25
-                                  ? getCustomerName(
-                                      part.customer_special
-                                    ).substring(0, 25) + "..."
-                                  : getCustomerName(part.customer_special)}
+                                <div style={{ textAlign: "right" }}>
+                                  {(() => {
+                                    const weight = parseFloat(part.part_weight);
+                                    if (Number.isInteger(weight)) {
+                                      return weight.toLocaleString();
+                                    } else {
+                                      return weight.toLocaleString(undefined, {
+                                        minimumFractionDigits: 1,
+                                        maximumFractionDigits: 3,
+                                      });
+                                    }
+                                  })()}{" "}
+                                  {part.weight_unit || "kg"}
+                                </div>
                               </div>
-                            </div>
-                          ) : (
-                            <span>All Customers</span>
-                          )}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>{part.model}</td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {part.vendor_name || "-"}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {part.vendor_type || "-"}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {part.stock_level_to}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {part.created_by_name || "System"} |{" "}
-                          {formatDateForDisplay(part.created_at)}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          <button
-                            style={styles.editButton}
-                            onClick={() => handleEditClick(part)}
-                            title="Edit"
-                            onMouseEnter={(e) =>
-                              (e.target.style.backgroundColor =
-                                styles.editButtonHover.backgroundColor)
-                            }
-                            onMouseLeave={(e) =>
-                              (e.target.style.backgroundColor =
-                                styles.editButton.backgroundColor)
-                            }
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.cust_name}
                           >
-                            <Pencil size={10} />
-                          </button>
-                          <button
-                            style={styles.deleteButton}
-                            onClick={() =>
-                              handleDeletePart(part.id, part.part_code)
-                            }
-                            title="Delete"
-                            onMouseEnter={(e) =>
-                              (e.target.style.backgroundColor =
-                                styles.deleteButtonHover.backgroundColor)
-                            }
-                            onMouseLeave={(e) =>
-                              (e.target.style.backgroundColor =
-                                styles.deleteButton.backgroundColor)
-                            }
-                          >
-                            <Trash2 size={10} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                            {part.part_types === "Special" ? (
+                              <div
+                                title={getCustomerName(part.customer_special)}
+                              >
+                                <div>
+                                  {getCustomerName(part.customer_special)
+                                    .length > 25
+                                    ? getCustomerName(
+                                        part.customer_special
+                                      ).substring(0, 25) + "..."
+                                    : getCustomerName(part.customer_special)}
+                                </div>
+                              </div>
+                            ) : (
+                              <span>All Customers</span>
+                            )}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>{part.model}</td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.vendor_name || "-"}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.vendor_type || "-"}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.stock_level_to}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.created_by_name || "System"} |{" "}
+                            {formatDateForDisplay(part.created_at)}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            <button
+                              style={styles.editButton}
+                              onClick={(e) => {
+                                e.stopPropagation(); // Penting: mencegah trigger row click
+                                handleEditClick(part);
+                              }}
+                              title="Edit"
+                              onMouseEnter={(e) =>
+                                (e.target.style.backgroundColor =
+                                  styles.editButtonHover.backgroundColor)
+                              }
+                              onMouseLeave={(e) =>
+                                (e.target.style.backgroundColor =
+                                  styles.editButton.backgroundColor)
+                              }
+                            >
+                              <Pencil size={10} />
+                            </button>
+                            <button
+                              style={styles.deleteButton}
+                              onClick={(e) => {
+                                e.stopPropagation(); // Penting: mencegah trigger row click
+                                handleDeletePart(part.id, part.part_code);
+                              }}
+                              title="Delete"
+                              onMouseEnter={(e) =>
+                                (e.target.style.backgroundColor =
+                                  styles.deleteButtonHover.backgroundColor)
+                              }
+                              onMouseLeave={(e) =>
+                                (e.target.style.backgroundColor =
+                                  styles.deleteButton.backgroundColor)
+                              }
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -2469,7 +2500,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     </div>
                   </div>
 
-                  {/* Kolom 4 - Placement Dimensions (Read-only) */}
                   <div>
                     <div style={styles.popupEditFormGroup}>
                       <label style={styles.popupEditLabel}>
@@ -2610,7 +2640,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     ) : (
                       <>
                         <Save size={16} />
-                        Save Changes
+                        Save 
                       </>
                     )}
                   </button>
