@@ -66,6 +66,9 @@ const AddLocalSchedulePage = () => {
   const [loadingParts, setLoadingParts] = useState({});
   const [palletCalculations, setPalletCalculations] = useState({});
 
+  // Tambah state untuk loading submit
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const palletConfig = {
     large: {
       width: 110,
@@ -115,200 +118,497 @@ const AddLocalSchedulePage = () => {
     }
   }, []);
 
-  // Fungsi untuk menghitung kapasitas box di pallet
-  const calculateBoxCapacity = (pallet, boxLength, boxWidth, boxHeight) => {
-    // Hitung berapa box yang muat di satu layer pallet
-    // Coba kedua orientasi dan ambil yang terbaik
+  // ==================== FUNGSI UTAMA PALLET CALCULATION ====================
 
-    // Orientasi normal
-    const boxesPerLayerNormal = {
-      lengthwise: Math.floor(pallet.length / boxLength),
-      widthwise: Math.floor(pallet.width / boxWidth),
-    };
-    const boxesPerLayer1 =
-      boxesPerLayerNormal.lengthwise * boxesPerLayerNormal.widthwise;
-
-    // Orientasi diputar 90 derajat
-    const boxesPerLayerRotated = {
-      lengthwise: Math.floor(pallet.length / boxWidth),
-      widthwise: Math.floor(pallet.width / boxLength),
-    };
-    const boxesPerLayer2 =
-      boxesPerLayerRotated.lengthwise * boxesPerLayerRotated.widthwise;
-
-    // Ambil yang terbaik
-    const boxesPerLayer = Math.max(boxesPerLayer1, boxesPerLayer2, 1);
-
-    // Hitung tinggi yang tersedia untuk stacking
-    const availableHeight = pallet.maxHeight - pallet.baseHeight;
-    const maxStackHeight = Math.floor(availableHeight / boxHeight);
-
-    // Gunakan safety factor (80% dari tinggi maksimal)
-    const safeStackHeight = Math.max(1, Math.floor(maxStackHeight * 0.8));
-
-    // Total boxes per pallet
-    const totalBoxesPerPallet = boxesPerLayer * safeStackHeight;
-
-    return {
-      boxesPerLayer,
-      maxStackHeight,
-      safeStackHeight,
-      totalBoxesPerPallet,
-      efficiency: boxesPerLayer1 >= boxesPerLayer2 ? "normal" : "rotated",
-    };
+  // Helper function: cek apakah box muat di pallet
+  const canBoxFitPallet = (boxLength, boxWidth, palletLength, palletWidth) => {
+    return (
+      (boxLength <= palletLength && boxWidth <= palletWidth) ||
+      (boxWidth <= palletLength && boxLength <= palletWidth)
+    );
   };
 
-  // ==================== FUNGSI PERHITUNGAN PALLET SEDERHANA ====================
-  // Helper function: hitung kapasitas pallet DENGAN MEMPERTIMBANGKAN BERAT
-  const calculatePalletCapacityWithWeight = (
-    boxLength,
-    boxWidth,
-    boxHeight,
-    boxWeight, // berat per box (kg)
-    palletType,
-    totalBoxes
-  ) => {
-    // Konfigurasi pallet (sudah termasuk maxWeight)
-    const palletConfigs = {
-      small: {
-        length: 96,
-        width: 76,
-        maxHeight: 150,
-        baseHeight: 15,
-        maxWeight: 60,
-      },
-      large: {
-        length: 110,
-        width: 110,
-        maxHeight: 180,
-        baseHeight: 15,
-        maxWeight: 150,
-      },
-    };
+  // Fungsi untuk menghitung kapasitas maksimal box dalam pallet
+  const calculateMaxBoxesInPallet = (box, palletType) => {
+    const config =
+      palletType === "large"
+        ? {
+          length: 110,
+          width: 110,
+          maxHeight: 170,
+          baseHeight: 15,
+          maxWeight: 150,
+        }
+        : {
+          length: 96,
+          width: 76,
+          maxHeight: 150,
+          baseHeight: 15,
+          maxWeight: 60,
+        };
 
-    const config = palletConfigs[palletType];
-    const palletLength = config.length;
-    const palletWidth = config.width;
     const availableHeight = config.maxHeight - config.baseHeight;
-    const maxWeight = config.maxWeight;
 
     // Hitung boxes per layer dengan orientasi terbaik
     let bestBoxesPerLayer = 0;
     let bestOrientation = "";
 
-    // Coba semua kombinasi orientasi
-    const orientations = [
-      { name: "normal", l: boxLength, w: boxWidth },
-      { name: "rotated", l: boxWidth, w: boxLength },
-      {
-        name: "mixed",
-        l: Math.max(boxLength, boxWidth),
-        w: Math.min(boxLength, boxWidth),
-      },
-    ];
+    // Coba orientasi normal
+    const boxesLengthwiseNormal = Math.floor(config.length / box.length);
+    const boxesWidthwiseNormal = Math.floor(config.width / box.width);
+    const boxesPerLayerNormal = boxesLengthwiseNormal * boxesWidthwiseNormal;
 
-    for (const orient of orientations) {
-      const boxesLengthwise = Math.floor(palletLength / orient.l);
-      const boxesWidthwise = Math.floor(palletWidth / orient.w);
-      const boxesPerLayer = boxesLengthwise * boxesWidthwise;
+    // Coba orientasi rotated
+    const boxesLengthwiseRotated = Math.floor(config.length / box.width);
+    const boxesWidthwiseRotated = Math.floor(config.width / box.length);
+    const boxesPerLayerRotated = boxesLengthwiseRotated * boxesWidthwiseRotated;
 
-      if (boxesPerLayer > bestBoxesPerLayer) {
-        bestBoxesPerLayer = boxesPerLayer;
-        bestOrientation = orient.name;
-      }
+    // Ambil yang terbaik
+    if (boxesPerLayerNormal >= boxesPerLayerRotated) {
+      bestBoxesPerLayer = boxesPerLayerNormal;
+      bestOrientation = "normal";
+    } else {
+      bestBoxesPerLayer = boxesPerLayerRotated;
+      bestOrientation = "rotated";
     }
 
-    // Untuk large pallet, coba kombinasi mixed orientation
+    // Untuk large pallet, coba kombinasi mixed jika kurang dari 4
     if (palletType === "large" && bestBoxesPerLayer < 4) {
-      // Coba kombinasi: 2 normal + 2 rotated
-      const boxesNormal =
-        Math.floor(palletLength / boxLength) *
-        Math.floor(palletWidth / boxWidth);
-      const boxesRotated =
-        Math.floor(palletLength / boxWidth) *
-        Math.floor(palletWidth / boxLength);
-
-      if (boxesNormal + boxesRotated > bestBoxesPerLayer) {
-        bestBoxesPerLayer = Math.min(4, boxesNormal + boxesRotated);
-        bestOrientation = "mixed-combination";
+      const boxesMixed = boxesPerLayerNormal + boxesPerLayerRotated;
+      if (boxesMixed > bestBoxesPerLayer) {
+        bestBoxesPerLayer = Math.min(4, boxesMixed);
+        bestOrientation = "mixed";
       }
     }
 
-    // Hitung max layers berdasarkan tinggi
-    const maxLayersByHeight = Math.floor(availableHeight / boxHeight);
+    // Hitung maksimal layers berdasarkan tinggi
+    const maxLayersByHeight = Math.floor(availableHeight / box.height);
 
-    // Tambah 1 layer untuk toleransi (jika memungkinkan)
-    let maxLayers = maxLayersByHeight;
-    const extraSpace = availableHeight - maxLayersByHeight * boxHeight;
-    if (extraSpace >= 10) {
-      // Toleransi 10cm
-      maxLayers = maxLayersByHeight + 1;
-    }
-
-    // Minimum 1 layer
-    maxLayers = Math.max(1, maxLayers);
+    // Safety factor: kurangi 1 layer untuk toleransi
+    const safeLayersByHeight = Math.max(1, maxLayersByHeight - 1);
 
     // Hitung berat per layer
-    const weightPerLayer = bestBoxesPerLayer * boxWeight;
+    const weightPerLayer = bestBoxesPerLayer * box.weight;
 
-    // Hitung max layers berdasarkan berat
-    const maxLayersByWeight = Math.floor(maxWeight / weightPerLayer);
+    // Hitung maksimal layers berdasarkan berat
+    const maxLayersByWeight = Math.floor(config.maxWeight / weightPerLayer);
 
     // Ambil yang lebih kecil antara batas tinggi dan batas berat
-    const safeLayers = Math.min(maxLayers, maxLayersByWeight);
-
-    // Pastikan minimal 1 layer
+    const safeLayers = Math.min(safeLayersByHeight, maxLayersByWeight);
     const finalLayers = Math.max(1, safeLayers);
 
-    // Hitung boxes per pallet
-    const boxesPerPallet = bestBoxesPerLayer * finalLayers;
+    // Total boxes per pallet berdasarkan dimensi
+    const maxBoxesByDimension = bestBoxesPerLayer * finalLayers;
+
+    // Hitung max boxes berdasarkan berat saja
+    const maxBoxesByWeight = Math.floor(config.maxWeight / box.weight);
+
+    // Ambil yang lebih kecil (dimensi ATAU berat yang membatasi)
+    const maxBoxesPerPallet = Math.min(maxBoxesByDimension, maxBoxesByWeight);
 
     // Hitung berat per pallet
-    const weightPerPallet = boxesPerPallet * boxWeight;
-
-    // Pastikan tidak melebihi berat maksimal
-    if (weightPerPallet > maxWeight) {
-      // Kurangi boxes sampai berat sesuai
-      const maxBoxesByWeight = Math.floor(maxWeight / boxWeight);
-      const maxLayersByWeightAdjusted = Math.floor(
-        maxBoxesByWeight / bestBoxesPerLayer
-      );
-      const adjustedLayers = Math.max(
-        1,
-        Math.min(finalLayers, maxLayersByWeightAdjusted)
-      );
-      const adjustedBoxesPerPallet = bestBoxesPerLayer * adjustedLayers;
-
-      console.log(
-        `Weight constraint applied: ${adjustedBoxesPerPallet} boxes per pallet (${adjustedLayers} layers)`
-      );
-
-      const palletsNeeded = Math.ceil(totalBoxes / adjustedBoxesPerPallet);
-      return {
-        boxesPerLayer: bestBoxesPerLayer,
-        safeLayers: adjustedLayers,
-        boxesPerPallet: adjustedBoxesPerPallet,
-        weightPerPallet: adjustedBoxesPerPallet * boxWeight,
-        palletsNeeded,
-        orientation: bestOrientation,
-        weightLimited: weightPerPallet > maxWeight,
-      };
-    }
-
-    const palletsNeeded = Math.ceil(totalBoxes / boxesPerPallet);
+    const weightPerPallet = maxBoxesPerPallet * box.weight;
 
     return {
+      maxBoxesPerPallet,
       boxesPerLayer: bestBoxesPerLayer,
-      safeLayers: finalLayers,
-      boxesPerPallet,
-      weightPerPallet,
-      palletsNeeded,
+      maxLayers: finalLayers,
       orientation: bestOrientation,
-      weightLimited: false,
+      weightPerPallet,
+      isWeightLimited: maxBoxesPerPallet === maxBoxesByWeight,
+      isHeightLimited: maxBoxesPerPallet === maxBoxesByDimension,
     };
   };
 
-  const calculatePalletForVendor = async (headerId, vendorIndex) => {
+  // Fungsi optimasi untuk mixing pallet
+  const optimizeMixedPalletPacking = async (palletResults) => {
+    if (palletResults.length <= 1) return palletResults;
+
+    // Urutkan berdasarkan utilization terendah
+    palletResults.sort((a, b) => {
+      const utilA = a.weight / (a.type === "large" ? 150 : 60);
+      const utilB = b.weight / (b.type === "large" ? 150 : 60);
+      return utilA - utilB;
+    });
+
+    const optimized = [...palletResults];
+    let changed = true;
+
+    // Iterasi untuk optimasi
+    while (changed && optimized.length > 1) {
+      changed = false;
+
+      for (let i = 0; i < optimized.length; i++) {
+        for (let j = i + 1; j < optimized.length; j++) {
+          const palletA = optimized[i];
+          const palletB = optimized[j];
+
+          // Hanya gabung jika type sama
+          if (palletA.type !== palletB.type) continue;
+
+          const maxWeight = palletA.type === "large" ? 150 : 60;
+          const combinedWeight = palletA.weight + palletB.weight;
+
+          // Cek apakah bisa digabung berdasarkan berat
+          if (combinedWeight <= maxWeight) {
+            // Gabungkan
+            palletA.weight = combinedWeight;
+            palletA.boxesCount += palletB.boxesCount;
+
+            // Hapus palletB
+            optimized.splice(j, 1);
+            changed = true;
+            console.log(`Merged pallet ${j} into ${i} (${palletA.type})`);
+            break;
+          }
+        }
+        if (changed) break;
+      }
+    }
+
+    return optimized;
+  };
+
+  const calculateOptimizedMixedPallet = async (boxData) => {
+    try {
+      if (!boxData || boxData.length === 0) {
+        return {
+          largePallets: 0,
+          smallPallets: 0,
+          totalPallets: 0,
+          details: [],
+          totalWeight: 0,
+          optimized: false,
+        };
+      }
+
+      console.log(`=== PERHITUNGAN PALLET DENGAN ${boxData.length} BOX ===`);
+
+      // 1. Kumpulkan data box berdasarkan ukuran
+      const boxGroups = {};
+      let totalBoxesAll = boxData.length;
+      let totalWeightAll = 0;
+
+      boxData.forEach((box, index) => {
+        const boxKey = `${box.length}x${box.width}x${box.height}`;
+
+        if (!boxGroups[boxKey]) {
+          boxGroups[boxKey] = {
+            length: box.length,
+            width: box.width,
+            height: box.height,
+            weight: box.weight,
+            totalBoxes: 0,
+            totalWeight: 0,
+          };
+        }
+
+        boxGroups[boxKey].totalBoxes += 1;
+        boxGroups[boxKey].totalWeight += box.weight;
+        totalWeightAll += box.weight;
+      });
+
+      if (totalBoxesAll === 0) {
+        return {
+          largePallets: 0,
+          smallPallets: 0,
+          totalPallets: 0,
+          details: [],
+          totalWeight: 0,
+          optimized: false,
+        };
+      }
+
+      console.log(
+        `Total box: ${totalBoxesAll}, Total berat: ${totalWeightAll.toFixed(
+          2
+        )}kg`
+      );
+      console.log(`Kelompok box:`, Object.keys(boxGroups).length);
+
+      // 2. Hitung pallet untuk setiap kelompok box
+      let totalLargePallets = 0;
+      let totalSmallPallets = 0;
+      const palletDetails = [];
+
+      for (const key in boxGroups) {
+        const group = boxGroups[key];
+        const weightPerBox = group.totalWeight / group.totalBoxes;
+
+        console.log(`\nKelompok ${key}:`);
+        console.log(`  Total box: ${group.totalBoxes}`);
+        console.log(`  Berat per box: ${weightPerBox.toFixed(2)}kg`);
+        console.log(`  Total berat: ${group.totalWeight.toFixed(2)}kg`);
+
+        // Cek apakah muat di small pallet
+        const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
+        const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
+
+        let palletType = "large";
+        if (!fitsLarge && fitsSmall) {
+          palletType = "small";
+        }
+
+        // Hitung kapasitas untuk pallet type yang dipilih
+        const capacity = calculateMaxBoxesInPallet(
+          {
+            length: group.length,
+            width: group.width,
+            height: group.height,
+            weight: weightPerBox,
+          },
+          palletType
+        );
+
+        console.log(`  ${palletType} pallet capacity:`);
+        console.log(`    Max boxes per pallet: ${capacity.maxBoxesPerPallet}`);
+        console.log(
+          `    Weight per pallet: ${capacity.weightPerPallet.toFixed(2)}kg`
+        );
+
+        // Hitung berapa pallet dibutuhkan
+        const palletsNeeded = Math.ceil(
+          group.totalBoxes / capacity.maxBoxesPerPallet
+        );
+
+        console.log(`  Pallets needed: ${palletsNeeded}`);
+
+        // Distribusikan ke pallet-pallet
+        let remainingBoxes = group.totalBoxes;
+        for (let i = 0; i < palletsNeeded; i++) {
+          const boxesInThisPallet = Math.min(
+            remainingBoxes,
+            capacity.maxBoxesPerPallet
+          );
+          const weightInThisPallet = boxesInThisPallet * weightPerBox;
+
+          palletDetails.push({
+            palletType,
+            boxesCount: boxesInThisPallet,
+            boxSize: key,
+            boxWeight: weightPerBox,
+            totalWeight: weightInThisPallet,
+            capacity: capacity.maxBoxesPerPallet,
+            groupKey: key,
+          });
+
+          remainingBoxes -= boxesInThisPallet;
+        }
+
+        if (palletType === "large") {
+          totalLargePallets += palletsNeeded;
+        } else {
+          totalSmallPallets += palletsNeeded;
+        }
+      }
+
+      // 3. Coba optimasi mixing untuk box yang underutilized
+      const optimizedPallets = optimizePalletMixing(palletDetails);
+
+      // 4. Hitung hasil akhir
+      let finalLargePallets = 0;
+      let finalSmallPallets = 0;
+      let finalTotalWeight = 0;
+      const details = [];
+
+      optimizedPallets.forEach((pallet, idx) => {
+        if (pallet.palletType === "large") {
+          finalLargePallets++;
+        } else {
+          finalSmallPallets++;
+        }
+
+        finalTotalWeight += pallet.totalWeight;
+
+        const maxWeight = pallet.palletType === "large" ? 150 : 60;
+        const weightUtilization = (pallet.totalWeight / maxWeight) * 100;
+        const boxUtilization = (pallet.boxesCount / pallet.capacity) * 100;
+
+        details.push({
+          palletId: idx + 1,
+          palletType: pallet.palletType,
+          boxesCount: pallet.boxesCount,
+          boxSize: pallet.boxSize,
+          totalWeight: pallet.totalWeight,
+          weightUtilization: weightUtilization.toFixed(1),
+          boxUtilization: boxUtilization.toFixed(1),
+          capacity: pallet.capacity,
+        });
+      });
+
+      console.log(`\n=== HASIL AKHIR ===`);
+      console.log(`Large pallets: ${finalLargePallets}`);
+      console.log(`Small pallets: ${finalSmallPallets}`);
+      console.log(`Total pallets: ${finalLargePallets + finalSmallPallets}`);
+      console.log(`Total weight: ${finalTotalWeight.toFixed(2)}kg`);
+
+      return {
+        largePallets: finalLargePallets,
+        smallPallets: finalSmallPallets,
+        totalPallets: finalLargePallets + finalSmallPallets,
+        totalWeight: finalTotalWeight,
+        details,
+        optimized: true,
+      };
+    } catch (error) {
+      console.error("Error in optimized calculation:", error);
+      // Fallback ke perhitungan sederhana
+      return calculateSimplePalletFromBoxData(boxData);
+    }
+  };
+
+  const calculateSimplePalletFromBoxData = (boxData) => {
+    if (!boxData || boxData.length === 0) {
+      return {
+        largePallets: 0,
+        smallPallets: 0,
+        totalPallets: 0,
+        totalWeight: 0,
+        details: [],
+        optimized: false,
+      };
+    }
+
+    // Kelompokkan box berdasarkan ukuran
+    const boxGroups = {};
+    let totalWeight = 0;
+
+    boxData.forEach((box) => {
+      const boxKey = `${box.length}x${box.width}x${box.height}`;
+
+      if (!boxGroups[boxKey]) {
+        boxGroups[boxKey] = {
+          totalBoxes: 0,
+          totalWeight: 0,
+          length: box.length,
+          width: box.width,
+          height: box.height,
+        };
+      }
+
+      boxGroups[boxKey].totalBoxes += 1;
+      boxGroups[boxKey].totalWeight += box.weight;
+      totalWeight += box.weight;
+    });
+
+    let totalLargePallets = 0;
+    let totalSmallPallets = 0;
+    const details = [];
+
+    for (const key in boxGroups) {
+      const group = boxGroups[key];
+      if (group.totalBoxes <= 0) continue;
+
+      const avgWeightPerBox = group.totalWeight / group.totalBoxes;
+
+      // Hitung kapasitas untuk setiap jenis pallet
+      const largeCapacity = calculateMaxBoxesInPallet(
+        {
+          length: group.length,
+          width: group.width,
+          height: group.height,
+          weight: avgWeightPerBox,
+        },
+        "large"
+      );
+
+      const smallCapacity = calculateMaxBoxesInPallet(
+        {
+          length: group.length,
+          width: group.width,
+          height: group.height,
+          weight: avgWeightPerBox,
+        },
+        "small"
+      );
+
+      // Pilih pallet type
+      let palletType = "large";
+      let capacity = largeCapacity;
+
+      const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
+      const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
+
+      if (!fitsLarge && fitsSmall) {
+        palletType = "small";
+        capacity = smallCapacity;
+      }
+
+      // Hitung pallet yang dibutuhkan
+      const palletsNeeded = Math.ceil(
+        group.totalBoxes / capacity.maxBoxesPerPallet
+      );
+
+      if (palletType === "large") {
+        totalLargePallets += palletsNeeded;
+      } else {
+        totalSmallPallets += palletsNeeded;
+      }
+
+      details.push({
+        boxSize: `${group.length}×${group.width}×${group.height}cm`,
+        totalBoxes: group.totalBoxes,
+        totalWeight: group.totalWeight,
+        palletType,
+        palletsNeeded,
+        capacity: capacity.maxBoxesPerPallet,
+      });
+    }
+
+    // Optimasi: gabung small pallets jika bisa
+    if (totalSmallPallets >= 2) {
+      const largeFromSmall = Math.floor(totalSmallPallets / 2);
+      totalLargePallets += largeFromSmall;
+      totalSmallPallets = totalSmallPallets % 2;
+    }
+
+    return {
+      largePallets: totalLargePallets,
+      smallPallets: totalSmallPallets,
+      totalPallets: totalLargePallets + totalSmallPallets,
+      totalWeight,
+      details,
+      optimized: false,
+    };
+  };
+
+  const optimizePalletMixing = (palletDetails) => {
+    if (palletDetails.length <= 1) return palletDetails;
+
+    const optimized = [...palletDetails];
+
+    // Coba gabung pallet yang sama type dan masih ada space
+    for (let i = 0; i < optimized.length; i++) {
+      for (let j = i + 1; j < optimized.length; j++) {
+        const palletA = optimized[i];
+        const palletB = optimized[j];
+
+        // Hanya gabung jika type sama
+        if (palletA.palletType !== palletB.palletType) continue;
+
+        const maxWeight = palletA.palletType === "large" ? 150 : 60;
+        const combinedWeight = palletA.totalWeight + palletB.totalWeight;
+        const combinedBoxes = palletA.boxesCount + palletB.boxesCount;
+
+        // Cek apakah bisa digabung (berat dan kapasitas)
+        if (combinedWeight <= maxWeight && combinedBoxes <= palletA.capacity) {
+          // Gabungkan ke palletA
+          palletA.boxesCount = combinedBoxes;
+          palletA.totalWeight = combinedWeight;
+
+          // Hapus palletB
+          optimized.splice(j, 1);
+          j--; // Adjust index karena array berubah
+          console.log(`Merged pallets (${palletA.palletType})`);
+        }
+      }
+    }
+
+    return optimized;
+  };
+
+  // Fungsi fallback sederhana
+  const calculateSimplePallet = async (headerId, vendorIndex) => {
     try {
       const vendor = vendorDraftsByHeader[headerId]?.[vendorIndex];
       if (!vendor || !vendor.parts || vendor.parts.length === 0) {
@@ -318,27 +618,24 @@ const AddLocalSchedulePage = () => {
           totalPallets: 0,
           details: [],
           totalWeight: 0,
-          weightDistribution: {},
+          optimized: false,
         };
       }
 
-      console.log(`=== CALCULATING PALLET FOR VENDOR ${vendorIndex + 1} ===`);
-
-      // Kelompokkan part berdasarkan placement (ukuran box sama)
+      // Kelompokkan box berdasarkan ukuran
       const boxGroups = {};
+      let totalWeight = 0;
 
-      // Pertama, kumpulkan semua data part termasuk berat
       for (const part of vendor.parts) {
         const partCode = part.partCode;
         const qtyBox = part.qtyBox || 0;
 
         if (qtyBox <= 0) continue;
 
-        // Cari placement data
         let placementData = null;
-        let partWeight = 0; // Default weight 0 jika tidak ada
+        let partWeight = 0;
 
-        // Coba dari part data dulu
+        // Fetch placement data
         if (part.placementId) {
           try {
             const placementResp = await fetch(
@@ -353,7 +650,7 @@ const AddLocalSchedulePage = () => {
           }
         }
 
-        // Cari berat part dari kanban master
+        // Fetch part weight
         if (!partWeight && partCode) {
           try {
             const partResp = await fetch(
@@ -366,11 +663,9 @@ const AddLocalSchedulePage = () => {
               const kanbanData =
                 partResult.item || partResult.data || partResult;
 
-              // Ambil berat part
               if (kanbanData.part_weight) {
                 partWeight = parseFloat(kanbanData.part_weight);
 
-                // Konversi ke kg jika perlu
                 if (kanbanData.weight_unit === "g") {
                   partWeight = partWeight / 1000;
                 } else if (kanbanData.weight_unit === "lbs") {
@@ -378,7 +673,6 @@ const AddLocalSchedulePage = () => {
                 } else if (kanbanData.weight_unit === "oz") {
                   partWeight = partWeight * 0.0283495;
                 }
-                // Jika sudah kg, biarkan saja
               }
             }
           } catch (err) {
@@ -392,281 +686,220 @@ const AddLocalSchedulePage = () => {
           placementData.width_cm &&
           placementData.height_cm
         ) {
-          const boxKey = `${placementData.length_cm}-${placementData.width_cm}-${placementData.height_cm}`;
+          const boxKey = `${placementData.length_cm}x${placementData.width_cm}x${placementData.height_cm}`;
 
           if (!boxGroups[boxKey]) {
             boxGroups[boxKey] = {
-              boxLength: parseFloat(placementData.length_cm),
-              boxWidth: parseFloat(placementData.width_cm),
-              boxHeight: parseFloat(placementData.height_cm),
               totalBoxes: 0,
               totalWeight: 0,
-              partsList: [],
+              length: parseFloat(placementData.length_cm),
+              width: parseFloat(placementData.width_cm),
+              height: parseFloat(placementData.height_cm),
             };
           }
 
           boxGroups[boxKey].totalBoxes += qtyBox;
           boxGroups[boxKey].totalWeight += partWeight * qtyBox;
-          boxGroups[boxKey].partsList.push({
-            partCode,
-            qtyBox,
-            weightPerBox: partWeight,
-            totalWeight: partWeight * qtyBox,
-            placementName:
-              placementData.placement_name || `Placement ${placementData.id}`,
-          });
-
-          console.log(
-            `Added ${qtyBox} boxes of ${boxKey} for part ${partCode}, weight: ${partWeight} kg per box`
-          );
+          totalWeight += partWeight * qtyBox;
         }
       }
-
-      console.log("Box groups with weights:", boxGroups);
 
       let totalLargePallets = 0;
       let totalSmallPallets = 0;
-      const partDetails = [];
-      let totalWeight = 0;
+      const details = [];
 
-      // Hitung pallet untuk setiap kelompok box DENGAN MEMPERTIMBANGKAN BERAT
-      for (const boxKey in boxGroups) {
-        const group = boxGroups[boxKey];
-        const {
-          boxLength,
-          boxWidth,
-          boxHeight,
-          totalBoxes,
-          totalWeight: groupWeight,
-          partsList,
-        } = group;
+      for (const key in boxGroups) {
+        const group = boxGroups[key];
+        if (group.totalBoxes <= 0) continue;
 
-        console.log(
-          `Processing ${totalBoxes} boxes (${groupWeight.toFixed(
-            2
-          )} kg) of ${boxLength}x${boxWidth}x${boxHeight}cm`
+        const avgWeightPerBox = group.totalWeight / group.totalBoxes;
+
+        // Hitung kapasitas untuk setiap jenis pallet
+        const largeCapacity = calculateMaxBoxesInPallet(
+          {
+            length: group.length,
+            width: group.width,
+            height: group.height,
+            weight: avgWeightPerBox,
+          },
+          "large"
         );
 
-        if (totalBoxes <= 0) continue;
+        const smallCapacity = calculateMaxBoxesInPallet(
+          {
+            length: group.length,
+            width: group.width,
+            height: group.height,
+            weight: avgWeightPerBox,
+          },
+          "small"
+        );
 
-        totalWeight += groupWeight;
+        // Pilih pallet type
+        let palletType = "large";
+        let capacity = largeCapacity;
 
-        // Tentukan pallet type berdasarkan dimensi box
-        const canFitSmall = canBoxFitPallet(boxLength, boxWidth, 76, 96);
-        const canFitLarge = canBoxFitPallet(boxLength, boxWidth, 110, 110);
+        const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
+        const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
 
-        let palletType = "oversized";
-        let palletInfo = null;
-
-        if (canFitLarge) {
-          palletType = "large";
-          palletInfo = calculatePalletCapacityWithWeight(
-            boxLength,
-            boxWidth,
-            boxHeight,
-            groupWeight / totalBoxes, // weight per box
-            "large",
-            totalBoxes
-          );
-        } else if (canFitSmall) {
+        if (!fitsLarge && fitsSmall) {
           palletType = "small";
-          palletInfo = calculatePalletCapacityWithWeight(
-            boxLength,
-            boxWidth,
-            boxHeight,
-            groupWeight / totalBoxes, // weight per box
-            "small",
-            totalBoxes
-          );
+          capacity = smallCapacity;
         }
 
-        if (palletInfo) {
-          if (palletType === "large") {
-            totalLargePallets += palletInfo.palletsNeeded;
-          } else if (palletType === "small") {
-            totalSmallPallets += palletInfo.palletsNeeded;
-          }
+        // Hitung pallet yang dibutuhkan
+        const palletsNeeded = Math.ceil(
+          group.totalBoxes / capacity.maxBoxesPerPallet
+        );
 
-          partDetails.push({
-            boxSize: `${boxLength}×${boxWidth}×${boxHeight}cm`,
-            totalBoxes,
-            totalWeight: groupWeight,
-            palletType,
-            ...palletInfo,
-            parts: partsList,
-          });
-
-          console.log(
-            `Result: ${
-              palletInfo.palletsNeeded
-            } ${palletType} pallet(s), weight: ${groupWeight.toFixed(2)} kg`
-          );
+        if (palletType === "large") {
+          totalLargePallets += palletsNeeded;
+        } else {
+          totalSmallPallets += palletsNeeded;
         }
+
+        details.push({
+          boxSize: `${group.length}×${group.width}×${group.height}cm`,
+          totalBoxes: group.totalBoxes,
+          totalWeight: group.totalWeight,
+          palletType,
+          palletsNeeded,
+          capacity: capacity.maxBoxesPerPallet,
+        });
+
+        console.log(
+          `Group ${key}: ${palletsNeeded} ${palletType} pallet(s), ${group.totalBoxes} boxes, capacity: ${capacity.maxBoxesPerPallet}/pallet`
+        );
       }
 
-      // Optimasi: gabung small ke large jika efisien
+      // Optimasi: gabung small pallets jika bisa
       if (totalSmallPallets >= 2) {
         const largeFromSmall = Math.floor(totalSmallPallets / 2);
         totalLargePallets += largeFromSmall;
         totalSmallPallets = totalSmallPallets % 2;
         console.log(
-          `Optimized: ${largeFromSmall} small pallets converted to ${largeFromSmall} large pallet(s)`
+          `Optimized: ${largeFromSmall} small pallets → ${largeFromSmall} large pallet(s)`
         );
       }
-
-      const totalPallets = totalLargePallets + totalSmallPallets;
-
-      console.log(
-        `Final result: ${totalPallets} pallets (${totalLargePallets} large, ${totalSmallPallets} small), total weight: ${totalWeight.toFixed(
-          2
-        )} kg`
-      );
 
       return {
         largePallets: totalLargePallets,
         smallPallets: totalSmallPallets,
-        totalPallets,
+        totalPallets: totalLargePallets + totalSmallPallets,
         totalWeight,
-        details: partDetails,
+        details,
+        optimized: false,
       };
     } catch (error) {
-      console.error("Error calculating pallet:", error);
+      console.error("Error in simple calculation:", error);
       return {
         largePallets: 0,
         smallPallets: 0,
         totalPallets: 0,
         totalWeight: 0,
         details: [],
+        optimized: false,
       };
     }
   };
 
-  // Helper function: cek apakah box muat di pallet
-  const canBoxFitPallet = (boxLength, boxWidth, palletLength, palletWidth) => {
-    return (
-      (boxLength <= palletLength && boxWidth <= palletWidth) ||
-      (boxWidth <= palletLength && boxLength <= palletWidth)
-    );
-  };
-
-  // Helper function: hitung kapasitas pallet
-  const calculatePalletCapacity = (
-    boxLength,
-    boxWidth,
-    boxHeight,
-    palletType,
-    totalBoxes
-  ) => {
-    // Konfigurasi pallet
-    const palletConfigs = {
-      small: { length: 96, width: 76, maxHeight: 170, baseHeight: 15 },
-      large: { length: 110, width: 110, maxHeight: 170, baseHeight: 15 },
-    };
-
-    const config = palletConfigs[palletType];
-    const palletLength = config.length;
-    const palletWidth = config.width;
-    const availableHeight = config.maxHeight - config.baseHeight;
-
-    // Hitung boxes per layer dengan orientasi terbaik
-    let bestBoxesPerLayer = 0;
-    let bestOrientation = "";
-
-    // Coba semua kombinasi orientasi
-    const orientations = [
-      { name: "normal", l: boxLength, w: boxWidth },
-      { name: "rotated", l: boxWidth, w: boxLength },
-      {
-        name: "mixed",
-        l: Math.max(boxLength, boxWidth),
-        w: Math.min(boxLength, boxWidth),
-      },
-    ];
-
-    for (const orient of orientations) {
-      const boxesLengthwise = Math.floor(palletLength / orient.l);
-      const boxesWidthwise = Math.floor(palletWidth / orient.w);
-      const boxesPerLayer = boxesLengthwise * boxesWidthwise;
-
-      if (boxesPerLayer > bestBoxesPerLayer) {
-        bestBoxesPerLayer = boxesPerLayer;
-        bestOrientation = orient.name;
-      }
-    }
-
-    // Untuk large pallet, coba kombinasi mixed orientation
-    if (palletType === "large" && bestBoxesPerLayer < 4) {
-      // Coba kombinasi: 2 normal + 2 rotated
-      const boxesNormal =
-        Math.floor(palletLength / boxLength) *
-        Math.floor(palletWidth / boxWidth);
-      const boxesRotated =
-        Math.floor(palletLength / boxWidth) *
-        Math.floor(palletWidth / boxLength);
-
-      if (boxesNormal + boxesRotated > bestBoxesPerLayer) {
-        bestBoxesPerLayer = Math.min(4, boxesNormal + boxesRotated);
-        bestOrientation = "mixed-combination";
-      }
-    }
-
-    // Hitung max layers dengan toleransi tinggi
-    const maxLayers = Math.floor(availableHeight / boxHeight);
-
-    // Tambah 1 layer untuk toleransi (jika memungkinkan)
-    let safeLayers = maxLayers;
-    const extraSpace = availableHeight - maxLayers * boxHeight;
-    if (extraSpace >= 10) {
-      // Toleransi 10cm
-      safeLayers = maxLayers + 1;
-    }
-
-    // Minimum 1 layer
-    safeLayers = Math.max(1, safeLayers);
-
-    const boxesPerPallet = bestBoxesPerLayer * safeLayers;
-    const palletsNeeded = Math.ceil(totalBoxes / boxesPerPallet);
-
-    return {
-      boxesPerLayer: bestBoxesPerLayer,
-      safeLayers,
-      boxesPerPallet,
-      palletsNeeded,
-      orientation: bestOrientation,
-    };
-  };
-
   const recalculatePalletForVendor = async (headerId, vendorIndex) => {
     try {
-      console.log(
-        `Recalculating pallet for vendor ${
-          vendorIndex + 1
-        } in schedule ${headerId}`
-      );
+      console.log(`Recalculating pallet untuk vendor ${vendorIndex + 1}`);
 
-      const result = await calculatePalletForVendor(headerId, vendorIndex);
+      const vendor = vendorDraftsByHeader[headerId]?.[vendorIndex];
+      if (!vendor || !vendor.parts || vendor.parts.length === 0) {
+        setPalletCalculations((prev) => ({
+          ...prev,
+          [`${headerId}_${vendorIndex}`]: {
+            largePallets: 0,
+            smallPallets: 0,
+            totalPallets: 0,
+            details: [],
+            totalWeight: 0,
+            optimized: false,
+          },
+        }));
+        return;
+      }
 
-      setPalletCalculations((prev) => ({
-        ...prev,
-        [`${headerId}_${vendorIndex}`]: result,
-      }));
+      // Collect box data dengan placement details
+      const boxData = [];
+      let totalBoxes = 0;
+      let totalWeight = 0;
 
-      console.log(`Pallet result for ${headerId}_${vendorIndex}:`, result);
+      for (const part of vendor.parts) {
+        const partCode = part.partCode;
+        const qtyBox = part.qtyBox || 0;
 
-      return result;
-    } catch (error) {
-      console.error("Error recalculating pallet:", error);
+        if (qtyBox <= 0) continue;
+
+        try {
+          // Gunakan endpoint untuk placement details
+          const placementResp = await fetch(
+            `${API_BASE}/api/kanban-master/placement-details?part_code=${encodeURIComponent(
+              partCode
+            )}`
+          );
+
+          if (placementResp.ok) {
+            const result = await placementResp.json();
+            const placementData = result.item || result.data;
+
+            if (
+              placementData &&
+              placementData.length_cm &&
+              placementData.width_cm &&
+              placementData.height_cm
+            ) {
+              const boxLength = parseFloat(placementData.length_cm);
+              const boxWidth = parseFloat(placementData.width_cm);
+              const boxHeight = parseFloat(placementData.height_cm);
+              const boxWeight = parseFloat(placementData.part_weight || 0);
+
+              // Tambahkan box sebanyak qtyBox
+              for (let i = 0; i < qtyBox; i++) {
+                boxData.push({
+                  length: boxLength,
+                  width: boxWidth,
+                  height: boxHeight,
+                  weight: boxWeight,
+                  partCode: partCode,
+                });
+                totalWeight += boxWeight;
+              }
+
+              totalBoxes += qtyBox;
+            }
+          }
+        } catch (error) {
+          console.warn(`Error fetching placement for part ${partCode}:`, error);
+        }
+      }
+
+      // Jika tidak ada box data, gunakan perhitungan sederhana
+      let result;
+      if (boxData.length > 0) {
+        result = await calculateOptimizedMixedPallet(boxData);
+      } else {
+        result = await calculateSimplePallet(headerId, vendorIndex);
+      }
+
       setPalletCalculations((prev) => ({
         ...prev,
         [`${headerId}_${vendorIndex}`]: {
-          largePallets: 0,
-          smallPallets: 0,
-          totalPallets: 0,
-          details: [],
-          summary: "Calculation error",
+          ...result,
+          totalBoxes,
+          totalWeight,
         },
       }));
-      return null;
+
+      console.log(
+        `Pallet calculation result for vendor ${vendorIndex + 1}:`,
+        result
+      );
+    } catch (error) {
+      console.error("Error in pallet calculation:", error);
     }
   };
 
@@ -674,21 +907,6 @@ const AddLocalSchedulePage = () => {
     const palletKey = `${headerId}_${vendorIndex}`;
     const calculation = palletCalculations[palletKey];
     return calculation ? calculation.totalPallets : 0;
-  };
-
-  const getPalletCalculationDetails = (headerId, vendorIndex) => {
-    const palletKey = `${headerId}_${vendorIndex}`;
-    const calculation = palletCalculations[palletKey];
-
-    if (!calculation || calculation.totalPallets === 0) return "0 pallet";
-
-    let details = [];
-    if (calculation.largePallets > 0)
-      details.push(`${calculation.largePallets} large`);
-    if (calculation.smallPallets > 0)
-      details.push(`${calculation.smallPallets} small`);
-
-    return details.length > 0 ? details.join(" + ") : "0 pallet";
   };
 
   const getPalletTooltipDetails = (headerId, vendorIndex) => {
@@ -701,56 +919,15 @@ const AddLocalSchedulePage = () => {
 
     if (totalPallets === 0) return "0 pallet";
 
-    let details = `Total: ${totalPallets} pallet`;
-    if (largePallets > 0) details += ` (${largePallets} large`;
-    if (smallPallets > 0) {
-      if (largePallets > 0) details += `, ${smallPallets} small)`;
-      else details += ` (${smallPallets} small)`;
-    } else if (largePallets > 0) {
-      details += `)`;
+    let details = `Total Pallet: ${totalPallets}`;
+    if (largePallets > 0 || smallPallets > 0) {
+      details += ` (${largePallets} large, ${smallPallets} small)`;
     }
-
     return details;
   };
 
-  const getPalletTooltipDetailsForHeader = (headerId) => {
-    const { totalLarge, totalSmall, total } =
-      calculateTotalPalletForHeader(headerId);
-
-    if (total === 0) return "0 pallet";
-
-    let details = `Total: ${total} pallet`;
-    if (totalLarge > 0) details += ` (${totalLarge} large`;
-    if (totalSmall > 0) {
-      if (totalLarge > 0) details += `, ${totalSmall} small)`;
-      else details += ` (${totalSmall} small)`;
-    } else if (totalLarge > 0) {
-      details += `)`;
-    }
-
-    return details;
-  };
-
-  const calculateTotalPalletForHeader = (headerId) => {
-    const vendors = vendorDraftsByHeader[headerId] || [];
-    let totalLarge = 0;
-    let totalSmall = 0;
-    let total = 0;
-    let totalWeight = 0;
-
-    vendors.forEach((_, vendorIndex) => {
-      const palletKey = `${headerId}_${vendorIndex}`;
-      const calculation = palletCalculations[palletKey];
-      if (calculation) {
-        totalLarge += calculation.largePallets;
-        totalSmall += calculation.smallPallets;
-        total += calculation.totalPallets;
-        totalWeight += calculation.totalWeight || 0;
-      }
-    });
-
-    return { totalLarge, totalSmall, total, totalWeight };
-  };
+  // ==================== FUNGSI-FUNGSI LAIN (TIDAK BERUBAH) ====================
+  // [Semua fungsi lainnya tetap sama seperti sebelumnya...]
 
   const handleEditPartClick = (
     headerId,
@@ -807,7 +984,6 @@ const AddLocalSchedulePage = () => {
         return;
       }
 
-      // Ambil qty_per_box
       let qtyPerBox = 1;
       if (
         kanbanData.qty_per_box !== undefined &&
@@ -829,7 +1005,6 @@ const AddLocalSchedulePage = () => {
 
       qtyPerBox = Math.max(1, qtyPerBox);
 
-      // Hitung Qty Box: pembulatan ke atas (ceil)
       const qtyBox = Math.ceil(qty / qtyPerBox);
 
       console.log(
@@ -847,7 +1022,6 @@ const AddLocalSchedulePage = () => {
           qtyBox: qtyBox,
           qtyPerBoxFromMaster: qtyPerBox,
           placementId: kanbanData.placement_id,
-          // Simpan juga berat part jika ada
           partWeight: kanbanData.part_weight || 0,
           weightUnit: kanbanData.weight_unit || "kg",
         };
@@ -859,7 +1033,6 @@ const AddLocalSchedulePage = () => {
         return { ...prev, [headerId]: newVendors };
       });
 
-      // Trigger perhitungan ulang pallet setelah update qty (DENGAN BERAT)
       await recalculatePalletForVendor(headerId, vendorIndex);
 
       setEditingPart({
@@ -971,7 +1144,7 @@ const AddLocalSchedulePage = () => {
           qty: qty,
           qtyBox: qtyBox,
           qtyPerBoxFromMaster: qtyPerBox,
-          placementId: kanbanData.placement_id, // Simpan placementId
+          placementId: kanbanData.placement_id,
         };
 
         newVendors[vendorIndex] = {
@@ -1098,19 +1271,20 @@ const AddLocalSchedulePage = () => {
         return;
       }
 
-      const sel = new Date(`${scheduleDate}T00:00:00`);
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      // const sel = new Date(`${scheduleDate}T00:00:00`);
+      // const now = new Date();
+      // const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      if (!(sel instanceof Date) || Number.isNaN(sel.getTime())) {
-        alert("Format Schedule Date not valid");
-        return;
-      }
-      if (sel <= today) {
-        alert("The schedule date must be later than today.");
-        return;
-      }
+      // if (!(sel instanceof Date) || Number.isNaN(sel.getTime())) {
+      //   alert("Format Schedule Date not valid");
+      //   return;
+      // }
+      // if (sel <= today) {
+      //   alert("The schedule date must be later than today.");
+      //   return;
+      // }
 
+      // Cek apakah schedule date sudah ada di database
       const resp = await fetch(
         `${API_BASE}/api/local-schedules/check-date?scheduleDate=${scheduleDate}`
       );
@@ -1122,11 +1296,12 @@ const AddLocalSchedulePage = () => {
 
       if (data.exists) {
         alert(
-          "Schedule Date has been created. Try creating another Schedule Date."
+          "Schedule Date has been created in database. Try creating another Schedule Date."
         );
         return;
       }
 
+      // Cek apakah schedule date sudah ada di draft lokal
       const isDuplicateDate = headerDrafts.some(
         (hdr) => hdr.scheduleDate === scheduleDate
       );
@@ -1150,10 +1325,311 @@ const AddLocalSchedulePage = () => {
 
       setHeaderDrafts((prev) => [...prev, newHeader]);
       setVendorDraftsByHeader((prev) => ({ ...prev, [newId]: [] }));
+
     } catch (e) {
       alert("Error: " + e.message);
     }
   }
+
+  const handleSubmitScheduleToDatabase = async () => {
+    try {
+      if (selectedHeaderIds.size === 0) {
+        alert("Please select schedule data to submit");
+        return;
+      }
+
+      const selectedSchedules = [...selectedHeaderIds].map((id) =>
+        headerDrafts.find((h) => h.id === id)
+      );
+
+      // Validasi: setiap schedule harus memiliki vendor
+      for (const schedule of selectedSchedules) {
+        const vendors = vendorDraftsByHeader[schedule.id] || [];
+        if (vendors.length === 0) {
+          alert(
+            `Schedule for ${schedule.scheduleDate} has no vendors. Please add vendors before submitting.`
+          );
+          return;
+        }
+
+        // Validasi: setiap vendor harus memiliki parts
+        for (const vendor of vendors) {
+          if (!vendor.parts || vendor.parts.length === 0) {
+            alert(
+              `Schedule for ${schedule.scheduleDate} has vendors without parts. Please add parts before submitting.`
+            );
+            return;
+          }
+        }
+      }
+
+      setIsSubmitting(true);
+      const results = [];
+      const errors = [];
+
+      // Process each schedule
+      for (const schedule of selectedSchedules) {
+        try {
+          console.log(`Processing schedule for ${schedule.scheduleDate}`);
+
+          // 1. Create schedule header
+          const schedulePayload = {
+            stockLevel: schedule.stockLevel,
+            modelName: schedule.modelName,
+            scheduleDate: schedule.scheduleDate,
+            uploadByName: schedule.uploadByName || currentEmpName,
+          };
+
+          console.log("Creating schedule header:", schedulePayload);
+
+          const scheduleResponse = await fetch(
+            `${API_BASE}/api/local-schedules`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(schedulePayload),
+            }
+          );
+
+          if (!scheduleResponse.ok) {
+            const errorData = await scheduleResponse.json();
+            throw new Error(
+              errorData.message ||
+              `Failed to create schedule: ${scheduleResponse.status}`
+            );
+          }
+
+          const scheduleData = await scheduleResponse.json();
+          const createdScheduleId = scheduleData.schedule?.id;
+
+          if (!createdScheduleId) {
+            throw new Error("No schedule ID returned from server");
+          }
+
+          console.log(`Schedule created with ID: ${createdScheduleId}`);
+
+          // 2. Add vendors to schedule
+          const vendors = vendorDraftsByHeader[schedule.id] || [];
+          let vendorIds = [];
+
+          if (vendors.length > 0) {
+            const vendorPayload = {
+              items: vendors.map((vendor) => ({
+                trip_id: vendor.trip_id,
+                vendor_id: vendor.vendor_id,
+                do_numbers: vendor.do_numbers || [],
+              })),
+            };
+
+            console.log("Adding vendors:", vendorPayload);
+
+            const vendorResponse = await fetch(
+              `${API_BASE}/api/local-schedules/${createdScheduleId}/vendors/bulk`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(vendorPayload),
+              }
+            );
+
+            if (!vendorResponse.ok) {
+              const errorData = await vendorResponse.json();
+              throw new Error(
+                errorData.message ||
+                `Failed to add vendors: ${vendorResponse.status}`
+              );
+            }
+
+            const vendorData = await vendorResponse.json();
+            vendorIds = vendorData.vendors?.map((v) => v.id) || [];
+
+            console.log(`Vendors added: ${vendorIds.length}`);
+          }
+
+          // 3. Add parts to each vendor
+          for (let i = 0; i < vendors.length; i++) {
+            const vendor = vendors[i];
+            const vendorId = vendorIds[i];
+
+            if (vendorId && vendor.parts && vendor.parts.length > 0) {
+              const partsData = vendor.parts.map((part) => ({
+                part_code: part.partCode,
+                part_name: part.partName || "",
+                qty: part.qty || 0,
+                qty_box: part.qtyBox || 0,
+                unit: part.unit || "PCS",
+                do_number: part.doNumber || "",
+              }));
+
+              console.log(
+                `Adding parts to vendor ${vendorId}:`,
+                partsData.length
+              );
+
+              const partsResponse = await fetch(
+                `${API_BASE}/api/local-schedules/${vendorId}/parts/bulk`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ items: partsData }),
+                }
+              );
+
+              if (!partsResponse.ok) {
+                const errorData = await partsResponse.json();
+                console.error(
+                  `Failed to add parts to vendor ${vendorId}:`,
+                  errorData
+                );
+                // Continue with other vendors even if this one fails
+              }
+            }
+          }
+
+          results.push({
+            scheduleId: createdScheduleId,
+            scheduleDate: schedule.scheduleDate,
+            success: true,
+          });
+
+          console.log(
+            `Schedule successfully submited`
+          );
+        } catch (error) {
+          console.error(
+            `Error submitting schedule.`,
+            error
+          );
+          errors.push({
+            scheduleDate: schedule.scheduleDate,
+            error: error.message,
+          });
+        }
+      }
+
+      if (errors.length > 0) {
+        alert(
+          `Submitted schedules successfully.\n` +
+          `Failed to submit ${errors.length} schedule(s):\n` +
+          errors.map((e) => `- ${e.scheduleDate}: ${e.error}`).join("\n")
+        );
+      } else {
+        alert(
+          `Successfully submitted schedules.`
+        );
+      }
+
+      const successfulScheduleIds = results
+        .map(
+          (r) => headerDrafts.find((h) => h.scheduleDate === r.scheduleDate)?.id
+        )
+        .filter((id) => id);
+
+      setHeaderDrafts((prev) =>
+        prev.filter((h) => !successfulScheduleIds.includes(h.id))
+      );
+
+      setVendorDraftsByHeader((prev) => {
+        const newDrafts = { ...prev };
+        successfulScheduleIds.forEach((id) => {
+          delete newDrafts[id];
+        });
+        return newDrafts;
+      });
+
+      setSelectedHeaderIds((prev) => {
+        const newSet = new Set(prev);
+        successfulScheduleIds.forEach((id) => newSet.delete(id));
+        return newSet;
+      });
+
+      // Navigate back to main page
+      navigate("/local-schedule");
+    } catch (error) {
+      console.error("Error in handleSubmitScheduleToDatabase:", error);
+      alert(`Failed to submit schedules: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteHeader = (headerId) => {
+    setHeaderDrafts((prev) => prev.filter((h) => h.id !== headerId));
+    setVendorDraftsByHeader((prev) => {
+      const copy = { ...prev };
+      delete copy[headerId];
+      return copy;
+    });
+    setExpandedRows((prev) => {
+      const copy = { ...prev };
+      delete copy[headerId];
+      return copy;
+    });
+    setExpandedVendorRows((prev) => {
+      const copy = { ...prev };
+      Object.keys(copy).forEach((key) => {
+        if (key.startsWith(`${headerId}_vendor_`)) delete copy[key];
+      });
+      return copy;
+    });
+    setSelectedHeaderIds((prev) => {
+      const next = new Set(prev);
+      next.delete(headerId);
+      return next;
+    });
+
+    setPalletCalculations((prev) => {
+      const copy = { ...prev };
+      Object.keys(copy).forEach((key) => {
+        if (key.startsWith(`${headerId}_`)) delete copy[key];
+      });
+      return copy;
+    });
+  };
+
+  const handleDeleteVendor = (headerId, vendorIndex) => {
+    setVendorDraftsByHeader((prev) => {
+      const vendors = [...(prev[headerId] || [])];
+      vendors.splice(vendorIndex, 1);
+      return { ...prev, [headerId]: vendors };
+    });
+    const vendorRowId = `${headerId}_vendor_${vendorIndex + 1}`;
+    setExpandedVendorRows((prev) => {
+      const next = { ...prev };
+      delete next[vendorRowId];
+      return next;
+    });
+
+    setPalletCalculations((prev) => {
+      const next = { ...prev };
+      delete next[`${headerId}_${vendorIndex}`];
+      return next;
+    });
+
+  };
+
+  const handleDeletePart = (headerId, vendorIndex, partId) => {
+
+    setVendorDraftsByHeader((prev) => {
+      const vendors = [...(prev[headerId] || [])];
+      if (!vendors[vendorIndex]) return prev;
+      vendors[vendorIndex] = {
+        ...vendors[vendorIndex],
+        parts: (vendors[vendorIndex].parts || []).filter(
+          (p) => p.id !== partId
+        ),
+      };
+      return { ...prev, [headerId]: vendors };
+    });
+
+    recalculatePalletForVendor(headerId, vendorIndex);
+  };
 
   useEffect(() => {
     if (addVendorDetail) {
@@ -1208,6 +1684,35 @@ const AddLocalSchedulePage = () => {
 
   const autoExpandHeaderOnVendorAdd = (headerId) => {
     setExpandedRows((prev) => ({ ...prev, [headerId]: true }));
+  };
+
+  const autoExpandVendorOnPartAdd = (headerId, vendorIndex) => {
+    setExpandedRows((prev) => ({ ...prev, [headerId]: true }));
+    const vendorRowId = `${headerId}_vendor_${vendorIndex + 1}`;
+    setExpandedVendorRows((prev) => ({ ...prev, [vendorRowId]: true }));
+  };
+
+  const toggleRowExpansion = (rowId) => {
+    setExpandedRows((prev) => {
+      const newExpandedRows = { ...prev, [rowId]: !prev[rowId] };
+      if (prev[rowId]) {
+        setExpandedVendorRows((prevVendor) => {
+          const newVendorRows = { ...prevVendor };
+          Object.keys(newVendorRows).forEach((key) => {
+            if (key.startsWith(`${rowId}_vendor_`)) delete newVendorRows[key];
+          });
+          return newVendorRows;
+        });
+      }
+      return newExpandedRows;
+    });
+  };
+
+  const toggleVendorRowExpansion = (vendorRowId) => {
+    setExpandedVendorRows((prev) => ({
+      ...prev,
+      [vendorRowId]: !prev[vendorRowId],
+    }));
   };
 
   const handleAddVendorSubmit = (e) => {
@@ -1284,45 +1789,292 @@ const AddLocalSchedulePage = () => {
     });
   };
 
-  const autoExpandVendorOnPartAdd = (headerId, vendorIndex) => {
-    setExpandedRows((prev) => ({ ...prev, [headerId]: true }));
-    const vendorRowId = `${headerId}_vendor_${vendorIndex + 1}`;
-    setExpandedVendorRows((prev) => ({ ...prev, [vendorRowId]: true }));
+  const openVendorPartDetailPopup = (
+    headerId,
+    vendorIndex,
+    vendorData,
+    vendorLabel
+  ) => {
+    autoExpandVendorOnPartAdd(headerId, vendorIndex);
+    const existingPartsInVendor = vendorData.parts || [];
+    const existingPartCodes = existingPartsInVendor.map((p) => p.partCode);
+
+    setActiveVendorContext({
+      headerId,
+      vendorIndex,
+      vendorId: vendorData.vendor_id,
+      vendorLabel,
+      doNumbers: vendorData.do_numbers || [],
+    });
+    const currentPartsInForm = vendorData.parts ? [...vendorData.parts] : [];
+    const filteredParts = currentPartsInForm.filter(
+      (part) => !existingPartCodes.includes(part.partCode)
+    );
+
+    setAddVendorPartFormData({
+      trip: "",
+      vendor: vendorLabel,
+      doNumbers:
+        vendorData.do_numbers && vendorData.do_numbers.length
+          ? [...vendorData.do_numbers]
+          : [""],
+      arrivalTime: "",
+      parts: filteredParts,
+    });
+    setSelectedPartsInPopup([]);
+    setAddVendorPartDetail(true);
   };
 
-  const handleDeleteHeader = (headerId) => {
-    setHeaderDrafts((prev) => prev.filter((h) => h.id !== headerId));
-    setVendorDraftsByHeader((prev) => {
-      const copy = { ...prev };
-      delete copy[headerId];
-      return copy;
-    });
-    setExpandedRows((prev) => {
-      const copy = { ...prev };
-      delete copy[headerId];
-      return copy;
-    });
-    setExpandedVendorRows((prev) => {
-      const copy = { ...prev };
-      Object.keys(copy).forEach((key) => {
-        if (key.startsWith(`${headerId}_vendor_`)) delete copy[key];
+  const handleAddPart = async (rawPartCode) => {
+    const partCode = String(rawPartCode || "").trim();
+    if (!partCode) return;
+    if (!activeVendorContext) {
+      alert("Vendor context not found. Open popup from vendor row.");
+      return;
+    }
+
+    const existingPartCodes = [];
+    const { headerId, vendorIndex } = activeVendorContext;
+    const vendorData = vendorDraftsByHeader[headerId]?.[vendorIndex];
+    if (vendorData?.parts)
+      existingPartCodes.push(...vendorData.parts.map((p) => p.partCode));
+    if (addVendorPartFormData.parts)
+      existingPartCodes.push(
+        ...addVendorPartFormData.parts.map((p) => p.partCode)
+      );
+
+    try {
+      const resp = await fetch(
+        `${API_BASE}/api/kanban-master/qty-per-box?part_code=${encodeURIComponent(
+          partCode
+        )}`
+      );
+
+      if (!resp.ok) throw new Error("Failed to check Part Code.");
+      const json = await resp.json();
+
+      if (!json.success || !json.item) {
+        alert("Part code not found.");
+        return;
+      }
+
+      const item = json.item;
+
+      console.log("API Response with qty_per_box:", item);
+
+      const isDuplicate = existingPartCodes.some(
+        (code) => String(code) === String(item.part_code)
+      );
+      if (isDuplicate) {
+        alert("Part already inserted in this vendor");
+        return;
+      }
+
+      if (
+        activeVendorContext.vendorId &&
+        item.vendor_id &&
+        Number(item.vendor_id) !== Number(activeVendorContext.vendorId)
+      ) {
+        alert("Part code belongs to another vendor.");
+        return;
+      }
+
+      const availableDoNumbers =
+        activeVendorContext.doNumbers && activeVendorContext.doNumbers.length
+          ? activeVendorContext.doNumbers.filter((d) => String(d || "").trim())
+          : [];
+      if (!availableDoNumbers.length) {
+        alert(
+          "DO Number for this vendor is not available. Please add it first in Vendor Detail."
+        );
+        return;
+      }
+
+      let qtyPerBox = item.qty_per_box || 1;
+
+      if (qtyPerBox <= 0) {
+        qtyPerBox = 1;
+        console.warn(
+          `Invalid qty_per_box for part ${item.part_code}: ${item.qty_per_box}, using default 1`
+        );
+      }
+
+      console.log(`Part ${item.part_code}: qtyPerBox = ${qtyPerBox}`);
+
+      const qty = 0;
+      const qtyBox = Math.ceil(qty / qtyPerBox);
+
+      let partWeight = item.part_weight || 0;
+      if (item.weight_unit === "g") {
+        partWeight = partWeight / 1000;
+      } else if (item.weight_unit === "lbs") {
+        partWeight = partWeight * 0.453592;
+      } else if (item.weight_unit === "oz") {
+        partWeight = partWeight * 0.0283495;
+      }
+
+      console.log(`Part ${item.part_code}: weight = ${partWeight} kg`);
+
+      console.log(
+        `Adding part ${item.part_code}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}, weight=${partWeight} kg`
+      );
+
+      setAddVendorPartFormData((prev) => {
+        const newPart = {
+          id: Date.now(),
+          doNumber: availableDoNumbers[0],
+          partCode: item.part_code,
+          partName: item.part_name || "",
+          qty: qty,
+          qtyBox: qtyBox,
+          unit: item.unit || "PCS",
+          qtyPerBoxFromMaster: qtyPerBox,
+          placementId: item.placement_id,
+          partWeight: partWeight,
+          weightUnit: "kg",
+        };
+        return { ...prev, parts: [...(prev.parts || []), newPart] };
       });
-      return copy;
-    });
-    setSelectedHeaderIds((prev) => {
-      const next = new Set(prev);
-      next.delete(headerId);
-      return next;
+      setSelectedPartsInPopup([]);
+    } catch (err) {
+      console.error("Error adding part:", err);
+      alert(err.message || "Error occurred while checking Part Code.");
+    }
+  };
+
+  const handleAddVendorPartSubmit = async (e) => {
+    e.preventDefault();
+    if (!activeVendorContext) {
+      alert("Vendor context not found.");
+      return;
+    }
+    if (
+      addVendorPartFormData.parts.length > 0 &&
+      selectedPartsInPopup.length === 0
+    ) {
+      alert("Select part before insert");
+      return;
+    }
+    const { headerId, vendorIndex } = activeVendorContext;
+    autoExpandVendorOnPartAdd(headerId, vendorIndex);
+    const partsToInsert = addVendorPartFormData.parts.filter((part) =>
+      selectedPartsInPopup.includes(part.id)
+    );
+
+    setVendorDraftsByHeader((prev) => {
+      const vendors = [...(prev[headerId] || [])];
+      if (!vendors[vendorIndex]) return prev;
+      const existingParts = vendors[vendorIndex].parts || [];
+      const existingPartCodes = existingParts.map((p) => p.partCode);
+      const uniquePartsToInsert = partsToInsert.filter(
+        (part) => !existingPartCodes.includes(part.partCode)
+      );
+      vendors[vendorIndex] = {
+        ...vendors[vendorIndex],
+        parts: [...existingParts, ...uniquePartsToInsert],
+      };
+      return { ...prev, [headerId]: vendors };
     });
 
-    // Hapus juga perhitungan pallet untuk header ini
-    setPalletCalculations((prev) => {
-      const copy = { ...prev };
-      Object.keys(copy).forEach((key) => {
-        if (key.startsWith(`${headerId}_`)) delete copy[key];
-      });
-      return copy;
+    await recalculatePalletForVendor(headerId, vendorIndex);
+
+    setAddVendorPartDetail(false);
+    setActiveVendorContext(null);
+    setAddVendorPartFormData({
+      trip: "",
+      vendor: "",
+      doNumbers: [""],
+      arrivalTime: "",
+      parts: [],
     });
+    setSelectedPartsInPopup([]);
+  };
+
+  const calculateTotalPartsForHeader = (headerId) => {
+    const vendors = vendorDraftsByHeader[headerId] || [];
+    let totalParts = 0;
+    vendors.forEach((vendor) => {
+      if (vendor.parts && Array.isArray(vendor.parts))
+        totalParts += vendor.parts.length;
+    });
+    return totalParts;
+  };
+
+  // Calculate total parts for vendor
+  const calculateTotalPartsForVendor = (vendorData) => {
+    if (!vendorData || !vendorData.parts || !Array.isArray(vendorData.parts))
+      return 0;
+    return vendorData.parts.length;
+  };
+
+  const getPalletTooltipDetailsForHeader = (headerId) => {
+    const { totalLarge, totalSmall, total } =
+      calculateTotalPalletForHeader(headerId);
+
+    if (total === 0) return "0 pallet";
+
+    let details = `Total Pallet: ${total}`;
+    if (totalLarge > 0 || totalSmall > 0) {
+      details += ` (${totalLarge} large, ${totalSmall} small)`;
+    }
+    return details;
+  };
+
+  const calculateTotalPalletForHeader = (headerId) => {
+    const vendors = vendorDraftsByHeader[headerId] || [];
+    let totalLarge = 0;
+    let totalSmall = 0;
+    let total = 0;
+    let totalWeight = 0;
+
+    vendors.forEach((_, vendorIndex) => {
+      const palletKey = `${headerId}_${vendorIndex}`;
+      const calculation = palletCalculations[palletKey];
+      if (calculation) {
+        totalLarge += calculation.largePallets;
+        totalSmall += calculation.smallPallets;
+        total += calculation.totalPallets;
+        totalWeight += calculation.totalWeight || 0;
+      }
+    });
+
+    return { totalLarge, totalSmall, total, totalWeight };
+  };
+
+  async function handleSubmitVendors() {
+    await handleSubmitScheduleToDatabase();
+  }
+
+  // Fungsi untuk menghapus schedule dari database
+  const handleDeleteSchedule = async (scheduleId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this schedule? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/local-schedules/${scheduleId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete schedule");
+      }
+
+      alert("Schedule deleted successfully!");
+
+      // Refresh data
+    } catch (error) {
+      console.error("Error deleting schedule:", error);
+      alert(`Failed to delete schedule: ${error.message}`);
+    }
   };
 
   async function handleSubmitVendors() {
@@ -1349,6 +2101,8 @@ const AddLocalSchedulePage = () => {
         alert("Please add vendor details before input");
         return;
       }
+
+      // Validasi semua vendor harus memiliki parts
       for (const hdr of selected) {
         const vendors = vendorDraftsByHeader[hdr.id] || [];
         for (const vendor of vendors) {
@@ -1360,31 +2114,49 @@ const AddLocalSchedulePage = () => {
           }
         }
       }
+
+      console.log("=== START SUBMITTING ALL SCHEDULES ===");
+
       for (let i = 0; i < selected.length; i++) {
         const hdr = selected[i];
-        const body = {
+        console.log(`Processing schedule ${i + 1}/${selected.length}:`, hdr);
+
+        // 1. Create schedule header
+        const scheduleBody = {
           stockLevel: hdr.stockLevel,
           modelName: hdr.modelName,
           scheduleDate: hdr.scheduleDate,
           uploadByName: hdr.uploadByName,
         };
-        const resp = await fetch(`${API_BASE}/api/local-schedules`, {
+
+        console.log("Creating schedule header:", scheduleBody);
+
+        const scheduleResp = await fetch(`${API_BASE}/api/local-schedules`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify(scheduleBody),
         });
-        const data = await resp.json();
-        if (!resp.ok)
+
+        const scheduleData = await scheduleResp.json();
+        if (!scheduleResp.ok) {
+          console.error("Failed to create schedule:", scheduleData);
           throw new Error(
-            `Gagal membuat schedule: ${
-              data.message || "Failed to create schedule"
+            `Gagal membuat schedule: ${scheduleData.message || "Failed to create schedule"
             }`
           );
-        const scheduleId = data.schedule?.id;
-        if (!scheduleId) throw new Error(`Schedule ID tidak ditemukan`);
+        }
 
+        const scheduleId = scheduleData.schedule?.id;
+        if (!scheduleId) {
+          console.error("Schedule ID not found:", scheduleData);
+          throw new Error(`Schedule ID tidak ditemukan`);
+        }
+
+        console.log(`Schedule created with ID: ${scheduleId}`);
+
+        // 2. Create vendors
         const vendors = vendorDraftsByHeader[hdr.id] || [];
-        if (vendors.length) {
+        if (vendors.length > 0) {
           const vendorPayload = {
             items: vendors.map((vendor) => ({
               trip_id: vendor.trip_id,
@@ -1392,7 +2164,10 @@ const AddLocalSchedulePage = () => {
               do_numbers: vendor.do_numbers || [],
             })),
           };
-          const resp2 = await fetch(
+
+          console.log(`Creating ${vendors.length} vendors:`, vendorPayload);
+
+          const vendorsResp = await fetch(
             `${API_BASE}/api/local-schedules/${scheduleId}/vendors/bulk`,
             {
               method: "POST",
@@ -1400,17 +2175,23 @@ const AddLocalSchedulePage = () => {
               body: JSON.stringify(vendorPayload),
             }
           );
-          const data2 = await resp2.json();
-          if (!resp2.ok)
+
+          const vendorsData = await vendorsResp.json();
+          if (!vendorsResp.ok) {
+            console.error("Failed to create vendors:", vendorsData);
             throw new Error(
-              `Gagal menyimpan vendor: ${
-                data2.message || "Failed to submit vendors"
+              `Gagal menyimpan vendor: ${vendorsData.message || "Failed to submit vendors"
               }`
             );
+          }
 
+          console.log(`Vendors created successfully:`, vendorsData);
+
+          // 3. Create parts for each vendor
           for (let j = 0; j < vendors.length; j++) {
             const vendor = vendors[j];
-            const vendorId = data2.vendors[j]?.id;
+            const vendorId = vendorsData.vendors[j]?.id;
+
             if (vendorId && vendor.parts && vendor.parts.length > 0) {
               const partsData = vendor.parts.map((part) => ({
                 part_code: part.partCode,
@@ -1420,7 +2201,13 @@ const AddLocalSchedulePage = () => {
                 unit: part.unit || "PCS",
                 do_number: part.doNumber || "",
               }));
-              const resp3 = await fetch(
+
+              console.log(
+                `Creating ${partsData.length} parts for vendor ${vendorId}:`,
+                partsData
+              );
+
+              const partsResp = await fetch(
                 `${API_BASE}/api/local-schedules/${vendorId}/parts/bulk`,
                 {
                   method: "POST",
@@ -1428,30 +2215,41 @@ const AddLocalSchedulePage = () => {
                   body: JSON.stringify({ items: partsData }),
                 }
               );
-              const data3 = await resp3.json();
-              if (!resp3.ok)
+
+              const partsResult = await partsResp.json();
+              if (!partsResp.ok) {
+                console.error("Failed to create parts:", partsResult);
                 throw new Error(
-                  `Gagal menyimpan parts: ${
-                    data3.message || "Failed to submit parts"
+                  `Gagal menyimpan parts untuk vendor ${vendorId}: ${partsResult.message || "Failed to submit parts"
                   }`
                 );
+              }
+
+              console.log(`Parts created for vendor ${vendorId}:`, partsResult);
             }
           }
         }
       }
 
+      console.log("=== ALL SCHEDULES SUBMITTED SUCCESSFULLY ===");
+
       alert("Semua schedule, vendor details, dan parts berhasil disimpan.");
+
+      // Clear local drafts
       const nextHeaders = headerDrafts.filter(
         (h) => !selectedHeaderIds.has(h.id)
       );
       setHeaderDrafts(nextHeaders);
+
       const nextVendors = { ...vendorDraftsByHeader };
       selectedHeaderIds.forEach((id) => {
         delete nextVendors[id];
       });
       setVendorDraftsByHeader(nextVendors);
+
       setSelectedHeaderIds(new Set());
       setSelectAll(false);
+
       setExpandedRows((prev) => {
         const next = { ...prev };
         selectedHeaderIds.forEach((id) => {
@@ -1459,6 +2257,7 @@ const AddLocalSchedulePage = () => {
         });
         return next;
       });
+
       setExpandedVendorRows((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((key) => {
@@ -1469,7 +2268,6 @@ const AddLocalSchedulePage = () => {
         return next;
       });
 
-      // Hapus perhitungan pallet untuk header yang sudah disubmit
       setPalletCalculations((prev) => {
         const next = { ...prev };
         selectedHeaderIds.forEach((id) => {
@@ -1480,9 +2278,11 @@ const AddLocalSchedulePage = () => {
         return next;
       });
 
+      // Navigate ke halaman utama
       navigate("/local-schedule");
-    } catch (e) {
-      alert("Error: " + e.message);
+    } catch (error) {
+      console.error("Error in handleSubmitVendors:", error);
+      alert("Error: " + error.message);
     }
   }
 
@@ -1550,7 +2350,7 @@ const AddLocalSchedulePage = () => {
   };
 
   useEffect(() => {
-    const syncLoadingState = () => {};
+    const syncLoadingState = () => { };
 
     syncLoadingState();
   }, [loadingParts]);
@@ -1576,59 +2376,6 @@ const AddLocalSchedulePage = () => {
       setLoadingParts({});
     };
   }, []);
-
-  const handleDeleteVendor = (headerId, vendorIndex) => {
-    setVendorDraftsByHeader((prev) => {
-      const vendors = [...(prev[headerId] || [])];
-      vendors.splice(vendorIndex, 1);
-      return { ...prev, [headerId]: vendors };
-    });
-    const vendorRowId = `${headerId}_vendor_${vendorIndex + 1}`;
-    setExpandedVendorRows((prev) => {
-      const next = { ...prev };
-      delete next[vendorRowId];
-      return next;
-    });
-
-    // Hapus perhitungan pallet untuk vendor ini
-    setPalletCalculations((prev) => {
-      const next = { ...prev };
-      delete next[`${headerId}_${vendorIndex}`];
-      return next;
-    });
-  };
-
-  const handleDeletePart = (headerId, vendorIndex, partId) => {
-    setVendorDraftsByHeader((prev) => {
-      const vendors = [...(prev[headerId] || [])];
-      if (!vendors[vendorIndex]) return prev;
-      vendors[vendorIndex] = {
-        ...vendors[vendorIndex],
-        parts: (vendors[vendorIndex].parts || []).filter(
-          (p) => p.id !== partId
-        ),
-      };
-      return { ...prev, [headerId]: vendors };
-    });
-
-    recalculatePalletForVendor(headerId, vendorIndex);
-  };
-
-  const toggleRowExpansion = (rowId) => {
-    setExpandedRows((prev) => {
-      const newExpandedRows = { ...prev, [rowId]: !prev[rowId] };
-      if (prev[rowId]) {
-        setExpandedVendorRows((prevVendor) => {
-          const newVendorRows = { ...prevVendor };
-          Object.keys(newVendorRows).forEach((key) => {
-            if (key.startsWith(`${rowId}_vendor_`)) delete newVendorRows[key];
-          });
-          return newVendorRows;
-        });
-      }
-      return newExpandedRows;
-    });
-  };
 
   const toggleHeaderCheckbox = (headerId, checked) => {
     setSelectedHeaderIds((prev) => {
@@ -1660,65 +2407,6 @@ const AddLocalSchedulePage = () => {
     else setSelectAll(false);
   }, [selectedHeaderIds, headerDrafts]);
 
-  const toggleVendorRowExpansion = (vendorRowId) => {
-    setExpandedVendorRows((prev) => ({
-      ...prev,
-      [vendorRowId]: !prev[vendorRowId],
-    }));
-  };
-
-  const openVendorPartDetailPopup = (
-    headerId,
-    vendorIndex,
-    vendorData,
-    vendorLabel
-  ) => {
-    autoExpandVendorOnPartAdd(headerId, vendorIndex);
-    const existingPartsInVendor = vendorData.parts || [];
-    const existingPartCodes = existingPartsInVendor.map((p) => p.partCode);
-
-    setActiveVendorContext({
-      headerId,
-      vendorIndex,
-      vendorId: vendorData.vendor_id,
-      vendorLabel,
-      doNumbers: vendorData.do_numbers || [],
-    });
-    const currentPartsInForm = vendorData.parts ? [...vendorData.parts] : [];
-    const filteredParts = currentPartsInForm.filter(
-      (part) => !existingPartCodes.includes(part.partCode)
-    );
-
-    setAddVendorPartFormData({
-      trip: "",
-      vendor: vendorLabel,
-      doNumbers:
-        vendorData.do_numbers && vendorData.do_numbers.length
-          ? [...vendorData.do_numbers]
-          : [""],
-      arrivalTime: "",
-      parts: filteredParts,
-    });
-    setSelectedPartsInPopup([]);
-    setAddVendorPartDetail(true);
-  };
-
-  const calculateTotalPartsForHeader = (headerId) => {
-    const vendors = vendorDraftsByHeader[headerId] || [];
-    let totalParts = 0;
-    vendors.forEach((vendor) => {
-      if (vendor.parts && Array.isArray(vendor.parts))
-        totalParts += vendor.parts.length;
-    });
-    return totalParts;
-  };
-
-  const calculateTotalPartsForVendor = (vendorData) => {
-    if (!vendorData || !vendorData.parts || !Array.isArray(vendorData.parts))
-      return 0;
-    return vendorData.parts.length;
-  };
-
   const handleDoNumberChange = (index, value) => {
     const updatedDoNumbers = [...addVendorFormData.doNumbers];
     updatedDoNumbers[index] = value;
@@ -1741,125 +2429,6 @@ const AddLocalSchedulePage = () => {
         ...prev,
         doNumbers: updatedDoNumbers,
       }));
-    }
-  };
-
-  const handleAddPart = async (rawPartCode) => {
-    const partCode = String(rawPartCode || "").trim();
-    if (!partCode) return;
-    if (!activeVendorContext) {
-      alert("Vendor context tidak ditemukan. Buka popup dari baris vendor.");
-      return;
-    }
-
-    const existingPartCodes = [];
-    const { headerId, vendorIndex } = activeVendorContext;
-    const vendorData = vendorDraftsByHeader[headerId]?.[vendorIndex];
-    if (vendorData?.parts)
-      existingPartCodes.push(...vendorData.parts.map((p) => p.partCode));
-    if (addVendorPartFormData.parts)
-      existingPartCodes.push(
-        ...addVendorPartFormData.parts.map((p) => p.partCode)
-      );
-
-    try {
-      const resp = await fetch(
-        `${API_BASE}/api/kanban-master/qty-per-box?part_code=${encodeURIComponent(
-          partCode
-        )}`
-      );
-
-      if (!resp.ok) throw new Error("Gagal cek Part Code ke server.");
-      const json = await resp.json();
-
-      if (!json.success || !json.item) {
-        alert("Part code not found atau tidak memiliki qty_per_box.");
-        return;
-      }
-
-      const item = json.item;
-
-      console.log("API Response with qty_per_box:", item);
-
-      const isDuplicate = existingPartCodes.some(
-        (code) => String(code) === String(item.part_code)
-      );
-      if (isDuplicate) {
-        alert("Part already insert in this vendor");
-        return;
-      }
-
-      if (
-        activeVendorContext.vendorId &&
-        item.vendor_id &&
-        Number(item.vendor_id) !== Number(activeVendorContext.vendorId)
-      ) {
-        alert("Part code in another vendor.");
-        return;
-      }
-
-      const availableDoNumbers =
-        activeVendorContext.doNumbers && activeVendorContext.doNumbers.length
-          ? activeVendorContext.doNumbers.filter((d) => String(d || "").trim())
-          : [];
-      if (!availableDoNumbers.length) {
-        alert(
-          "DO Number untuk vendor ini belum ada. Tambahkan dulu di Vendor Detail."
-        );
-        return;
-      }
-
-      let qtyPerBox = item.qty_per_box || 1;
-
-      if (qtyPerBox <= 0) {
-        qtyPerBox = 1;
-        console.warn(
-          `Invalid qty_per_box for part ${item.part_code}: ${item.qty_per_box}, using default 1`
-        );
-      }
-
-      console.log(`Part ${item.part_code}: qtyPerBox = ${qtyPerBox}`);
-
-      const qty = 0;
-      const qtyBox = Math.ceil(qty / qtyPerBox);
-
-      // Ambil berat part
-      let partWeight = item.part_weight || 0;
-      // Konversi ke kg jika perlu
-      if (item.weight_unit === "g") {
-        partWeight = partWeight / 1000;
-      } else if (item.weight_unit === "lbs") {
-        partWeight = partWeight * 0.453592;
-      } else if (item.weight_unit === "oz") {
-        partWeight = partWeight * 0.0283495;
-      }
-
-      console.log(`Part ${item.part_code}: weight = ${partWeight} kg`);
-
-      console.log(
-        `Adding part ${item.part_code}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}, weight=${partWeight} kg`
-      );
-
-      setAddVendorPartFormData((prev) => {
-        const newPart = {
-          id: Date.now(),
-          doNumber: availableDoNumbers[0],
-          partCode: item.part_code,
-          partName: item.part_name || "",
-          qty: qty,
-          qtyBox: qtyBox,
-          unit: item.unit || "PCS",
-          qtyPerBoxFromMaster: qtyPerBox,
-          placementId: item.placement_id,
-          partWeight: partWeight, // Simpan berat
-          weightUnit: "kg", // Selalu simpan dalam kg
-        };
-        return { ...prev, parts: [...(prev.parts || []), newPart] };
-      });
-      setSelectedPartsInPopup([]);
-    } catch (err) {
-      console.error("Error adding part:", err);
-      alert(err.message || "Terjadi kesalahan saat cek Part Code.");
     }
   };
 
@@ -1954,58 +2523,9 @@ const AddLocalSchedulePage = () => {
     recalculatePalletForVendor(headerId, vendorIndex);
   };
 
-  const handleAddVendorPartSubmit = async (e) => {
-    e.preventDefault();
-    if (!activeVendorContext) {
-      alert("Vendor context tidak ditemukan.");
-      return;
-    }
-    if (
-      addVendorPartFormData.parts.length > 0 &&
-      selectedPartsInPopup.length === 0
-    ) {
-      alert("Select part before insert");
-      return;
-    }
-    const { headerId, vendorIndex } = activeVendorContext;
-    autoExpandVendorOnPartAdd(headerId, vendorIndex);
-    const partsToInsert = addVendorPartFormData.parts.filter((part) =>
-      selectedPartsInPopup.includes(part.id)
-    );
-
-    setVendorDraftsByHeader((prev) => {
-      const vendors = [...(prev[headerId] || [])];
-      if (!vendors[vendorIndex]) return prev;
-      const existingParts = vendors[vendorIndex].parts || [];
-      const existingPartCodes = existingParts.map((p) => p.partCode);
-      const uniquePartsToInsert = partsToInsert.filter(
-        (part) => !existingPartCodes.includes(part.partCode)
-      );
-      vendors[vendorIndex] = {
-        ...vendors[vendorIndex],
-        parts: [...existingParts, ...uniquePartsToInsert],
-      };
-      return { ...prev, [headerId]: vendors };
-    });
-    // Recalculate pallet setelah menambahkan parts
-    await recalculatePalletForVendor(headerId, vendorIndex);
-
-    setAddVendorPartDetail(false);
-    setActiveVendorContext(null);
-    setAddVendorPartFormData({
-      trip: "",
-      vendor: "",
-      doNumbers: [""],
-      arrivalTime: "",
-      parts: [],
-    });
-    setSelectedPartsInPopup([]);
-  };
-
   useEffect(() => {
-    // Hitung ulang pallet setiap kali vendorDraftsByHeader berubah
     const calculateAllPallets = async () => {
-      console.log("=== CALCULATING ALL PALLETS ===");
+      console.log("=== CALCULATING ALL PALLETS WITH OPTIMIZATION ===");
 
       for (const header of headerDrafts) {
         const vendors = vendorDraftsByHeader[header.id] || [];
@@ -2038,12 +2558,10 @@ const AddLocalSchedulePage = () => {
     const target = e.target;
     let content = "";
 
-    // Check for data-tooltip attribute first
     if (target.dataset.tooltip) content = target.dataset.tooltip;
     else if (target.closest("[data-tooltip]"))
       content = target.closest("[data-tooltip]").dataset.tooltip;
     else if (target.title) content = target.title;
-    // Check for pallet cell
     else if (
       target.tagName === "TD" &&
       target.textContent.trim().match(/^\d+$/)
@@ -2051,12 +2569,10 @@ const AddLocalSchedulePage = () => {
       const cell = target;
       const row = cell.closest("tr");
 
-      // Try to get pallet information
       if (row) {
         const cells = Array.from(row.querySelectorAll("td"));
         const cellIndex = cells.indexOf(cell);
 
-        // Check if this is the pallet column (usually column 7 or 8)
         if (cellIndex >= 0) {
           const table = row.closest("table");
           if (table) {
@@ -2066,7 +2582,6 @@ const AddLocalSchedulePage = () => {
                 .trim()
                 .toLowerCase();
               if (headerText.includes("pallet")) {
-                // This is a pallet cell
                 if (cell.title) {
                   content = cell.title;
                 } else {
@@ -2077,10 +2592,7 @@ const AddLocalSchedulePage = () => {
           }
         }
       }
-    }
-
-    // Check for buttons
-    else if (target.tagName === "BUTTON" || target.closest("button")) {
+    } else if (target.tagName === "BUTTON" || target.closest("button")) {
       const button =
         target.tagName === "BUTTON" ? target : target.closest("button");
 
@@ -2104,22 +2616,15 @@ const AddLocalSchedulePage = () => {
       }
 
       if (!content && button.title) content = button.title;
-    }
-
-    // Check for checkboxes
-    else if (target.type === "checkbox") {
+    } else if (target.type === "checkbox") {
       content = "Select this row";
-    }
-
-    // Default for table cells
-    else if (
+    } else if (
       (target.tagName === "TD" || target.tagName === "TH") &&
       target.textContent.trim()
     ) {
       content = target.textContent.trim();
     }
 
-    // Fallback
     if (!content) content = "Information";
 
     const rect = target.getBoundingClientRect();
@@ -3228,12 +3733,12 @@ const AddLocalSchedulePage = () => {
                         <tr
                           key={`hdr-${hdr.id}`}
                           onMouseEnter={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "#c7cde8")
+                          (e.target.closest("tr").style.backgroundColor =
+                            "#c7cde8")
                           }
                           onMouseLeave={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "transparent")
+                          (e.target.closest("tr").style.backgroundColor =
+                            "transparent")
                           }
                         >
                           <td
@@ -3341,8 +3846,7 @@ const AddLocalSchedulePage = () => {
 
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={hdr.uploadByName}
                           >
                             {(() => {
                               try {
@@ -3368,18 +3872,14 @@ const AddLocalSchedulePage = () => {
                                 autoExpandHeaderOnVendorAdd(hdr.id);
                                 setAddVendorDetail(true);
                               }}
-                              onMouseEnter={showTooltip}
-                              onMouseLeave={hideTooltip}
-                              data-tooltip="Add Vendor"
+                              title="Add Vendor"
                             >
                               <Plus size={10} />
                             </button>
                             <button
                               style={styles.deleteButton}
                               onClick={() => handleDeleteHeader(hdr.id)}
-                              onMouseEnter={showTooltip}
-                              onMouseLeave={hideTooltip}
-                              data-tooltip="Delete"
+                              title="Delete"
                             >
                               <Trash2 size={10} />
                             </button>
@@ -3448,23 +3948,22 @@ const AddLocalSchedulePage = () => {
                                         vd.do_numbers || []
                                       ).join(" | ");
                                       const arrival = trip?.arv_to || "-";
-                                      const vendorRowId = `${hdr.id}_vendor_${
-                                        idx + 1
-                                      }`;
+                                      const vendorRowId = `${hdr.id}_vendor_${idx + 1
+                                        }`;
 
                                       const vendorRow = (
                                         <tr
                                           key={`${vendorRowId}-row`}
                                           onMouseEnter={(e) =>
-                                            (e.target.closest(
-                                              "tr"
-                                            ).style.backgroundColor = "#c7cde8")
+                                          (e.target.closest(
+                                            "tr"
+                                          ).style.backgroundColor = "#c7cde8")
                                           }
                                           onMouseLeave={(e) =>
-                                            (e.target.closest(
-                                              "tr"
-                                            ).style.backgroundColor =
-                                              "transparent")
+                                          (e.target.closest(
+                                            "tr"
+                                          ).style.backgroundColor =
+                                            "transparent")
                                           }
                                         >
                                           <td
@@ -3688,24 +4187,23 @@ const AddLocalSchedulePage = () => {
                                                 </thead>
                                                 <tbody>
                                                   {Array.isArray(vd.parts) &&
-                                                  vd.parts.length > 0 ? (
+                                                    vd.parts.length > 0 ? (
                                                     vd.parts.map(
                                                       (part, pIndex) => (
                                                         <tr
-                                                          key={`${vendorRowId}-part-${
-                                                            part.id || pIndex
-                                                          }`}
+                                                          key={`${vendorRowId}-part-${part.id || pIndex
+                                                            }`}
                                                           onMouseEnter={(e) =>
-                                                            (e.target.closest(
-                                                              "tr"
-                                                            ).style.backgroundColor =
-                                                              "#c7cde8")
+                                                          (e.target.closest(
+                                                            "tr"
+                                                          ).style.backgroundColor =
+                                                            "#c7cde8")
                                                           }
                                                           onMouseLeave={(e) =>
-                                                            (e.target.closest(
-                                                              "tr"
-                                                            ).style.backgroundColor =
-                                                              "transparent")
+                                                          (e.target.closest(
+                                                            "tr"
+                                                          ).style.backgroundColor =
+                                                            "transparent")
                                                           }
                                                         >
                                                           <td
@@ -3740,10 +4238,9 @@ const AddLocalSchedulePage = () => {
                                                             onMouseLeave={
                                                               hideTooltip
                                                             }
-                                                            title={`Part Name: ${
-                                                              part.partName ||
+                                                            title={`Part Name: ${part.partName ||
                                                               "—"
-                                                            }`}
+                                                              }`}
                                                           >
                                                             {part.partName ||
                                                               "—"}
@@ -3757,11 +4254,11 @@ const AddLocalSchedulePage = () => {
                                                               const isEditing =
                                                                 editingExpandedPart.showInput &&
                                                                 editingExpandedPart.headerId ===
-                                                                  hdr.id &&
+                                                                hdr.id &&
                                                                 editingExpandedPart.vendorIndex ===
-                                                                  idx &&
+                                                                idx &&
                                                                 editingExpandedPart.partIndex ===
-                                                                  pIndex;
+                                                                pIndex;
 
                                                               if (isEditing) {
                                                                 return (
@@ -3864,9 +4361,8 @@ const AddLocalSchedulePage = () => {
                                                             onMouseLeave={
                                                               hideTooltip
                                                             }
-                                                            title={`Quantity Box: ${
-                                                              part.qtyBox ?? 0
-                                                            }`}
+                                                            title={`Quantity Box: ${part.qtyBox ?? 0
+                                                              }`}
                                                           >
                                                             {part.qtyBox ?? 0}
                                                           </td>
@@ -3880,9 +4376,8 @@ const AddLocalSchedulePage = () => {
                                                             onMouseLeave={
                                                               hideTooltip
                                                             }
-                                                            title={`Unit: ${
-                                                              part.unit || "PCS"
-                                                            }`}
+                                                            title={`Unit: ${part.unit || "PCS"
+                                                              }`}
                                                           >
                                                             {part.unit || "PCS"}
                                                           </td>
@@ -3913,7 +4408,7 @@ const AddLocalSchedulePage = () => {
                                                               title="Edit quantity"
                                                               disabled={
                                                                 loadingParts[
-                                                                  part.id
+                                                                part.id
                                                                 ]
                                                               }
                                                             >
@@ -3954,7 +4449,7 @@ const AddLocalSchedulePage = () => {
                                                               title="Delete part"
                                                               disabled={
                                                                 loadingParts[
-                                                                  part.id
+                                                                part.id
                                                                 ]
                                                               }
                                                             >
@@ -4015,11 +4510,22 @@ const AddLocalSchedulePage = () => {
                 style={{
                   ...styles.button,
                   ...styles.primaryButton,
+                  opacity: isSubmitting ? 0.7 : 1,
+                  cursor: isSubmitting ? "not-allowed" : "pointer",
                 }}
-                onClick={handleSubmitVendors}
+                onClick={handleSubmitScheduleToDatabase}
+                disabled={isSubmitting}
               >
-                <Save size={16} />
-                Input Schedule
+                {isSubmitting ? (
+                  <>
+                    <span style={{ fontSize: "12px" }}>Submitting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Input Schedule
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -4033,8 +4539,13 @@ const AddLocalSchedulePage = () => {
               <h3 style={vendorDetailStyles.popupTitle}>Add Vendor Detail</h3>
               <button
                 onClick={() => {
+                  setAddVendorFormData({
+                    trip: "",
+                    vendor: "",
+                    doNumbers: [""],
+                    arrivalTime: "",
+                  });
                   setAddVendorDetail(false);
-                  setActiveHeaderIdForVendorForm(null);
                 }}
                 style={vendorDetailStyles.closeButton}
               >
@@ -4147,8 +4658,13 @@ const AddLocalSchedulePage = () => {
                 <button
                   type="button"
                   onClick={() => {
+                    setAddVendorFormData({
+                      trip: "",
+                      vendor: "",
+                      doNumbers: [""],
+                      arrivalTime: "",
+                    });
                     setAddVendorDetail(false);
-                    setActiveHeaderIdForVendorForm(null);
                   }}
                   style={vendorDetailStyles.cancelButton}
                 >
@@ -4261,7 +4777,7 @@ const AddLocalSchedulePage = () => {
                                 checked={
                                   addVendorPartFormData.parts.length > 0 &&
                                   selectedPartsInPopup.length ===
-                                    addVendorPartFormData.parts.length
+                                  addVendorPartFormData.parts.length
                                 }
                                 style={{
                                   cursor: "pointer",
@@ -4288,12 +4804,12 @@ const AddLocalSchedulePage = () => {
                             <tr
                               key={part.id || index}
                               onMouseEnter={(e) =>
-                                (e.target.closest("tr").style.backgroundColor =
-                                  "#c7cde8")
+                              (e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8")
                               }
                               onMouseLeave={(e) =>
-                                (e.target.closest("tr").style.backgroundColor =
-                                  "transparent")
+                              (e.target.closest("tr").style.backgroundColor =
+                                "transparent")
                               }
                             >
                               <td style={vendorPartStyles.tdNumber}>
@@ -4340,13 +4856,31 @@ const AddLocalSchedulePage = () => {
                               <td style={vendorPartStyles.td}>
                                 <input
                                   type="number"
-                                  value={part.qty || 0}
-                                  onChange={(e) =>
-                                    handlePopupPartQtyChange(
-                                      part.id,
-                                      e.target.value
-                                    )
-                                  }
+                                  value={part.qty || ""}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (
+                                      value.includes("e") ||
+                                      value.includes("E")
+                                    ) {
+                                      // Hapus karakter 'e' atau 'E'
+                                      const cleanValue = value.replace(
+                                        /[eE]/g,
+                                        ""
+                                      );
+                                      handlePopupPartQtyChange(
+                                        part.id,
+                                        cleanValue
+                                      );
+                                    } else {
+                                      handlePopupPartQtyChange(part.id, value);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (["e", "E", "+"].includes(e.key)) {
+                                      e.preventDefault();
+                                    }
+                                  }}
                                   style={{
                                     width: "60px",
                                     padding: "2px",
@@ -4355,13 +4889,13 @@ const AddLocalSchedulePage = () => {
                                     border: "1px solid #d1d5db",
                                     borderRadius: "3px",
                                   }}
-                                  min="0"
+                                  placeholder="0"
                                 />
                               </td>
 
                               <td style={vendorPartStyles.td}>
                                 <div>
-                                  <div>{part.qtyBox || 0}</div>
+                                  <div>{part.qtyBox || ""}</div>
                                   {part.qtyPerBoxFromMaster &&
                                     part.qtyPerBoxFromMaster > 0 && (
                                       <div

@@ -3,14 +3,25 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, Link } from "react-router-dom";
 
-const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => {
-  const [expandedItems, setExpandedItems] = useState([]); 
+const Sidebar = ({
+  isVisible,
+  onToggle,
+  currentApplication = "production",
+}) => {
+  const [expandedItems, setExpandedItems] = useState([]);
   const [subMenuHeights, setSubMenuHeights] = useState({});
   const [prevPathname, setPrevPathname] = useState("");
   const location = useLocation();
 
   const PackageIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M16.5 9.4 7.55 4.24" />
       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
       <polyline points="3.29,7 12,12 20.71,7" />
@@ -18,13 +29,29 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
     </svg>
   );
   const FactoryIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-      <path d="M17 18h1" /><path d="M12 18h1" /><path d="M7 18h1" />
+      <path d="M17 18h1" />
+      <path d="M12 18h1" />
+      <path d="M7 18h1" />
     </svg>
   );
   const CalculatorIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <rect x="4" y="2" width="16" height="20" rx="2" />
       <line x1="8" y1="6" x2="16" y2="6" />
       <line x1="16" y1="10" x2="8" y2="10" />
@@ -35,13 +62,27 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
     </svg>
   );
   const ShieldIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
       <path d="m9 12 2 2 4-4" />
     </svg>
   );
   const FileTextIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
       <polyline points="14,2 14,8 20,8" />
       <line x1="16" y1="13" x2="8" y2="13" />
@@ -50,29 +91,56 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
     </svg>
   );
   const BarChartIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <line x1="12" y1="20" x2="12" y2="10" />
       <line x1="18" y1="20" x2="18" y2="4" />
       <line x1="6" y1="20" x2="6" y2="16" />
     </svg>
   );
   const ChevronRightIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <polyline points="9,18 15,12 9,6" />
     </svg>
   );
   const ChevronDownIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <polyline points="6,9 12,15 18,9" />
     </svg>
   );
   const XIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   );
-
 
   const getMenuItemsByApplication = (app) => {
     const baseItems = {
@@ -84,15 +152,29 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
             location.pathname.startsWith("/target-schedule") ||
             location.pathname.startsWith("/production-monitoring"),
           subItems: [
-            { title: "Target Schedule", href: "/target-schedule", icon: PackageIcon },
-            { title: "Production Monitoring", href: "/production-monitoring", icon: PackageIcon },
+            {
+              title: "Target Schedule",
+              href: "/target-schedule",
+              icon: PackageIcon,
+            },
+            {
+              title: "Production Monitoring",
+              href: "/production-monitoring",
+              icon: PackageIcon,
+            },
           ],
         },
         {
           title: "Local Vendor",
           icon: PackageIcon,
-          isActive: location.pathname.startsWith("/received-local"),
-          subItems: [{ title: "Local Schedule", href: "/received-local", icon: PackageIcon }],
+          isActive: location.pathname.startsWith("/mh-local-schedule"),
+          subItems: [
+            {
+              title: "Local Schedule",
+              href: "/mh-local-schedule",
+              icon: PackageIcon,
+            },
+          ],
         },
         {
           title: "Request Part",
@@ -101,21 +183,37 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
             location.pathname.startsWith("/part-enquiry-id") ||
             location.pathname.startsWith("/part-enquiry-non-id"),
           subItems: [
-            { title: "Part Enquiry ID", href: "/part-enquiry-id", icon: PackageIcon },
-            { title: "Part Enquiry Non- ID", href: "/part-enquiry-non-id", icon: PackageIcon },
+            {
+              title: "Part Enquiry ID",
+              href: "/part-enquiry-id",
+              icon: PackageIcon,
+            },
+            {
+              title: "Part Enquiry Non- ID",
+              href: "/part-enquiry-non-id",
+              icon: PackageIcon,
+            },
           ],
         },
         {
           title: "Part Receiving",
           icon: PackageIcon,
           isActive: location.pathname.startsWith("/part-receive"),
-          subItems: [{ title: "Receive Picking List", href: "/part-receive", icon: PackageIcon }],
+          subItems: [
+            {
+              title: "Receive Picking List",
+              href: "/part-receive",
+              icon: PackageIcon,
+            },
+          ],
         },
         {
           title: "Quality Control",
           icon: PackageIcon,
           isActive: location.pathname.startsWith("/return-parts"),
-          subItems: [{ title: "Return Parts", href: "/return-parts", icon: PackageIcon }],
+          subItems: [
+            { title: "Return Parts", href: "/return-parts", icon: PackageIcon },
+          ],
         },
       ],
 
@@ -130,46 +228,109 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
             location.pathname.startsWith("/vendor-placement") ||
             location.pathname.startsWith("/annex-receive"),
 
-            
           subItems: [
-            { title: "Local Schedule", href: "/local-schedule", icon: PackageIcon },
+            {
+              title: "Local Schedule",
+              href: "/local-schedule",
+              icon: PackageIcon,
+            },
             { title: "Part Details", href: "/part-details", icon: PackageIcon },
-            { title: "Vendor Details", href: "/vendor-details", icon: PackageIcon },
-            { title: "Vendor Placement", href: "/vendor-placement", icon: PackageIcon },
-            { title: "Receive Request", href: "/annex-receive", icon: PackageIcon },
+            {
+              title: "Vendor Details",
+              href: "/vendor-details",
+              icon: PackageIcon,
+            },
+            {
+              title: "Vendor Placement",
+              href: "/vendor-placement",
+              icon: PackageIcon,
+            },
+            {
+              title: "Receive Request",
+              href: "/annex-receive",
+              icon: PackageIcon,
+            },
           ],
         },
       ],
 
       quality: [
+        // {
+        //   title: "Quality Control",
+        //   icon: ShieldIcon,
+        //   isActive: location.pathname.startsWith("/quality"),
+        //   subItems: [
+        //     {
+        //       title: "Incoming Inspection",
+        //       href: "/quality/incoming",
+        //       icon: ShieldIcon,
+        //     },
+        //     {
+        //       title: "In-Process Inspection",
+        //       href: "/quality/in-process",
+        //       icon: ShieldIcon,
+        //     },
+        //     {
+        //       title: "Final Inspection",
+        //       href: "/quality/final",
+        //       icon: ShieldIcon,
+        //     },
+        //   ],
+        // },
         {
-          title: "Quality Control",
-          icon: ShieldIcon,
-          isActive: location.pathname.startsWith("/quality"),
-          subItems: [
-            { title: "Incoming Inspection", href: "/quality/incoming", icon: ShieldIcon },
-            { title: "In-Process Inspection", href: "/quality/in-process", icon: ShieldIcon },
-            { title: "Final Inspection", href: "/quality/final", icon: ShieldIcon },
-          ],
+          title: "Local Schedule",
+          icon: PackageIcon,
+          isActive: 
+            location.pathname.startsWith("/qc-local-schedule") ||
+            location.pathname.startsWith("/qc-part"), 
+            
+            subItems: [
+              {
+                title: "Local Schedule",
+                href: "/qc-local-schedule",
+                icon: PackageIcon,
+              },
+               {
+                title: "Quality Parts",
+                href: "/qc-part",
+                icon: PackageIcon,
+              },
+            ],
         },
-        {
-          title: "Quality Reports",
-          icon: FileTextIcon,
-          isActive: location.pathname.startsWith("/quality-reports"),
-          subItems: [
-            { title: "Defect Analysis", href: "/quality-reports/defects", icon: BarChartIcon },
-            { title: "Quality Metrics", href: "/quality-reports/metrics", icon: BarChartIcon },
-          ],
-        },
-        {
-          title: "Request Enquiry",
-          icon: ShieldIcon,
-          isActive: location.pathname.startsWith("/request-enquiry"),
-          subItems: [
-            { title: "Receive", href: "/request-enquiry/receive", icon: PackageIcon },
-            { title: "Receive IQC", href: "/request-enquiry/receive-iqc", icon: PackageIcon },
-          ],
-        },
+        // {
+        //   title: "Quality Reports",
+        //   icon: FileTextIcon,
+        //   isActive: location.pathname.startsWith("/quality-reports"),
+        //   subItems: [
+        //     {
+        //       title: "Defect Analysis",
+        //       href: "/quality-reports/defects",
+        //       icon: BarChartIcon,
+        //     },
+        //     {
+        //       title: "Quality Metrics",
+        //       href: "/quality-reports/metrics",
+        //       icon: BarChartIcon,
+        //     },
+        //   ],
+        // },
+        // {
+        //   title: "Request Enquiry",
+        //   icon: ShieldIcon,
+        //   isActive: location.pathname.startsWith("/request-enquiry"),
+        //   subItems: [
+        //     {
+        //       title: "Receive",
+        //       href: "/request-enquiry/receive",
+        //       icon: PackageIcon,
+        //     },
+        //     {
+        //       title: "Receive IQC",
+        //       href: "/request-enquiry/receive-iqc",
+        //       icon: PackageIcon,
+        //     },
+        //   ],
+        // },
       ],
 
       system: [
@@ -189,8 +350,16 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
           icon: FileTextIcon,
           isActive: location.pathname.startsWith("/system-config"),
           subItems: [
-            { title: "General Settings", href: "/system-config/general", icon: BarChartIcon },
-            { title: "Access Control", href: "/system-config/access", icon: BarChartIcon },
+            {
+              title: "General Settings",
+              href: "/system-config/general",
+              icon: BarChartIcon,
+            },
+            {
+              title: "Access Control",
+              href: "/system-config/access",
+              icon: BarChartIcon,
+            },
           ],
         },
         {
@@ -198,8 +367,16 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
           icon: CalculatorIcon,
           isActive: location.pathname.startsWith("/system-reports"),
           subItems: [
-            { title: "Audit Log", href: "/system-reports/audit", icon: FileTextIcon },
-            { title: "System Health", href: "/system-reports/health", icon: BarChartIcon },
+            {
+              title: "Audit Log",
+              href: "/system-reports/audit",
+              icon: FileTextIcon,
+            },
+            {
+              title: "System Health",
+              href: "/system-reports/health",
+              icon: BarChartIcon,
+            },
           ],
         },
       ],
@@ -230,14 +407,20 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
   useEffect(() => {
     // Auto expand parent menu of current route (single-open)
     const currentParentMenu = menuItems.find(
-      (item) => item.subItems && item.subItems.some((sub) => sub.href === location.pathname)
+      (item) =>
+        item.subItems &&
+        item.subItems.some((sub) => sub.href === location.pathname)
     );
 
     // Special case: expand Production when on /target-schedule/add
     if (location.pathname === "/target-schedule/add") {
-      const productionMenu = menuItems.find((item) => item.title === "Production");
+      const productionMenu = menuItems.find(
+        (item) => item.title === "Production"
+      );
       if (productionMenu) {
-        setExpandedItems((prev) => (prev[0] === "Production" ? prev : ["Production"]));
+        setExpandedItems((prev) =>
+          prev[0] === "Production" ? prev : ["Production"]
+        );
       }
       setPrevPathname(location.pathname);
       return;
@@ -256,40 +439,45 @@ const Sidebar = ({ isVisible, onToggle, currentApplication = "production" }) => 
     e.currentTarget.style.backgroundColor = isHover ? "#475569" : "transparent";
   };
   const handleMenuButtonHover = (e, isHover, isActive = false) => {
-    if (!isActive) e.currentTarget.style.backgroundColor = isHover ? "#475569" : "transparent";
+    if (!isActive)
+      e.currentTarget.style.backgroundColor = isHover
+        ? "#475569"
+        : "transparent";
   };
 
-const handleSubMenuButtonHover = (e, isHover) => {
-  const to = e.currentTarget.getAttribute("data-to");
-  const isActive = location.pathname === to;
-  
-  if (isActive) {
-    e.currentTarget.style.backgroundColor = "#475569";
-    e.currentTarget.style.color = "white";
-  } else {
-    e.currentTarget.style.backgroundColor = isHover ? "#475569" : "transparent";
-    e.currentTarget.style.color = isHover ? "white" : "#cbd5e1";
-  }
-};
+  const handleSubMenuButtonHover = (e, isHover) => {
+    const to = e.currentTarget.getAttribute("data-to");
+    const isActive = location.pathname === to;
 
-useEffect(() => {
-  const resetSubMenuButtons = () => {
-    const buttons = document.querySelectorAll('[data-to]');
-    buttons.forEach(button => {
-      const href = button.getAttribute('data-to');
-      const isActive = location.pathname === href;
-      
-      if (!isActive) {
-        button.style.backgroundColor = 'transparent';
-        button.style.color = '#cbd5e1';
-      } else {
-        button.style.backgroundColor = '#475569';
-        button.style.color = 'white';
-      }
-    });
+    if (isActive) {
+      e.currentTarget.style.backgroundColor = "#475569";
+      e.currentTarget.style.color = "white";
+    } else {
+      e.currentTarget.style.backgroundColor = isHover
+        ? "#475569"
+        : "transparent";
+      e.currentTarget.style.color = isHover ? "white" : "#cbd5e1";
+    }
   };
-  resetSubMenuButtons();
-}, [location.pathname]);
+
+  useEffect(() => {
+    const resetSubMenuButtons = () => {
+      const buttons = document.querySelectorAll("[data-to]");
+      buttons.forEach((button) => {
+        const href = button.getAttribute("data-to");
+        const isActive = location.pathname === href;
+
+        if (!isActive) {
+          button.style.backgroundColor = "transparent";
+          button.style.color = "#cbd5e1";
+        } else {
+          button.style.backgroundColor = "#475569";
+          button.style.color = "white";
+        }
+      });
+    };
+    resetSubMenuButtons();
+  }, [location.pathname]);
 
   const navbarHeight = 140;
   const styles = {
@@ -372,8 +560,18 @@ useEffect(() => {
     },
     menuButtonInactive: { color: "#cbd5e1" },
     menuButtonContent: { display: "flex", alignItems: "center", gap: "8px" },
-    icon: { display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-    chevron: { color: "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center" },
+    icon: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    },
+    chevron: {
+      color: "#94a3b8",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
     subMenu: {
       marginLeft: "20px",
       overflow: "hidden",
@@ -401,7 +599,7 @@ useEffect(() => {
       fontWeight: "600",
       color: "white",
       backgroundColor: "#475569",
-    },  
+    },
   };
 
   useEffect(() => {
@@ -414,7 +612,9 @@ useEffect(() => {
       .sidebar-scrollbar { scrollbar-width: thin; scrollbar-color: #475569 transparent; }
     `;
     document.head.appendChild(style);
-    return () => { document.head.removeChild(style); };
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   return (
@@ -440,7 +640,7 @@ useEffect(() => {
         <nav style={styles.nav}>
           <ul style={styles.menuList}>
             {menuItems.map((item) => {
-              const expanded = expandedItems[0] === item.title; 
+              const expanded = expandedItems[0] === item.title;
               return (
                 <li key={item.title} style={styles.menuItem}>
                   {/* Parent (toggle only) */}
@@ -449,19 +649,31 @@ useEffect(() => {
                     onClick={() => toggleExpanded(item.title)}
                     style={{
                       ...styles.menuButton,
-                      ...(item.isActive ? styles.menuButtonActive : styles.menuButtonInactive),
+                      ...(item.isActive
+                        ? styles.menuButtonActive
+                        : styles.menuButtonInactive),
                     }}
-                    onMouseEnter={(e) => handleMenuButtonHover(e, true, item.isActive)}
-                    onMouseLeave={(e) => handleMenuButtonHover(e, false, item.isActive)}
+                    onMouseEnter={(e) =>
+                      handleMenuButtonHover(e, true, item.isActive)
+                    }
+                    onMouseLeave={(e) =>
+                      handleMenuButtonHover(e, false, item.isActive)
+                    }
                     aria-expanded={expanded}
                     aria-controls={`submenu-${item.title}`}
                   >
                     <div style={styles.menuButtonContent}>
-                      <span style={styles.icon}><item.icon size={16} /></span>
+                      <span style={styles.icon}>
+                        <item.icon size={16} />
+                      </span>
                       <span>{item.title}</span>
                     </div>
                     <span style={styles.chevron}>
-                      {expanded ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
+                      {expanded ? (
+                        <ChevronDownIcon size={14} />
+                      ) : (
+                        <ChevronRightIcon size={14} />
+                      )}
                     </span>
                   </button>
 
@@ -470,7 +682,9 @@ useEffect(() => {
                     id={`submenu-${item.title}`}
                     style={{
                       ...styles.subMenu,
-                      maxHeight: expanded ? `${subMenuHeights[item.title] || 0}px` : "0px",
+                      maxHeight: expanded
+                        ? `${subMenuHeights[item.title] || 0}px`
+                        : "0px",
                       opacity: expanded ? 1 : 0,
                     }}
                   >
@@ -485,10 +699,16 @@ useEffect(() => {
                               ...styles.subMenuButton,
                               ...(active ? styles.subMenuButtonActive : null),
                             }}
-                            onMouseEnter={(e) => handleSubMenuButtonHover(e, true)}
-                            onMouseLeave={(e) => handleSubMenuButtonHover(e, false)}
+                            onMouseEnter={(e) =>
+                              handleSubMenuButtonHover(e, true)
+                            }
+                            onMouseLeave={(e) =>
+                              handleSubMenuButtonHover(e, false)
+                            }
                           >
-                            <span style={styles.icon}><subItem.icon size={12} /></span>
+                            <span style={styles.icon}>
+                              <subItem.icon size={12} />
+                            </span>
                             <span>{subItem.title}</span>
                           </Link>
                         </div>

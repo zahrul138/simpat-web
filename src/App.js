@@ -23,17 +23,11 @@ import TargetSchedulePage from "./pages/mhpage/TargetSchedulePage";
 import AddTargetSchedulePage from "./pages/mhpage/AddTargetSchedulePage";
 import ReceivedLocalSchedulePage from "./pages/mhpage/ReceivedLocalSchedulePage";
 import ReturnPartsPage from "./pages/mhpage/ReturnPartsPage";
+import MHLocalSchedulePage from "./pages/mhpage/MHLocalSchedulePage";  
 
+// Halaman SCN-LOG (Inventory Control)
 import LocalSchedulePage from "./pages/logpage/LocalSchedulePage";
 import AddLocalSchedulePage from "./pages/logpage/AddLocalSchedulePage";
-
-import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
-import PartsEnquiryIdPage from "./pages/mhpage/PartsEnquiryIdPage";
-import AddPartsEnquiryIdPage from "./pages/mhpage/AddPartsEnquiryIdPage";
-import AddPartsEnquiryNonIdPage from "./pages/mhpage/AddPartsEnquiryNonIdPage";
-import PartsEnquiryNonIdPage from "./pages/mhpage/PartsEnquiryNonIdPage";
-import UploadKanbanIdPage from "./pages/mhpage/UploadKanbanIdPage";
-import PartsReceivePage from "./pages/mhpage/PartsReceivePage";
 import AnnexReceivePage from "./pages/logpage/AnnexReceivePage";
 import VendorDetailsPage from "./pages/logpage/VendorDetailsPage";
 import AddVendorPage from "./pages/logpage/AddVendorPage";
@@ -41,6 +35,19 @@ import PartDetailsPage from "./pages/logpage/PartDetailsPage";
 import AddPartsPage from "./pages/logpage/AddPartsPage";
 import VendorPartPlacementPage from "./pages/logpage/VendorPartPlacementPage";
 import AddVendorPartPlacementPage from "./pages/logpage/AddVendorPartPlacementPage";
+
+// Halaman SCN-IQC (Quality Control)
+import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
+import QCLocalSchedulePage from "./pages/iqcpage/QCLocalSchedulePage"; 
+import QCCheckPage from "./pages/iqcpage/QCCheckPage";
+import AddQCCheckPage from "./pages/iqcpage/AddQCCheckPage";
+
+import PartsEnquiryIdPage from "./pages/mhpage/PartsEnquiryIdPage";
+import AddPartsEnquiryIdPage from "./pages/mhpage/AddPartsEnquiryIdPage";
+import AddPartsEnquiryNonIdPage from "./pages/mhpage/AddPartsEnquiryNonIdPage";
+import PartsEnquiryNonIdPage from "./pages/mhpage/PartsEnquiryNonIdPage";
+import UploadKanbanIdPage from "./pages/mhpage/UploadKanbanIdPage";
+import PartsReceivePage from "./pages/mhpage/PartsReceivePage";
 
 import UserControlPage from "./pages/admin/UserControlPage";
 import CreateUserPage from "./pages/admin/CreateUserPage";
@@ -135,6 +142,7 @@ const LayoutHandler = () => {
   }, [location.pathname, authUser?.dept_app, authUser?.dept_code]);
 
   const toggleSidebar = () => setSidebarVisible((v) => !v);
+  
   const handleApplicationChange = (app, dept) => {
     setCurrentApplication(app);
     setCurrentDepartment(dept);
@@ -152,6 +160,7 @@ const LayoutHandler = () => {
       "/part-receive": { app: "production", dept: "SCN-MH" },
       "/upload-kanban": { app: "production", dept: "SCN-MH" },
       "/return-parts": { app: "production", dept: "SCN-MH" },
+      "/mh-local-schedule": { app: "production", dept: "SCN-MH" }, 
 
       // Inventory Control routes
       "/local-schedule": { app: "inventory", dept: "SCN-LOG" },
@@ -163,6 +172,8 @@ const LayoutHandler = () => {
       // Quality Assurance routes
       "/iqc-local": { app: "quality", dept: "SCN-IQC" },
       "/quality": { app: "quality", dept: "SCN-IQC" },
+      "/qc-local-schedule": { app: "quality", dept: "SCN-IQC" }, 
+       "/qc-part": { app: "quality", dept: "SCN-IQC" },
 
       // System Management routes
       "/user-control": { app: "system", dept: "ADMIN" },
@@ -225,14 +236,21 @@ const LayoutHandler = () => {
       ) : (
         <div></div>
       )}
+      
+      {/* LOCAL SCHEDULE PAGES - Per Department */}
       {location.pathname === "/local-schedule" && <LocalSchedulePage />}
       {location.pathname === "/local-schedule/add" && <AddLocalSchedulePage />}
+      {location.pathname === "/mh-local-schedule" && <MHLocalSchedulePage />}
+      {location.pathname === "/qc-local-schedule" && <QCLocalSchedulePage />}
+      
       {location.pathname === "/vendor-details" && <VendorDetailsPage />}
       {location.pathname === "/vendor-parts/add-vendor" && <AddVendorPage />}
       {location.pathname === "/part-details" && <PartDetailsPage />}
       {location.pathname === "/vendor-parts/add-parts" && <AddPartsPage />}
       {location.pathname === "/received-local" && <ReceivedLocalSchedulePage />}
       {location.pathname === "/iqc-local" && <IQCLocalPage />}
+      {location.pathname === "/qc-part" && <QCCheckPage />}
+      {location.pathname === "/qc-part/add" && <AddQCCheckPage />}
 
       {location.pathname === "/part-enquiry-id" && <PartsEnquiryIdPage />}
       {location.pathname === "/part-enquiry-id/add" && (
@@ -251,7 +269,9 @@ const LayoutHandler = () => {
       {location.pathname === "/annex-receive" && <AnnexReceivePage />}
       {location.pathname === "/return-parts" && <ReturnPartsPage />}
       {location.pathname === "/vendor-placement" && <VendorPartPlacementPage />}
-      {location.pathname === "/vendor-placement/add" && <AddVendorPartPlacementPage />}
+      {location.pathname === "/vendor-placement/add" && (
+        <AddVendorPartPlacementPage />
+      )}
 
       {location.pathname === "/user-control" && <UserControlPage />}
       {location.pathname === "/create-user" && <CreateUserPage />}
