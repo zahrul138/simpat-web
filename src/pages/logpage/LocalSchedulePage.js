@@ -12,7 +12,9 @@ import {
   Check,
   CheckCircle,
   RotateCcw,
+  Calendar,
 } from "lucide-react";
+import { Helmet } from "react-helmet";
 import timerService from "../../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
@@ -82,11 +84,22 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const [iqcProgressVendors, setIqcProgressVendors] = useState([]);
   const [editingIqcPartId, setEditingIqcPartId] = useState(null);
   const [editIqcPartData, setEditIqcPartData] = useState({});
+  const [qcChecksComplete, setQcChecksComplete] = useState([]);
 
   // STATE FOR SAMPLE TAB
   const [sampleVendors, setSampleVendors] = useState([]);
   const [editingSamplePartId, setEditingSamplePartId] = useState(null);
   const [editSamplePartData, setEditSamplePartData] = useState({});
+
+  // STATE FOR PRODUCTION DATES POPUP (Multiple Prod Dates - Today Tab)
+  const [showProdDatesPopup, setShowProdDatesPopup] = useState(false);
+  const [activeProdDatesPart, setActiveProdDatesPart] = useState(null);
+  const [tempProdDates, setTempProdDates] = useState([]);
+
+  // STATE FOR ADD SAMPLE DATE POPUP (IQC Progress Tab)
+  const [showAddSamplePopup, setShowAddSamplePopup] = useState(false);
+  const [activeSamplePart, setActiveSamplePart] = useState(null);
+  const [newSampleDate, setNewSampleDate] = useState("");
 
   // STATE FOR COMPLETE TAB
   const [completeVendors, setCompleteVendors] = useState([]);
@@ -98,12 +111,72 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     partCode: "",
   });
 
-  const [tooltip, setTooltip] = useState({
-    visible: false,
-    content: "",
-    x: 0,
-    y: 0,
-  });
+  // ====== FETCH QC CHECKS COMPLETE ======
+  const fetchQcChecksComplete = async () => {
+    try {
+      // PERBAIKAN: Filter hanya status=Complete
+      const response = await fetch(`${API_BASE}/api/qc-checks?status=Complete`);
+      const result = await response.json();
+      if (result.success) {
+        setQcChecksComplete(result.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching QC checks:", error);
+      setQcChecksComplete([]);
+    }
+  };
+
+  // Helper function untuk check apakah part + prod_date sudah Complete di QC Check
+  const isProductionDateComplete = (partCode, prodDate) => {
+    if (!partCode || !prodDate) return false;
+    const normalizedProdDate = prodDate.split("T")[0];
+    return qcChecksComplete.some((qc) => {
+      const qcProdDate = qc.production_date
+        ? qc.production_date.split("T")[0]
+        : "";
+      // PERBAIKAN: Tambah pengecekan status === 'Complete'
+      return (
+        qc.part_code === partCode &&
+        qcProdDate === normalizedProdDate &&
+        qc.status === "Complete"
+      );
+    });
+  };
+
+  // Helper function untuk mendapatkan status dan sample dates
+  // Status otomatis: SAMPLE jika ada tanggal yang belum Complete, PASS jika semua sudah Complete
+  const getPartSampleStatus = (part) => {
+    const prodDates =
+      part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+
+    // Jika tidak ada prod_dates, tampilkan -
+    if (prodDates.length === 0) {
+      return { status: "-", sampleDates: [] };
+    }
+
+    // Hitung sample dates (tanggal yang belum Complete di qc_checks)
+    const sampleDates = [];
+    let allComplete = true;
+
+    prodDates.forEach((date) => {
+      const normalizedDate = date.split("T")[0];
+      const isComplete = isProductionDateComplete(
+        part.part_code,
+        normalizedDate
+      );
+      if (!isComplete) {
+        allComplete = false;
+        sampleDates.push(normalizedDate);
+      }
+    });
+
+    // Otomatis tentukan status berdasarkan qc_checks
+    if (allComplete && prodDates.length > 0) {
+      return { status: "PASS", sampleDates: [] };
+    }
+
+    return { status: "SAMPLE", sampleDates };
+  };
 
   // ====== TABLE CONFIGURATION PER TAB ======
   const tableConfig = {
@@ -177,7 +250,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       },
       partsTable: {
         marginLeft: "51px",
-        cols: ["2.8%", "12%", "28%", "8%", "8%", "8%", "12%", "17%", "7%"],
+        cols: ["2.8%", "10%", "22%", "7%", "7%", "6%", "18%", "12%", "7%"],
       },
     },
 
@@ -225,13 +298,25 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       },
       partsTable: {
         marginLeft: "51px",
-        cols: ["2%", "10%", "25%", "7%", "7%", "6%", "15%", "10%", "20%", "6%"],
+        cols: [
+          "2%",
+          "10%",
+          "25%",
+          "7%",
+          "7%",
+          "6%",
+          "15%",
+          "12%",
+          "10%",
+          "20%",
+          "6%",
+        ],
       },
     },
     Sample: {
       mainTable: {
         cols: [
-        "26px",
+          "26px",
           "26px",
           "30%",
           "12%",
@@ -248,31 +333,54 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       },
       partsTable: {
         marginLeft: "51px",
-        cols: ["2%", "10%", "25%", "7%", "7%", "6%", "15%", "10%", "20%", "6%"],
+        cols: [
+          "2%",
+          "10%",
+          "25%",
+          "7%",
+          "7%",
+          "6%",
+          "15%",
+          "10%",
+          "12%",
+          "20%",
+          "6%",
+        ],
       },
     },
     Complete: {
       mainTable: {
         // No, toggle, Vendor Name, Stock Level, Model, Trip, DO Number, Total Pallet, Total Item, Arrival Time, Schedule Date, Move By (tanpa Action)
         cols: [
-          "26px",   // No
-          "26px",   // toggle
-          "20%",    // Vendor Name
-          "6%",     // Stock Level
-          "8%",     // Model
-          "5%",     // Trip
-          "10%",    // DO Number
-          "7%",     // Total Pallet
-          "7%",     // Total Item
-          "8%",     // Arrival Time
-          "9%",     // Schedule Date
-          "18%",    // Move By
+          "26px", // No
+          "26px", // toggle
+          "20%", // Vendor Name
+          "6%", // Stock Level
+          "8%", // Model
+          "5%", // Trip
+          "10%", // DO Number
+          "7%", // Total Pallet
+          "7%", // Total Item
+          "8%", // Arrival Time
+          "9%", // Schedule Date
+          "18%", // Move By
         ],
       },
       partsTable: {
         marginLeft: "51px",
         // No, Part Code, Part Name, Qty, Qty Box, Unit, Prod Date, Status, Remark (tanpa Action)
-        cols: ["3%", "12%", "25%", "8%", "8%", "7%", "12%", "10%", "15%"],
+        cols: [
+          "3%",
+          "12%",
+          "25%",
+          "8%",
+          "8%",
+          "7%",
+          "12%",
+          "10%",
+          "12%",
+          "15%",
+        ],
       },
     },
   };
@@ -289,6 +397,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   // Get current tab config dengan fallback ke Today
   const getCurrentConfig = () => tableConfig[activeTab] || tableConfig.Today;
   useEffect(() => {
+    fetchQcChecksComplete();
     if (activeTab === "Received") {
       fetchReceivedVendors();
     } else if (activeTab === "IQC Progress") {
@@ -538,6 +647,11 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   // ====== EDIT PART ======
   const handleEditPart = (part, vendorId) => {
     setEditingPartId(part.id);
+    // Gabungkan prod_date dengan prod_dates untuk editing
+    const existingDates = part.prod_dates ? [...part.prod_dates] : [];
+    if (part.prod_date && !existingDates.includes(part.prod_date.split("T")[0])) {
+      existingDates.unshift(part.prod_date.split("T")[0]);
+    }
     setEditPartData({
       vendorId: vendorId,
       part_code: part.part_code || "",
@@ -547,6 +661,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       unit: part.unit || "PCS",
       remark: part.remark || "",
       prod_date: part.prod_date ? part.prod_date.split("T")[0] : "",
+      prod_dates: existingDates.length > 0 ? existingDates : [""],
     });
   };
 
@@ -577,6 +692,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditPart = async (partId) => {
     try {
+      // Filter out empty dates
+      const validDates = (editPartData.prod_dates || []).filter((d) => d && d.trim() !== "");
+      
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${partId}`,
         {
@@ -589,7 +707,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             quantity_box: editPartData.qty_box,
             unit: editPartData.unit,
             remark: editPartData.remark,
-            prod_date: editPartData.prod_date || null,
+            prod_date: validDates[0] || null,
+            prod_dates: validDates,
           }),
         }
       );
@@ -604,6 +723,125 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       }
     } catch (error) {
       alert("Failed to update part: " + error.message);
+    }
+  };
+
+  // ====== PRODUCTION DATES POPUP HANDLERS (Multiple Dates) ======
+  const handleOpenProdDatesPopup = (part) => {
+    setActiveProdDatesPart(part);
+    // Gabungkan prod_date dengan prod_dates
+    const existingDates = part.prod_dates ? [...part.prod_dates] : [];
+    if (
+      part.prod_date &&
+      !existingDates.includes(part.prod_date.split("T")[0])
+    ) {
+      existingDates.unshift(part.prod_date.split("T")[0]);
+    }
+    setTempProdDates(existingDates.length > 0 ? existingDates : [""]);
+    setShowProdDatesPopup(true);
+  };
+
+  const handleCloseProdDatesPopup = () => {
+    setShowProdDatesPopup(false);
+    setActiveProdDatesPart(null);
+    setTempProdDates([]);
+  };
+
+  const handleAddProdDate = () => {
+    setTempProdDates((prev) => [...prev, ""]);
+  };
+
+  const handleRemoveProdDate = (index) => {
+    setTempProdDates((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleProdDateChange = (index, value) => {
+    setTempProdDates((prev) => prev.map((d, i) => (i === index ? value : d)));
+  };
+
+  const handleSaveProdDates = async () => {
+    if (!activeProdDatesPart) return;
+
+    // Filter out empty dates
+    const validDates = tempProdDates.filter((d) => d && d.trim() !== "");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/local-schedules/parts/${activeProdDatesPart.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prod_dates: validDates,
+            prod_date: validDates[0] || null,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        handleCloseProdDatesPopup();
+        await fetchSchedules();
+      } else {
+        throw new Error(result.message || "Failed to update production dates");
+      }
+    } catch (error) {
+      alert("Failed to update production dates: " + error.message);
+    }
+  };
+
+  // ====== ADD SAMPLE DATE HANDLERS (IQC Progress) ======
+  const handleOpenAddSamplePopup = (part) => {
+    setActiveSamplePart(part);
+    setNewSampleDate("");
+    setShowAddSamplePopup(true);
+  };
+
+  const handleCloseAddSamplePopup = () => {
+    setShowAddSamplePopup(false);
+    setActiveSamplePart(null);
+    setNewSampleDate("");
+  };
+
+  const handleAddSampleDate = async () => {
+    if (!activeSamplePart || !newSampleDate) return;
+
+    const existingProdDates = activeSamplePart.prod_dates
+      ? [...activeSamplePart.prod_dates]
+      : [];
+    if (
+      activeSamplePart.prod_date &&
+      !existingProdDates.includes(activeSamplePart.prod_date.split("T")[0])
+    ) {
+      existingProdDates.unshift(activeSamplePart.prod_date.split("T")[0]);
+    }
+
+    // Tambahkan date baru jika belum ada
+    if (!existingProdDates.includes(newSampleDate)) {
+      existingProdDates.push(newSampleDate);
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/local-schedules/parts/${activeSamplePart.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prod_dates: existingProdDates,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        handleCloseAddSamplePopup();
+        await fetchIqcProgressVendors();
+      } else {
+        throw new Error(result.message || "Failed to add sample date");
+      }
+    } catch (error) {
+      alert("Failed to add sample date: " + error.message);
     }
   };
 
@@ -767,14 +1005,124 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== HANDLERS FOR IQC PROGRESS TAB ======
-  const handleMoveVendorToSample = async (vendorId) => {
-    if (!window.confirm("Move this vendor to Sample?")) return;
+  // ====== MOVE PART TO SAMPLE (Create QC Check entries) ======
+  const handleMovePartToSample = async (part, vendor) => {
+    // PERBAIKAN: Terima vendor object, bukan hanya vendorId
+    const vendorName = vendor.vendor_name || "";
+    const vendorType = "Local"; // Karena ini LocalSchedulePage
+
+    const { status, sampleDates } = getPartSampleStatus(part);
+
+    if (status === "PASS") {
+      alert("This part already has PASS status. No sampling needed.");
+      return;
+    }
+
+    if (sampleDates.length === 0) {
+      alert("No sample dates to check. Please add production dates first.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Move this part to Sample/Current Check for dates: ${sampleDates
+          .map((d) => formatDate(d))
+          .join(", ")}?`
+      )
+    )
+      return;
 
     try {
       const authUser = getAuthUser();
       const moveByName = authUser?.emp_name || "Unknown";
 
+      // Create QC Check entries for each sample date
+      for (const sampleDate of sampleDates) {
+        const qcCheckData = {
+          part_code: part.part_code,
+          part_name: part.part_name,
+          production_date: sampleDate,
+          // Note: Don't send vendor_id because local_schedule_vendors.id != vendor_detail.id
+          vendor_name: vendorName,
+          vendor_type: vendorType,
+          local_schedule_part_id: part.id,
+          data_from: "Sample",
+          created_by: moveByName,
+        };
+
+        const response = await fetch(`${API_BASE}/api/qc-checks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(qcCheckData),
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Failed to create QC Check");
+        }
+      }
+
+      // Update part status to SAMPLE
+      await fetch(`${API_BASE}/api/local-schedules/parts/${part.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "SAMPLE" }),
+      });
+
+      alert("Part moved to Current Check successfully!");
+      await fetchIqcProgressVendors();
+      await fetchQcChecksComplete();
+    } catch (error) {
+      alert("Failed to move part to sample: " + error.message);
+    }
+  };
+
+  // ====== HANDLERS FOR IQC PROGRESS TAB ======
+  const handleMoveVendorToSample = async (vendorId) => {
+    if (!window.confirm("Move this vendor to Sample? All SAMPLE parts will be sent to Current Check.")) return;
+
+    try {
+      const authUser = getAuthUser();
+      const moveByName = authUser?.emp_name || "Unknown";
+
+      // Find the vendor from iqcProgressVendors to get parts
+      const vendor = iqcProgressVendors.find(v => v.id === vendorId);
+      if (!vendor) {
+        throw new Error("Vendor not found");
+      }
+
+      // Create QC Check entries for all SAMPLE parts
+      if (vendor.parts && vendor.parts.length > 0) {
+        for (const part of vendor.parts) {
+          const { status, sampleDates } = getPartSampleStatus(part);
+          
+          // Only create QC checks for SAMPLE status parts with sample dates
+          if (status === "SAMPLE" && sampleDates.length > 0) {
+            for (const sampleDate of sampleDates) {
+              const qcCheckData = {
+                part_code: part.part_code,
+                part_name: part.part_name,
+                production_date: sampleDate,
+                // Note: Don't send vendor_id because local_schedule_vendors.id != vendor_detail.id
+                vendor_name: vendor.vendor_name || "",
+                vendor_type: "Local",
+                local_schedule_part_id: part.id,
+                data_from: "Sample",
+                created_by: moveByName,
+                skip_duplicate_check: true, // Skip duplicate check since we're doing vendor-level move
+              };
+
+              await fetch(`${API_BASE}/api/qc-checks`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(qcCheckData),
+              });
+            }
+          }
+        }
+      }
+
+      // Move vendor to Sample tab
       const response = await fetch(
         `${API_BASE}/api/local-schedules/vendors/${vendorId}/move-to-sample`,
         {
@@ -786,7 +1134,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        alert("Vendor moved to Sample!");
+        alert("Vendor moved to Sample! SAMPLE parts sent to Current Check.");
         await fetchIqcProgressVendors();
       } else {
         throw new Error(result.message || "Failed to move vendor");
@@ -798,9 +1146,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleEditIqcPart = (part) => {
     setEditingIqcPartId(part.id);
+    // Gabungkan prod_date dengan prod_dates untuk editing
+    const existingDates = part.prod_dates ? [...part.prod_dates] : [];
+    if (part.prod_date && !existingDates.includes(part.prod_date.split("T")[0])) {
+      existingDates.unshift(part.prod_date.split("T")[0]);
+    }
     setEditIqcPartData({
       status: part.status || "",
       remark: part.remark || "",
+      prod_dates: existingDates.length > 0 ? existingDates : [""],
     });
   };
 
@@ -811,6 +1165,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditIqcPart = async (partId) => {
     try {
+      // Filter out empty dates
+      const validDates = (editIqcPartData.prod_dates || []).filter((d) => d && d.trim() !== "");
+      
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${partId}`,
         {
@@ -819,6 +1176,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           body: JSON.stringify({
             status: editIqcPartData.status || null,
             remark: editIqcPartData.remark || null,
+            prod_date: validDates[0] || null,
+            prod_dates: validDates,
           }),
         }
       );
@@ -1362,21 +1721,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       window.removeEventListener("scheduleAutoMoved", handleAutoMoved);
   }, [activeTab]);
 
-  // ====== TOOLTIP ======
-  const showTooltip = (e) => {
-    let content = e.target.getAttribute("data-tooltip") || "";
-    if (!content) return;
-    const rect = e.target.getBoundingClientRect();
-    setTooltip({
-      visible: true,
-      content,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 10,
-    });
-  };
-
-  const hideTooltip = () => setTooltip((prev) => ({ ...prev, visible: false }));
-
   const handleInputFocus = (e) => (e.target.style.borderColor = "#9fa8da");
   const handleInputBlur = (e) => (e.target.style.borderColor = "#d1d5db");
   const handleButtonHover = (e, isHover, type) => {
@@ -1911,25 +2255,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       marginTop: "10px",
       marginLeft: "13px",
     },
-    tooltip: {
-      position: "fixed",
-      top: tooltip.y,
-      left: tooltip.x,
-
-      backgroundColor: "rgba(0, 0, 0, 0.8)",
-      color: "white",
-      padding: "6px 10px",
-      borderRadius: "4px",
-      fontSize: "12px",
-      fontWeight: "500",
-      whiteSpace: "nowrap",
-      pointerEvents: "none",
-      zIndex: 1000,
-      opacity: tooltip.visible ? 1 : 0,
-      transition: "opacity 0.2s ease",
-      maxWidth: "300px",
-      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-    },
 
     cellContent: {
       overflow: "hidden",
@@ -2165,6 +2490,206 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       fontSize: "11px",
       width: "90%",
       outline: "none",
+    },
+    prodDatesBadge: {
+      display: "inline",
+      fontSize: "10px",
+      color: "#374151",
+    },
+
+    // Inline Prod Dates Editor (Today Tab)
+    inlineProdDatesContainer: {
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: "4px",
+    },
+    inlineProdDateItem: {
+      display: "flex",
+      alignItems: "center",
+      gap: "2px",
+    },
+    inlineProdDateInput: {
+      width: "100px",
+      height: "22px",
+      border: "1px solid #d1d5db",
+      borderRadius: "3px",
+      padding: "0 4px",
+      fontSize: "10px",
+      outline: "none",
+    },
+    inlineProdDateRemove: {
+      background: "none",
+      border: "none",
+      color: "#ef4444",
+      cursor: "pointer",
+      padding: "0",
+      display: "flex",
+      alignItems: "center",
+    },
+    inlineProdDateAdd: {
+      background: "none",
+      border: "1px solid #3b82f6",
+      color: "#3b82f6",
+      cursor: "pointer",
+      padding: "2px 6px",
+      borderRadius: "3px",
+      fontSize: "10px",
+      display: "flex",
+      alignItems: "center",
+      gap: "2px",
+    },
+
+    prodDatesList: {
+      display: "inline",
+      fontSize: "10px",
+    },
+
+    // Status Badge - POLOS tanpa warna
+    statusBadge: {
+      padding: "2px 8px",
+      borderRadius: "4px",
+      fontSize: "10px",
+      fontWeight: "500",
+      backgroundColor: "transparent",
+      color: "#374151",
+    },
+
+    statusPass: {
+      // Polos tanpa warna
+      backgroundColor: "transparent",
+      color: "#374151",
+    },
+
+    statusSample: {
+      // Polos tanpa warna
+      backgroundColor: "transparent",
+      color: "#374151",
+    },
+
+    // Sample Dates
+    sampleDatesList: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      fontSize: "10px",
+    },
+
+    sampleDateItem: {
+      padding: "1px 4px",
+      backgroundColor: "transparent",
+      borderRadius: "2px",
+    },
+
+    // Popup Styles untuk Multiple Dates
+    popupOverlayDates: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 2000,
+    },
+
+    popupContainerDates: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      padding: "24px",
+      width: "450px",
+      maxWidth: "90vw",
+      maxHeight: "80vh",
+      overflow: "auto",
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+    },
+
+    popupHeaderDates: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "1px solid #e5e7eb",
+      paddingBottom: "12px",
+      marginBottom: "16px",
+    },
+
+    popupTitleDates: {
+      fontSize: "16px",
+      fontWeight: "600",
+      color: "#374151",
+      margin: 0,
+    },
+
+    dateInputRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      marginBottom: "8px",
+    },
+
+    dateInput: {
+      flex: 1,
+      padding: "8px 12px",
+      border: "1px solid #d1d5db",
+      borderRadius: "4px",
+      fontSize: "14px",
+    },
+
+    removeDateButton: {
+      padding: "8px",
+      border: "1px solid #ef4444",
+      borderRadius: "4px",
+      background: "#fef2f2",
+      color: "#ef4444",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    addDateButton: {
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      padding: "8px 12px",
+      border: "1px solid #3b82f6",
+      borderRadius: "4px",
+      background: "#eff6ff",
+      color: "#3b82f6",
+      cursor: "pointer",
+      fontSize: "12px",
+      marginTop: "8px",
+    },
+
+    buttonGroupDates: {
+      display: "flex",
+      gap: "8px",
+      justifyContent: "flex-end",
+      marginTop: "16px",
+      paddingTop: "16px",
+      borderTop: "1px solid #e5e7eb",
+    },
+
+    primaryButtonDates: {
+      padding: "8px 16px",
+      border: "none",
+      borderRadius: "4px",
+      background: "#3b82f6",
+      color: "white",
+      cursor: "pointer",
+      fontSize: "14px",
+      fontWeight: "500",
+    },
+
+    secondaryButtonDates: {
+      padding: "8px 16px",
+      border: "1px solid #d1d5db",
+      borderRadius: "4px",
+      background: "white",
+      cursor: "pointer",
+      fontSize: "14px",
     },
   };
 
@@ -2509,33 +3034,63 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               )}
             </button>
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.vendor_code
-            ? `${vendor.vendor_code} - ${vendor.vendor_name}`
-            : "-"}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              vendor.vendor_code
+                ? `${vendor.vendor_code} - ${vendor.vendor_name}`
+                : "-"
+            }
+          >
             {vendor.vendor_code
               ? `${vendor.vendor_code} - ${vendor.vendor_name}`
               : "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.stock_level || "-"}>{vendor.stock_level || "-"}</td>
-          <td style={styles.tdWithLeftBorder} title={vendor.model_name || "-"}>{vendor.model_name || "-"}</td>
-          <td style={styles.tdWithLeftBorder} title={vendor.trip_no || "-"}>{vendor.trip_no || "-"}</td>
+          <td style={styles.tdWithLeftBorder} title={vendor.stock_level || "-"}>
+            {vendor.stock_level || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={vendor.model_name || "-"}>
+            {vendor.model_name || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={vendor.trip_no || "-"}>
+            {vendor.trip_no || "-"}
+          </td>
 
-          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>{vendor.do_numbers || "-"}</td>
+          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
+            {vendor.do_numbers || "-"}
+          </td>
 
-          <td style={styles.tdWithLeftBorder} title={vendor.total_pallet || 0}>{vendor.total_pallet || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={vendor.total_item || 0}>{vendor.total_item || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={vendor.arrival_time || "-"}>{vendor.arrival_time || "-"}</td>
-          <td style={styles.tdWithLeftBorder} title={formatDate(vendor.schedule_date)}>
+          <td style={styles.tdWithLeftBorder} title={vendor.total_pallet || 0}>
+            {vendor.total_pallet || 0}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={vendor.total_item || 0}>
+            {vendor.total_item || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={vendor.arrival_time || "-"}
+          >
+            {vendor.arrival_time || "-"}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={formatDate(vendor.schedule_date)}
+          >
             {formatDate(vendor.schedule_date)}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.move_by_name
-            ? `${vendor.move_by_name} | ${formatDateTime(vendor.move_at)}`
-            : "-"}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              vendor.move_by_name
+                ? `${vendor.move_by_name} | ${formatDateTime(vendor.move_at)}`
+                : "-"
+            }
+          >
             {vendor.move_by_name
               ? `${vendor.move_by_name} | ${formatDateTime(vendor.move_at)}`
               : "-"}
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title="Action">
             <button
               style={styles.checkButton}
               onClick={() => handleApproveVendor(vendor.id)}
@@ -2571,7 +3126,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                    tableConfig.Received.partsTable.cols
+                      tableConfig.Received.partsTable.cols
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -2597,20 +3152,47 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                           >
                             {i + 1}
                           </td>
-                          <td style={styles.thirdLevelTd} title={part.part_code || "-"}>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={part.part_code || "-"}
+                          >
                             {part.part_code || "-"}
                           </td>
-                          <td style={styles.thirdLevelTd} title={part.part_name || "-"}>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={part.part_name || "-"}
+                          >
                             {part.part_name || "-"}
                           </td>
-                          <td style={styles.thirdLevelTd} title={part.qty || 0}>{part.qty || 0}</td>
-                          <td style={styles.thirdLevelTd} title={part.qty_box || 0}>
+                          <td style={styles.thirdLevelTd} title={part.qty || 0}>
+                            {part.qty || 0}
+                          </td>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={part.qty_box || 0}
+                          >
                             {part.qty_box || 0}
                           </td>
-                          <td style={styles.thirdLevelTd} title={part.prod_date ? formatDate(part.prod_date) : "-"}>
-                            {part.prod_date ? formatDate(part.prod_date) : "-"}
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={
+                              (() => {
+                                const prodDates = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                                if (prodDates.length === 0) return "-";
+                                return prodDates.map((d) => formatDate(d)).join(", ");
+                              })()
+                            }
+                          >
+                            {(() => {
+                              const prodDates = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                              if (prodDates.length === 0) return "-";
+                              return prodDates.map((d) => formatDate(d)).join(", ");
+                            })()}
                           </td>
-                          <td style={styles.thirdLevelTd} title={part.remark || "-"}>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={part.remark || "-"}
+                          >
                             {part.remark || "-"}
                           </td>
                         </tr>
@@ -2666,10 +3248,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           >
             {index + 1}
           </td>
-          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }} title="Toggle details">
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Toggle details"
+          >
             <button
               style={styles.arrowButton}
-              onClick={() => toggleVendorRowExpansion(`iqc_vendor_${vendor.id}`)}
+              onClick={() =>
+                toggleVendorRowExpansion(`iqc_vendor_${vendor.id}`)
+              }
             >
               {expandedVendorRows[`iqc_vendor_${vendor.id}`] ? (
                 <MdArrowDropDown style={styles.arrowIcon} />
@@ -2680,32 +3267,26 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </td>
           <td
             style={styles.tdWithLeftBorder}
-            title={vendor.vendor_code ? `${vendor.vendor_code} - ${vendor.vendor_name}` : "-"}
+            title={
+              vendor.vendor_code
+                ? `${vendor.vendor_code} - ${vendor.vendor_name}`
+                : "-"
+            }
           >
-            {vendor.vendor_code ? `${vendor.vendor_code} - ${vendor.vendor_name}` : "-"}
+            {vendor.vendor_code
+              ? `${vendor.vendor_code} - ${vendor.vendor_name}`
+              : "-"}
           </td>
-          <td
-            style={styles.tdWithLeftBorder}
-            title={vendor.stock_level || "-"}
-          >
+          <td style={styles.tdWithLeftBorder} title={vendor.stock_level || "-"}>
             {vendor.stock_level || "-"}
           </td>
-          <td
-            style={styles.tdWithLeftBorder}
-            title={vendor.model_name || "-"}
-          >
+          <td style={styles.tdWithLeftBorder} title={vendor.model_name || "-"}>
             {vendor.model_name || "-"}
           </td>
-          <td
-            style={styles.tdWithLeftBorder}
-            title={vendor.trip_no || "-"}
-          >
+          <td style={styles.tdWithLeftBorder} title={vendor.trip_no || "-"}>
             {vendor.trip_no || "-"}
           </td>
-          <td
-            style={styles.tdWithLeftBorder}
-            title={vendor.do_numbers || "-"}
-          >
+          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
             {vendor.do_numbers || "-"}
           </td>
           <td
@@ -2736,12 +3317,16 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             style={styles.tdWithLeftBorder}
             title={
               vendor.approve_by_name
-                ? `${vendor.approve_by_name} | ${formatDateTime(vendor.approve_at)}`
+                ? `${vendor.approve_by_name} | ${formatDateTime(
+                    vendor.approve_at
+                  )}`
                 : "-"
             }
           >
             {vendor.approve_by_name
-              ? `${vendor.approve_by_name} | ${formatDateTime(vendor.approve_at)}`
+              ? `${vendor.approve_by_name} | ${formatDateTime(
+                  vendor.approve_at
+                )}`
               : "-"}
           </td>
           <td style={styles.tdWithLeftBorder} title="Move to Sample">
@@ -2766,7 +3351,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                    tableConfig["IQC Progress"].partsTable.cols
+                      tableConfig["IQC Progress"].partsTable.cols
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -2778,6 +3363,410 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                       <th style={styles.thirdLevelTh}>Unit</th>
                       <th style={styles.thirdLevelTh}>Prod Date</th>
                       <th style={styles.thirdLevelTh}>Status</th>
+                      <th style={styles.thirdLevelTh}>Sample</th>
+                      <th style={styles.thirdLevelTh}>Remark</th>
+                      <th style={styles.thirdLevelTh}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vendor.parts?.length > 0 ? (
+                      vendor.parts.map((part, i) => {
+                        const { status: autoStatus, sampleDates } =
+                          getPartSampleStatus(part);
+                        const displayStatus =
+                          part.status === "PASS" ? "PASS" : autoStatus;
+
+                        return (
+                          <tr key={part.id}>
+                            <td
+                              style={{
+                                ...styles.expandedTd,
+                                ...styles.expandedWithLeftBorder,
+                                ...styles.emptyColumn,
+                              }}
+                              title={i + 1}
+                            >
+                              {i + 1}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.part_code || "-"}
+                            >
+                              {part.part_code || "-"}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.part_name || "-"}
+                            >
+                              {part.part_name || "-"}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.qty?.toString() || "0"}
+                            >
+                              {part.qty || 0}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.qty_box?.toString() || "0"}
+                            >
+                              {part.qty_box || 0}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.unit || "PCS"}
+                            >
+                              {part.unit || "PCS"}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={(() => {
+                                const prodDates =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                if (prodDates.length === 0) return "-";
+                                return prodDates.map((d) => formatDate(d)).join(", ");
+                              })()}
+                            >
+                              {editingIqcPartId === part.id ? (
+                                <div style={styles.inlineProdDatesContainer}>
+                                  {(editIqcPartData.prod_dates || [""]).map((date, dateIdx) => (
+                                    <div key={dateIdx} style={styles.inlineProdDateItem}>
+                                      <input
+                                        type="date"
+                                        style={styles.inlineProdDateInput}
+                                        value={date || ""}
+                                        onChange={(e) => {
+                                          const newDates = [...(editIqcPartData.prod_dates || [""])];
+                                          newDates[dateIdx] = e.target.value;
+                                          setEditIqcPartData((p) => ({
+                                            ...p,
+                                            prod_dates: newDates,
+                                          }));
+                                        }}
+                                      />
+                                      {(editIqcPartData.prod_dates || []).length > 1 && (
+                                        <button
+                                          style={styles.inlineProdDateRemove}
+                                          onClick={() => {
+                                            const newDates = (editIqcPartData.prod_dates || []).filter((_, i) => i !== dateIdx);
+                                            setEditIqcPartData((p) => ({
+                                              ...p,
+                                              prod_dates: newDates.length > 0 ? newDates : [""],
+                                            }));
+                                          }}
+                                          title="Remove date"
+                                        >
+                                          <X size={12} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                  <button
+                                    style={styles.inlineProdDateAdd}
+                                    onClick={() => {
+                                      const newDates = [...(editIqcPartData.prod_dates || [""]), ""];
+                                      setEditIqcPartData((p) => ({
+                                        ...p,
+                                        prod_dates: newDates,
+                                      }));
+                                    }}
+                                    title="Add date"
+                                  >
+                                    <Plus size={10} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={styles.prodDatesList}>
+                                  {(() => {
+                                    const prodDates =
+                                      part.prod_dates ||
+                                      (part.prod_date ? [part.prod_date] : []);
+                                    if (prodDates.length === 0) return "-";
+                                    return prodDates.map((d) => formatDate(d)).join(", ");
+                                  })()}
+                                </span>
+                              )}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={displayStatus || "-"}
+                            >
+                              {editingIqcPartId === part.id ? (
+                                <select
+                                  style={styles.inlineInput}
+                                  value={editIqcPartData.status || ""}
+                                  onChange={(e) =>
+                                    setEditIqcPartData((p) => ({
+                                      ...p,
+                                      status: e.target.value,
+                                    }))
+                                  }
+                                  title="Select"
+                                >
+                                  <option value="">-</option>
+                                  <option value="PASS">PASS</option>
+                                  <option value="EQZD">EQZD</option>
+                                  <option value="SAMPLE">SAMPLE</option>
+                                </select>
+                              ) : (
+                                <span style={styles.statusBadge}>
+                                  {displayStatus || "-"}
+                                </span>
+                              )}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={
+                                displayStatus === "PASS"
+                                  ? "-"
+                                  : sampleDates.length > 0
+                                  ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                  : "-"
+                              }
+                            >
+                              {displayStatus === "PASS" ? (
+                                "-"
+                              ) : sampleDates.length > 0 ? (
+                                <span style={{ fontSize: "10px" }}>
+                                  {sampleDates.map((d) => formatDate(d)).join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.remark || "-"}
+                            >
+                              {editingIqcPartId === part.id ? (
+                                <input
+                                  type="text"
+                                  style={styles.inlineInput}
+                                  value={editIqcPartData.remark || ""}
+                                  onChange={(e) =>
+                                    setEditIqcPartData((p) => ({
+                                      ...p,
+                                      remark: e.target.value,
+                                    }))
+                                  }
+                                  title="Enter remark"
+                                />
+                              ) : (
+                                part.remark || "-"
+                              )}
+                            </td>
+                            <td style={styles.thirdLevelTd} title="Action">
+                              {editingIqcPartId === part.id ? (
+                                <>
+                                  <button
+                                    style={styles.saveButton}
+                                    onClick={() =>
+                                      handleSaveEditIqcPart(part.id)
+                                    }
+                                    title="Save"
+                                  >
+                                    <Save size={10} />
+                                  </button>
+                                  <button
+                                    style={styles.cancelButton}
+                                    onClick={handleCancelEditIqcPart}
+                                    title="Cancel"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  {/* Tombol Edit */}
+                                  <button
+                                    style={styles.editButton}
+                                    onClick={() => handleEditIqcPart(part)}
+                                    title="Edit"
+                                  >
+                                    <Pencil size={10} />
+                                  </button>
+
+                                  {/* Tombol Delete */}
+                                  <button
+                                    style={styles.deleteButton}
+                                    onClick={() => handleDeletePart(part.id)}
+                                    title="Delete"
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="11"
+                          style={{
+                            textAlign: "center",
+                            padding: "10px",
+                            color: "#6b7280",
+                          }}
+                        >
+                          No parts
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  // ====== RENDER SAMPLE TAB ======
+  const renderSampleTab = () => {
+    if (loading)
+      return (
+        <tr>
+          <td
+            colSpan="13"
+            style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          >
+            Loading...
+          </td>
+        </tr>
+      );
+
+    return sampleVendors.map((vendor, index) => (
+      <React.Fragment key={vendor.id}>
+        <tr>
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+            title={index + 1}
+          >
+            {index + 1}
+          </td>
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Toggle details"
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() =>
+                toggleVendorRowExpansion(`sample_vendor_${vendor.id}`)
+              }
+              title="Toggle details"
+            >
+              {expandedVendorRows[`sample_vendor_${vendor.id}`] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              vendor.vendor_code
+                ? `${vendor.vendor_code} - ${vendor.vendor_name}`
+                : "-"
+            }
+          >
+            {vendor.vendor_code
+              ? `${vendor.vendor_code} - ${vendor.vendor_name}`
+              : "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={vendor.stock_level || "-"}>
+            {vendor.stock_level || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={vendor.model_name || "-"}>
+            {vendor.model_name || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={vendor.trip_no || "-"}>
+            {vendor.trip_no || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
+            {vendor.do_numbers || "-"}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={vendor.total_pallet?.toString() || "0"}
+          >
+            {vendor.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={vendor.total_item?.toString() || "0"}
+          >
+            {vendor.total_item || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={vendor.arrival_time || "-"}
+          >
+            {vendor.arrival_time || "-"}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={formatDate(vendor.schedule_date)}
+          >
+            {formatDate(vendor.schedule_date)}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              vendor.sample_by_name
+                ? `${vendor.sample_by_name} | ${formatDateTime(
+                    vendor.sample_at
+                  )}`
+                : "-"
+            }
+          >
+            {vendor.sample_by_name
+              ? `${vendor.sample_by_name} | ${formatDateTime(vendor.sample_at)}`
+              : "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title="Move to Complete">
+            <button
+              style={styles.checkButton}
+              onClick={() => handleMoveVendorToComplete(vendor.id)}
+              title="Move to Complete"
+            >
+              <Check size={10} />
+            </button>
+          </td>
+        </tr>
+        {expandedVendorRows[`sample_vendor_${vendor.id}`] && (
+          <tr>
+            <td colSpan="13" style={{ padding: 0, border: "none" }}>
+              <div
+                style={{
+                  ...styles.thirdLevelTableContainer,
+                  marginLeft: getCurrentConfig().partsTable?.marginLeft,
+                }}
+              >
+                <table style={styles.thirdLevelTable}>
+                  {renderColgroup(
+                    getCurrentConfig().partsTable?.cols ||
+                      tableConfig.Sample.partsTable.cols
+                  )}
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.thirdLevelTh}>No</th>
+                      <th style={styles.thirdLevelTh}>Part Code</th>
+                      <th style={styles.thirdLevelTh}>Part Name</th>
+                      <th style={styles.thirdLevelTh}>Qty</th>
+                      <th style={styles.thirdLevelTh}>Qty Box</th>
+                      <th style={styles.thirdLevelTh}>Unit</th>
+                      <th style={styles.thirdLevelTh}>Prod Date</th>
+                      <th style={styles.thirdLevelTh}>Status</th>
+                      <th style={styles.thirdLevelTh}>Sample</th>
                       <th style={styles.thirdLevelTh}>Remark</th>
                       <th style={styles.thirdLevelTh}>Action</th>
                     </tr>
@@ -2828,25 +3817,50 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                           </td>
                           <td
                             style={styles.thirdLevelTd}
-                            title={part.prod_date ? formatDate(part.prod_date) : "-"}
+                            title={(() => {
+                              const allDates = [];
+                              if (part.prod_dates && part.prod_dates.length > 0) {
+                                part.prod_dates.forEach((d) => {
+                                  if (d && d.date) allDates.push(formatDate(d.date));
+                                  else if (d && typeof d === "string") allDates.push(formatDate(d));
+                                });
+                              } else if (part.prod_date) {
+                                allDates.push(formatDate(part.prod_date));
+                              }
+                              return allDates.length > 0 ? allDates.join(", ") : "-";
+                            })()}
                           >
-                            {part.prod_date ? formatDate(part.prod_date) : "-"}
+                            {(() => {
+                              const allDates = [];
+                              if (part.prod_dates && part.prod_dates.length > 0) {
+                                part.prod_dates.forEach((d) => {
+                                  if (d && d.date) allDates.push(formatDate(d.date));
+                                  else if (d && typeof d === "string") allDates.push(formatDate(d));
+                                });
+                              } else if (part.prod_date) {
+                                allDates.push(formatDate(part.prod_date));
+                              }
+                              return allDates.length > 0 ? allDates.join(", ") : "-";
+                            })()}
                           </td>
                           <td
                             style={styles.thirdLevelTd}
-                            title={part.status || "-"}
+                            title={(() => {
+                              const { status } = getPartSampleStatus(part);
+                              return status || "-";
+                            })()}
                           >
-                            {editingIqcPartId === part.id ? (
+                            {editingSamplePartId === part.id ? (
                               <select
                                 style={styles.inlineInput}
-                                value={editIqcPartData.status || ""}
+                                value={editSamplePartData.status || ""}
                                 onChange={(e) =>
-                                  setEditIqcPartData((p) => ({
+                                  setEditSamplePartData((p) => ({
                                     ...p,
                                     status: e.target.value,
                                   }))
                                 }
-                                title="Select"
+                                title="Select status"
                               >
                                 <option value="">-</option>
                                 <option value="PASS">PASS</option>
@@ -2854,20 +3868,39 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 <option value="SAMPLE">SAMPLE</option>
                               </select>
                             ) : (
-                              part.status || "-"
+                              (() => {
+                                const { status } = getPartSampleStatus(part);
+                                return status || "-";
+                              })()
                             )}
+                          </td>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={(() => {
+                              const { sampleDates } = getPartSampleStatus(part);
+                              return sampleDates.length > 0
+                                ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                : "-";
+                            })()}
+                          >
+                            {(() => {
+                              const { sampleDates } = getPartSampleStatus(part);
+                              return sampleDates.length > 0
+                                ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                : "-";
+                            })()}
                           </td>
                           <td
                             style={styles.thirdLevelTd}
                             title={part.remark || "-"}
                           >
-                            {editingIqcPartId === part.id ? (
+                            {editingSamplePartId === part.id ? (
                               <input
                                 type="text"
                                 style={styles.inlineInput}
-                                value={editIqcPartData.remark || ""}
+                                value={editSamplePartData.remark || ""}
                                 onChange={(e) =>
-                                  setEditIqcPartData((p) => ({
+                                  setEditSamplePartData((p) => ({
                                     ...p,
                                     remark: e.target.value,
                                   }))
@@ -2878,19 +3911,21 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                               part.remark || "-"
                             )}
                           </td>
-                          <td style={styles.thirdLevelTd}>
-                            {editingIqcPartId === part.id ? (
+                          <td style={styles.thirdLevelTd} title="Action">
+                            {editingSamplePartId === part.id ? (
                               <>
                                 <button
                                   style={styles.saveButton}
-                                  onClick={() => handleSaveEditIqcPart(part.id)}
+                                  onClick={() =>
+                                    handleSaveEditSamplePart(part.id)
+                                  }
                                   title="Save"
                                 >
                                   <Save size={10} />
                                 </button>
                                 <button
                                   style={styles.cancelButton}
-                                  onClick={handleCancelEditIqcPart}
+                                  onClick={handleCancelEditSamplePart}
                                   title="Cancel"
                                 >
                                   <X size={10} />
@@ -2899,7 +3934,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             ) : (
                               <button
                                 style={styles.editButton}
-                                onClick={() => handleEditIqcPart(part)}
+                                onClick={() => handleEditSamplePart(part)}
                                 title="Edit"
                               >
                                 <Pencil size={10} />
@@ -2917,6 +3952,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             padding: "10px",
                             color: "#6b7280",
                           }}
+                          title="No parts"
                         >
                           No parts
                         </td>
@@ -2928,306 +3964,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             </td>
           </tr>
         )}
-      </React.Fragment>
-    ));
-  };
-
-  // ====== RENDER SAMPLE TAB ======
-  const renderSampleTab = () => {
-    if (loading)
-      return (
-        <tr>
-          <td
-            colSpan="13"
-            style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
-          >
-            Loading...
-          </td>
-        </tr>
-      );
-
-    return sampleVendors.map((vendor, index) => (
-      <React.Fragment key={vendor.id}>
-<tr>
-  <td
-    style={{
-      ...styles.expandedTd,
-      ...styles.expandedWithLeftBorder,
-      ...styles.emptyColumn,
-    }}
-    title={index + 1}
-  >
-    {index + 1}
-  </td>
-  <td 
-    style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
-    title="Toggle details"
-  >
-    <button
-      style={styles.arrowButton}
-      onClick={() => toggleVendorRowExpansion(`sample_vendor_${vendor.id}`)}
-      title="Toggle details"
-    >
-      {expandedVendorRows[`sample_vendor_${vendor.id}`] ? (
-        <MdArrowDropDown style={styles.arrowIcon} />
-      ) : (
-        <MdArrowRight style={styles.arrowIcon} />
-      )}
-    </button>
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={vendor.vendor_code ? `${vendor.vendor_code} - ${vendor.vendor_name}` : "-"}
-  >
-    {vendor.vendor_code
-      ? `${vendor.vendor_code} - ${vendor.vendor_name}`
-      : "-"}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={vendor.stock_level || "-"}
-  >
-    {vendor.stock_level || "-"}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={vendor.model_name || "-"}
-  >
-    {vendor.model_name || "-"}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={vendor.trip_no || "-"}
-  >
-    {vendor.trip_no || "-"}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={vendor.do_numbers || "-"}
-  >
-    {vendor.do_numbers || "-"}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={vendor.total_pallet?.toString() || "0"}
-  >
-    {vendor.total_pallet || 0}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={vendor.total_item?.toString() || "0"}
-  >
-    {vendor.total_item || 0}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={vendor.arrival_time || "-"}
-  >
-    {vendor.arrival_time || "-"}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={formatDate(vendor.schedule_date)}
-  >
-    {formatDate(vendor.schedule_date)}
-  </td>
-  <td 
-    style={styles.tdWithLeftBorder}
-    title={
-      vendor.sample_by_name
-        ? `${vendor.sample_by_name} | ${formatDateTime(vendor.sample_at)}`
-        : "-"
-    }
-  >
-    {vendor.sample_by_name
-      ? `${vendor.sample_by_name} | ${formatDateTime(vendor.sample_at)}`
-      : "-"}
-  </td>
-  <td style={styles.tdWithLeftBorder} title="Move to Complete">
-    <button
-      style={styles.checkButton}
-      onClick={() => handleMoveVendorToComplete(vendor.id)}
-      title="Move to Complete"
-    >
-      <Check size={10} />
-    </button>
-  </td>
-</tr>
-{expandedVendorRows[`sample_vendor_${vendor.id}`] && (
-  <tr>
-    <td colSpan="13" style={{ padding: 0, border: "none" }}>
-      <div
-        style={{
-          ...styles.thirdLevelTableContainer,
-          marginLeft: getCurrentConfig().partsTable?.marginLeft,
-        }}
-      >
-        <table style={styles.thirdLevelTable}>
-          {renderColgroup(
-            getCurrentConfig().partsTable?.cols ||
-            tableConfig.Sample.partsTable.cols
-          )}
-          <thead>
-            <tr style={styles.expandedTableHeader}>
-              <th style={styles.thirdLevelTh}>No</th>
-              <th style={styles.thirdLevelTh}>Part Code</th>
-              <th style={styles.thirdLevelTh}>Part Name</th>
-              <th style={styles.thirdLevelTh}>Qty</th>
-              <th style={styles.thirdLevelTh}>Qty Box</th>
-              <th style={styles.thirdLevelTh}>Unit</th>
-              <th style={styles.thirdLevelTh}>Prod Date</th>
-              <th style={styles.thirdLevelTh}>Status</th>
-              <th style={styles.thirdLevelTh}>Remark</th>
-              <th style={styles.thirdLevelTh}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vendor.parts?.length > 0 ? (
-              vendor.parts.map((part, i) => (
-                <tr key={part.id}>
-                  <td
-                    style={{
-                      ...styles.expandedTd,
-                      ...styles.expandedWithLeftBorder,
-                      ...styles.emptyColumn,
-                    }}
-                    title={i + 1}
-                  >
-                    {i + 1}
-                  </td>
-                  <td 
-                    style={styles.thirdLevelTd}
-                    title={part.part_code || "-"}
-                  >
-                    {part.part_code || "-"}
-                  </td>
-                  <td 
-                    style={styles.thirdLevelTd}
-                    title={part.part_name || "-"}
-                  >
-                    {part.part_name || "-"}
-                  </td>
-                  <td 
-                    style={styles.thirdLevelTd}
-                    title={part.qty?.toString() || "0"}
-                  >
-                    {part.qty || 0}
-                  </td>
-                  <td 
-                    style={styles.thirdLevelTd}
-                    title={part.qty_box?.toString() || "0"}
-                  >
-                    {part.qty_box || 0}
-                  </td>
-                  <td 
-                    style={styles.thirdLevelTd}
-                    title={part.unit || "PCS"}
-                  >
-                    {part.unit || "PCS"}
-                  </td>
-                  <td 
-                    style={styles.thirdLevelTd}
-                    title={part.prod_date ? formatDate(part.prod_date) : "-"}
-                  >
-                    {part.prod_date ? formatDate(part.prod_date) : "-"}
-                  </td>
-                  <td 
-                    style={styles.thirdLevelTd}
-                    title={part.status || "-"}
-                  >
-                    {editingSamplePartId === part.id ? (
-                      <select
-                        style={styles.inlineInput}
-                        value={editSamplePartData.status || ""}
-                        onChange={(e) =>
-                          setEditSamplePartData((p) => ({
-                            ...p,
-                            status: e.target.value,
-                          }))
-                        }
-                        title="Select status"
-                      >
-                        <option value="">-</option>
-                        <option value="PASS">PASS</option>
-                        <option value="EQZD">EQZD</option>
-                        <option value="SAMPLE">SAMPLE</option>
-                      </select>
-                    ) : (
-                      part.status || "-"
-                    )}
-                  </td>
-                  <td 
-                    style={styles.thirdLevelTd}
-                    title={part.remark || "-"}
-                  >
-                    {editingSamplePartId === part.id ? (
-                      <input
-                        type="text"
-                        style={styles.inlineInput}
-                        value={editSamplePartData.remark || ""}
-                        onChange={(e) =>
-                          setEditSamplePartData((p) => ({
-                            ...p,
-                            remark: e.target.value,
-                          }))
-                        }
-                        title="Enter remark"
-                      />
-                    ) : (
-                      part.remark || "-"
-                    )}
-                  </td>
-                  <td style={styles.thirdLevelTd}>
-                    {editingSamplePartId === part.id ? (
-                      <>
-                        <button
-                          style={styles.saveButton}
-                          onClick={() => handleSaveEditSamplePart(part.id)}
-                          title="Save"
-                        >
-                          <Save size={10} />
-                        </button>
-                        <button
-                          style={styles.cancelButton}
-                          onClick={handleCancelEditSamplePart}
-                          title="Cancel"
-                        >
-                          <X size={10} />
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        style={styles.editButton}
-                        onClick={() => handleEditSamplePart(part)}
-                        title="Edit"
-                      >
-                        <Pencil size={10} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan="10"
-                  style={{
-                    textAlign: "center",
-                    padding: "10px",
-                    color: "#6b7280",
-                  }}
-                  title="No parts"
-                >
-                  No parts
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </td>
-  </tr>
-)}
       </React.Fragment>
     ));
   };
@@ -3259,13 +3995,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           >
             {index + 1}
           </td>
-          <td 
+          <td
             style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
             title="Toggle details"
           >
             <button
               style={styles.arrowButton}
-              onClick={() => toggleVendorRowExpansion(`complete_vendor_${vendor.id}`)}
+              onClick={() =>
+                toggleVendorRowExpansion(`complete_vendor_${vendor.id}`)
+              }
               title="Toggle details"
             >
               {expandedVendorRows[`complete_vendor_${vendor.id}`] ? (
@@ -3275,72 +4013,68 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               )}
             </button>
           </td>
-          <td 
+          <td
             style={styles.tdWithLeftBorder}
-            title={vendor.vendor_code ? `${vendor.vendor_code} - ${vendor.vendor_name}` : "-"}
+            title={
+              vendor.vendor_code
+                ? `${vendor.vendor_code} - ${vendor.vendor_name}`
+                : "-"
+            }
           >
             {vendor.vendor_code
               ? `${vendor.vendor_code} - ${vendor.vendor_name}`
               : "-"}
           </td>
-          <td 
-            style={styles.tdWithLeftBorder}
-            title={vendor.stock_level || "-"}
-          >
+          <td style={styles.tdWithLeftBorder} title={vendor.stock_level || "-"}>
             {vendor.stock_level || "-"}
           </td>
-          <td 
-            style={styles.tdWithLeftBorder}
-            title={vendor.model_name || "-"}
-          >
+          <td style={styles.tdWithLeftBorder} title={vendor.model_name || "-"}>
             {vendor.model_name || "-"}
           </td>
-          <td 
-            style={styles.tdWithLeftBorder}
-            title={vendor.trip_no || "-"}
-          >
+          <td style={styles.tdWithLeftBorder} title={vendor.trip_no || "-"}>
             {vendor.trip_no || "-"}
           </td>
-          <td 
-            style={styles.tdWithLeftBorder}
-            title={vendor.do_numbers || "-"}
-          >
+          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
             {vendor.do_numbers || "-"}
           </td>
-          <td 
+          <td
             style={styles.tdWithLeftBorder}
             title={vendor.total_pallet?.toString() || "0"}
           >
             {vendor.total_pallet || 0}
           </td>
-          <td 
+          <td
             style={styles.tdWithLeftBorder}
             title={vendor.total_item?.toString() || "0"}
           >
             {vendor.total_item || 0}
           </td>
-          <td 
+          <td
             style={styles.tdWithLeftBorder}
             title={vendor.arrival_time || "-"}
           >
             {vendor.arrival_time || "-"}
           </td>
-          <td 
+          <td
             style={styles.tdWithLeftBorder}
             title={formatDate(vendor.schedule_date)}
           >
             {formatDate(vendor.schedule_date)}
           </td>
-          <td 
+          <td
             style={styles.tdWithLeftBorder}
             title={
               vendor.complete_by_name
-                ? `${vendor.complete_by_name} | ${formatDateTime(vendor.complete_at)}`
+                ? `${vendor.complete_by_name} | ${formatDateTime(
+                    vendor.complete_at
+                  )}`
                 : "-"
             }
           >
             {vendor.complete_by_name
-              ? `${vendor.complete_by_name} | ${formatDateTime(vendor.complete_at)}`
+              ? `${vendor.complete_by_name} | ${formatDateTime(
+                  vendor.complete_at
+                )}`
               : "-"}
           </td>
         </tr>
@@ -3365,6 +4099,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                       <th style={styles.thirdLevelTh}>Unit</th>
                       <th style={styles.thirdLevelTh}>Prod Date</th>
                       <th style={styles.thirdLevelTh}>Status</th>
+                      <th style={styles.thirdLevelTh}>Sample</th>
                       <th style={styles.thirdLevelTh}>Remark</th>
                     </tr>
                   </thead>
@@ -3382,49 +4117,93 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                           >
                             {i + 1}
                           </td>
-                          <td 
+                          <td
                             style={styles.thirdLevelTd}
                             title={part.part_code || "-"}
                           >
                             {part.part_code || "-"}
                           </td>
-                          <td 
+                          <td
                             style={styles.thirdLevelTd}
                             title={part.part_name || "-"}
                           >
                             {part.part_name || "-"}
                           </td>
-                          <td 
+                          <td
                             style={styles.thirdLevelTd}
                             title={part.qty?.toString() || "-"}
                           >
                             {part.qty || "-"}
                           </td>
-                          <td 
+                          <td
                             style={styles.thirdLevelTd}
                             title={part.qty_box?.toString() || "-"}
                           >
                             {part.qty_box || "-"}
                           </td>
-                          <td 
+                          <td
                             style={styles.thirdLevelTd}
                             title={part.unit || "PCS"}
                           >
                             {part.unit || "PCS"}
                           </td>
-                          <td 
+                          <td
                             style={styles.thirdLevelTd}
-                            title={part.prod_date ? formatDate(part.prod_date) : "-"}
+                            title={(() => {
+                              const allDates = [];
+                              if (part.prod_dates && part.prod_dates.length > 0) {
+                                part.prod_dates.forEach((d) => {
+                                  if (d && d.date) allDates.push(formatDate(d.date));
+                                  else if (d && typeof d === "string") allDates.push(formatDate(d));
+                                });
+                              } else if (part.prod_date) {
+                                allDates.push(formatDate(part.prod_date));
+                              }
+                              return allDates.length > 0 ? allDates.join(", ") : "-";
+                            })()}
                           >
-                            {part.prod_date ? formatDate(part.prod_date) : "-"}
+                            {(() => {
+                              const allDates = [];
+                              if (part.prod_dates && part.prod_dates.length > 0) {
+                                part.prod_dates.forEach((d) => {
+                                  if (d && d.date) allDates.push(formatDate(d.date));
+                                  else if (d && typeof d === "string") allDates.push(formatDate(d));
+                                });
+                              } else if (part.prod_date) {
+                                allDates.push(formatDate(part.prod_date));
+                              }
+                              return allDates.length > 0 ? allDates.join(", ") : "-";
+                            })()}
                           </td>
-                          <td 
+                          <td
                             style={styles.thirdLevelTd}
-                            title={part.status || "-"}
+                            title={(() => {
+                              const { status } = getPartSampleStatus(part);
+                              return status || "-";
+                            })()}
                           >
-                            {part.status || "-"}
+                            {(() => {
+                              const { status } = getPartSampleStatus(part);
+                              return status || "-";
+                            })()}
                           </td>
-                          <td 
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={(() => {
+                              const { sampleDates } = getPartSampleStatus(part);
+                              return sampleDates.length > 0
+                                ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                : "-";
+                            })()}
+                          >
+                            {(() => {
+                              const { sampleDates } = getPartSampleStatus(part);
+                              return sampleDates.length > 0
+                                ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                : "-";
+                            })()}
+                          </td>
+                          <td
                             style={styles.thirdLevelTd}
                             title={part.remark || "-"}
                           >
@@ -3581,18 +4360,18 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <button
                   style={styles.saveButton}
                   onClick={() => handleSaveEditSchedule(schedule.id)}
-                  data-tooltip="Save"
-                  onMouseEnter={showTooltip}
-                  onMouseLeave={hideTooltip}
+                  title="Save"
+                  
+                  
                 >
                   <Save size={10} />
                 </button>
                 <button
                   style={styles.cancelButton}
                   onClick={handleCancelEditSchedule}
-                  data-tooltip="Cancel"
-                  onMouseEnter={showTooltip}
-                  onMouseLeave={hideTooltip}
+                  title="Cancel"
+                  
+                  
                 >
                   <X size={10} />
                 </button>
@@ -3603,9 +4382,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                   <button
                     style={styles.editButton}
                     onClick={() => handleEditSchedule(schedule)}
-                    data-tooltip="Edit"
-                    onMouseEnter={showTooltip}
-                    onMouseLeave={hideTooltip}
+                    title="Edit"
+                    
+                    
                   >
                     <Pencil size={10} />
                   </button>
@@ -3614,9 +4393,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                   <button
                     style={styles.deleteButton}
                     onClick={() => handleDeleteSchedule(schedule.id)}
-                    data-tooltip="Delete"
-                    onMouseEnter={showTooltip}
-                    onMouseLeave={hideTooltip}
+                    title="Delete"
+                    
+                    
                   >
                     <Trash2 size={10} />
                   </button>
@@ -3626,9 +4405,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                   <button
                     style={styles.addButton}
                     onClick={() => handleOpenAddVendor(schedule.id)}
-                    data-tooltip="Add Vendor"
-                    onMouseEnter={showTooltip}
-                    onMouseLeave={hideTooltip}
+                    title="Add Vendor"
+                    
+                    
                   >
                     <Plus size={10} />
                   </button>
@@ -3650,7 +4429,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.expandedTable}>
                   {renderColgroup(
                     getCurrentConfig().vendorTable?.cols ||
-                    tableConfig.Today.vendorTable.cols
+                      tableConfig.Today.vendorTable.cols
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -3704,383 +4483,410 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 )}
                               </button>
                             </td>
-                            <td style={styles.expandedTd}>
+                            <td style={styles.expandedTd} title={vendor.trip_no || "-"}>
                               {vendor.trip_no || "-"}
                             </td>
-                            <td style={styles.expandedTd}>
+                            <td style={styles.expandedTd} title={vendor.vendor_code ? `${vendor.vendor_code} - ${vendor.vendor_name}` : "-"}>
                               {vendor.vendor_code
                                 ? `${vendor.vendor_code} - ${vendor.vendor_name}`
                                 : "-"}
                             </td>
-                            <td style={styles.expandedTd}>
+                            <td style={styles.expandedTd} title={vendor.do_numbers || "-"}>
                               {vendor.do_numbers || "-"}
                             </td>
-                            <td style={styles.expandedTd}>
+                            <td style={styles.expandedTd} title={vendor.arrival_time || "-"}>
                               {vendor.arrival_time || "-"}
                             </td>
-                            <td style={styles.expandedTd}>
+                            <td style={styles.expandedTd} title={vendor.total_pallet?.toString() || "0"}>
                               {vendor.total_pallet || 0}
                             </td>
-                            <td style={styles.expandedTd}>
+                            <td style={styles.expandedTd} title={vendor.total_item?.toString() || "0"}>
                               {vendor.total_item || 0}
                             </td>
                             {(activeTab === "Today" ||
                               activeTab === "Schedule") && (
-                                <td style={styles.expandedTd}>
+                              <td style={styles.expandedTd} title="Action">
+                                <button
+                                  style={styles.addButton}
+                                  onClick={() =>
+                                    handleOpenAddPart(vendor.id, vendor)
+                                  }
+                                  title="Add Part"
+                                  
+                                  
+                                >
+                                  <Plus size={10} />
+                                </button>
+                                {activeTab === "Today" && (
                                   <button
-                                    style={styles.addButton}
+                                    style={styles.checkButton}
                                     onClick={() =>
-                                      handleOpenAddPart(vendor.id, vendor)
+                                      handleMoveVendorToReceived(
+                                        vendor.id,
+                                        schedule.id
+                                      )
                                     }
-                                    data-tooltip="Add Part"
-                                    onMouseEnter={showTooltip}
-                                    onMouseLeave={hideTooltip}
+                                    title="Move to Received"
+                                    
+                                    
                                   >
-                                    <Plus size={10} />
+                                    <CheckCircle size={10} />
                                   </button>
-                                  {activeTab === "Today" && (
-                                    <button
-                                      style={styles.checkButton}
-                                      onClick={() =>
-                                        handleMoveVendorToReceived(
-                                          vendor.id,
-                                          schedule.id
-                                        )
-                                      }
-                                      data-tooltip="Move to Received"
-                                      onMouseEnter={showTooltip}
-                                      onMouseLeave={hideTooltip}
-                                    >
-                                      <CheckCircle size={10} />
-                                    </button>
-                                  )}
-                                  {canDeleteSchedule && (
-                                    <button
-                                      style={styles.deleteButton}
-                                      onClick={() =>
-                                        handleDeleteVendor(vendor.id)
-                                      }
-                                      data-tooltip="Delete"
-                                      onMouseEnter={showTooltip}
-                                      onMouseLeave={hideTooltip}
-                                    >
-                                      <Trash2 size={10} />
-                                    </button>
-                                  )}
-                                </td>
-                              )}
+                                )}
+                                {canDeleteSchedule && (
+                                  <button
+                                    style={styles.deleteButton}
+                                    onClick={() =>
+                                      handleDeleteVendor(vendor.id)
+                                    }
+                                    title="Delete"
+                                    
+                                    
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
+                                )}
+                              </td>
+                            )}
                           </tr>
                           {expandedVendorRows[
                             `vendor_${schedule.id}_${vi}`
                           ] && (
-                              <tr>
-                                <td
-                                  colSpan={
-                                    activeTab === "Today" ||
-                                      activeTab === "Schedule"
-                                      ? "9"
-                                      : "8"
-                                  }
-                                  style={{ padding: 0, border: "none" }}
+                            <tr>
+                              <td
+                                colSpan={
+                                  activeTab === "Today" ||
+                                  activeTab === "Schedule"
+                                    ? "9"
+                                    : "8"
+                                }
+                                style={{ padding: 0, border: "none" }}
+                              >
+                                <div
+                                  style={{
+                                    ...styles.thirdLevelTableContainer,
+                                    marginLeft:
+                                      getCurrentConfig().partsTable?.marginLeft,
+                                  }}
                                 >
-                                  <div
-                                    style={{
-                                      ...styles.thirdLevelTableContainer,
-                                      marginLeft:
-                                        getCurrentConfig().partsTable?.marginLeft,
-                                    }}
-                                  >
-                                    <table style={styles.thirdLevelTable}>
-                                      {renderColgroup(
-                                        getCurrentConfig().partsTable?.cols ||
+                                  <table style={styles.thirdLevelTable}>
+                                    {renderColgroup(
+                                      getCurrentConfig().partsTable?.cols ||
                                         tableConfig.Today.partsTable.cols
-                                      )}
-                                      <thead>
-                                        <tr style={styles.expandedTableHeader}>
-                                          <th style={styles.expandedTh}>No</th>
+                                    )}
+                                    <thead>
+                                      <tr style={styles.expandedTableHeader}>
+                                        <th style={styles.expandedTh}>No</th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Part Code
+                                        </th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Part Name
+                                        </th>
+                                        <th style={styles.thirdLevelTh}>Qty</th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Qty Box
+                                        </th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Unit
+                                        </th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Prod Date
+                                        </th>
+                                        {activeTab === "Today" && (
                                           <th style={styles.thirdLevelTh}>
-                                            Part Code
+                                            Remark
                                           </th>
-                                          <th style={styles.thirdLevelTh}>
-                                            Part Name
-                                          </th>
-                                          <th style={styles.thirdLevelTh}>Qty</th>
-                                          <th style={styles.thirdLevelTh}>
-                                            Qty Box
-                                          </th>
-                                          <th style={styles.thirdLevelTh}>
-                                            Unit
-                                          </th>
-                                          <th style={styles.thirdLevelTh}>
-                                            Prod Date
-                                          </th>
-                                          {activeTab === "Today" && (
-                                            <th style={styles.thirdLevelTh}>
-                                              Remark
-                                            </th>
-                                          )}
-                                          <th style={styles.thirdLevelTh}>
-                                            Action
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {vendor.parts?.length > 0 ? (
-                                          vendor.parts.map((part, pi) => (
-                                            <tr key={part.id}>
-                                              <td
-                                                style={{
-                                                  ...styles.expandedTd,
-                                                  ...styles.expandedWithLeftBorder,
-                                                  ...styles.emptyColumn,
-                                                }}
-                                              >
-                                                {pi + 1}
-                                              </td>
-                                              <td style={styles.thirdLevelTd}>
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="text"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.part_code || ""
-                                                    }
-                                                    onChange={(e) =>
-                                                      setEditPartData((p) => ({
-                                                        ...p,
-                                                        part_code: e.target.value,
-                                                      }))
-                                                    }
-                                                  />
-                                                ) : (
-                                                  part.part_code || "-"
-                                                )}
-                                              </td>
-                                              <td style={styles.thirdLevelTd}>
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="text"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.part_name || ""
-                                                    }
-                                                    onChange={(e) =>
-                                                      setEditPartData((p) => ({
-                                                        ...p,
-                                                        part_name: e.target.value,
-                                                      }))
-                                                    }
-                                                  />
-                                                ) : (
-                                                  part.part_name || "-"
-                                                )}
-                                              </td>
-                                              <td style={styles.thirdLevelTd}>
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="number"
-                                                    style={styles.inlineInput}
-                                                    value={editPartData.qty || ""}
-                                                    onChange={(e) =>
-                                                      handleQtyChangeInEdit(
-                                                        e.target.value
-                                                      )
-                                                    }
-                                                  />
-                                                ) : (
-                                                  part.qty || 0
-                                                )}
-                                              </td>
-                                              <td style={styles.thirdLevelTd}>
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="number"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.qty_box || ""
-                                                    }
-                                                    readOnly
-                                                  />
-                                                ) : (
-                                                  part.qty_box || 0
-                                                )}
-                                              </td>
-                                              <td style={styles.thirdLevelTd}>
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="text"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.unit || "PCS"
-                                                    }
-                                                    onChange={(e) =>
-                                                      setEditPartData((p) => ({
-                                                        ...p,
-                                                        unit: e.target.value,
-                                                      }))
-                                                    }
-                                                  />
-                                                ) : (
-                                                  part.unit || "PCS"
-                                                )}
-                                              </td>
-                                              <td style={styles.thirdLevelTd}>
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="date"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.prod_date || ""
-                                                    }
-                                                    onChange={(e) =>
-                                                      setEditPartData((p) => ({
-                                                        ...p,
-                                                        prod_date: e.target.value,
-                                                      }))
-                                                    }
-                                                  />
-                                                ) : part.prod_date ? (
-                                                  formatDate(part.prod_date)
-                                                ) : (
-                                                  "-"
-                                                )}
-                                              </td>
-                                              {activeTab === "Today" && (
-                                                <td style={styles.thirdLevelTd}>
-                                                  {editingPartId === part.id ? (
-                                                    <input
-                                                      type="text"
-                                                      style={styles.inlineInput}
-                                                      value={
-                                                        editPartData.remark || ""
-                                                      }
-                                                      onChange={(e) =>
+                                        )}
+                                        <th style={styles.thirdLevelTh}>
+                                          Action
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {vendor.parts?.length > 0 ? (
+                                        vendor.parts.map((part, pi) => (
+                                          <tr key={part.id}>
+                                            <td
+                                              style={{
+                                                ...styles.expandedTd,
+                                                ...styles.expandedWithLeftBorder,
+                                                ...styles.emptyColumn,
+                                              }}
+                                              title={pi + 1}
+                                            >
+                                              {pi + 1}
+                                            </td>
+                                            <td style={styles.thirdLevelTd} title={part.part_code || "-"}>
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="text"
+                                                  style={styles.inlineInput}
+                                                  value={
+                                                    editPartData.part_code || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    setEditPartData((p) => ({
+                                                      ...p,
+                                                      part_code: e.target.value,
+                                                    }))
+                                                  }
+                                                />
+                                              ) : (
+                                                part.part_code || "-"
+                                              )}
+                                            </td>
+                                            <td style={styles.thirdLevelTd} title={part.part_name || "-"}>
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="text"
+                                                  style={styles.inlineInput}
+                                                  value={
+                                                    editPartData.part_name || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    setEditPartData((p) => ({
+                                                      ...p,
+                                                      part_name: e.target.value,
+                                                    }))
+                                                  }
+                                                />
+                                              ) : (
+                                                part.part_name || "-"
+                                              )}
+                                            </td>
+                                            <td style={styles.thirdLevelTd} title={part.qty?.toString() || "0"}>
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="number"
+                                                  style={styles.inlineInput}
+                                                  value={editPartData.qty || ""}
+                                                  onChange={(e) =>
+                                                    handleQtyChangeInEdit(
+                                                      e.target.value
+                                                    )
+                                                  }
+                                                />
+                                              ) : (
+                                                part.qty || 0
+                                              )}
+                                            </td>
+                                            <td style={styles.thirdLevelTd} title={part.qty_box?.toString() || "0"}>
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="number"
+                                                  style={styles.inlineInput}
+                                                  value={
+                                                    editPartData.qty_box || ""
+                                                  }
+                                                  readOnly
+                                                />
+                                              ) : (
+                                                part.qty_box || 0
+                                              )}
+                                            </td>
+                                            <td style={styles.thirdLevelTd} title={part.unit || "PCS"}>
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="text"
+                                                  style={styles.inlineInput}
+                                                  value={
+                                                    editPartData.unit || "PCS"
+                                                  }
+                                                  onChange={(e) =>
+                                                    setEditPartData((p) => ({
+                                                      ...p,
+                                                      unit: e.target.value,
+                                                    }))
+                                                  }
+                                                />
+                                              ) : (
+                                                part.unit || "PCS"
+                                              )}
+                                            </td>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={(() => {
+                                                const prodDates = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                                                if (prodDates.length === 0) return "-";
+                                                return prodDates.map((d) => formatDate(d)).join(", ");
+                                              })()}
+                                            >
+                                              {activeTab === "Today" ? (
+                                                editingPartId === part.id ? (
+                                                  <div style={styles.inlineProdDatesContainer}>
+                                                    {(editPartData.prod_dates || [""]).map((date, dateIdx) => (
+                                                      <div key={dateIdx} style={styles.inlineProdDateItem}>
+                                                        <input
+                                                          type="date"
+                                                          style={styles.inlineProdDateInput}
+                                                          value={date || ""}
+                                                          onChange={(e) => {
+                                                            const newDates = [...(editPartData.prod_dates || [""])];
+                                                            newDates[dateIdx] = e.target.value;
+                                                            setEditPartData((p) => ({
+                                                              ...p,
+                                                              prod_dates: newDates,
+                                                              prod_date: newDates[0] || null,
+                                                            }));
+                                                          }}
+                                                        />
+                                                        {(editPartData.prod_dates || []).length > 1 && (
+                                                          <button
+                                                            style={styles.inlineProdDateRemove}
+                                                            onClick={() => {
+                                                              const newDates = (editPartData.prod_dates || []).filter((_, i) => i !== dateIdx);
+                                                              setEditPartData((p) => ({
+                                                                ...p,
+                                                                prod_dates: newDates.length > 0 ? newDates : [""],
+                                                                prod_date: newDates[0] || null,
+                                                              }));
+                                                            }}
+                                                            title="Remove date"
+                                                          >
+                                                            <X size={12} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    ))}
+                                                    <button
+                                                      style={styles.inlineProdDateAdd}
+                                                      onClick={() => {
+                                                        const newDates = [...(editPartData.prod_dates || [""]), ""];
                                                         setEditPartData((p) => ({
                                                           ...p,
-                                                          remark: e.target.value,
-                                                        }))
-                                                      }
-                                                    />
-                                                  ) : (
-                                                    part.remark || "-"
-                                                  )}
-                                                </td>
+                                                          prod_dates: newDates,
+                                                        }));
+                                                      }}
+                                                      title="Add date"
+                                                    >
+                                                      <Plus size={10} />
+                                                    </button>
+                                                  </div>
+                                                ) : (
+                                                  <span style={styles.prodDatesBadge}>
+                                                    {(() => {
+                                                      const prodDates =
+                                                        part.prod_dates ||
+                                                        (part.prod_date
+                                                          ? [part.prod_date]
+                                                          : []);
+                                                      if (prodDates.length === 0) return "-";
+                                                      return prodDates.map((d) => formatDate(d)).join(", ");
+                                                    })()}
+                                                  </span>
+                                                )
+                                              ) : (
+                                                // Tab New dan Schedule: Tampilkan "-"
+                                                "-"
                                               )}
-                                              <td style={styles.thirdLevelTd}>
+                                            </td>
+                                            {activeTab === "Today" && (
+                                              <td style={styles.thirdLevelTd} title={part.remark || "-"}>
                                                 {editingPartId === part.id ? (
-                                                  <>
+                                                  <input
+                                                    type="text"
+                                                    style={styles.inlineInput}
+                                                    value={
+                                                      editPartData.remark || ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      setEditPartData((p) => ({
+                                                        ...p,
+                                                        remark: e.target.value,
+                                                      }))
+                                                    }
+                                                  />
+                                                ) : (
+                                                  part.remark || "-"
+                                                )}
+                                              </td>
+                                            )}
+                                            <td style={styles.thirdLevelTd} title="Action">
+                                              {editingPartId === part.id ? (
+                                                <>
+                                                  <button
+                                                    style={styles.saveButton}
+                                                    onClick={() =>
+                                                      handleSaveEditPart(
+                                                        part.id
+                                                      )
+                                                    }
+                                                    title="Save"
+                                                    
+                                                    
+                                                  >
+                                                    <Save size={10} />
+                                                  </button>
+                                                  <button
+                                                    style={styles.cancelButton}
+                                                    onClick={
+                                                      handleCancelEditPart
+                                                    }
+                                                    title="Cancel"
+                                                    
+                                                    
+                                                  >
+                                                    <X size={10} />
+                                                  </button>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  {activeTab === "Today" &&
+                                                    canEditPartsInToday && (
+                                                      <button
+                                                        style={
+                                                          styles.editButton
+                                                        }
+                                                        onClick={() =>
+                                                          handleEditPart(
+                                                            part,
+                                                            vendor.id
+                                                          )
+                                                        }
+                                                        title="Edit"
+                                                      >
+                                                        <Pencil size={10} />
+                                                      </button>
+                                                    )}
+                                                  {canDeleteSchedule && (
                                                     <button
-                                                      style={styles.saveButton}
+                                                      style={
+                                                        styles.deleteButton
+                                                      }
                                                       onClick={() =>
-                                                        handleSaveEditPart(
+                                                        handleDeletePart(
                                                           part.id
                                                         )
                                                       }
-                                                      data-tooltip="Save"
-                                                      onMouseEnter={showTooltip}
-                                                      onMouseLeave={hideTooltip}
+                                                      title="Delete"
+                                                      
+                                                      
                                                     >
-                                                      <Save size={10} />
+                                                      <Trash2 size={10} />
                                                     </button>
-                                                    <button
-                                                      style={styles.cancelButton}
-                                                      onClick={
-                                                        handleCancelEditPart
-                                                      }
-                                                      data-tooltip="Cancel"
-                                                      onMouseEnter={showTooltip}
-                                                      onMouseLeave={hideTooltip}
-                                                    >
-                                                      <X size={10} />
-                                                    </button>
-                                                  </>
-                                                ) : (
-                                                  <>
-                                                    {activeTab === "Today" &&
-                                                      canEditPartsInToday && (
-                                                        <button
-                                                          style={
-                                                            styles.editButton
-                                                          }
-                                                          onClick={() =>
-                                                            handleEditPart(
-                                                              part,
-                                                              vendor.id
-                                                            )
-                                                          }
-                                                          data-tooltip="Edit"
-                                                          onMouseEnter={
-                                                            showTooltip
-                                                          }
-                                                          onMouseLeave={
-                                                            hideTooltip
-                                                          }
-                                                        >
-                                                          <Pencil size={10} />
-                                                        </button>
-                                                      )}
-                                                    {canDeleteSchedule && (
-                                                      <button
-                                                        style={
-                                                          styles.deleteButton
-                                                        }
-                                                        onClick={() =>
-                                                          handleDeletePart(
-                                                            part.id
-                                                          )
-                                                        }
-                                                        data-tooltip="Delete"
-                                                        onMouseEnter={showTooltip}
-                                                        onMouseLeave={hideTooltip}
-                                                      >
-                                                        <Trash2 size={10} />
-                                                      </button>
-                                                    )}
-                                                  </>
-                                                )}
-                                              </td>
-                                            </tr>
-                                          ))
-                                        ) : (
-                                          <tr>
-                                            <td
-                                              colSpan={
-                                                activeTab === "Today" ? "8" : "7"
-                                              }
-                                              style={{
-                                                textAlign: "center",
-                                                padding: "10px",
-                                                color: "#6b7280",
-                                              }}
-                                            >
-                                              No parts
+                                                  )}
+                                                </>
+                                              )}
                                             </td>
                                           </tr>
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
+                                        ))
+                                      ) : (
+                                        <tr>
+                                         
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
                         </React.Fragment>
                       ))
                     ) : (
                       <tr>
-                        <td
-                          colSpan={
-                            activeTab === "Today" || activeTab === "Schedule"
-                              ? "9"
-                              : "8"
-                          }
-                          style={{
-                            textAlign: "center",
-                            padding: "10px",
-                            color: "#6b7280",
-                          }}
-                        >
-                          No vendors
-                        </td>
+                        
                       </tr>
                     )}
                   </tbody>
@@ -4095,7 +4901,11 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
-      {tooltip.visible && <div style={styles.tooltip}>{tooltip.content}</div>}
+      <div>
+        <Helmet>
+          <title>Inventory Control | Local Schedule</title>
+        </Helmet>
+      </div>
 
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
@@ -4622,7 +5432,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   checked={
                                     addVendorPartFormData.parts.length > 0 &&
                                     selectedPartsInPopup.length ===
-                                    addVendorPartFormData.parts.length
+                                      addVendorPartFormData.parts.length
                                   }
                                   style={{
                                     cursor: "pointer",
@@ -4648,14 +5458,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                               <tr
                                 key={part.id || index}
                                 onMouseEnter={(e) =>
-                                (e.target.closest(
-                                  "tr"
-                                ).style.backgroundColor = "#c7cde8")
+                                  (e.target.closest(
+                                    "tr"
+                                  ).style.backgroundColor = "#c7cde8")
                                 }
                                 onMouseLeave={(e) =>
-                                (e.target.closest(
-                                  "tr"
-                                ).style.backgroundColor = "transparent")
+                                  (e.target.closest(
+                                    "tr"
+                                  ).style.backgroundColor = "transparent")
                                 }
                               >
                                 <td style={vendorPartStyles.tdNumber}>
@@ -4681,17 +5491,17 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 </td>
                                 <td
                                   style={vendorPartStyles.td}
-                                  onMouseEnter={showTooltip}
-                                  onMouseLeave={hideTooltip}
-                                  data-tooltip={`${part.partCode}`}
+                                  
+                                  
+                                  title={`${part.partCode}`}
                                 >
                                   {part.partCode}
                                 </td>
                                 <td
                                   style={vendorPartStyles.td}
-                                  onMouseEnter={showTooltip}
-                                  onMouseLeave={hideTooltip}
-                                  data-tooltip={`${part.partName || "—"}`}
+                                  
+                                  
+                                  title={`${part.partName || "—"}`}
                                 >
                                   {part.partName || "—"}
                                 </td>
@@ -4752,9 +5562,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 </td>
                                 <td
                                   style={vendorPartStyles.td}
-                                  onMouseEnter={showTooltip}
-                                  onMouseLeave={hideTooltip}
-                                  data-tooltip={`${part.unit || "PCS"}`}
+                                  
+                                  
+                                  title={`${part.unit || "PCS"}`}
                                 >
                                   {part.unit || "PCS"}
                                 </td>
@@ -4762,9 +5572,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   <button
                                     style={vendorPartStyles.deleteButton}
                                     onClick={() => handleRemovePart(part.id)}
-                                    onMouseEnter={showTooltip}
-                                    onMouseLeave={hideTooltip}
-                                    data-tooltip="Delete"
+                                    
+                                    
+                                    title="Delete"
                                   >
                                     <Trash2 size={10} />
                                   </button>
@@ -4821,6 +5631,80 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </div>
         )}
       </div>
+      {/* Production Dates Popup (for Today tab) */}
+      {showProdDatesPopup && activeProdDatesPart && (
+        <div style={styles.popupOverlayDates}>
+          <div style={styles.popupContainerDates}>
+            <div style={styles.popupHeaderDates}>
+              <h3 style={styles.popupTitleDates}>
+                Production Dates - {activeProdDatesPart.part_code}
+              </h3>
+              <button
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "20px",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                }}
+                onClick={handleCloseProdDatesPopup}
+              >
+                ×
+              </button>
+            </div>
+            <div>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#6b7280",
+                  marginBottom: "12px",
+                }}
+              >
+                Add multiple production dates for this part. These dates will be
+                used for QC sampling.
+              </p>
+              {tempProdDates.map((date, index) => (
+                <div key={index} style={styles.dateInputRow}>
+                  <input
+                    type="date"
+                    style={styles.dateInput}
+                    value={date}
+                    onChange={(e) =>
+                      handleProdDateChange(index, e.target.value)
+                    }
+                  />
+                  {tempProdDates.length > 1 && (
+                    <button
+                      style={styles.removeDateButton}
+                      onClick={() => handleRemoveProdDate(index)}
+                      title="Remove date"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button style={styles.addDateButton} onClick={handleAddProdDate}>
+                <Plus size={14} /> Add Another Date
+              </button>
+            </div>
+            <div style={styles.buttonGroupDates}>
+              <button
+                style={styles.secondaryButtonDates}
+                onClick={handleCloseProdDatesPopup}
+              >
+                Cancel
+              </button>
+              <button
+                style={styles.primaryButtonDates}
+                onClick={handleSaveProdDates}
+              >
+                Save Dates
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
