@@ -252,13 +252,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
   const handleSaveEditCurrent = async (id) => {
     try {
-      const response = await fetch(`${API_BASE}/api/qc-checks/${id}/update-status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          qc_status: editCurrentData.qc_status || null,
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/qc-checks/${id}/update-status`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            qc_status: editCurrentData.qc_status || null,
+          }),
+        },
+      );
 
       const result = await response.json();
       if (response.ok && result.success) {
@@ -285,7 +288,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
       return;
     }
 
-    if (!window.confirm(`Approve ${selectedCurrentIds.size} selected QC Checks?`)) return;
+    if (
+      !window.confirm(`Approve ${selectedCurrentIds.size} selected QC Checks?`)
+    )
+      return;
 
     try {
       const authUser = getAuthUser();
@@ -301,7 +307,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        setToastMessage(`${result.approvedCount} QC Checks approved successfully!`);
+        setToastMessage(
+          `${result.approvedCount} QC Checks approved successfully!`,
+        );
         setToastType("success");
         setTimeout(() => setToastMessage(null), 3000);
         setSelectedCurrentIds(new Set());
@@ -372,11 +380,11 @@ const QCCheckPage = ({ sidebarVisible }) => {
   };
 
   const filteredSchedules = productionSchedules.filter(
-    (schedule) => activeTab === "All" || schedule.status === activeTab
+    (schedule) => activeTab === "All" || schedule.status === activeTab,
   );
 
   const hasNewSchedules = productionSchedules.some(
-    (schedule) => schedule.status === "New"
+    (schedule) => schedule.status === "New",
   );
 
   const toggleHeaderCheckbox = (headerId, checked) => {
@@ -470,64 +478,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     });
   };
 
-  // Colgroup untuk Complete tab
-  const getCompleteColgroup = () => {
-    return (
-      <colgroup>
-        <col style={{ width: "2.5%" }} />
-        <col style={{ width: "10%" }} />
-        <col style={{ width: "10%" }} />
-        <col style={{ width: "18%" }} />
-        <col style={{ width: "15%" }} />
-        <col style={{ width: "7%" }} />
-        <col style={{ width: "20%" }} />
-        <col style={{ width: "5%" }} />
-      </colgroup>
-    );
-  };
-
-  // BARU: Colgroup untuk Current Check tab
-  const getCurrentCheckColgroup = () => {
-    return (
-      <colgroup>
-        <col style={{ width: "2.5%" }} />
-        <col style={{ width: "3%" }} />
-        <col style={{ width: "10%" }} />
-        <col style={{ width: "10%" }} />
-        <col style={{ width: "18%" }} />
-        <col style={{ width: "15%" }} />
-        <col style={{ width: "8%" }} />
-        <col style={{ width: "12%" }} />
-        <col style={{ width: "10%" }} />
-      </colgroup>
-    );
-  };
-
-  const getColgroup = () => {
-    if (activeTab === "Complete") {
-      return getCompleteColgroup();
-    }
-    if (activeTab === "Current Check") {
-      return getCurrentCheckColgroup();
-    }
-    // Default colgroup untuk tab lainnya
-    return (
-      <colgroup>
-        <col style={{ width: "25px" }} />
-        <col style={{ width: "3.3%" }} />
-        <col style={{ width: "23px" }} />
-        <col style={{ width: "15%" }} />
-        <col style={{ width: "15%" }} />
-        <col style={{ width: "15%" }} />
-        <col style={{ width: "12%" }} />
-        <col style={{ width: "12%" }} />
-        <col style={{ width: "12%" }} />
-        <col style={{ width: "12%" }} />
-        <col style={{ width: "15%" }} />
-        <col style={{ width: "12%" }} />
-      </colgroup>
-    );
-  };
+  // Colgroup settings sekarang didefinisikan langsung di masing-masing render function tabel
 
   const getColSpanCount = () => {
     if (activeTab === "Complete") return 7;
@@ -679,16 +630,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
       padding: "0",
       textAlign: "center",
     },
-    tableContainer: {
-      marginBottom: "2px",
-      marginLeft: "10px",
-      borderRadius: "8px",
-      backgroundColor: "white",
-      boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
-      border: "1.5px solid #e5e7eb",
-      overflowX: "auto",
-      width: "calc(100% - 10px)",
-    },
+    // tableContainer: {
+    //   marginBottom: "2px",
+    //   marginLeft: "10px",
+    //   borderRadius: "8px",
+    //   backgroundColor: "white",
+    //   boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+    //   border: "1.5px solid #e5e7eb",
+    //   overflowX: "auto",
+    //   width: "calc(100% - 10px)",
+    // },
     tableBodyWrapper: {
       overflowX: "auto",
       border: "1.5px solid #9fa8da",
@@ -795,30 +746,35 @@ const QCCheckPage = ({ sidebarVisible }) => {
       border: "1.5px solid #9fa8da",
       borderTop: "none",
       borderRadius: "0 0 8px 8px",
+      fontSize: "12px",
+      color: "#374151",
+      height: "20px",
     },
     paginationControls: {
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      fontSize: "12px",
-      color: "#374151",
     },
     paginationButton: {
-      padding: "4px 8px",
-      border: "1px solid #d1d5db",
+      backgroundColor: "transparent",
+      border: "0.5px solid #a5b4fc",
       borderRadius: "4px",
-      backgroundColor: "white",
+      padding: "4px 8px",
       cursor: "pointer",
-      fontSize: "12px",
+      color: "#374151",
+      fontSize: "10px",
+      fontWeight: "1000",
+      transition: "background-color 0.2s ease, color 0.2s ease",
       fontFamily: "inherit",
     },
     paginationInput: {
-      width: "30px",
-      height: "24px",
-      textAlign: "center",
+      width: "20px",
+      height: "20px",
       border: "1px solid #d1d5db",
       borderRadius: "4px",
-      fontSize: "12px",
+      padding: "0 8px",
+      textAlign: "center",
+      fontSize: "10px",
       fontFamily: "inherit",
     },
     saveConfiguration: {
@@ -975,7 +931,18 @@ const QCCheckPage = ({ sidebarVisible }) => {
               tableLayout: "fixed",
             }}
           >
-            {getCurrentCheckColgroup()}
+            {/* Colgroup untuk Current Check Table */}
+            <colgroup>
+              <col style={{ width: "2.5%" }} />  {/* No */}
+              <col style={{ width: "2.5%" }} />    {/* Checkbox */}
+              <col style={{ width: "10%" }} />   {/* Production Date */}
+              <col style={{ width: "10%" }} />   {/* Part Code */}
+              <col style={{ width: "18%" }} />   {/* Part Name */}
+              <col style={{ width: "15%" }} />   {/* Vendor Name */}
+              <col style={{ width: "8%" }} />    {/* Status */}
+              <col style={{ width: "12%" }} />   {/* Created By */}
+              <col style={{ width: "10%" }} />   {/* Action */}
+            </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
@@ -983,7 +950,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
                   {currentQCChecks.length > 0 && (
                     <input
                       type="checkbox"
-                      checked={selectedCurrentIds.size === currentQCChecks.length && currentQCChecks.length > 0}
+                      checked={
+                        selectedCurrentIds.size === currentQCChecks.length &&
+                        currentQCChecks.length > 0
+                      }
                       onChange={toggleSelectAllCurrent}
                       style={{
                         margin: "0 auto",
@@ -1020,21 +990,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
                   </td>
                 </tr>
               )}
-              {!loading && currentQCChecks.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={9}
-                    style={{
-                      ...styles.tdWithLeftBorder,
-                      textAlign: "center",
-                      color: "#6b7280",
-                      padding: "20px",
-                    }}
-                  >
-                    No pending QC checks
-                  </td>
-                </tr>
-              )}
+
               {!loading &&
                 currentQCChecks.map((item, index) => (
                   <tr
@@ -1057,11 +1013,18 @@ const QCCheckPage = ({ sidebarVisible }) => {
                     >
                       {index + 1}
                     </td>
-                    <td style={{ ...styles.tdWithLeftBorder, textAlign: "center" }}>
+                    <td
+                      style={{
+                        ...styles.tdWithLeftBorder,
+                        textAlign: "center",
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={selectedCurrentIds.has(item.id)}
-                        onChange={(e) => toggleCurrentCheckbox(item.id, e.target.checked)}
+                        onChange={(e) =>
+                          toggleCurrentCheckbox(item.id, e.target.checked)
+                        }
                         style={{
                           cursor: "pointer",
                           width: "12px",
@@ -1069,7 +1032,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
                         }}
                       />
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(item.production_date)}>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={toDDMMYYYY(item.production_date)}
+                    >
                       {toDDMMYYYY(item.production_date)}
                     </td>
                     <td style={styles.tdWithLeftBorder} title={item.part_code}>
@@ -1078,10 +1044,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
                     <td style={styles.tdWithLeftBorder} title={item.part_name}>
                       {item.part_name}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={item.vendor_name || "-"}
+                    >
                       {item.vendor_name || "-"}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={item.qc_status || "-"}>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={item.qc_status || "-"}
+                    >
                       {editingCurrentId === item.id ? (
                         <select
                           style={{
@@ -1108,11 +1080,20 @@ const QCCheckPage = ({ sidebarVisible }) => {
                         item.qc_status || "-"
                       )}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={item.created_by || "-"}>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={item.created_by || "-"}
+                    >
                       {item.created_by || "-"}
                     </td>
                     <td style={{ ...styles.tdWithLeftBorder }}>
-                      <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "4px",
+                          justifyContent: "center",
+                        }}
+                      >
                         {editingCurrentId === item.id ? (
                           <>
                             <button
@@ -1153,7 +1134,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
                                 backgroundColor: "#dcfce7",
                                 color: "#166534",
                               }}
-                              onClick={() => handleApproveQCCheck(item.id, "Current Check")}
+                              onClick={() =>
+                                handleApproveQCCheck(item.id, "Current Check")
+                              }
                               title="Approve"
                             >
                               <Check size={12} />
@@ -1178,24 +1161,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
             </tbody>
           </table>
         </div>
-        {/* Bulk Approve Button */}
-        {selectedCurrentIds.size > 0 && (
-          <div style={{ padding: "10px", display: "flex", justifyContent: "flex-end" }}>
-            <button
-              style={{
-                ...styles.submitButton,
-                backgroundColor: "#22c55e",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-              onClick={handleBulkApprove}
-            >
-              <Check size={14} />
-              Approve {selectedCurrentIds.size} Selected
-            </button>
-          </div>
-        )}
+
         <div style={styles.paginationBar}>
           <div style={styles.paginationControls}>
             <button style={styles.paginationButton}>{"<<"}</button>
@@ -1212,6 +1178,26 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <button style={styles.paginationButton}>{">>"}</button>
           </div>
         </div>
+        {/* Bulk Approve Button */}
+        {selectedCurrentIds.size > 0 && (
+          <div
+            style={{
+              marginTop: "12px",
+              display: "flex",
+            }}
+          >
+            <button
+              style={{
+                ...styles.submitButton,
+                ...styles.button
+              }}
+              onClick={handleBulkApprove}
+            >
+              <Check size={14} />
+              Approve All
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -1228,7 +1214,17 @@ const QCCheckPage = ({ sidebarVisible }) => {
               tableLayout: "fixed",
             }}
           >
-            {getCompleteColgroup()}
+            {/* Colgroup untuk Complete Table */}
+            <colgroup>
+              <col style={{ width: "2.5%" }} />  
+              <col style={{ width: "10%" }} />   
+              <col style={{ width: "10%" }} />  
+              <col style={{ width: "18%" }} />  
+              <col style={{ width: "15%" }} />  
+              <col style={{ width: "7%" }} />   
+              <col style={{ width: "20%" }} /> 
+              <col style={{ width: "5%" }} />  
+            </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
@@ -1257,21 +1253,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
                   </td>
                 </tr>
               )}
-              {!loading && completeQCChecks.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    style={{
-                      ...styles.tdWithLeftBorder,
-                      textAlign: "center",
-                      color: "#6b7280",
-                      padding: "20px",
-                    }}
-                  >
-                    No completed QC checks
-                  </td>
-                </tr>
-              )}
               {!loading &&
                 completeQCChecks.map((item, index) => (
                   <tr
@@ -1280,8 +1261,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       (e.target.closest("tr").style.backgroundColor = "#c7cde8")
                     }
                     onMouseLeave={(e) =>
-                    (e.target.closest("tr").style.backgroundColor =
-                      "transparent")
+                      (e.target.closest("tr").style.backgroundColor =
+                        "transparent")
                     }
                   >
                     <td
@@ -1294,12 +1275,22 @@ const QCCheckPage = ({ sidebarVisible }) => {
                     >
                       {index + 1}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(item.production_date)}>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={toDDMMYYYY(item.production_date)}
+                    >
                       {toDDMMYYYY(item.production_date)}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_code}>{item.part_code}</td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_name}>{item.part_name}</td>
-                    <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
+                    <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                      {item.part_code}
+                    </td>
+                    <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                      {item.part_name}
+                    </td>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={item.vendor_name || "-"}
+                    >
                       {item.vendor_name || "-"}
                     </td>
                     <td
@@ -1312,18 +1303,26 @@ const QCCheckPage = ({ sidebarVisible }) => {
                           ...(item.data_from === "Create"
                             ? styles.dataFromCreate
                             : item.data_from === "Check"
-                            ? { backgroundColor: "#dcfce7", color: "#166534" }
-                            : styles.dataFromSample),
+                              ? { backgroundColor: "#dcfce7", color: "#166534" }
+                              : styles.dataFromSample),
                         }}
                         title={item.data_from || "Create"}
                       >
                         {item.data_from || "Create"}
                       </span>
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={formatApprovedBy(item.approved_by, item.approved_at)}>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={formatApprovedBy(
+                        item.approved_by,
+                        item.approved_at,
+                      )}
+                    >
                       {formatApprovedBy(item.approved_by, item.approved_at)}
                     </td>
-                    <td style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}>
+                    <td
+                      style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
+                    >
                       <button
                         style={styles.deleteButton}
                         onClick={() => handleDeleteQCCheck(item.id)}
@@ -1369,7 +1368,17 @@ const QCCheckPage = ({ sidebarVisible }) => {
               tableLayout: "fixed",
             }}
           >
-            {getCompleteColgroup()}
+            {/* Colgroup untuk Reject Table */}
+            <colgroup>
+              <col style={{ width: "2.5%" }} />  {/* No */}
+              <col style={{ width: "10%" }} />   {/* Production Date */}
+              <col style={{ width: "10%" }} />   {/* Part Code */}
+              <col style={{ width: "18%" }} />   {/* Part Name */}
+              <col style={{ width: "15%" }} />   {/* Vendor Name */}
+              <col style={{ width: "7%" }} />    {/* Status */}
+              <col style={{ width: "18%" }} />   {/* Rejected By */}
+              <col style={{ width: "8%" }} />    {/* Action */}
+            </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
@@ -1398,21 +1407,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
                   </td>
                 </tr>
               )}
-              {!loading && rejectQCChecks.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    style={{
-                      ...styles.tdWithLeftBorder,
-                      textAlign: "center",
-                      color: "#6b7280",
-                      padding: "20px",
-                    }}
-                  >
-                    No rejected QC checks
-                  </td>
-                </tr>
-              )}
               {!loading &&
                 rejectQCChecks.map((item, index) => (
                   <tr
@@ -1421,8 +1415,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       (e.target.closest("tr").style.backgroundColor = "#c7cde8")
                     }
                     onMouseLeave={(e) =>
-                    (e.target.closest("tr").style.backgroundColor =
-                      "transparent")
+                      (e.target.closest("tr").style.backgroundColor =
+                        "transparent")
                     }
                   >
                     <td
@@ -1435,29 +1429,61 @@ const QCCheckPage = ({ sidebarVisible }) => {
                     >
                       {index + 1}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(item.production_date)}>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={toDDMMYYYY(item.production_date)}
+                    >
                       {toDDMMYYYY(item.production_date)}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_code}>{item.part_code}</td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_name}>{item.part_name}</td>
-                    <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
+                    <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                      {item.part_code}
+                    </td>
+                    <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                      {item.part_name}
+                    </td>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={item.vendor_name || "-"}
+                    >
                       {item.vendor_name || "-"}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={item.qc_status || "-"}>
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={item.qc_status || "-"}
+                    >
                       {item.qc_status || "-"}
                     </td>
-                    <td style={styles.tdWithLeftBorder} title={formatApprovedBy(item.rejected_by_name, item.rejected_at)}>
-                      {formatApprovedBy(item.rejected_by_name, item.rejected_at)}
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={formatApprovedBy(
+                        item.rejected_by_name,
+                        item.rejected_at,
+                      )}
+                    >
+                      {formatApprovedBy(
+                        item.rejected_by_name,
+                        item.rejected_at,
+                      )}
                     </td>
-                    <td style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}>
-                      <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
+                    <td
+                      style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "4px",
+                          justifyContent: "center",
+                        }}
+                      >
                         <button
                           style={{
                             ...styles.editButton,
                             backgroundColor: "#dcfce7",
                             color: "#166534",
                           }}
-                          onClick={() => handleApproveQCCheck(item.id, "Reject")}
+                          onClick={() =>
+                            handleApproveQCCheck(item.id, "Reject")
+                          }
                           title="Approve"
                         >
                           <Check size={12} />
@@ -1508,7 +1534,21 @@ const QCCheckPage = ({ sidebarVisible }) => {
               tableLayout: "fixed",
             }}
           >
-            {getColgroup()}
+            {/* Colgroup untuk Default Table */}
+            <colgroup>
+              <col style={{ width: "25px" }} />  {/* No */}
+              <col style={{ width: "3.3%" }} />  {/* Checkbox (New tab) */}
+              <col style={{ width: "23px" }} />  {/* Expand arrow */}
+              <col style={{ width: "15%" }} />   {/* Date */}
+              <col style={{ width: "15%" }} />   {/* Line */}
+              <col style={{ width: "15%" }} />   {/* Shift Time */}
+              <col style={{ width: "12%" }} />   {/* Total Input */}
+              <col style={{ width: "12%" }} />   {/* Total Customer */}
+              <col style={{ width: "12%" }} />   {/* Total Model */}
+              <col style={{ width: "12%" }} />   {/* Total Pallet */}
+              <col style={{ width: "15%" }} />   {/* Created By */}
+              <col style={{ width: "12%" }} />   {/* Action */}
+            </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
@@ -1771,10 +1811,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
         {activeTab === "Complete"
           ? renderCompleteTable()
           : activeTab === "Current Check"
-          ? renderCurrentCheckTable()
-          : activeTab === "Reject"
-          ? renderRejectTable()
-          : renderDefaultTable()}
+            ? renderCurrentCheckTable()
+            : activeTab === "Reject"
+              ? renderRejectTable()
+              : renderDefaultTable()}
 
         {activeTab === "New" && hasNewSchedules && (
           <div style={styles.saveConfiguration}>
