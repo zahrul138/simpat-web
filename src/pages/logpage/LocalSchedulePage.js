@@ -162,7 +162,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       const normalizedDate = date.split("T")[0];
       const isComplete = isProductionDateComplete(
         part.part_code,
-        normalizedDate
+        normalizedDate,
       );
       if (!isComplete) {
         allComplete = false;
@@ -235,18 +235,18 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           "26px",
           "25px",
           "15%",
-          "10%",
+          "15%",
           "12%",
           "8%",
           "8%",
           "8%",
-          "23%",
+          "25%",
           "6%",
         ],
       },
       vendorTable: {
         marginLeft: "50.7px",
-        cols: ["26px", "26px", "10%", "36%", "15%", "10%", "8%", "8%", "9.3%"],
+        cols: ["26px", "26px", "10%", "36%", "17%", "10%", "8%", "8%", "6.5%"],
       },
       partsTable: {
         marginLeft: "51px",
@@ -293,7 +293,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           "10%",
           "12%",
           "25%",
-          "5%",
         ],
       },
       partsTable: {
@@ -309,7 +308,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           "12%",
           "10%",
           "20%",
-          "6%",
         ],
       },
     },
@@ -328,7 +326,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           "10%",
           "12%",
           "25%",
-          "5%",
         ],
       },
       partsTable: {
@@ -344,7 +341,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           "10%",
           "12%",
           "20%",
-          "6%",
         ],
       },
     },
@@ -468,7 +464,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/local-schedules/received-vendors`
+        `${API_BASE}/api/local-schedules/received-vendors`,
       );
       const result = await response.json();
       if (result.success) {
@@ -486,7 +482,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/local-schedules/iqc-progress-vendors`
+        `${API_BASE}/api/local-schedules/iqc-progress-vendors`,
       );
       const result = await response.json();
       if (result.success) {
@@ -504,7 +500,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/local-schedules/sample-vendors`
+        `${API_BASE}/api/local-schedules/sample-vendors`,
       );
       const result = await response.json();
       if (result.success) {
@@ -522,7 +518,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/local-schedules/complete-vendors`
+        `${API_BASE}/api/local-schedules/complete-vendors`,
       );
       const result = await response.json();
       if (result.success) {
@@ -564,7 +560,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         if (activeTab === "Today") {
           const now = new Date();
           const today = `${now.getFullYear()}-${String(
-            now.getMonth() + 1
+            now.getMonth() + 1,
           ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
           filteredData = filteredData.filter((schedule) => {
@@ -628,7 +624,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             modelName: editScheduleData.model_name,
             uploadByName: uploadByName,
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -649,7 +645,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     setEditingPartId(part.id);
     // Gabungkan prod_date dengan prod_dates untuk editing
     const existingDates = part.prod_dates ? [...part.prod_dates] : [];
-    if (part.prod_date && !existingDates.includes(part.prod_date.split("T")[0])) {
+    if (
+      part.prod_date &&
+      !existingDates.includes(part.prod_date.split("T")[0])
+    ) {
       existingDates.unshift(part.prod_date.split("T")[0]);
     }
     setEditPartData({
@@ -673,7 +672,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const fetchQtyPerBox = async (partCode) => {
     try {
       const response = await fetch(
-        `${API_BASE}/api/kanban-master/qty-per-box?part_code=${partCode}`
+        `${API_BASE}/api/kanban-master/qty-per-box?part_code=${partCode}`,
       );
       const result = await response.json();
       return result?.qty_per_box || result?.item?.qty_per_box || 1;
@@ -693,8 +692,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const handleSaveEditPart = async (partId) => {
     try {
       // Filter out empty dates
-      const validDates = (editPartData.prod_dates || []).filter((d) => d && d.trim() !== "");
-      
+      const validDates = (editPartData.prod_dates || []).filter(
+        (d) => d && d.trim() !== "",
+      );
+
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${partId}`,
         {
@@ -710,7 +711,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             prod_date: validDates[0] || null,
             prod_dates: validDates,
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -775,7 +776,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             prod_dates: validDates,
             prod_date: validDates[0] || null,
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -830,7 +831,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           body: JSON.stringify({
             prod_dates: existingProdDates,
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -856,7 +857,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       const result = await response.json();
@@ -885,7 +886,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       const result = await response.json();
@@ -913,7 +914,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       const result = await response.json();
@@ -961,7 +962,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "Received", moveByName: moveByName }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -990,7 +991,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ approveByName }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1027,7 +1028,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       !window.confirm(
         `Move this part to Sample/Current Check for dates: ${sampleDates
           .map((d) => formatDate(d))
-          .join(", ")}?`
+          .join(", ")}?`,
       )
     )
       return;
@@ -1079,14 +1080,19 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   // ====== HANDLERS FOR IQC PROGRESS TAB ======
   const handleMoveVendorToSample = async (vendorId) => {
-    if (!window.confirm("Move this vendor to Sample? All SAMPLE parts will be sent to Current Check.")) return;
+    if (
+      !window.confirm(
+        "Move this vendor to Sample? All SAMPLE parts will be sent to Current Check.",
+      )
+    )
+      return;
 
     try {
       const authUser = getAuthUser();
       const moveByName = authUser?.emp_name || "Unknown";
 
       // Find the vendor from iqcProgressVendors to get parts
-      const vendor = iqcProgressVendors.find(v => v.id === vendorId);
+      const vendor = iqcProgressVendors.find((v) => v.id === vendorId);
       if (!vendor) {
         throw new Error("Vendor not found");
       }
@@ -1095,7 +1101,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       if (vendor.parts && vendor.parts.length > 0) {
         for (const part of vendor.parts) {
           const { status, sampleDates } = getPartSampleStatus(part);
-          
+
           // Only create QC checks for SAMPLE status parts with sample dates
           if (status === "SAMPLE" && sampleDates.length > 0) {
             for (const sampleDate of sampleDates) {
@@ -1129,7 +1135,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ moveByName }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1148,7 +1154,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     setEditingIqcPartId(part.id);
     // Gabungkan prod_date dengan prod_dates untuk editing
     const existingDates = part.prod_dates ? [...part.prod_dates] : [];
-    if (part.prod_date && !existingDates.includes(part.prod_date.split("T")[0])) {
+    if (
+      part.prod_date &&
+      !existingDates.includes(part.prod_date.split("T")[0])
+    ) {
       existingDates.unshift(part.prod_date.split("T")[0]);
     }
     setEditIqcPartData({
@@ -1166,8 +1175,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const handleSaveEditIqcPart = async (partId) => {
     try {
       // Filter out empty dates
-      const validDates = (editIqcPartData.prod_dates || []).filter((d) => d && d.trim() !== "");
-      
+      const validDates = (editIqcPartData.prod_dates || []).filter(
+        (d) => d && d.trim() !== "",
+      );
+
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${partId}`,
         {
@@ -1179,7 +1190,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             prod_date: validDates[0] || null,
             prod_dates: validDates,
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1209,7 +1220,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ moveByName }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1248,7 +1259,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             status: editSamplePartData.status || null,
             remark: editSamplePartData.remark || null,
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1273,7 +1284,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       const result = await response.json();
@@ -1291,7 +1302,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const handleMoveBetweenTabs = async (fromTab, toTab) => {
     if (
       !window.confirm(
-        `Move ${selectedScheduleIds.size} schedule(s) to ${toTab}?`
+        `Move ${selectedScheduleIds.size} schedule(s) to ${toTab}?`,
       )
     )
       return;
@@ -1304,7 +1315,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ scheduleIds, targetTab: toTab }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1374,10 +1385,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     e.preventDefault();
 
     const selectedTrip = tripOptions.find(
-      (t) => String(t.trip_no) === addVendorFormData.trip
+      (t) => String(t.trip_no) === addVendorFormData.trip,
     );
     const selectedVendor = vendorOptions.find(
-      (v) => `${v.vendor_code} - ${v.vendor_name}` === addVendorFormData.vendor
+      (v) => `${v.vendor_code} - ${v.vendor_name}` === addVendorFormData.vendor,
     );
 
     if (!selectedTrip || !selectedVendor || !addVendorFormData.doNumbers[0]) {
@@ -1396,7 +1407,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             vendor_id: selectedVendor.id,
             do_numbers: addVendorFormData.doNumbers.filter((d) => d.trim()),
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1451,14 +1462,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
 
     const existingPartCodes = addVendorPartFormData.parts.map(
-      (p) => p.partCode
+      (p) => p.partCode,
     );
 
     try {
       const resp = await fetch(
         `${API_BASE}/api/kanban-master/qty-per-box?part_code=${encodeURIComponent(
-          partCode
-        )}`
+          partCode,
+        )}`,
       );
       if (!resp.ok) throw new Error("Failed to check Part Code.");
 
@@ -1567,7 +1578,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
 
     const partsToInsert = addVendorPartFormData.parts.filter((p) =>
-      selectedPartsInPopup.includes(p.id)
+      selectedPartsInPopup.includes(p.id),
     );
 
     try {
@@ -1584,7 +1595,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               quantity_box: part.qtyBox || 0,
               unit: part.unit || "PCS",
             }),
-          }
+          },
         );
       }
 
@@ -1660,7 +1671,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const autoMoveSchedulesToToday = useCallback(async () => {
     try {
       const response = await fetch(
-        `${API_BASE}/api/local-schedules?status=Schedule`
+        `${API_BASE}/api/local-schedules?status=Schedule`,
       );
       if (!response.ok) return;
 
@@ -1669,7 +1680,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const today = new Date(currentDate);
       const todayString = `${today.getFullYear()}-${String(
-        today.getMonth() + 1
+        today.getMonth() + 1,
       ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
       const schedulesToMove = result.data.filter((schedule) => {
@@ -1688,7 +1699,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ scheduleIds, targetTab: "Today" }),
-        }
+        },
       );
 
       const moveResult = await moveResponse.json();
@@ -1704,7 +1715,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     const initialDelay = setTimeout(() => autoMoveSchedulesToToday(), 1000);
     const autoMoveInterval = setInterval(
       () => autoMoveSchedulesToToday(),
-      5000
+      5000,
     );
     return () => {
       clearTimeout(initialDelay);
@@ -3126,7 +3137,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                      tableConfig.Received.partsTable.cols
+                      tableConfig.Received.partsTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -3175,18 +3186,24 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                           </td>
                           <td
                             style={styles.thirdLevelTd}
-                            title={
-                              (() => {
-                                const prodDates = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                if (prodDates.length === 0) return "-";
-                                return prodDates.map((d) => formatDate(d)).join(", ");
-                              })()
-                            }
+                            title={(() => {
+                              const prodDates =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              if (prodDates.length === 0) return "-";
+                              return prodDates
+                                .map((d) => formatDate(d))
+                                .join(", ");
+                            })()}
                           >
                             {(() => {
-                              const prodDates = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                              const prodDates =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
                               if (prodDates.length === 0) return "-";
-                              return prodDates.map((d) => formatDate(d)).join(", ");
+                              return prodDates
+                                .map((d) => formatDate(d))
+                                .join(", ");
                             })()}
                           </td>
                           <td
@@ -3318,14 +3335,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             title={
               vendor.approve_by_name
                 ? `${vendor.approve_by_name} | ${formatDateTime(
-                    vendor.approve_at
+                    vendor.approve_at,
                   )}`
                 : "-"
             }
           >
             {vendor.approve_by_name
               ? `${vendor.approve_by_name} | ${formatDateTime(
-                  vendor.approve_at
+                  vendor.approve_at,
                 )}`
               : "-"}
           </td>
@@ -3351,7 +3368,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                      tableConfig["IQC Progress"].partsTable.cols
+                      tableConfig["IQC Progress"].partsTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -3425,47 +3442,67 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   part.prod_dates ||
                                   (part.prod_date ? [part.prod_date] : []);
                                 if (prodDates.length === 0) return "-";
-                                return prodDates.map((d) => formatDate(d)).join(", ");
+                                return prodDates
+                                  .map((d) => formatDate(d))
+                                  .join(", ");
                               })()}
                             >
                               {editingIqcPartId === part.id ? (
                                 <div style={styles.inlineProdDatesContainer}>
-                                  {(editIqcPartData.prod_dates || [""]).map((date, dateIdx) => (
-                                    <div key={dateIdx} style={styles.inlineProdDateItem}>
-                                      <input
-                                        type="date"
-                                        style={styles.inlineProdDateInput}
-                                        value={date || ""}
-                                        onChange={(e) => {
-                                          const newDates = [...(editIqcPartData.prod_dates || [""])];
-                                          newDates[dateIdx] = e.target.value;
-                                          setEditIqcPartData((p) => ({
-                                            ...p,
-                                            prod_dates: newDates,
-                                          }));
-                                        }}
-                                      />
-                                      {(editIqcPartData.prod_dates || []).length > 1 && (
-                                        <button
-                                          style={styles.inlineProdDateRemove}
-                                          onClick={() => {
-                                            const newDates = (editIqcPartData.prod_dates || []).filter((_, i) => i !== dateIdx);
+                                  {(editIqcPartData.prod_dates || [""]).map(
+                                    (date, dateIdx) => (
+                                      <div
+                                        key={dateIdx}
+                                        style={styles.inlineProdDateItem}
+                                      >
+                                        <input
+                                          type="date"
+                                          style={styles.inlineProdDateInput}
+                                          value={date || ""}
+                                          onChange={(e) => {
+                                            const newDates = [
+                                              ...(editIqcPartData.prod_dates || [
+                                                "",
+                                              ]),
+                                            ];
+                                            newDates[dateIdx] = e.target.value;
                                             setEditIqcPartData((p) => ({
                                               ...p,
-                                              prod_dates: newDates.length > 0 ? newDates : [""],
+                                              prod_dates: newDates,
                                             }));
                                           }}
-                                          title="Remove date"
-                                        >
-                                          <X size={12} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  ))}
+                                        />
+                                        {(editIqcPartData.prod_dates || [])
+                                          .length > 1 && (
+                                          <button
+                                            style={styles.inlineProdDateRemove}
+                                            onClick={() => {
+                                              const newDates = (
+                                                editIqcPartData.prod_dates || []
+                                              ).filter((_, i) => i !== dateIdx);
+                                              setEditIqcPartData((p) => ({
+                                                ...p,
+                                                prod_dates:
+                                                  newDates.length > 0
+                                                    ? newDates
+                                                    : [""],
+                                              }));
+                                            }}
+                                            title="Remove date"
+                                          >
+                                            <X size={12} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    ),
+                                  )}
                                   <button
                                     style={styles.inlineProdDateAdd}
                                     onClick={() => {
-                                      const newDates = [...(editIqcPartData.prod_dates || [""]), ""];
+                                      const newDates = [
+                                        ...(editIqcPartData.prod_dates || [""]),
+                                        "",
+                                      ];
                                       setEditIqcPartData((p) => ({
                                         ...p,
                                         prod_dates: newDates,
@@ -3483,7 +3520,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                       part.prod_dates ||
                                       (part.prod_date ? [part.prod_date] : []);
                                     if (prodDates.length === 0) return "-";
-                                    return prodDates.map((d) => formatDate(d)).join(", ");
+                                    return prodDates
+                                      .map((d) => formatDate(d))
+                                      .join(", ");
                                   })()}
                                 </span>
                               )}
@@ -3521,15 +3560,19 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 displayStatus === "PASS"
                                   ? "-"
                                   : sampleDates.length > 0
-                                  ? sampleDates.map((d) => formatDate(d)).join(", ")
-                                  : "-"
+                                    ? sampleDates
+                                        .map((d) => formatDate(d))
+                                        .join(", ")
+                                    : "-"
                               }
                             >
                               {displayStatus === "PASS" ? (
                                 "-"
                               ) : sampleDates.length > 0 ? (
                                 <span style={{ fontSize: "10px" }}>
-                                  {sampleDates.map((d) => formatDate(d)).join(", ")}
+                                  {sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")}
                                 </span>
                               ) : (
                                 "-"
@@ -3723,7 +3766,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             title={
               vendor.sample_by_name
                 ? `${vendor.sample_by_name} | ${formatDateTime(
-                    vendor.sample_at
+                    vendor.sample_at,
                   )}`
                 : "-"
             }
@@ -3754,7 +3797,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                      tableConfig.Sample.partsTable.cols
+                      tableConfig.Sample.partsTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -3819,28 +3862,42 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const allDates = [];
-                              if (part.prod_dates && part.prod_dates.length > 0) {
+                              if (
+                                part.prod_dates &&
+                                part.prod_dates.length > 0
+                              ) {
                                 part.prod_dates.forEach((d) => {
-                                  if (d && d.date) allDates.push(formatDate(d.date));
-                                  else if (d && typeof d === "string") allDates.push(formatDate(d));
+                                  if (d && d.date)
+                                    allDates.push(formatDate(d.date));
+                                  else if (d && typeof d === "string")
+                                    allDates.push(formatDate(d));
                                 });
                               } else if (part.prod_date) {
                                 allDates.push(formatDate(part.prod_date));
                               }
-                              return allDates.length > 0 ? allDates.join(", ") : "-";
+                              return allDates.length > 0
+                                ? allDates.join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const allDates = [];
-                              if (part.prod_dates && part.prod_dates.length > 0) {
+                              if (
+                                part.prod_dates &&
+                                part.prod_dates.length > 0
+                              ) {
                                 part.prod_dates.forEach((d) => {
-                                  if (d && d.date) allDates.push(formatDate(d.date));
-                                  else if (d && typeof d === "string") allDates.push(formatDate(d));
+                                  if (d && d.date)
+                                    allDates.push(formatDate(d.date));
+                                  else if (d && typeof d === "string")
+                                    allDates.push(formatDate(d));
                                 });
                               } else if (part.prod_date) {
                                 allDates.push(formatDate(part.prod_date));
                               }
-                              return allDates.length > 0 ? allDates.join(", ") : "-";
+                              return allDates.length > 0
+                                ? allDates.join(", ")
+                                : "-";
                             })()}
                           </td>
                           <td
@@ -3879,14 +3936,18 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0
-                                ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                ? sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
                                 : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0
-                                ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                ? sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
                                 : "-";
                             })()}
                           </td>
@@ -4066,14 +4127,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             title={
               vendor.complete_by_name
                 ? `${vendor.complete_by_name} | ${formatDateTime(
-                    vendor.complete_at
+                    vendor.complete_at,
                   )}`
                 : "-"
             }
           >
             {vendor.complete_by_name
               ? `${vendor.complete_by_name} | ${formatDateTime(
-                  vendor.complete_at
+                  vendor.complete_at,
                 )}`
               : "-"}
           </td>
@@ -4151,28 +4212,42 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const allDates = [];
-                              if (part.prod_dates && part.prod_dates.length > 0) {
+                              if (
+                                part.prod_dates &&
+                                part.prod_dates.length > 0
+                              ) {
                                 part.prod_dates.forEach((d) => {
-                                  if (d && d.date) allDates.push(formatDate(d.date));
-                                  else if (d && typeof d === "string") allDates.push(formatDate(d));
+                                  if (d && d.date)
+                                    allDates.push(formatDate(d.date));
+                                  else if (d && typeof d === "string")
+                                    allDates.push(formatDate(d));
                                 });
                               } else if (part.prod_date) {
                                 allDates.push(formatDate(part.prod_date));
                               }
-                              return allDates.length > 0 ? allDates.join(", ") : "-";
+                              return allDates.length > 0
+                                ? allDates.join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const allDates = [];
-                              if (part.prod_dates && part.prod_dates.length > 0) {
+                              if (
+                                part.prod_dates &&
+                                part.prod_dates.length > 0
+                              ) {
                                 part.prod_dates.forEach((d) => {
-                                  if (d && d.date) allDates.push(formatDate(d.date));
-                                  else if (d && typeof d === "string") allDates.push(formatDate(d));
+                                  if (d && d.date)
+                                    allDates.push(formatDate(d.date));
+                                  else if (d && typeof d === "string")
+                                    allDates.push(formatDate(d));
                                 });
                               } else if (part.prod_date) {
                                 allDates.push(formatDate(part.prod_date));
                               }
-                              return allDates.length > 0 ? allDates.join(", ") : "-";
+                              return allDates.length > 0
+                                ? allDates.join(", ")
+                                : "-";
                             })()}
                           </td>
                           <td
@@ -4192,14 +4267,18 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0
-                                ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                ? sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
                                 : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0
-                                ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                ? sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
                                 : "-";
                             })()}
                           </td>
@@ -4361,8 +4440,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                   style={styles.saveButton}
                   onClick={() => handleSaveEditSchedule(schedule.id)}
                   title="Save"
-                  
-                  
                 >
                   <Save size={10} />
                 </button>
@@ -4370,8 +4447,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                   style={styles.cancelButton}
                   onClick={handleCancelEditSchedule}
                   title="Cancel"
-                  
-                  
                 >
                   <X size={10} />
                 </button>
@@ -4383,8 +4458,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                     style={styles.editButton}
                     onClick={() => handleEditSchedule(schedule)}
                     title="Edit"
-                    
-                    
                   >
                     <Pencil size={10} />
                   </button>
@@ -4394,8 +4467,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                     style={styles.deleteButton}
                     onClick={() => handleDeleteSchedule(schedule.id)}
                     title="Delete"
-                    
-                    
                   >
                     <Trash2 size={10} />
                   </button>
@@ -4406,8 +4477,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                     style={styles.addButton}
                     onClick={() => handleOpenAddVendor(schedule.id)}
                     title="Add Vendor"
-                    
-                    
                   >
                     <Plus size={10} />
                   </button>
@@ -4429,7 +4498,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.expandedTable}>
                   {renderColgroup(
                     getCurrentConfig().vendorTable?.cols ||
-                      tableConfig.Today.vendorTable.cols
+                      tableConfig.Today.vendorTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -4470,7 +4539,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 style={styles.arrowButton}
                                 onClick={() =>
                                   toggleVendorRowExpansion(
-                                    `vendor_${schedule.id}_${vi}`
+                                    `vendor_${schedule.id}_${vi}`,
                                   )
                                 }
                               >
@@ -4483,24 +4552,46 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 )}
                               </button>
                             </td>
-                            <td style={styles.expandedTd} title={vendor.trip_no || "-"}>
+                            <td
+                              style={styles.expandedTd}
+                              title={vendor.trip_no || "-"}
+                            >
                               {vendor.trip_no || "-"}
                             </td>
-                            <td style={styles.expandedTd} title={vendor.vendor_code ? `${vendor.vendor_code} - ${vendor.vendor_name}` : "-"}>
+                            <td
+                              style={styles.expandedTd}
+                              title={
+                                vendor.vendor_code
+                                  ? `${vendor.vendor_code} - ${vendor.vendor_name}`
+                                  : "-"
+                              }
+                            >
                               {vendor.vendor_code
                                 ? `${vendor.vendor_code} - ${vendor.vendor_name}`
                                 : "-"}
                             </td>
-                            <td style={styles.expandedTd} title={vendor.do_numbers || "-"}>
+                            <td
+                              style={styles.expandedTd}
+                              title={vendor.do_numbers || "-"}
+                            >
                               {vendor.do_numbers || "-"}
                             </td>
-                            <td style={styles.expandedTd} title={vendor.arrival_time || "-"}>
+                            <td
+                              style={styles.expandedTd}
+                              title={vendor.arrival_time || "-"}
+                            >
                               {vendor.arrival_time || "-"}
                             </td>
-                            <td style={styles.expandedTd} title={vendor.total_pallet?.toString() || "0"}>
+                            <td
+                              style={styles.expandedTd}
+                              title={vendor.total_pallet?.toString() || "0"}
+                            >
                               {vendor.total_pallet || 0}
                             </td>
-                            <td style={styles.expandedTd} title={vendor.total_item?.toString() || "0"}>
+                            <td
+                              style={styles.expandedTd}
+                              title={vendor.total_item?.toString() || "0"}
+                            >
                               {vendor.total_item || 0}
                             </td>
                             {(activeTab === "Today" ||
@@ -4512,27 +4603,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                     handleOpenAddPart(vendor.id, vendor)
                                   }
                                   title="Add Part"
-                                  
-                                  
                                 >
                                   <Plus size={10} />
                                 </button>
-                                {activeTab === "Today" && (
-                                  <button
-                                    style={styles.checkButton}
-                                    onClick={() =>
-                                      handleMoveVendorToReceived(
-                                        vendor.id,
-                                        schedule.id
-                                      )
-                                    }
-                                    title="Move to Received"
-                                    
-                                    
-                                  >
-                                    <CheckCircle size={10} />
-                                  </button>
-                                )}
                                 {canDeleteSchedule && (
                                   <button
                                     style={styles.deleteButton}
@@ -4540,8 +4613,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                       handleDeleteVendor(vendor.id)
                                     }
                                     title="Delete"
-                                    
-                                    
                                   >
                                     <Trash2 size={10} />
                                   </button>
@@ -4572,7 +4643,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   <table style={styles.thirdLevelTable}>
                                     {renderColgroup(
                                       getCurrentConfig().partsTable?.cols ||
-                                        tableConfig.Today.partsTable.cols
+                                        tableConfig.Today.partsTable.cols,
                                     )}
                                     <thead>
                                       <tr style={styles.expandedTableHeader}>
@@ -4617,7 +4688,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                             >
                                               {pi + 1}
                                             </td>
-                                            <td style={styles.thirdLevelTd} title={part.part_code || "-"}>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={part.part_code || "-"}
+                                            >
                                               {editingPartId === part.id ? (
                                                 <input
                                                   type="text"
@@ -4636,7 +4710,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                 part.part_code || "-"
                                               )}
                                             </td>
-                                            <td style={styles.thirdLevelTd} title={part.part_name || "-"}>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={part.part_name || "-"}
+                                            >
                                               {editingPartId === part.id ? (
                                                 <input
                                                   type="text"
@@ -4655,7 +4732,12 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                 part.part_name || "-"
                                               )}
                                             </td>
-                                            <td style={styles.thirdLevelTd} title={part.qty?.toString() || "0"}>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={
+                                                part.qty?.toString() || "0"
+                                              }
+                                            >
                                               {editingPartId === part.id ? (
                                                 <input
                                                   type="number"
@@ -4663,7 +4745,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                   value={editPartData.qty || ""}
                                                   onChange={(e) =>
                                                     handleQtyChangeInEdit(
-                                                      e.target.value
+                                                      e.target.value,
                                                     )
                                                   }
                                                 />
@@ -4671,7 +4753,12 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                 part.qty || 0
                                               )}
                                             </td>
-                                            <td style={styles.thirdLevelTd} title={part.qty_box?.toString() || "0"}>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={
+                                                part.qty_box?.toString() || "0"
+                                              }
+                                            >
                                               {editingPartId === part.id ? (
                                                 <input
                                                   type="number"
@@ -4685,7 +4772,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                 part.qty_box || 0
                                               )}
                                             </td>
-                                            <td style={styles.thirdLevelTd} title={part.unit || "PCS"}>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={part.unit || "PCS"}
+                                            >
                                               {editingPartId === part.id ? (
                                                 <input
                                                   type="text"
@@ -4707,40 +4797,91 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                             <td
                                               style={styles.thirdLevelTd}
                                               title={(() => {
-                                                const prodDates = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                                if (prodDates.length === 0) return "-";
-                                                return prodDates.map((d) => formatDate(d)).join(", ");
+                                                const prodDates =
+                                                  part.prod_dates ||
+                                                  (part.prod_date
+                                                    ? [part.prod_date]
+                                                    : []);
+                                                if (prodDates.length === 0)
+                                                  return "-";
+                                                return prodDates
+                                                  .map((d) => formatDate(d))
+                                                  .join(", ");
                                               })()}
                                             >
                                               {activeTab === "Today" ? (
                                                 editingPartId === part.id ? (
-                                                  <div style={styles.inlineProdDatesContainer}>
-                                                    {(editPartData.prod_dates || [""]).map((date, dateIdx) => (
-                                                      <div key={dateIdx} style={styles.inlineProdDateItem}>
+                                                  <div
+                                                    style={
+                                                      styles.inlineProdDatesContainer
+                                                    }
+                                                  >
+                                                    {(
+                                                      editPartData.prod_dates || [
+                                                        "",
+                                                      ]
+                                                    ).map((date, dateIdx) => (
+                                                      <div
+                                                        key={dateIdx}
+                                                        style={
+                                                          styles.inlineProdDateItem
+                                                        }
+                                                      >
                                                         <input
                                                           type="date"
-                                                          style={styles.inlineProdDateInput}
+                                                          style={
+                                                            styles.inlineProdDateInput
+                                                          }
                                                           value={date || ""}
                                                           onChange={(e) => {
-                                                            const newDates = [...(editPartData.prod_dates || [""])];
-                                                            newDates[dateIdx] = e.target.value;
-                                                            setEditPartData((p) => ({
-                                                              ...p,
-                                                              prod_dates: newDates,
-                                                              prod_date: newDates[0] || null,
-                                                            }));
+                                                            const newDates = [
+                                                              ...(editPartData.prod_dates || [
+                                                                "",
+                                                              ]),
+                                                            ];
+                                                            newDates[dateIdx] =
+                                                              e.target.value;
+                                                            setEditPartData(
+                                                              (p) => ({
+                                                                ...p,
+                                                                prod_dates:
+                                                                  newDates,
+                                                                prod_date:
+                                                                  newDates[0] ||
+                                                                  null,
+                                                              }),
+                                                            );
                                                           }}
                                                         />
-                                                        {(editPartData.prod_dates || []).length > 1 && (
+                                                        {(
+                                                          editPartData.prod_dates ||
+                                                          []
+                                                        ).length > 1 && (
                                                           <button
-                                                            style={styles.inlineProdDateRemove}
+                                                            style={
+                                                              styles.inlineProdDateRemove
+                                                            }
                                                             onClick={() => {
-                                                              const newDates = (editPartData.prod_dates || []).filter((_, i) => i !== dateIdx);
-                                                              setEditPartData((p) => ({
-                                                                ...p,
-                                                                prod_dates: newDates.length > 0 ? newDates : [""],
-                                                                prod_date: newDates[0] || null,
-                                                              }));
+                                                              const newDates = (
+                                                                editPartData.prod_dates ||
+                                                                []
+                                                              ).filter(
+                                                                (_, i) =>
+                                                                  i !== dateIdx,
+                                                              );
+                                                              setEditPartData(
+                                                                (p) => ({
+                                                                  ...p,
+                                                                  prod_dates:
+                                                                    newDates.length >
+                                                                    0
+                                                                      ? newDates
+                                                                      : [""],
+                                                                  prod_date:
+                                                                    newDates[0] ||
+                                                                    null,
+                                                                }),
+                                                              );
                                                             }}
                                                             title="Remove date"
                                                           >
@@ -4750,13 +4891,23 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                       </div>
                                                     ))}
                                                     <button
-                                                      style={styles.inlineProdDateAdd}
+                                                      style={
+                                                        styles.inlineProdDateAdd
+                                                      }
                                                       onClick={() => {
-                                                        const newDates = [...(editPartData.prod_dates || [""]), ""];
-                                                        setEditPartData((p) => ({
-                                                          ...p,
-                                                          prod_dates: newDates,
-                                                        }));
+                                                        const newDates = [
+                                                          ...(editPartData.prod_dates || [
+                                                            "",
+                                                          ]),
+                                                          "",
+                                                        ];
+                                                        setEditPartData(
+                                                          (p) => ({
+                                                            ...p,
+                                                            prod_dates:
+                                                              newDates,
+                                                          }),
+                                                        );
                                                       }}
                                                       title="Add date"
                                                     >
@@ -4764,15 +4915,26 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                     </button>
                                                   </div>
                                                 ) : (
-                                                  <span style={styles.prodDatesBadge}>
+                                                  <span
+                                                    style={
+                                                      styles.prodDatesBadge
+                                                    }
+                                                  >
                                                     {(() => {
                                                       const prodDates =
                                                         part.prod_dates ||
                                                         (part.prod_date
                                                           ? [part.prod_date]
                                                           : []);
-                                                      if (prodDates.length === 0) return "-";
-                                                      return prodDates.map((d) => formatDate(d)).join(", ");
+                                                      if (
+                                                        prodDates.length === 0
+                                                      )
+                                                        return "-";
+                                                      return prodDates
+                                                        .map((d) =>
+                                                          formatDate(d),
+                                                        )
+                                                        .join(", ");
                                                     })()}
                                                   </span>
                                                 )
@@ -4782,7 +4944,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                               )}
                                             </td>
                                             {activeTab === "Today" && (
-                                              <td style={styles.thirdLevelTd} title={part.remark || "-"}>
+                                              <td
+                                                style={styles.thirdLevelTd}
+                                                title={part.remark || "-"}
+                                              >
                                                 {editingPartId === part.id ? (
                                                   <input
                                                     type="text"
@@ -4802,19 +4967,20 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                 )}
                                               </td>
                                             )}
-                                            <td style={styles.thirdLevelTd} title="Action">
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title="Action"
+                                            >
                                               {editingPartId === part.id ? (
                                                 <>
                                                   <button
                                                     style={styles.saveButton}
                                                     onClick={() =>
                                                       handleSaveEditPart(
-                                                        part.id
+                                                        part.id,
                                                       )
                                                     }
                                                     title="Save"
-                                                    
-                                                    
                                                   >
                                                     <Save size={10} />
                                                   </button>
@@ -4824,8 +4990,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                       handleCancelEditPart
                                                     }
                                                     title="Cancel"
-                                                    
-                                                    
                                                   >
                                                     <X size={10} />
                                                   </button>
@@ -4841,7 +5005,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                         onClick={() =>
                                                           handleEditPart(
                                                             part,
-                                                            vendor.id
+                                                            vendor.id,
                                                           )
                                                         }
                                                         title="Edit"
@@ -4856,12 +5020,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                       }
                                                       onClick={() =>
                                                         handleDeletePart(
-                                                          part.id
+                                                          part.id,
                                                         )
                                                       }
                                                       title="Delete"
-                                                      
-                                                      
                                                     >
                                                       <Trash2 size={10} />
                                                     </button>
@@ -4872,9 +5034,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                           </tr>
                                         ))
                                       ) : (
-                                        <tr>
-                                         
-                                        </tr>
+                                        <tr></tr>
                                       )}
                                     </tbody>
                                   </table>
@@ -4885,9 +5045,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                         </React.Fragment>
                       ))
                     ) : (
-                      <tr>
-                        
-                      </tr>
+                      <tr></tr>
                     )}
                   </tbody>
                 </table>
@@ -5459,12 +5617,12 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 key={part.id || index}
                                 onMouseEnter={(e) =>
                                   (e.target.closest(
-                                    "tr"
+                                    "tr",
                                   ).style.backgroundColor = "#c7cde8")
                                 }
                                 onMouseLeave={(e) =>
                                   (e.target.closest(
-                                    "tr"
+                                    "tr",
                                   ).style.backgroundColor = "transparent")
                                 }
                               >
@@ -5475,7 +5633,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   <input
                                     type="checkbox"
                                     checked={selectedPartsInPopup.includes(
-                                      part.id
+                                      part.id,
                                     )}
                                     onChange={(e) =>
                                       handlePopupCheckboxChange(e, part.id)
@@ -5491,16 +5649,12 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 </td>
                                 <td
                                   style={vendorPartStyles.td}
-                                  
-                                  
                                   title={`${part.partCode}`}
                                 >
                                   {part.partCode}
                                 </td>
                                 <td
                                   style={vendorPartStyles.td}
-                                  
-                                  
                                   title={`${part.partName || "—"}`}
                                 >
                                   {part.partName || "—"}
@@ -5517,16 +5671,16 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                       ) {
                                         const cleanValue = value.replace(
                                           /[eE]/g,
-                                          ""
+                                          "",
                                         );
                                         handlePopupPartQtyChange(
                                           part.id,
-                                          cleanValue
+                                          cleanValue,
                                         );
                                       } else {
                                         handlePopupPartQtyChange(
                                           part.id,
-                                          value
+                                          value,
                                         );
                                       }
                                     }}
@@ -5562,8 +5716,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 </td>
                                 <td
                                   style={vendorPartStyles.td}
-                                  
-                                  
                                   title={`${part.unit || "PCS"}`}
                                 >
                                   {part.unit || "PCS"}
@@ -5572,8 +5724,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   <button
                                     style={vendorPartStyles.deleteButton}
                                     onClick={() => handleRemovePart(part.id)}
-                                    
-                                    
                                     title="Delete"
                                   >
                                     <Trash2 size={10} />
