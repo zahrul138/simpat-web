@@ -23,7 +23,7 @@ import TargetSchedulePage from "./pages/mhpage/TargetSchedulePage";
 import AddTargetSchedulePage from "./pages/mhpage/AddTargetSchedulePage";
 import ReceivedLocalSchedulePage from "./pages/mhpage/ReceivedLocalSchedulePage";
 import ReturnPartsPage from "./pages/mhpage/ReturnPartsPage";
-import MHLocalSchedulePage from "./pages/mhpage/MHLocalSchedulePage";  
+import MHLocalSchedulePage from "./pages/mhpage/MHLocalSchedulePage";
 
 // Halaman SCN-LOG (Inventory Control)
 import LocalSchedulePage from "./pages/logpage/LocalSchedulePage";
@@ -35,10 +35,11 @@ import PartDetailsPage from "./pages/logpage/PartDetailsPage";
 import AddPartsPage from "./pages/logpage/AddPartsPage";
 import VendorPartPlacementPage from "./pages/logpage/VendorPartPlacementPage";
 import AddVendorPartPlacementPage from "./pages/logpage/AddVendorPartPlacementPage";
+import StockOverviewPage from "./pages/logpage/StockOverviewPage";
 
 // Halaman SCN-IQC (Quality Control)
 import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
-import QCLocalSchedulePage from "./pages/iqcpage/QCLocalSchedulePage"; 
+import QCLocalSchedulePage from "./pages/iqcpage/QCLocalSchedulePage";
 import QCCheckPage from "./pages/iqcpage/QCCheckPage";
 import AddQCCheckPage from "./pages/iqcpage/AddQCCheckPage";
 
@@ -142,7 +143,7 @@ const LayoutHandler = () => {
   }, [location.pathname, authUser?.dept_app, authUser?.dept_code]);
 
   const toggleSidebar = () => setSidebarVisible((v) => !v);
-  
+
   const handleApplicationChange = (app, dept) => {
     setCurrentApplication(app);
     setCurrentDepartment(dept);
@@ -160,7 +161,7 @@ const LayoutHandler = () => {
       "/part-receive": { app: "production", dept: "SCN-MH" },
       "/upload-kanban": { app: "production", dept: "SCN-MH" },
       "/return-parts": { app: "production", dept: "SCN-MH" },
-      "/mh-local-schedule": { app: "production", dept: "SCN-MH" }, 
+      "/mh-local-schedule": { app: "production", dept: "SCN-MH" },
 
       // Inventory Control routes
       "/local-schedule": { app: "inventory", dept: "SCN-LOG" },
@@ -168,12 +169,13 @@ const LayoutHandler = () => {
       "/vendor-details": { app: "inventory", dept: "SCN-LOG" },
       "/part-details": { app: "inventory", dept: "SCN-LOG" },
       "/vendor-placement": { app: "inventory", dept: "SCN-LOG" },
+      "/stock-overview": { app: "inventory", dept: "SCN-LOG" },
 
       // Quality Assurance routes
       "/iqc-local": { app: "quality", dept: "SCN-IQC" },
       "/quality": { app: "quality", dept: "SCN-IQC" },
-      "/qc-local-schedule": { app: "quality", dept: "SCN-IQC" }, 
-       "/qc-part": { app: "quality", dept: "SCN-IQC" },
+      "/qc-local-schedule": { app: "quality", dept: "SCN-IQC" },
+      "/qc-part": { app: "quality", dept: "SCN-IQC" },
 
       // System Management routes
       "/user-control": { app: "system", dept: "ADMIN" },
@@ -236,15 +238,15 @@ const LayoutHandler = () => {
       ) : (
         <div></div>
       )}
-      
-      {/* LOCAL SCHEDULE PAGES - Per Department */}
+
       {location.pathname === "/local-schedule" && <LocalSchedulePage />}
       {location.pathname === "/local-schedule/add" && <AddLocalSchedulePage />}
       {location.pathname === "/mh-local-schedule" && <MHLocalSchedulePage />}
       {location.pathname === "/qc-local-schedule" && <QCLocalSchedulePage />}
-      
+
       {location.pathname === "/vendor-details" && <VendorDetailsPage />}
       {location.pathname === "/vendor-parts/add-vendor" && <AddVendorPage />}
+      {location.pathname === "/stock-overview" && <StockOverviewPage />}
       {location.pathname === "/part-details" && <PartDetailsPage />}
       {location.pathname === "/vendor-parts/add-parts" && <AddPartsPage />}
       {location.pathname === "/received-local" && <ReceivedLocalSchedulePage />}

@@ -226,7 +226,8 @@ const Sidebar = ({
             location.pathname.startsWith("/part-details") ||
             location.pathname.startsWith("/vendor-details") ||
             location.pathname.startsWith("/vendor-placement") ||
-            location.pathname.startsWith("/annex-receive"),
+            location.pathname.startsWith("/annex-receive") ||
+            location.pathname.startsWith("/stock-overview"),
 
           subItems: [
             {
@@ -243,6 +244,11 @@ const Sidebar = ({
             {
               title: "Vendor Placement",
               href: "/vendor-placement",
+              icon: PackageIcon,
+            },
+            {
+              title: "Stock Overview",
+              href: "/stock-overview",
               icon: PackageIcon,
             },
             {
@@ -280,22 +286,22 @@ const Sidebar = ({
         {
           title: "Local Schedule",
           icon: PackageIcon,
-          isActive: 
+          isActive:
             location.pathname.startsWith("/qc-local-schedule") ||
-            location.pathname.startsWith("/qc-part"), 
-            
-            subItems: [
-              {
-                title: "Local Schedule",
-                href: "/qc-local-schedule",
-                icon: PackageIcon,
-              },
-               {
-                title: "Quality Parts",
-                href: "/qc-part",
-                icon: PackageIcon,
-              },
-            ],
+            location.pathname.startsWith("/qc-part"),
+
+          subItems: [
+            {
+              title: "Local Schedule",
+              href: "/qc-local-schedule",
+              icon: PackageIcon,
+            },
+            {
+              title: "Quality Parts",
+              href: "/qc-part",
+              icon: PackageIcon,
+            },
+          ],
         },
         // {
         //   title: "Quality Reports",

@@ -978,13 +978,18 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleApproveVendor = async (vendorId) => {
-    if (!window.confirm("Approve this vendor and move to IQC Progress?"))
+    if (
+      !window.confirm(
+        "Approve this vendor and move to IQC Progress?\n\nParts will be added to stock inventory based on schedule's stock level.",
+      )
+    )
       return;
 
     try {
       const authUser = getAuthUser();
       const approveByName = authUser?.emp_name || "Unknown";
 
+      // Stock level akan diambil dari schedule di backend
       const response = await fetch(
         `${API_BASE}/api/local-schedules/vendors/${vendorId}/approve`,
         {
@@ -996,7 +1001,68 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        alert("Vendor approved!");
+        // Tampilkan info tentang stock yang ditambahkan
+        const stockInfo =
+          result.data.partsAddedToStock > 0
+            ? `\n${result.data.partsAddedToStock} parts added to ${result.data.stockLevel} stock.`
+            : "";
+
+        alert(`Vendor approved!${stockInfo}`);
+        await fetchReceivedVendors();
+      } else {
+        throw new Error(result.message || "Failed to approve vendor");
+      }
+    } catch (error) {
+      alert("Failed to approve vendor: " + error.message);
+    }
+  };
+
+  const handleApproveVendorWithStockChoice = async (vendorId, vendor) => {
+    // Tampilkan dialog untuk memilih stock level
+    const stockLevel = window.prompt(
+      "Approve vendor and add parts to stock.\n\nSelect stock level:\n- M101 (MH Scanner)\n- M136 (Logistic)\n\nEnter M101 or M136:",
+      "M136",
+    );
+
+    if (!stockLevel) return; // User cancelled
+
+    const normalizedStockLevel = stockLevel.toUpperCase().trim();
+    if (!["M101", "M136"].includes(normalizedStockLevel)) {
+      alert("Invalid stock level. Please enter M101 or M136.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Approve this vendor and add parts to ${normalizedStockLevel} stock?`,
+      )
+    )
+      return;
+
+    try {
+      const authUser = getAuthUser();
+      const approveByName = authUser?.emp_name || "Unknown";
+
+      const response = await fetch(
+        `${API_BASE}/api/local-schedules/vendors/${vendorId}/approve`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            approveByName,
+            stockLevel: normalizedStockLevel,
+          }),
+        },
+      );
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        const stockInfo =
+          result.data.partsAddedToStock > 0
+            ? `\n${result.data.partsAddedToStock} parts added to ${result.data.stockLevel} stock.`
+            : "";
+
+        alert(`Vendor approved!${stockInfo}`);
         await fetchReceivedVendors();
       } else {
         throw new Error(result.message || "Failed to approve vendor");
