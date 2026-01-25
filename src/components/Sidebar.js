@@ -142,6 +142,378 @@ const Sidebar = ({
     </svg>
   );
 
+  // Production icons
+  const CalendarIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+
+  const MonitorIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  );
+
+  const SearchIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+
+  const BadgeIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M3.85 8.75a4 4 0 0 0 4.12-4.75A4 4 0 0 1 12 4a4 4 0 0 1 3.97 3a4 4 0 0 0 4.12 4.75" />
+      <path d="M16 14.15a7 7 0 1 1-8 0" />
+    </svg>
+  );
+
+  const QuestionIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+
+  const TruckIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="1" y="6" width="22" height="12" rx="1" />
+      <path d="M7 12h10M17 12v4M7 16h10" />
+      <circle cx="5.5" cy="19.5" r="2.5" />
+      <circle cx="18.5" cy="19.5" r="2.5" />
+    </svg>
+  );
+
+  const InboxIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <polyline points="22 12 18 12 15 21 9 21 6 12 2 12" />
+      <path d="M9 11V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5" />
+    </svg>
+  );
+
+  const CheckIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+
+  const UndoIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" />
+    </svg>
+  );
+
+  // Inventory icons
+  const WarehouseIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+      <polyline points="3 9 21 9" />
+    </svg>
+  );
+
+  const ClockIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+
+  const ShipIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M2 21c.6.5 1.2 1 2.5 1h15c1.3 0 1.9-.5 2.5-1M2 19h20M17 21v-4M7 21v-4M12 21v-4" />
+      <path d="M20.92 5.64l-10-3.07a3 3 0 0 0-1.84 0l-10 3.07A2 2 0 0 0 2 7.5V13a8 8 0 0 0 16 0V7.5a2 2 0 0 0-1.08-1.86z" />
+    </svg>
+  );
+
+  const DatabaseIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M3 5c0 1.657 4.03 3 9 3s9-1.343 9-3" />
+      <path d="M3 5v8c0 1.657 4.03 3 9 3s9-1.343 9-3V5" />
+      <path d="M3 13c0 1.657 4.03 3 9 3s9-1.343 9-3" />
+    </svg>
+  );
+
+  const InfoIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+
+  const BuildingIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+      <rect x="5" y="5" width="2" height="2" />
+      <rect x="12" y="5" width="2" height="2" />
+      <rect x="17" y="5" width="2" height="2" />
+    </svg>
+  );
+
+  const MapPinIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+
+  const EyeIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+
+  // System icons
+  const UsersIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+
+  const SettingsIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24" />
+    </svg>
+  );
+
+  const LockIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+
+  const ScrollIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      <line x1="8" y1="6" x2="16" y2="6" />
+      <line x1="8" y1="10" x2="16" y2="10" />
+      <line x1="8" y1="14" x2="16" y2="14" />
+    </svg>
+  );
+
+  const HeartIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+
+  const SlidersIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <line x1="4" y1="21" x2="4" y2="14" />
+      <line x1="4" y1="10" x2="4" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12" y2="3" />
+      <line x1="20" y1="21" x2="20" y2="16" />
+      <line x1="20" y1="12" x2="20" y2="3" />
+      <circle cx="4" cy="17.5" r="1.5" />
+      <circle cx="12" cy="10.5" r="1.5" />
+      <circle cx="20" cy="14.5" r="1.5" />
+    </svg>
+  );
+
+  // Helper function to check if path matches, including add sub-routes
+  const isPathActive = (basePath) => {
+    return (
+      location.pathname === basePath ||
+      location.pathname.startsWith(basePath + "/")
+    );
+  };
+
+  // Helper function untuk mengecek apakah path yang sedang aktif termasuk parent atau child (add) pages
+  const isParentOrChildActive = (basePath) => {
+    // Mapping khusus untuk path add yang tidak mengikuti pola standard basePath/add
+    const addPathMapping = {
+      "/part-details": "/add-parts",
+      "/vendor-details": "/add-vendor",
+    };
+
+    return (
+      location.pathname === basePath ||
+      location.pathname === basePath + "/add" ||
+      location.pathname === addPathMapping[basePath] ||
+      location.pathname.startsWith(basePath + "/")
+    );
+  };
+
   const getMenuItemsByApplication = (app) => {
     const baseItems = {
       production: [
@@ -149,36 +521,36 @@ const Sidebar = ({
           title: "Production",
           icon: FactoryIcon,
           isActive:
-            location.pathname.startsWith("/target-schedule") ||
-            location.pathname.startsWith("/production-monitoring"),
+            isPathActive("/target-schedule") ||
+            isPathActive("/production-monitoring"),
           subItems: [
             {
               title: "Target Schedule",
               href: "/target-schedule",
-              icon: PackageIcon,
+              icon: CalendarIcon,
             },
             {
               title: "Production Monitoring",
               href: "/production-monitoring",
-              icon: PackageIcon,
+              icon: MonitorIcon,
             },
           ],
         },
         {
           title: "Local Vendor",
-          icon: PackageIcon,
+          icon: TruckIcon,
           isActive: location.pathname.startsWith("/mh-local-schedule"),
           subItems: [
             {
               title: "Local Schedule",
               href: "/mh-local-schedule",
-              icon: PackageIcon,
+              icon: ClockIcon,
             },
           ],
         },
         {
           title: "Request Part",
-          icon: PackageIcon,
+          icon: SearchIcon,
           isActive:
             location.pathname.startsWith("/part-enquiry-id") ||
             location.pathname.startsWith("/part-enquiry-non-id"),
@@ -186,18 +558,18 @@ const Sidebar = ({
             {
               title: "Part Enquiry ID",
               href: "/part-enquiry-id",
-              icon: PackageIcon,
+              icon: BadgeIcon,
             },
             {
               title: "Part Enquiry Non- ID",
               href: "/part-enquiry-non-id",
-              icon: PackageIcon,
+              icon: QuestionIcon,
             },
           ],
         },
         {
           title: "Part Receiving",
-          icon: PackageIcon,
+          icon: InboxIcon,
           isActive: location.pathname.startsWith("/part-receive"),
           subItems: [
             {
@@ -209,10 +581,10 @@ const Sidebar = ({
         },
         {
           title: "Quality Control",
-          icon: PackageIcon,
+          icon: ShieldIcon,
           isActive: location.pathname.startsWith("/return-parts"),
           subItems: [
-            { title: "Return Parts", href: "/return-parts", icon: PackageIcon },
+            { title: "Return Parts", href: "/return-parts", icon: UndoIcon },
           ],
         },
       ],
@@ -220,168 +592,128 @@ const Sidebar = ({
       inventory: [
         {
           title: "Local Parts",
-          icon: FactoryIcon,
+          icon: WarehouseIcon,
           isActive:
-            location.pathname.startsWith("/local-schedule") ||
-            location.pathname.startsWith("/part-details") ||
-            location.pathname.startsWith("/vendor-details") ||
-            location.pathname.startsWith("/vendor-placement") ||
-            location.pathname.startsWith("/annex-receive") ||
-            location.pathname.startsWith("/stock-overview"),
+            isParentOrChildActive("/local-schedule") ||
+            isParentOrChildActive("/oversea-schedule") ||
+            isParentOrChildActive("/part-details") ||
+            isParentOrChildActive("/vendor-details") ||
+            isParentOrChildActive("/vendor-placement") ||
+            isPathActive("/annex-receive") ||
+            isPathActive("/stock-overview") ||
+            isPathActive("/storage-inventory"),
 
           subItems: [
             {
               title: "Local Schedule",
               href: "/local-schedule",
-              icon: PackageIcon,
+              icon: ClockIcon,
             },
-            { title: "Part Details", href: "/part-details", icon: PackageIcon },
+            {
+              title: "Oversea Schedule",
+              href: "/oversea-schedule",
+              icon: ShipIcon,
+            },
+            {
+              title: "Storage Inventory",
+              href: "/storage-inventory",
+              icon: DatabaseIcon,
+            },
+            {
+              title: "Part Details",
+              href: "/part-details",
+              icon: InfoIcon,
+            },
             {
               title: "Vendor Details",
               href: "/vendor-details",
-              icon: PackageIcon,
+              icon: BuildingIcon,
             },
             {
               title: "Vendor Placement",
               href: "/vendor-placement",
-              icon: PackageIcon,
+              icon: MapPinIcon,
             },
             {
               title: "Stock Overview",
               href: "/stock-overview",
-              icon: PackageIcon,
+              icon: EyeIcon,
             },
             {
               title: "Receive Request",
               href: "/annex-receive",
-              icon: PackageIcon,
+              icon: InboxIcon,
             },
           ],
         },
       ],
 
       quality: [
-        // {
-        //   title: "Quality Control",
-        //   icon: ShieldIcon,
-        //   isActive: location.pathname.startsWith("/quality"),
-        //   subItems: [
-        //     {
-        //       title: "Incoming Inspection",
-        //       href: "/quality/incoming",
-        //       icon: ShieldIcon,
-        //     },
-        //     {
-        //       title: "In-Process Inspection",
-        //       href: "/quality/in-process",
-        //       icon: ShieldIcon,
-        //     },
-        //     {
-        //       title: "Final Inspection",
-        //       href: "/quality/final",
-        //       icon: ShieldIcon,
-        //     },
-        //   ],
-        // },
         {
           title: "Local Schedule",
-          icon: PackageIcon,
+          icon: ClockIcon,
           isActive:
-            location.pathname.startsWith("/qc-local-schedule") ||
-            location.pathname.startsWith("/qc-part"),
+            isPathActive("/qc-local-schedule") ||
+            isPathActive("/qc-part"),
 
           subItems: [
             {
               title: "Local Schedule",
               href: "/qc-local-schedule",
-              icon: PackageIcon,
+              icon: CalendarIcon,
             },
             {
               title: "Quality Parts",
               href: "/qc-part",
-              icon: PackageIcon,
+              icon: CheckIcon,
             },
           ],
         },
-        // {
-        //   title: "Quality Reports",
-        //   icon: FileTextIcon,
-        //   isActive: location.pathname.startsWith("/quality-reports"),
-        //   subItems: [
-        //     {
-        //       title: "Defect Analysis",
-        //       href: "/quality-reports/defects",
-        //       icon: BarChartIcon,
-        //     },
-        //     {
-        //       title: "Quality Metrics",
-        //       href: "/quality-reports/metrics",
-        //       icon: BarChartIcon,
-        //     },
-        //   ],
-        // },
-        // {
-        //   title: "Request Enquiry",
-        //   icon: ShieldIcon,
-        //   isActive: location.pathname.startsWith("/request-enquiry"),
-        //   subItems: [
-        //     {
-        //       title: "Receive",
-        //       href: "/request-enquiry/receive",
-        //       icon: PackageIcon,
-        //     },
-        //     {
-        //       title: "Receive IQC",
-        //       href: "/request-enquiry/receive-iqc",
-        //       icon: PackageIcon,
-        //     },
-        //   ],
-        // },
       ],
 
       system: [
         {
           title: "Management Control",
-          icon: ShieldIcon,
+          icon: LockIcon,
           isActive:
-            location.pathname.startsWith("/user-control") ||
-            location.pathname.startsWith("/user-management"),
+            isPathActive("/user-control") ||
+            isPathActive("/user-management"),
           subItems: [
-            { title: "Manage User", href: "/user-control", icon: PackageIcon },
-            { title: "User List", href: "/user-management", icon: PackageIcon },
+            { title: "Manage User", href: "/user-control", icon: UsersIcon },
+            { title: "User List", href: "/user-management", icon: ScrollIcon },
           ],
         },
         {
           title: "System Configuration",
-          icon: FileTextIcon,
-          isActive: location.pathname.startsWith("/system-config"),
+          icon: SettingsIcon,
+          isActive: isPathActive("/system-config"),
           subItems: [
             {
               title: "General Settings",
               href: "/system-config/general",
-              icon: BarChartIcon,
+              icon: SlidersIcon,
             },
             {
               title: "Access Control",
               href: "/system-config/access",
-              icon: BarChartIcon,
+              icon: LockIcon,
             },
           ],
         },
         {
           title: "System Reports",
-          icon: CalculatorIcon,
-          isActive: location.pathname.startsWith("/system-reports"),
+          icon: BarChartIcon,
+          isActive: isPathActive("/system-reports"),
           subItems: [
             {
               title: "Audit Log",
               href: "/system-reports/audit",
-              icon: FileTextIcon,
+              icon: ScrollIcon,
             },
             {
               title: "System Health",
               href: "/system-reports/health",
-              icon: BarChartIcon,
+              icon: HeartIcon,
             },
           ],
         },
@@ -393,7 +725,7 @@ const Sidebar = ({
 
   const menuItems = useMemo(
     () => getMenuItemsByApplication(currentApplication),
-    [location.pathname, currentApplication]
+    [location.pathname, currentApplication],
   );
 
   /** ================== EFFECTS ================== */
@@ -415,17 +747,17 @@ const Sidebar = ({
     const currentParentMenu = menuItems.find(
       (item) =>
         item.subItems &&
-        item.subItems.some((sub) => sub.href === location.pathname)
+        item.subItems.some((sub) => sub.href === location.pathname || location.pathname === sub.href + "/add"),
     );
 
     // Special case: expand Production when on /target-schedule/add
     if (location.pathname === "/target-schedule/add") {
       const productionMenu = menuItems.find(
-        (item) => item.title === "Production"
+        (item) => item.title === "Production",
       );
       if (productionMenu) {
         setExpandedItems((prev) =>
-          prev[0] === "Production" ? prev : ["Production"]
+          prev[0] === "Production" ? prev : ["Production"],
         );
       }
       setPrevPathname(location.pathname);
@@ -434,7 +766,7 @@ const Sidebar = ({
 
     if (location.pathname !== prevPathname && currentParentMenu) {
       setExpandedItems((prev) =>
-        prev[0] === currentParentMenu.title ? prev : [currentParentMenu.title]
+        prev[0] === currentParentMenu.title ? prev : [currentParentMenu.title],
       );
       setPrevPathname(location.pathname);
     }
@@ -453,7 +785,7 @@ const Sidebar = ({
 
   const handleSubMenuButtonHover = (e, isHover) => {
     const to = e.currentTarget.getAttribute("data-to");
-    const isActive = location.pathname === to;
+    const isActive = location.pathname === to || location.pathname === to + "/add";
 
     if (isActive) {
       e.currentTarget.style.backgroundColor = "#475569";
@@ -471,7 +803,7 @@ const Sidebar = ({
       const buttons = document.querySelectorAll("[data-to]");
       buttons.forEach((button) => {
         const href = button.getAttribute("data-to");
-        const isActive = location.pathname === href;
+        const isActive = location.pathname === href || location.pathname === href + "/add";
 
         if (!isActive) {
           button.style.backgroundColor = "transparent";
@@ -695,7 +1027,7 @@ const Sidebar = ({
                     }}
                   >
                     {item.subItems?.map((subItem) => {
-                      const active = location.pathname === subItem.href;
+                      const active = location.pathname === subItem.href || location.pathname === subItem.href + "/add";
                       return (
                         <div key={subItem.title} style={styles.subMenuItem}>
                           <Link

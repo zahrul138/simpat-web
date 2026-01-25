@@ -36,6 +36,9 @@ import AddPartsPage from "./pages/logpage/AddPartsPage";
 import VendorPartPlacementPage from "./pages/logpage/VendorPartPlacementPage";
 import AddVendorPartPlacementPage from "./pages/logpage/AddVendorPartPlacementPage";
 import StockOverviewPage from "./pages/logpage/StockOverviewPage";
+import OverseaPartSchedulePage from "./pages/logpage/OverseaPartSchedulePage";
+import AddOverseaPartSchedulePage from "./pages/logpage/AddOverseaPartSchedulePage";
+import StorageInventoryPage from "./pages/logpage/StorageInventoryPage";
 
 // Halaman SCN-IQC (Quality Control)
 import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
@@ -165,11 +168,13 @@ const LayoutHandler = () => {
 
       // Inventory Control routes
       "/local-schedule": { app: "inventory", dept: "SCN-LOG" },
+      "/oversea-schedule": { app: "inventory", dept: "SCN-LOG" },
       "/annex-receive": { app: "inventory", dept: "SCN-LOG" },
       "/vendor-details": { app: "inventory", dept: "SCN-LOG" },
       "/part-details": { app: "inventory", dept: "SCN-LOG" },
       "/vendor-placement": { app: "inventory", dept: "SCN-LOG" },
       "/stock-overview": { app: "inventory", dept: "SCN-LOG" },
+      "/storage-inventory": { app: "inventory", dept: "SCN-LOG" },
 
       // Quality Assurance routes
       "/iqc-local": { app: "quality", dept: "SCN-IQC" },
@@ -243,12 +248,15 @@ const LayoutHandler = () => {
       {location.pathname === "/local-schedule/add" && <AddLocalSchedulePage />}
       {location.pathname === "/mh-local-schedule" && <MHLocalSchedulePage />}
       {location.pathname === "/qc-local-schedule" && <QCLocalSchedulePage />}
+      {location.pathname === "/oversea-schedule" && <OverseaPartSchedulePage />}
+      {location.pathname === "/oversea-schedule/add" && <AddOverseaPartSchedulePage />}
+      {location.pathname === "/storage-inventory" && <StorageInventoryPage />}
 
       {location.pathname === "/vendor-details" && <VendorDetailsPage />}
-      {location.pathname === "/vendor-parts/add-vendor" && <AddVendorPage />}
+      {location.pathname === "/vendor-details/add" && <AddVendorPage />}
       {location.pathname === "/stock-overview" && <StockOverviewPage />}
       {location.pathname === "/part-details" && <PartDetailsPage />}
-      {location.pathname === "/vendor-parts/add-parts" && <AddPartsPage />}
+      {location.pathname === "/part-details/add" && <AddPartsPage />}
       {location.pathname === "/received-local" && <ReceivedLocalSchedulePage />}
       {location.pathname === "/iqc-local" && <IQCLocalPage />}
       {location.pathname === "/qc-part" && <QCCheckPage />}

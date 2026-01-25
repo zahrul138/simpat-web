@@ -1770,7 +1770,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             style={{ ...styles.button, ...styles.primaryButton }}
             onMouseEnter={(e) => handleButtonHover(e, true, "search")}
             onMouseLeave={(e) => handleButtonHover(e, false, "search")}
-            onClick={() => navigate("/vendor-parts/add-parts")}
+            onClick={() => navigate("/part-details/add")}
           >
             <Plus size={16} />
             Create

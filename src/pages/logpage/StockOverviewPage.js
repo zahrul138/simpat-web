@@ -62,7 +62,7 @@ const StockOverviewPage = () => {
   // Get "From" display based on source_type
   const getFromDisplay = (movement) => {
     if (!movement.source_type) return "-";
-    
+
     switch (movement.source_type) {
       case "local_schedule":
         return "Vendor";
@@ -93,7 +93,7 @@ const StockOverviewPage = () => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/stock-inventory/overview?part_code=${encodeURIComponent(searchPartCode.trim())}`
+        `${API_BASE}/api/stock-inventory/overview?part_code=${encodeURIComponent(searchPartCode.trim())}`,
       );
       const result = await response.json();
 
@@ -122,17 +122,19 @@ const StockOverviewPage = () => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/stock-inventory/movements?part_code=${encodeURIComponent(partCode)}&stock_level=${stockLevel}&limit=${itemsPerPage}&offset=${offset}`
+        `${API_BASE}/api/stock-inventory/movements?part_code=${encodeURIComponent(partCode)}&stock_level=${stockLevel}&limit=${itemsPerPage}&offset=${offset}`,
       );
       const result = await response.json();
 
       if (result.success) {
         setMovements(result.data || []);
-        setMovementsPagination(result.pagination || {
-          total: 0,
-          limit: itemsPerPage,
-          offset: offset,
-        });
+        setMovementsPagination(
+          result.pagination || {
+            total: 0,
+            limit: itemsPerPage,
+            offset: offset,
+          },
+        );
       } else {
         setMovements([]);
       }
@@ -594,7 +596,7 @@ const StockOverviewPage = () => {
                   />
                 </div>
               </div>
-              <div style={{ flex: "2", display: "grid", gap: "20px" }}>
+              <div style={{ flex: "1", display: "grid", gap: "20px" }}>
                 <div>
                   <label htmlFor="" style={styles.label}>
                     Stock M1Y2 (Transit)
@@ -628,6 +630,40 @@ const StockOverviewPage = () => {
                   />
                 </div>
               </div>
+              <div style={{ flex: "2", display: "grid", gap: "20px" }}>
+                <div>
+                  <label htmlFor="" style={styles.label}>
+                    Stock Hold
+                  </label>
+                  <input
+                    type="text"
+                    style={styles.inputReadOnly}
+                    value={
+                      stockData
+                        ? `${stockData.stock_hold || 0} ${stockData.unit || "PCS"}`
+                        : ""
+                    }
+                    readOnly
+                    placeholder="Total part"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="" style={styles.label}>
+                    Monthly Scrap
+                  </label>
+                  <input
+                    type="text"
+                    style={styles.inputReadOnly}
+                    value={
+                      stockData
+                        ? `${stockData.monthly_scrap || 0} ${stockData.unit || "PCS"}`
+                        : ""
+                    }
+                    readOnly
+                    placeholder="Total part"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -642,8 +678,12 @@ const StockOverviewPage = () => {
                 ...(activeTab === "M136" && styles.tabButtonActive),
               }}
               onClick={() => handleTabClick("M136")}
-              onMouseEnter={(e) => handleTabHover(e, true, activeTab === "M136")}
-              onMouseLeave={(e) => handleTabHover(e, false, activeTab === "M136")}
+              onMouseEnter={(e) =>
+                handleTabHover(e, true, activeTab === "M136")
+              }
+              onMouseLeave={(e) =>
+                handleTabHover(e, false, activeTab === "M136")
+              }
             >
               M136
             </button>
@@ -653,8 +693,12 @@ const StockOverviewPage = () => {
                 ...(activeTab === "M101" && styles.tabButtonActive),
               }}
               onClick={() => handleTabClick("M101")}
-              onMouseEnter={(e) => handleTabHover(e, true, activeTab === "M101")}
-              onMouseLeave={(e) => handleTabHover(e, false, activeTab === "M101")}
+              onMouseEnter={(e) =>
+                handleTabHover(e, true, activeTab === "M101")
+              }
+              onMouseLeave={(e) =>
+                handleTabHover(e, false, activeTab === "M101")
+              }
             >
               M101
             </button>
@@ -664,8 +708,12 @@ const StockOverviewPage = () => {
                 ...(activeTab === "M1Y2" && styles.tabButtonActive),
               }}
               onClick={() => handleTabClick("M1Y2")}
-              onMouseEnter={(e) => handleTabHover(e, true, activeTab === "M1Y2")}
-              onMouseLeave={(e) => handleTabHover(e, false, activeTab === "M1Y2")}
+              onMouseEnter={(e) =>
+                handleTabHover(e, true, activeTab === "M1Y2")
+              }
+              onMouseLeave={(e) =>
+                handleTabHover(e, false, activeTab === "M1Y2")
+              }
             >
               M1Y2
             </button>
@@ -676,9 +724,37 @@ const StockOverviewPage = () => {
               }}
               onClick={() => handleTabClick("RTV")}
               onMouseEnter={(e) => handleTabHover(e, true, activeTab === "RTV")}
-              onMouseLeave={(e) => handleTabHover(e, false, activeTab === "RTV")}
+              onMouseLeave={(e) =>
+                handleTabHover(e, false, activeTab === "RTV")
+              }
             >
               RTV
+            </button>
+            <button
+              style={{
+                ...styles.tabButton,
+                ...(activeTab === "HOLD" && styles.tabButtonActive),
+              }}
+              onClick={() => handleTabClick("HOLD")}
+              onMouseEnter={(e) => handleTabHover(e, true, activeTab === "HOLD")}
+              onMouseLeave={(e) =>
+                handleTabHover(e, false, activeTab === "HOLD")
+              }
+            >
+              HOLD
+            </button>
+            <button
+              style={{
+                ...styles.tabButton,
+                ...(activeTab === "SCRAP" && styles.tabButtonActive),
+              }}
+              onClick={() => handleTabClick("SCRAP")}
+              onMouseEnter={(e) => handleTabHover(e, true, activeTab === "SCRAP")}
+              onMouseLeave={(e) =>
+                handleTabHover(e, false, activeTab === "SCRAP")
+              }
+            >
+              SCRAP
             </button>
           </div>
 
@@ -722,8 +798,7 @@ const StockOverviewPage = () => {
                       </td>
                     </tr>
                   ) : movements.length === 0 ? (
-                    <tr>
-                    </tr>
+                    <tr></tr>
                   ) : (
                     movements.map((movement, index) => (
                       <tr

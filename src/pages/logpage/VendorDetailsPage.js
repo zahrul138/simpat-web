@@ -42,6 +42,22 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     y: 0,
   });
 
+  // ==================== EDIT VENDOR STATES ====================
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editVendorData, setEditVendorData] = useState({
+    id: null,
+    vendor_code: "",
+    vendor_name: "",
+    vendor_desc: "",
+    vendor_type_id: "",
+    types: "",
+    vendor_country: "",
+    vendor_city: "",
+    is_active: true,
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [vendorTypes, setVendorTypes] = useState([]);
+
   const fetchVendors = async () => {
     try {
       setLoading(true);
@@ -145,6 +161,135 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     } catch (err) {
       console.error("Error deleting vendor:", err);
       alert(`Failed to delete vendor: ${err.message}`);
+    }
+  };
+
+  // ==================== EDIT VENDOR FUNCTIONS ====================
+  const fetchVendorTypes = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${API_BASE}/api/vendor-types`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setVendorTypes(result.data || []);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching vendor types:", err);
+    }
+  };
+
+  const handleOpenEditModal = (vendor) => {
+    setEditVendorData({
+      id: vendor.id,
+      vendor_code: vendor.vendor_code || "",
+      vendor_name: vendor.vendor_name || "",
+      vendor_desc: vendor.vendor_desc || "",
+      vendor_type_id: vendor.vendor_type_id || "",
+      types: vendor.types || "",
+      vendor_country: vendor.vendor_country || "",
+      vendor_city: vendor.vendor_city || "",
+      is_active: vendor.is_active !== undefined ? vendor.is_active : true,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false);
+    setEditVendorData({
+      id: null,
+      vendor_code: "",
+      vendor_name: "",
+      vendor_desc: "",
+      vendor_type_id: "",
+      types: "",
+      vendor_country: "",
+      vendor_city: "",
+      is_active: true,
+    });
+  };
+
+  const handleEditInputChange = (field, value) => {
+    setEditVendorData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    // Auto update types when vendor_type_id changes
+    if (field === "vendor_type_id") {
+      const selectedType = vendorTypes.find((t) => t.id === parseInt(value));
+      if (selectedType) {
+        setEditVendorData((prev) => ({
+          ...prev,
+          vendor_type_id: value,
+          types: selectedType.type_name || selectedType.name || "",
+        }));
+      }
+    }
+  };
+
+  const handleUpdateVendor = async (e) => {
+    e.preventDefault();
+
+    if (!editVendorData.vendor_name || !editVendorData.vendor_desc) {
+      alert("Vendor Name and Description are required!");
+      return;
+    }
+
+    setEditLoading(true);
+
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(
+        `${API_BASE}/api/vendors/${editVendorData.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            vendor_name: editVendorData.vendor_name,
+            vendor_desc: editVendorData.vendor_desc,
+            vendor_type_id: editVendorData.vendor_type_id || null,
+            types: editVendorData.types,
+            vendor_country: editVendorData.vendor_country,
+            vendor_city: editVendorData.vendor_city,
+            is_active: editVendorData.is_active,
+            created_by: getCurrentUser(),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`Updated vendor detail successfully!`);
+        handleCloseEditModal();
+        fetchVendors();
+      } else {
+        throw new Error(result.message || "Failed to update vendor");
+      }
+    } catch (err) {
+      console.error("Error updating vendor:", err);
+      alert(`Failed to update vendor: ${err.message}`);
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -468,6 +613,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
   // ==================== USE EFFECT ====================
   useEffect(() => {
     fetchVendors();
+    fetchVendorTypes();
   }, []);
 
   const optionStyle = {
@@ -1037,6 +1183,150 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       fontWeight: "1000",
       fontFamily: "inherit",
     },
+
+    // ==================== EDIT MODAL STYLES ====================
+    editModalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 9999,
+    },
+    editModalContainer: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      padding: "24px",
+      width: "550px",
+      maxWidth: "90vw",
+      maxHeight: "90vh",
+      overflow: "auto",
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+    },
+    editModalHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "1px solid #e5e7eb",
+      paddingBottom: "12px",
+      marginBottom: "20px",
+    },
+    editModalTitle: {
+      fontSize: "18px",
+      fontWeight: "600",
+      color: "#374151",
+      margin: 0,
+    },
+    editModalCloseButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "4px",
+      borderRadius: "4px",
+      color: "#6b7280",
+    },
+    editFormGroup: {
+      marginBottom: "16px",
+    },
+    editFormLabel: {
+      display: "block",
+      fontSize: "13px",
+      fontWeight: "500",
+      color: "#374151",
+      marginBottom: "6px",
+    },
+    editFormInput: {
+      width: "100%",
+      height: "38px",
+      borderRadius: "6px",
+      border: "2px solid #e5e7eb",
+      padding: "0 12px",
+      fontSize: "13px",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      boxSizing: "border-box",
+    },
+    editFormSelect: {
+      width: "100%",
+      height: "38px",
+      borderRadius: "6px",
+      border: "2px solid #e5e7eb",
+      padding: "0 12px",
+      fontSize: "13px",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      backgroundColor: "white",
+      cursor: "pointer",
+      boxSizing: "border-box",
+    },
+    editFormTextarea: {
+      width: "100%",
+      minHeight: "80px",
+      borderRadius: "6px",
+      border: "2px solid #e5e7eb",
+      padding: "10px 12px",
+      fontSize: "13px",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      resize: "vertical",
+      fontFamily: "inherit",
+      boxSizing: "border-box",
+    },
+    editFormRow: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "16px",
+    },
+    editRequiredStar: {
+      color: "#ef4444",
+      marginLeft: "2px",
+    },
+    editVendorCodeDisplay: {
+      padding: "10px 12px",
+      backgroundColor: "#f3f4f6",
+      borderRadius: "6px",
+      fontSize: "13px",
+      color: "#6b7280",
+      border: "2px solid #e5e7eb",
+    },
+    editButtonGroup: {
+      display: "flex",
+      gap: "12px",
+      justifyContent: "flex-end",
+      marginTop: "24px",
+      paddingTop: "16px",
+      borderTop: "1px solid #e5e7eb",
+    },
+    editSubmitButton: {
+      backgroundColor: "#1d4ed8",
+      color: "white",
+      padding: "8px 16px",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "14px",
+      fontWeight: "500",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    editCancelButton: {
+      backgroundColor: "#f3f4f6",
+      color: "#374151",
+      padding: "8px 16px",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "14px",
+      fontWeight: "500",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
   };
 
   return (
@@ -1045,6 +1335,179 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
         {tooltip.content}
         <div style={styles.tooltipArrow}></div>
       </div>
+
+      {/* ==================== EDIT VENDOR MODAL ==================== */}
+      {editModalOpen && (
+        <div style={styles.editModalOverlay}>
+          <div style={styles.editModalContainer}>
+            <div style={styles.editModalHeader}>
+              <h3 style={styles.editModalTitle}>Edit Vendor</h3>
+              <button
+                style={styles.editModalCloseButton}
+                onClick={handleCloseEditModal}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateVendor}>
+              {/* Vendor Code (Read-only) */}
+              <div style={styles.editFormGroup}>
+                <label style={styles.editFormLabel}>Vendor Code</label>
+                <div style={styles.editVendorCodeDisplay}>
+                  {editVendorData.vendor_code}
+                </div>
+              </div>
+
+              {/* Vendor Name */}
+              <div style={styles.editFormGroup}>
+                <label style={styles.editFormLabel}>
+                  Vendor Name<span style={styles.editRequiredStar}>*</span>
+                </label>
+                <input
+                  type="text"
+                  style={styles.editFormInput}
+                  value={editVendorData.vendor_name}
+                  onChange={(e) =>
+                    handleEditInputChange("vendor_name", e.target.value)
+                  }
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  placeholder="Enter vendor name"
+                  required
+                />
+              </div>
+
+              {/* Vendor Description */}
+              <div style={styles.editFormGroup}>
+                <label style={styles.editFormLabel}>
+                  Description<span style={styles.editRequiredStar}>*</span>
+                </label>
+                <textarea
+                  style={styles.editFormTextarea}
+                  value={editVendorData.vendor_desc}
+                  onChange={(e) =>
+                    handleEditInputChange("vendor_desc", e.target.value)
+                  }
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  placeholder="Enter vendor description"
+                  required
+                />
+              </div>
+
+              {/* Vendor Type */}
+              <div style={styles.editFormGroup}>
+                <label style={styles.editFormLabel}>Vendor Type</label>
+                <select
+                  style={styles.editFormSelect}
+                  value={editVendorData.vendor_type_id}
+                  onChange={(e) =>
+                    handleEditInputChange("vendor_type_id", e.target.value)
+                  }
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                >
+                  <option value="">Select Vendor Type</option>
+                  {vendorTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.type_name || type.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Types */}
+              <div style={styles.editFormGroup}>
+                <label style={styles.editFormLabel}>Types</label>
+                <input
+                  type="text"
+                  style={styles.editFormInput}
+                  value={editVendorData.types}
+                  onChange={(e) =>
+                    handleEditInputChange("types", e.target.value)
+                  }
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  placeholder="Enter types (e.g., Supplier, Manufacturer)"
+                />
+              </div>
+
+              {/* Country & City Row */}
+              <div style={styles.editFormRow}>
+                <div style={styles.editFormGroup}>
+                  <label style={styles.editFormLabel}>Country</label>
+                  <input
+                    type="text"
+                    style={styles.editFormInput}
+                    value={editVendorData.vendor_country}
+                    onChange={(e) =>
+                      handleEditInputChange("vendor_country", e.target.value)
+                    }
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    placeholder="Enter country"
+                  />
+                </div>
+                <div style={styles.editFormGroup}>
+                  <label style={styles.editFormLabel}>City</label>
+                  <input
+                    type="text"
+                    style={styles.editFormInput}
+                    value={editVendorData.vendor_city}
+                    onChange={(e) =>
+                      handleEditInputChange("vendor_city", e.target.value)
+                    }
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    placeholder="Enter city"
+                  />
+                </div>
+              </div>
+
+              {/* Status */}
+              <div style={styles.editFormGroup}>
+                <label style={styles.editFormLabel}>Status</label>
+                <select
+                  style={styles.editFormSelect}
+                  value={editVendorData.is_active}
+                  onChange={(e) =>
+                    handleEditInputChange(
+                      "is_active",
+                      e.target.value === "true"
+                    )
+                  }
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                >
+                  <option value={true}>Active</option>
+                  <option value={false}>Inactive</option>
+                </select>
+              </div>
+
+              {/* Button Group */}
+              <div style={styles.editButtonGroup}>
+                <button
+                  type="button"
+                  style={styles.editCancelButton}
+                  onClick={handleCloseEditModal}
+                >
+                  <X size={16} />
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={styles.editSubmitButton}
+                  disabled={editLoading}
+                >
+                  <Save size={16} />
+                  {editLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={styles.welcomeCard}>
@@ -1172,7 +1635,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
               style={{ ...styles.button, ...styles.primaryButton }}
               onMouseEnter={(e) => handleButtonHover(e, true, "search")}
               onMouseLeave={(e) => handleButtonHover(e, false, "search")}
-              onClick={() => navigate("/vendor-parts/add-vendor")}
+              onClick={() => navigate("/vendor-details/add")}
             >
               <Plus size={16} />
               Create
@@ -1280,11 +1743,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                               style={styles.editButton}
                               onMouseEnter={showTooltip}
                               onMouseLeave={hideTooltip}
-                              onClick={() =>
-                                navigate(
-                                  `/vendor-parts/edit-vendor/${vendor.id}`
-                                )
-                              }
+                              onClick={() => handleOpenEditModal(vendor)}
                               title="Edit Vendor"
                             >
                               <Pencil size={10} />

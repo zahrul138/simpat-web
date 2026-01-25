@@ -395,7 +395,7 @@ const Navbar = ({
 
           <div style={styles.systemInfo}>
             <span style={{ ...styles.badge, ...styles.greenBadge }}>
-              FY-2025
+              FY-2026
             </span>{" "}
             |
             <span
