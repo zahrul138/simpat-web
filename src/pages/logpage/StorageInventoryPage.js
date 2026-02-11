@@ -722,16 +722,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
             }}
             onClick={() => setActiveTab("Complete")}
           >
-            Complete
-          </button>
-          <button
-            style={{
-              ...styles.tabButton,
-              ...(activeTab === "Reject" && styles.tabButtonActive),
-            }}
-            onClick={() => setActiveTab("Reject")}
-          >
-            Reject
+            Out System
           </button>
         </div>
 

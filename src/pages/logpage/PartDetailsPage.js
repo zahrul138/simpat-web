@@ -70,7 +70,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   const [searchBy, setSearchBy] = useState("Vendor");
   const [keyword, setKeyword] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+  const [itemsPerPage] = useState(10);
 
   const fetchAllData = async () => {
     try {

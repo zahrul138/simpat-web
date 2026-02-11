@@ -331,7 +331,11 @@ const AddOverseaPartSchedulePage = () => {
       let totalSmallPallets = 0;
       const palletDetails = [];
 
-      for (const key in boxGroups) {
+      // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
+      // for...in tidak menjamin urutan, sehingga urutan row bisa mempengaruhi hasil
+      const sortedKeys = Object.keys(boxGroups).sort();
+      
+      for (const key of sortedKeys) {
         const group = boxGroups[key];
         const weightPerBox = group.totalWeight / group.totalBoxes;
 
@@ -495,7 +499,10 @@ const AddOverseaPartSchedulePage = () => {
     let totalSmallPallets = 0;
     const details = [];
 
-    for (const key in boxGroups) {
+    // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
+    const sortedKeys = Object.keys(boxGroups).sort();
+
+    for (const key of sortedKeys) {
       const group = boxGroups[key];
       if (group.totalBoxes <= 0) continue;
 
@@ -708,7 +715,10 @@ const AddOverseaPartSchedulePage = () => {
       let totalSmallPallets = 0;
       const details = [];
 
-      for (const key in boxGroups) {
+      // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
+      const sortedKeys = Object.keys(boxGroups).sort();
+
+      for (const key of sortedKeys) {
         const group = boxGroups[key];
         if (group.totalBoxes <= 0) continue;
 
@@ -877,13 +887,28 @@ const AddOverseaPartSchedulePage = () => {
         }
       }
 
-      // Jika tidak ada box data, gunakan perhitungan sederhana
-      let result;
-      if (boxData.length > 0) {
-        result = await calculateOptimizedMixedPallet(boxData);
-      } else {
-        result = await calculateSimplePallet(headerId, vendorIndex);
+      console.log(`Total boxes collected: ${totalBoxes}, Total weight: ${totalWeight.toFixed(2)}kg`);
+
+      // PERBAIKAN ERROR 1: Jika tidak ada boxData sama sekali, langsung return 0
+      // Jangan panggil calculateSimplePallet karena bisa memberikan hasil yang salah
+      if (boxData.length === 0) {
+        console.log(`No box data collected, setting total pallet to 0`);
+        setPalletCalculations((prev) => ({
+          ...prev,
+          [`${headerId}_${vendorIndex}`]: {
+            largePallets: 0,
+            smallPallets: 0,
+            totalPallets: 0,
+            details: [],
+            totalWeight: 0,
+            optimized: false,
+          },
+        }));
+        return;
       }
+
+      // Hitung pallet dengan optimasi
+      const result = await calculateOptimizedMixedPallet(boxData);
 
       setPalletCalculations((prev) => ({
         ...prev,
@@ -1030,10 +1055,33 @@ const AddOverseaPartSchedulePage = () => {
           ...newVendors[vendorIndex],
           parts: newParts,
         };
+        
+        // PERBAIKAN ROBUST: Check jika semua parts punya qtyBox = 0
+        const hasNonZeroQty = newParts.some(p => (p.qtyBox || 0) > 0);
+        
+        if (!hasNonZeroQty) {
+          // Semua parts qtyBox = 0, set pallet ke 0
+          setPalletCalculations((prevCalc) => ({
+            ...prevCalc,
+            [`${headerId}_${vendorIndex}`]: {
+              largePallets: 0,
+              smallPallets: 0,
+              totalPallets: 0,
+              details: [],
+              totalWeight: 0,
+              totalBoxes: 0,
+              optimized: false,
+            },
+          }));
+        } else {
+          // Ada parts dengan qtyBox > 0, recalculate dengan delay
+          setTimeout(() => {
+            recalculatePalletForVendor(headerId, vendorIndex);
+          }, 100);
+        }
+        
         return { ...prev, [headerId]: newVendors };
       });
-
-      await recalculatePalletForVendor(headerId, vendorIndex);
 
       setEditingPart({
         headerId: null,
@@ -1151,10 +1199,33 @@ const AddOverseaPartSchedulePage = () => {
           ...newVendors[vendorIndex],
           parts: newParts,
         };
+        
+        // PERBAIKAN ROBUST: Check jika semua parts punya qtyBox = 0
+        const hasNonZeroQty = newParts.some(p => (p.qtyBox || 0) > 0);
+        
+        if (!hasNonZeroQty) {
+          // Semua parts qtyBox = 0, set pallet ke 0
+          setPalletCalculations((prevCalc) => ({
+            ...prevCalc,
+            [`${headerId}_${vendorIndex}`]: {
+              largePallets: 0,
+              smallPallets: 0,
+              totalPallets: 0,
+              details: [],
+              totalWeight: 0,
+              totalBoxes: 0,
+              optimized: false,
+            },
+          }));
+        } else {
+          // Ada parts dengan qtyBox > 0, recalculate dengan delay
+          setTimeout(() => {
+            recalculatePalletForVendor(headerId, vendorIndex);
+          }, 100);
+        }
+        
         return { ...prev, [headerId]: newVendors };
       });
-
-      await recalculatePalletForVendor(headerId, vendorIndex);
 
       setEditingExpandedPart({
         headerId: null,
@@ -1286,7 +1357,7 @@ const AddOverseaPartSchedulePage = () => {
 
       // Cek apakah schedule date sudah ada di database
       const resp = await fetch(
-        `${API_BASE}/api/local-schedules/check-date?scheduleDate=${scheduleDate}`
+        `${API_BASE}/api/oversea-schedules/check-date?scheduleDate=${scheduleDate}`
       );
       const data = await resp.json();
 
@@ -1331,6 +1402,34 @@ const AddOverseaPartSchedulePage = () => {
     }
   }
 
+  const calculateAndSendPalletData = (headerId) => {
+    const vendors = vendorDraftsByHeader[headerId] || [];
+    let totalPalletForSchedule = 0;
+    let totalItemForSchedule = 0;
+
+    const vendorDataWithPallets = vendors.map((vendor, vendorIndex) => {
+      const palletKey = `${headerId}_${vendorIndex}`;
+      const palletCalculation = palletCalculations[palletKey] || {};
+      const totalPalletForVendor = palletCalculation.totalPallets || 0;
+      const totalItemForVendor = vendor.parts?.length || 0;
+
+      totalPalletForSchedule += totalPalletForVendor;
+      totalItemForSchedule += totalItemForVendor;
+
+      return {
+        ...vendor,
+        totalPallet: totalPalletForVendor,
+        totalItem: totalItemForVendor
+      };
+    });
+
+    return {
+      totalPalletForSchedule,
+      totalItemForSchedule,
+      vendorDataWithPallets
+    };
+  };
+
   const handleSubmitScheduleToDatabase = async () => {
     try {
       if (selectedHeaderIds.size === 0) {
@@ -1344,8 +1443,8 @@ const AddOverseaPartSchedulePage = () => {
 
       // Validasi: setiap schedule harus memiliki vendor
       for (const schedule of selectedSchedules) {
-        const vendors = vendorDraftsByHeader[schedule.id] || [];
-        if (vendors.length === 0) {
+        const scheduleVendors = vendorDraftsByHeader[schedule.id] || [];
+        if (scheduleVendors.length === 0) {
           alert(
             `Schedule for ${schedule.scheduleDate} has no vendors. Please add vendors before submitting.`
           );
@@ -1353,7 +1452,7 @@ const AddOverseaPartSchedulePage = () => {
         }
 
         // Validasi: setiap vendor harus memiliki parts
-        for (const vendor of vendors) {
+        for (const vendor of scheduleVendors) {
           if (!vendor.parts || vendor.parts.length === 0) {
             alert(
               `Schedule for ${schedule.scheduleDate} has vendors without parts. Please add parts before submitting.`
@@ -1372,18 +1471,27 @@ const AddOverseaPartSchedulePage = () => {
         try {
           console.log(`Processing schedule for ${schedule.scheduleDate}`);
 
+          // AMBIL DATA VENDORS DARI STATE
+          const vendorsForThisSchedule = vendorDraftsByHeader[schedule.id] || [];
+
+          // Hitung total pallet dan item untuk schedule ini
+          const scheduleTotals = calculateAndSendPalletData(schedule.id);
+
           // 1. Create schedule header
           const schedulePayload = {
             stockLevel: schedule.stockLevel,
             modelName: schedule.modelName,
             scheduleDate: schedule.scheduleDate,
             uploadByName: schedule.uploadByName || currentEmpName,
+            totalVendor: vendorsForThisSchedule.length,
+            totalPallet: scheduleTotals.totalPalletForSchedule,
+            totalItem: scheduleTotals.totalItemForSchedule
           };
 
           console.log("Creating schedule header:", schedulePayload);
 
           const scheduleResponse = await fetch(
-            `${API_BASE}/api/local-schedules`,
+            `${API_BASE}/api/oversea-schedules`,
             {
               method: "POST",
               headers: {
@@ -1410,23 +1518,33 @@ const AddOverseaPartSchedulePage = () => {
 
           console.log(`Schedule created with ID: ${createdScheduleId}`);
 
-          // 2. Add vendors to schedule
-          const vendors = vendorDraftsByHeader[schedule.id] || [];
-          let vendorIds = [];
-
-          if (vendors.length > 0) {
+          // 2. Add vendors to schedule - PAKAI vendorsForThisSchedule
+          if (vendorsForThisSchedule.length > 0) {
             const vendorPayload = {
-              items: vendors.map((vendor) => ({
-                trip_id: vendor.trip_id,
-                vendor_id: vendor.vendor_id,
-                do_numbers: vendor.do_numbers || [],
-              })),
+              items: vendorsForThisSchedule.map((vendor, vendorIndex) => {
+                // Hitung total pallet untuk vendor ini
+                const palletKey = `${schedule.id}_${vendorIndex}`;
+                const palletCalculation = palletCalculations[palletKey] || {};
+                const totalPalletForVendor = palletCalculation.totalPallets || 0;
+
+                // Hitung total item (parts) untuk vendor ini
+                const totalItemForVendor = vendor.parts?.length || 0;
+
+                return {
+                  tripId: vendor.trip_id,
+                  vendorId: vendor.vendor_id,
+                  doNumbers: vendor.do_numbers || [],
+                  arrivalTime: vendor.arrivalTime || null,
+                  totalPallet: totalPalletForVendor,
+                  totalItem: totalItemForVendor
+                };
+              })
             };
 
             console.log("Adding vendors:", vendorPayload);
 
             const vendorResponse = await fetch(
-              `${API_BASE}/api/local-schedules/${createdScheduleId}/vendors/bulk`,
+              `${API_BASE}/api/oversea-schedules/${createdScheduleId}/vendors/bulk`,
               {
                 method: "POST",
                 headers: {
@@ -1436,58 +1554,65 @@ const AddOverseaPartSchedulePage = () => {
               }
             );
 
+            const vendorData = await vendorResponse.json();
+
             if (!vendorResponse.ok) {
-              const errorData = await vendorResponse.json();
               throw new Error(
-                errorData.message ||
+                vendorData.message ||
                 `Failed to add vendors: ${vendorResponse.status}`
               );
             }
 
-            const vendorData = await vendorResponse.json();
-            vendorIds = vendorData.vendors?.map((v) => v.id) || [];
+            const vendorIds = vendorData.vendorIds || [];
+            console.log(`Vendors added: ${vendorIds.length}`, vendorIds);
 
-            console.log(`Vendors added: ${vendorIds.length}`);
-          }
+            // 3. Add parts to each vendor
+            for (let i = 0; i < vendorsForThisSchedule.length; i++) {
+              const vendor = vendorsForThisSchedule[i];
+              const vendorId = vendorIds[i];
 
-          // 3. Add parts to each vendor
-          for (let i = 0; i < vendors.length; i++) {
-            const vendor = vendors[i];
-            const vendorId = vendorIds[i];
+              if (vendorId && vendor.parts && vendor.parts.length > 0) {
+                // Persiapkan data parts untuk API yang ada
+                const partsData = vendor.parts.map((part) => ({
+                  partCode: part.partCode,
+                  partName: part.partName || "",
+                  quantity: part.qty || 0,
+                  quantityBox: part.qtyBox || 0,
+                  unit: part.unit || "PCS",
+                  doNumber: part.doNumber || "",
+                }));
 
-            if (vendorId && vendor.parts && vendor.parts.length > 0) {
-              const partsData = vendor.parts.map((part) => ({
-                part_code: part.partCode,
-                part_name: part.partName || "",
-                qty: part.qty || 0,
-                qty_box: part.qtyBox || 0,
-                unit: part.unit || "PCS",
-                do_number: part.doNumber || "",
-              }));
-
-              console.log(
-                `Adding parts to vendor ${vendorId}:`,
-                partsData.length
-              );
-
-              const partsResponse = await fetch(
-                `${API_BASE}/api/local-schedules/${vendorId}/parts/bulk`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({ items: partsData }),
-                }
-              );
-
-              if (!partsResponse.ok) {
-                const errorData = await partsResponse.json();
-                console.error(
-                  `Failed to add parts to vendor ${vendorId}:`,
-                  errorData
+                console.log(
+                  `Adding ${partsData.length} parts to vendor ${vendorId}:`,
+                  partsData
                 );
-                // Continue with other vendors even if this one fails
+
+                // Gunakan endpoint bulk parts yang sudah ada
+                const partsResponse = await fetch(
+                  `${API_BASE}/api/oversea-schedules/${vendorId}/parts/bulk`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ items: partsData }),
+                  }
+                );
+
+                const partsResult = await partsResponse.json();
+
+                if (!partsResponse.ok) {
+                  console.error(
+                    `Failed to add parts to vendor ${vendorId}:`,
+                    partsResult
+                  );
+                  throw new Error(
+                    partsResult.message ||
+                    `Failed to add parts: ${partsResponse.status}`
+                  );
+                }
+
+                console.log(`Parts added successfully to vendor ${vendorId}:`, partsResult);
               }
             }
           }
@@ -1498,12 +1623,10 @@ const AddOverseaPartSchedulePage = () => {
             success: true,
           });
 
-          console.log(
-            `Schedule successfully submited`
-          );
+          console.log(`Schedule ${schedule.scheduleDate} successfully submitted`);
         } catch (error) {
           console.error(
-            `Error submitting schedule.`,
+            `Error submitting schedule ${schedule.scheduleDate}:`,
             error
           );
           errors.push({
@@ -1515,19 +1638,20 @@ const AddOverseaPartSchedulePage = () => {
 
       if (errors.length > 0) {
         alert(
-          `Submitted schedules successfully.\n` +
+          `Successfully submitted ${results.length} schedule(s).\n` +
           `Failed to submit ${errors.length} schedule(s):\n` +
           errors.map((e) => `- ${e.scheduleDate}: ${e.error}`).join("\n")
         );
       } else {
         alert(
-          `Successfully submitted schedules.`
+          `Successfully submitted ${results.length} schedule(s).`
         );
       }
 
+      // Clear successfully submitted schedules
       const successfulScheduleIds = results
-        .map(
-          (r) => headerDrafts.find((h) => h.scheduleDate === r.scheduleDate)?.id
+        .map((r) =>
+          headerDrafts.find((h) => h.scheduleDate === r.scheduleDate)?.id
         )
         .filter((id) => id);
 
@@ -1550,7 +1674,7 @@ const AddOverseaPartSchedulePage = () => {
       });
 
       // Navigate back to main page
-      navigate("/local-schedule");
+      navigate("/oversea-schedule");
     } catch (error) {
       console.error("Error in handleSubmitScheduleToDatabase:", error);
       alert(`Failed to submit schedules: ${error.message}`);
@@ -1615,20 +1739,43 @@ const AddOverseaPartSchedulePage = () => {
   };
 
   const handleDeletePart = (headerId, vendorIndex, partId) => {
-
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
+      
+      // Update parts
+      const updatedParts = (vendors[vendorIndex].parts || []).filter(
+        (p) => p.id !== partId
+      );
+      
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
-        parts: (vendors[vendorIndex].parts || []).filter(
-          (p) => p.id !== partId
-        ),
+        parts: updatedParts,
       };
+      
+      // PERBAIKAN ROBUST: Langsung set pallet ke 0 jika parts kosong
+      if (updatedParts.length === 0) {
+        setPalletCalculations((prevCalc) => ({
+          ...prevCalc,
+          [`${headerId}_${vendorIndex}`]: {
+            largePallets: 0,
+            smallPallets: 0,
+            totalPallets: 0,
+            details: [],
+            totalWeight: 0,
+            totalBoxes: 0,
+            optimized: false,
+          },
+        }));
+      } else {
+        // Jika masih ada parts, recalculate dengan delay
+        setTimeout(() => {
+          recalculatePalletForVendor(headerId, vendorIndex);
+        }, 100);
+      }
+      
       return { ...prev, [headerId]: vendors };
     });
-
-    recalculatePalletForVendor(headerId, vendorIndex);
   };
 
   useEffect(() => {
@@ -1774,6 +1921,10 @@ const AddOverseaPartSchedulePage = () => {
             vendor_id: Number(v.id),
             do_numbers: clean,
             parts: [],
+            schedule_date_ref: headerDrafts.find(h => h.id === headerId)?.scheduleDate,
+            stock_level_ref: headerDrafts.find(h => h.id === headerId)?.stockLevel,
+            model_name_ref: headerDrafts.find(h => h.id === headerId)?.modelName,
+            arrival_time: t.arv_to
           },
         ],
       };
@@ -1973,10 +2124,15 @@ const AddOverseaPartSchedulePage = () => {
         ...vendors[vendorIndex],
         parts: [...existingParts, ...uniquePartsToInsert],
       };
+      
+      // PERBAIKAN: Recalculate berdasarkan state yang baru
+      // Set timeout agar state update selesai dulu
+      setTimeout(() => {
+        recalculatePalletForVendor(headerId, vendorIndex);
+      }, 0);
+      
       return { ...prev, [headerId]: vendors };
     });
-
-    await recalculatePalletForVendor(headerId, vendorIndex);
 
     setAddVendorPartDetail(false);
     setActiveVendorContext(null);
@@ -2057,7 +2213,7 @@ const AddOverseaPartSchedulePage = () => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/local-schedules/${scheduleId}`,
+        `${API_BASE}/api/oversea-schedules/${scheduleId}`,
         {
           method: "DELETE",
         }
@@ -2131,7 +2287,7 @@ const AddOverseaPartSchedulePage = () => {
 
         console.log("Creating schedule header:", scheduleBody);
 
-        const scheduleResp = await fetch(`${API_BASE}/api/local-schedules`, {
+        const scheduleResp = await fetch(`${API_BASE}/api/oversea-schedules`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(scheduleBody),
@@ -2168,7 +2324,7 @@ const AddOverseaPartSchedulePage = () => {
           console.log(`Creating ${vendors.length} vendors:`, vendorPayload);
 
           const vendorsResp = await fetch(
-            `${API_BASE}/api/local-schedules/${scheduleId}/vendors/bulk`,
+            `${API_BASE}/api/oversea-schedules/${scheduleId}/vendors/bulk`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -2208,7 +2364,7 @@ const AddOverseaPartSchedulePage = () => {
               );
 
               const partsResp = await fetch(
-                `${API_BASE}/api/local-schedules/${vendorId}/parts/bulk`,
+                `${API_BASE}/api/oversea-schedules/${vendorId}/parts/bulk`,
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -2279,7 +2435,7 @@ const AddOverseaPartSchedulePage = () => {
       });
 
       // Navigate ke halaman utama
-      navigate("/local-schedule");
+      navigate("/oversea-schedule");
     } catch (error) {
       console.error("Error in handleSubmitVendors:", error);
       alert("Error: " + error.message);
@@ -2511,16 +2667,40 @@ const AddOverseaPartSchedulePage = () => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
+      
+      // Update parts
+      const updatedParts = (vendors[vendorIndex].parts || []).filter(
+        (p) => p.id !== partId
+      );
+      
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
-        parts: (vendors[vendorIndex].parts || []).filter(
-          (p) => p.id !== partId
-        ),
+        parts: updatedParts,
       };
+      
+      // PERBAIKAN ROBUST: Langsung set pallet ke 0 jika parts kosong
+      if (updatedParts.length === 0) {
+        setPalletCalculations((prevCalc) => ({
+          ...prevCalc,
+          [`${headerId}_${vendorIndex}`]: {
+            largePallets: 0,
+            smallPallets: 0,
+            totalPallets: 0,
+            details: [],
+            totalWeight: 0,
+            totalBoxes: 0,
+            optimized: false,
+          },
+        }));
+      } else {
+        // Jika masih ada parts, recalculate dengan delay
+        setTimeout(() => {
+          recalculatePalletForVendor(headerId, vendorIndex);
+        }, 100);
+      }
+      
       return { ...prev, [headerId]: vendors };
     });
-
-    recalculatePalletForVendor(headerId, vendorIndex);
   };
 
   useEffect(() => {

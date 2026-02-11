@@ -147,7 +147,7 @@ const LoginPage = () => {
       height: "35px",
       border: "1px solid #cbd5e1",
       borderRadius: "8px",
-      padding: "0 40px 0 16px", // Extra padding untuk icon mata
+      padding: "0 40px 0 16px", 
       fontSize: "16px",
       backgroundColor: "white",
       fontFamily: "inherit",
@@ -177,13 +177,13 @@ const LoginPage = () => {
       backgroundColor: "#2563eb",
       color: "white",
       border: "none",
-      padding: "14px 28px",
       borderRadius: "8px",
       cursor: "pointer",
       fontSize: "16px",
-      fontWeight: "600",
+      fontWeight: "500",
       transition: "all 0.2s ease",
       fontFamily: "inherit",
+      height: "38px",
       width: "100%",
       boxSizing: "border-box",
     },
@@ -323,7 +323,7 @@ const LoginPage = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter Password"
                     required
-                    style={styles.passwordInput}
+                    style={styles.input}
                     onKeyPress={handleKeyPress}
                     value={formData.password}
                     onChange={handleInputChange}

@@ -331,7 +331,11 @@ const AddLocalSchedulePage = () => {
       let totalSmallPallets = 0;
       const palletDetails = [];
 
-      for (const key in boxGroups) {
+      // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
+      // for...in tidak menjamin urutan, sehingga urutan row bisa mempengaruhi hasil
+      const sortedKeys = Object.keys(boxGroups).sort();
+      
+      for (const key of sortedKeys) {
         const group = boxGroups[key];
         const weightPerBox = group.totalWeight / group.totalBoxes;
 
@@ -495,7 +499,10 @@ const AddLocalSchedulePage = () => {
     let totalSmallPallets = 0;
     const details = [];
 
-    for (const key in boxGroups) {
+    // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
+    const sortedKeys = Object.keys(boxGroups).sort();
+
+    for (const key of sortedKeys) {
       const group = boxGroups[key];
       if (group.totalBoxes <= 0) continue;
 
@@ -708,7 +715,10 @@ const AddLocalSchedulePage = () => {
       let totalSmallPallets = 0;
       const details = [];
 
-      for (const key in boxGroups) {
+      // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
+      const sortedKeys = Object.keys(boxGroups).sort();
+
+      for (const key of sortedKeys) {
         const group = boxGroups[key];
         if (group.totalBoxes <= 0) continue;
 
@@ -877,13 +887,28 @@ const AddLocalSchedulePage = () => {
         }
       }
 
-      // Jika tidak ada box data, gunakan perhitungan sederhana
-      let result;
-      if (boxData.length > 0) {
-        result = await calculateOptimizedMixedPallet(boxData);
-      } else {
-        result = await calculateSimplePallet(headerId, vendorIndex);
+      console.log(`Total boxes collected: ${totalBoxes}, Total weight: ${totalWeight.toFixed(2)}kg`);
+
+      // PERBAIKAN ERROR 1: Jika tidak ada boxData sama sekali, langsung return 0
+      // Jangan panggil calculateSimplePallet karena bisa memberikan hasil yang salah
+      if (boxData.length === 0) {
+        console.log(`No box data collected, setting total pallet to 0`);
+        setPalletCalculations((prev) => ({
+          ...prev,
+          [`${headerId}_${vendorIndex}`]: {
+            largePallets: 0,
+            smallPallets: 0,
+            totalPallets: 0,
+            details: [],
+            totalWeight: 0,
+            optimized: false,
+          },
+        }));
+        return;
       }
+
+      // Hitung pallet dengan optimasi
+      const result = await calculateOptimizedMixedPallet(boxData);
 
       setPalletCalculations((prev) => ({
         ...prev,
@@ -1030,10 +1055,14 @@ const AddLocalSchedulePage = () => {
           ...newVendors[vendorIndex],
           parts: newParts,
         };
+        
+        // PERBAIKAN: SELALU recalculate setelah save qty
+        setTimeout(() => {
+          recalculatePalletForVendor(headerId, vendorIndex);
+        }, 50);
+        
         return { ...prev, [headerId]: newVendors };
       });
-
-      await recalculatePalletForVendor(headerId, vendorIndex);
 
       setEditingPart({
         headerId: null,
@@ -1151,10 +1180,14 @@ const AddLocalSchedulePage = () => {
           ...newVendors[vendorIndex],
           parts: newParts,
         };
+        
+        // PERBAIKAN: SELALU recalculate setelah save qty
+        setTimeout(() => {
+          recalculatePalletForVendor(headerId, vendorIndex);
+        }, 50);
+        
         return { ...prev, [headerId]: newVendors };
       });
-
-      await recalculatePalletForVendor(headerId, vendorIndex);
 
       setEditingExpandedPart({
         headerId: null,
@@ -1615,20 +1648,43 @@ const AddLocalSchedulePage = () => {
   };
 
   const handleDeletePart = (headerId, vendorIndex, partId) => {
-
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
+      
+      // Update parts
+      const updatedParts = (vendors[vendorIndex].parts || []).filter(
+        (p) => p.id !== partId
+      );
+      
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
-        parts: (vendors[vendorIndex].parts || []).filter(
-          (p) => p.id !== partId
-        ),
+        parts: updatedParts,
       };
+      
+      // PERBAIKAN: HANYA set ke 0 jika parts benar-benar kosong
+      if (updatedParts.length === 0) {
+        setPalletCalculations((prevCalc) => ({
+          ...prevCalc,
+          [`${headerId}_${vendorIndex}`]: {
+            largePallets: 0,
+            smallPallets: 0,
+            totalPallets: 0,
+            details: [],
+            totalWeight: 0,
+            totalBoxes: 0,
+            optimized: false,
+          },
+        }));
+      } else {
+        // Masih ada parts, SELALU recalculate
+        setTimeout(() => {
+          recalculatePalletForVendor(headerId, vendorIndex);
+        }, 50);
+      }
+      
       return { ...prev, [headerId]: vendors };
     });
-
-    recalculatePalletForVendor(headerId, vendorIndex);
   };
 
   useEffect(() => {
@@ -1973,10 +2029,14 @@ const AddLocalSchedulePage = () => {
         ...vendors[vendorIndex],
         parts: [...existingParts, ...uniquePartsToInsert],
       };
+      
+      // PERBAIKAN: SELALU recalculate setelah add parts
+      setTimeout(() => {
+        recalculatePalletForVendor(headerId, vendorIndex);
+      }, 50);
+      
       return { ...prev, [headerId]: vendors };
     });
-
-    await recalculatePalletForVendor(headerId, vendorIndex);
 
     setAddVendorPartDetail(false);
     setActiveVendorContext(null);
@@ -2511,16 +2571,40 @@ const AddLocalSchedulePage = () => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
+      
+      // Update parts
+      const updatedParts = (vendors[vendorIndex].parts || []).filter(
+        (p) => p.id !== partId
+      );
+      
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
-        parts: (vendors[vendorIndex].parts || []).filter(
-          (p) => p.id !== partId
-        ),
+        parts: updatedParts,
       };
+      
+      // PERBAIKAN: HANYA set ke 0 jika parts benar-benar kosong
+      if (updatedParts.length === 0) {
+        setPalletCalculations((prevCalc) => ({
+          ...prevCalc,
+          [`${headerId}_${vendorIndex}`]: {
+            largePallets: 0,
+            smallPallets: 0,
+            totalPallets: 0,
+            details: [],
+            totalWeight: 0,
+            totalBoxes: 0,
+            optimized: false,
+          },
+        }));
+      } else {
+        // Masih ada parts, SELALU recalculate
+        setTimeout(() => {
+          recalculatePalletForVendor(headerId, vendorIndex);
+        }, 50);
+      }
+      
       return { ...prev, [headerId]: vendors };
     });
-
-    recalculatePalletForVendor(headerId, vendorIndex);
   };
 
   useEffect(() => {

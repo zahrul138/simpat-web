@@ -654,6 +654,7 @@ const Sidebar = ({
           icon: ClockIcon,
           isActive:
             isPathActive("/qc-local-schedule") ||
+            isPathActive("/qc-oversea-schedule") ||
             isPathActive("/qc-part"),
 
           subItems: [
@@ -661,6 +662,11 @@ const Sidebar = ({
               title: "Local Schedule",
               href: "/qc-local-schedule",
               icon: CalendarIcon,
+            },
+            {
+              title: "Oversea Schedule",
+              href: "/qc-oversea-schedule",
+              icon: ShipIcon,
             },
             {
               title: "Quality Parts",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, Check, X, RotateCcw } from "lucide-react";
@@ -66,7 +66,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("Current Check");
+  const [activeTab, setActiveTab] = useState("M101 Part");
   const [loading, setLoading] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState({});
   const [error, setError] = useState(null);
@@ -77,18 +77,31 @@ const QCCheckPage = ({ sidebarVisible }) => {
   const [keyword, setKeyword] = useState("");
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
+  // STATE FOR PAGINATION
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // 10 items per page
 
   // STATE FOR COMPLETE TAB
   const [completeQCChecks, setCompleteQCChecks] = useState([]);
 
-  // STATE FOR CURRENT CHECK TAB
-  const [currentQCChecks, setCurrentQCChecks] = useState([]);
-  const [selectedCurrentIds, setSelectedCurrentIds] = useState(new Set());
+  // REF FOR PROCESSING (useRef for instant blocking, no re-render delay)
+  const isProcessingRef = useRef(false);
+
+  // STATE FOR M101 PART TAB (dari Local Schedule IQC Progress)
+  const [m101Parts, setM101Parts] = useState([]);
+  const [selectedM101Ids, setSelectedM101Ids] = useState(new Set());
+
+  // STATE FOR M136 PART TAB (dari Oversea Schedule IQC Progress)
+  const [m136Parts, setM136Parts] = useState([]);
+  const [selectedM136Ids, setSelectedM136Ids] = useState(new Set());
 
   // STATE FOR REJECT TAB
   const [rejectQCChecks, setRejectQCChecks] = useState([]);
 
-  // STATE FOR EDIT IN CURRENT CHECK
+  // STATE FOR QC CHECKS COMPLETE (untuk cek status sample)
+  const [qcChecksComplete, setQcChecksComplete] = useState([]);
+
+  // STATE FOR EDIT (keeping original)
   const [editingCurrentId, setEditingCurrentId] = useState(null);
   const [editCurrentData, setEditCurrentData] = useState({ qc_status: "" });
 
@@ -96,8 +109,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
   useEffect(() => {
     if (activeTab === "Complete") {
       fetchCompleteQCChecks();
-    } else if (activeTab === "Current Check") {
-      fetchCurrentQCChecks();
+    } else if (activeTab === "M101 Part") {
+      fetchM101Parts();
+    } else if (activeTab === "M136 Part") {
+      fetchM136Parts();
     } else if (activeTab === "Reject") {
       fetchRejectQCChecks();
     }
@@ -123,21 +138,116 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // BARU: Fetch Current Check (Pending status)
-  const fetchCurrentQCChecks = async () => {
+  // Fetch M101 Parts (dari Local Schedule IQC Progress)
+  const fetchM101Parts = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/qc-checks?status=Pending`);
+      // Fetch QC checks complete first
+      const qcRes = await fetch(`${API_BASE}/api/qc-checks?status=Complete`);
+      const qcData = await qcRes.json();
+      const qcChecks = qcData.success ? qcData.data || [] : [];
+      setQcChecksComplete(qcChecks);
+
+      // Fetch IQC Progress vendors from local schedule
+      const response = await fetch(`${API_BASE}/api/local-schedules/iqc-progress-vendors`);
+      const data = await response.json();
+
+      let vendors = [];
+      if (data.vendors) {
+        vendors = data.vendors;
+      } else if (data.success && data.data) {
+        vendors = data.data;
+      }
+
+      // Extract parts with incomplete sample dates
+      const partsWithSamples = [];
+
+      vendors.forEach((vendor) => {
+        if (vendor.parts && vendor.parts.length > 0) {
+          vendor.parts.forEach((part) => {
+            const prodDates = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+
+            // Get incomplete dates (not yet approved in qc_checks)
+            const incompleteDates = prodDates.filter((date) => {
+              const normalizedDate = date.split("T")[0];
+              // CRITICAL FIX: Must check vendor_id to avoid false positives
+              return !qcChecks.some(
+                (qc) =>
+                  qc.part_code === part.part_code &&
+                  (qc.production_date || "").split("T")[0] === normalizedDate &&
+                  qc.status === "Complete" &&
+                  qc.source_vendor_id === vendor.id  // ADDED: Check vendor ID
+              );
+            });
+
+            // If has incomplete dates, add each date as separate entry
+            if (incompleteDates.length > 0) {
+              incompleteDates.forEach((date) => {
+                partsWithSamples.push({
+                  id: `${part.id}-${date}`,
+                  part_id: part.id,
+                  vendor_id: vendor.id,
+                  part_code: part.part_code,
+                  part_name: part.part_name,
+                  vendor_name: vendor.vendor_name,
+                  production_date: date,
+                  qty: part.qty,
+                  qty_box: part.qty_box,
+                  remark: part.remark,
+                  qc_status: part.status || "",
+                  source: "M101",
+                });
+              });
+            }
+          });
+        }
+      });
+
+      setM101Parts(partsWithSamples);
+    } catch (error) {
+      console.error("Error fetching M101 parts:", error);
+      setM101Parts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch M136 Parts (dari Oversea Schedule IQC Progress)
+  const fetchM136Parts = async () => {
+    setLoading(true);
+    try {
+      // Fetch qc_checks dengan status "M136 Part" (waiting for approval)
+      const response = await fetch(`${API_BASE}/api/qc-checks?status=M136 Part`);
       const result = await response.json();
+      
+      console.log("[fetchM136Parts] QC checks with M136 Part status:", result);
 
       if (result.success) {
-        setCurrentQCChecks(result.data || []);
+        const qcChecks = result.data || [];
+        
+        // Transform to match current M136Parts structure
+        const formattedParts = qcChecks.map(qc => ({
+          id: qc.id,  // qc_checks.id (for approve endpoint)
+          part_id: qc.source_part_id,
+          vendor_id: qc.source_vendor_id,
+          part_code: qc.part_code,
+          part_name: qc.part_name,
+          vendor_name: qc.vendor_name,
+          production_date: qc.production_date,
+          source: "M136",
+          approve_by_name: qc.created_by || "-",  // Who created this entry
+          approve_at: qc.created_at || null,
+        }));
+        
+        console.log("[fetchM136Parts] Total M136 Part entries:", formattedParts.length);
+        setM136Parts(formattedParts);
       } else {
-        setCurrentQCChecks([]);
+        console.log("[fetchM136Parts] No M136 Part entries found");
+        setM136Parts([]);
       }
     } catch (error) {
-      console.error("Error fetching current QC checks:", error);
-      setCurrentQCChecks([]);
+      console.error("[fetchM136Parts] Error:", error);
+      setM136Parts([]);
     } finally {
       setLoading(false);
     }
@@ -163,6 +273,23 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
+  // Fungsi untuk mendapatkan data per halaman
+  const getCurrentPageData = (data) => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
+
+  // Fungsi untuk menghitung total halaman
+  const getTotalPages = (data) => {
+    return Math.max(1, Math.ceil(data.length / itemsPerPage));
+  };
+
+  // Fungsi untuk reset halaman saat ganti tab
+  useEffect(() => {
+    setCurrentPage(1); // Reset ke halaman 1 saat ganti tab
+  }, [activeTab]);
+
   // BARU: Get auth user for approve
   const getAuthUser = () => {
     try {
@@ -172,8 +299,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // BARU: Approve single QC Check (works from Current Check and Reject tabs)
-  const handleApproveQCCheck = async (id, fromTab = "Current Check") => {
+  // Approve single QC Check (works from M101, M136 and Reject tabs)
+  const handleApproveQCCheck = async (id, fromTab = "M101 Part") => {
     if (!window.confirm("Approve this QC Check?")) return;
 
     try {
@@ -195,8 +322,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
         // Refresh the appropriate tab
         if (fromTab === "Reject") {
           fetchRejectQCChecks();
-        } else {
-          fetchCurrentQCChecks();
+        } else if (fromTab === "M101 Part") {
+          fetchM101Parts();
+        } else if (fromTab === "M136 Part") {
+          fetchM136Parts();
         }
       } else {
         throw new Error(result.message || "Failed to approve");
@@ -208,7 +337,146 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Reject single QC Check
+  // Approve part from M101 atau M136 tab (update QC check status to Complete)
+  const handleApprovePartFromSample = async (part, sourceTab) => {
+    // CRITICAL: Use ref for INSTANT blocking (no re-render delay)
+    if (isProcessingRef.current) {
+      console.log("[handleApprovePartFromSample] Already processing, ignoring duplicate call");
+      return;
+    }
+    
+    if (!window.confirm("Approve this QC Check?")) return;
+
+    // Set processing flag IMMEDIATELY
+    isProcessingRef.current = true;
+    console.log("[handleApprovePartFromSample] Processing locked");
+
+    try {
+      const authUser = getAuthUser();
+
+      console.log(`[handleApprovePartFromSample] Approving QC check:`, part.id, part.part_code, part.production_date);
+
+      // CRITICAL: Detect if this is the last row for this vendor
+      // Count rows yang belong to same vendor
+      const currentPartsList = sourceTab === "M101 Part" ? m101Parts : m136Parts;
+      const sameVendorRows = currentPartsList.filter(p => p.vendor_id === part.vendor_id);
+      const isLastRow = sameVendorRows.length === 1; // Only this row left
+      
+      console.log(`[handleApprovePartFromSample] Vendor ${part.vendor_id}: ${sameVendorRows.length} row(s) remaining, isLastRow: ${isLastRow}`);
+
+      // UPDATE QC Check status from "M136 Part" to "Complete"
+      const response = await fetch(`${API_BASE}/api/qc-checks/${part.id}/approve`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          approved_by: authUser?.id,
+          approved_by_name: authUser?.emp_name || "Unknown",
+          isLastQcCheck: isLastRow, // Flag untuk backend (auto-move to Pass)
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        console.log(`[handleApprovePartFromSample] Success, vendorMovedToPass:`, result.vendorMovedToPass);
+        
+        // CRITICAL: Always do optimistic update first
+        // Remove the approved item from UI immediately
+        if (sourceTab === "M101 Part") {
+          setM101Parts(prevParts => {
+            const filtered = prevParts.filter(p => p.id !== part.id);
+            console.log(`[handleApprovePartFromSample] M101 parts after remove: ${filtered.length} (was ${prevParts.length})`);
+            return filtered;
+          });
+        } else {
+          setM136Parts(prevParts => {
+            const filtered = prevParts.filter(p => p.id !== part.id);
+            console.log(`[handleApprovePartFromSample] M136 parts after remove: ${filtered.length} (was ${prevParts.length})`);
+            return filtered;
+          });
+        }
+        
+        // Check if vendor was auto-moved to Pass
+        if (result.vendorMovedToPass) {
+          setToastMessage("QC Check approved! Vendor moved to Pass tab.");
+          setToastType("success");
+          setTimeout(() => setToastMessage(null), 5000);
+          
+          // Refresh after delay to ensure all data is updated
+          setTimeout(() => {
+            console.log(`[handleApprovePartFromSample] Refreshing after vendor moved to Pass`);
+            if (sourceTab === "M101 Part") {
+              fetchM101Parts();
+            } else {
+              fetchM136Parts();
+            }
+          }, 500);
+        } else {
+          setToastMessage("QC Check approved successfully!");
+          setToastType("success");
+          setTimeout(() => setToastMessage(null), 3000);
+        }
+      } else {
+        throw new Error(result.message || "Failed to approve");
+      }
+    } catch (error) {
+      console.error("[handleApprovePartFromSample] Error:", error);
+      setToastMessage(`Failed to approve: ${error.message}`);
+      setToastType("error");
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      // CRITICAL: Reset flag after everything is done
+      setTimeout(() => {
+        isProcessingRef.current = false;
+        console.log("[handleApprovePartFromSample] Processing flag reset");
+      }, 1000);
+    }
+  };
+
+  // Reject part from M101 atau M136 tab
+  const handleRejectPartFromSample = async (part, sourceTab) => {
+    if (!window.confirm("Reject this QC Check?")) return;
+
+    try {
+      const authUser = getAuthUser();
+
+      // Create QC Check entry with Reject status
+      const response = await fetch(`${API_BASE}/api/qc-checks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          part_code: part.part_code,
+          part_name: part.part_name,
+          vendor_name: part.vendor_name,
+          production_date: part.production_date,
+          data_from: sourceTab === "M101 Part" ? "M101" : "M136",
+          status: "Reject",
+          rejected_by: authUser?.id,
+          rejected_by_name: authUser?.emp_name || "Unknown",
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setToastMessage("QC Check rejected!");
+        setToastType("success");
+        setTimeout(() => setToastMessage(null), 3000);
+
+        // Refresh data
+        if (sourceTab === "M101 Part") {
+          fetchM101Parts();
+        } else {
+          fetchM136Parts();
+        }
+      } else {
+        throw new Error(result.message || "Failed to reject");
+      }
+    } catch (error) {
+      setToastMessage(`Failed to reject: ${error.message}`);
+      setToastType("error");
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
   const handleRejectQCCheck = async (id) => {
     if (!window.confirm("Reject this QC Check?")) return;
 
@@ -228,7 +496,15 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setToastMessage("QC Check rejected!");
         setToastType("success");
         setTimeout(() => setToastMessage(null), 3000);
-        fetchCurrentQCChecks();
+
+        // PERBAIKAN: Refresh berdasarkan active tab
+        if (activeTab === "M101 Part") {
+          fetchM101Parts();
+        } else if (activeTab === "M136 Part") {
+          fetchM136Parts();
+        } else if (activeTab === "Reject") {
+          fetchRejectQCChecks();
+        }
       } else {
         throw new Error(result.message || "Failed to reject");
       }
@@ -270,7 +546,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setTimeout(() => setToastMessage(null), 3000);
         setEditingCurrentId(null);
         setEditCurrentData({ qc_status: "" });
-        fetchCurrentQCChecks();
+        // Refresh tab yang sesuai
+        if (activeTab === "M101 Part") {
+          fetchM101Parts();
+        } else if (activeTab === "M136 Part") {
+          fetchM136Parts();
+        } else if (activeTab === "Complete") {
+          fetchCompleteQCChecks();
+        } else if (activeTab === "Reject") {
+          fetchRejectQCChecks();
+        };
       } else {
         throw new Error(result.message || "Failed to update status");
       }
@@ -281,41 +566,53 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // BARU: Bulk approve QC Checks
-  const handleBulkApprove = async () => {
-    if (selectedCurrentIds.size === 0) {
+  // Bulk approve QC Checks dari M101 atau M136 tab
+  const handleBulkApprove = async (sourceTab) => {
+    const selectedIds = sourceTab === "M101 Part" ? selectedM101Ids : selectedM136Ids;
+    const parts = sourceTab === "M101 Part" ? m101Parts : m136Parts;
+
+    if (selectedIds.size === 0) {
       alert("Please select at least one item to approve");
       return;
     }
 
-    if (
-      !window.confirm(`Approve ${selectedCurrentIds.size} selected QC Checks?`)
-    )
-      return;
+    if (!window.confirm(`Approve ${selectedIds.size} selected QC Checks?`)) return;
 
     try {
       const authUser = getAuthUser();
-      const response = await fetch(`${API_BASE}/api/qc-checks/bulk-approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ids: Array.from(selectedCurrentIds),
-          approved_by: authUser?.id,
-          approved_by_name: authUser?.emp_name || "Unknown",
-        }),
-      });
+      const selectedParts = parts.filter((p) => selectedIds.has(p.id));
 
-      const result = await response.json();
-      if (response.ok && result.success) {
-        setToastMessage(
-          `${result.approvedCount} QC Checks approved successfully!`,
-        );
-        setToastType("success");
-        setTimeout(() => setToastMessage(null), 3000);
-        setSelectedCurrentIds(new Set());
-        fetchCurrentQCChecks();
+      // Create QC Check entries for each selected part
+      const promises = selectedParts.map((part) =>
+        fetch(`${API_BASE}/api/qc-checks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            part_code: part.part_code,
+            part_name: part.part_name,
+            vendor_name: part.vendor_name,
+            production_date: part.production_date,
+            data_from: sourceTab === "M101 Part" ? "M101" : "M136",
+            status: "Complete",
+            approved_by: authUser?.id,
+            approved_by_name: authUser?.emp_name || "Unknown",
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+
+      setToastMessage(`${selectedIds.size} QC Checks approved successfully!`);
+      setToastType("success");
+      setTimeout(() => setToastMessage(null), 3000);
+
+      // Clear selection and refresh
+      if (sourceTab === "M101 Part") {
+        setSelectedM101Ids(new Set());
+        fetchM101Parts();
       } else {
-        throw new Error(result.message || "Failed to bulk approve");
+        setSelectedM136Ids(new Set());
+        fetchM136Parts();
       }
     } catch (error) {
       setToastMessage(`Failed to bulk approve: ${error.message}`);
@@ -324,9 +621,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // BARU: Toggle checkbox for Current Check
-  const toggleCurrentCheckbox = (id, checked) => {
-    setSelectedCurrentIds((prev) => {
+  // Toggle checkbox for M101 Part
+  const toggleM101Checkbox = (id, checked) => {
+    setSelectedM101Ids((prev) => {
       const next = new Set(prev);
       if (checked) {
         next.add(id);
@@ -337,12 +634,34 @@ const QCCheckPage = ({ sidebarVisible }) => {
     });
   };
 
-  // BARU: Toggle select all for Current Check
-  const toggleSelectAllCurrent = () => {
-    if (selectedCurrentIds.size === currentQCChecks.length) {
-      setSelectedCurrentIds(new Set());
+  // Toggle select all for M101 Part
+  const toggleSelectAllM101 = () => {
+    if (selectedM101Ids.size === m101Parts.length) {
+      setSelectedM101Ids(new Set());
     } else {
-      setSelectedCurrentIds(new Set(currentQCChecks.map((qc) => qc.id)));
+      setSelectedM101Ids(new Set(m101Parts.map((p) => p.id)));
+    }
+  };
+
+  // Toggle checkbox for M136 Part
+  const toggleM136Checkbox = (id, checked) => {
+    setSelectedM136Ids((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  // Toggle select all for M136 Part
+  const toggleSelectAllM136 = () => {
+    if (selectedM136Ids.size === m136Parts.length) {
+      setSelectedM136Ids(new Set());
+    } else {
+      setSelectedM136Ids(new Set(m136Parts.map((p) => p.id)));
     }
   };
 
@@ -365,7 +684,13 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setTimeout(() => setToastMessage(null), 3000);
         // PERBAIKAN: Refresh tab yang benar
         if (activeTab === "Current Check") {
-          fetchCurrentQCChecks();
+          // Refresh tab yang benar
+          if (activeTab === "Complete") {
+            fetchCompleteQCChecks();
+          } else if (activeTab === "Reject") {
+            fetchRejectQCChecks();
+          }
+          // Note: Tidak perlu refresh M101/M136 karena delete hanya tersedia di Complete dan Reject tab;
         } else {
           fetchCompleteQCChecks();
         }
@@ -919,8 +1244,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
     },
   };
 
-  // BARU: Render Current Check Tab Table
-  const renderCurrentCheckTable = () => {
+  // Render M101 Part Tab Table (sama persis dengan Current Check, hanya data source berbeda)
+  const renderM101PartTable = () => {
+    const currentData = getCurrentPageData(m101Parts);
+    const totalPages = getTotalPages(m101Parts);
     return (
       <div style={styles.tableContainer}>
         <div style={styles.tableBodyWrapper}>
@@ -931,30 +1258,29 @@ const QCCheckPage = ({ sidebarVisible }) => {
               tableLayout: "fixed",
             }}
           >
-            {/* Colgroup untuk Current Check Table */}
             <colgroup>
-              <col style={{ width: "2.5%" }} />  {/* No */}
-              <col style={{ width: "2.5%" }} />    {/* Checkbox */}
-              <col style={{ width: "10%" }} />   {/* Production Date */}
-              <col style={{ width: "10%" }} />   {/* Part Code */}
-              <col style={{ width: "18%" }} />   {/* Part Name */}
-              <col style={{ width: "15%" }} />   {/* Vendor Name */}
-              <col style={{ width: "8%" }} />    {/* Status */}
-              <col style={{ width: "12%" }} />   {/* Created By */}
-              <col style={{ width: "10%" }} />   {/* Action */}
+              <col style={{ width: "2.5%" }} />
+              <col style={{ width: "2.5%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "10%" }} />
             </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
                 <th style={styles.thWithLeftBorder}>
-                  {currentQCChecks.length > 0 && (
+                  {m101Parts.length > 0 && (
                     <input
                       type="checkbox"
                       checked={
-                        selectedCurrentIds.size === currentQCChecks.length &&
-                        currentQCChecks.length > 0
+                        selectedM101Ids.size === m101Parts.length &&
+                        m101Parts.length > 0
                       }
-                      onChange={toggleSelectAllCurrent}
+                      onChange={toggleSelectAllM101}
                       style={{
                         margin: "0 auto",
                         display: "block",
@@ -970,7 +1296,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 <th style={styles.thWithLeftBorder}>Part Name</th>
                 <th style={styles.thWithLeftBorder}>Vendor Name</th>
                 <th style={styles.thWithLeftBorder}>Status</th>
-                <th style={styles.thWithLeftBorder}>Created By</th>
+                <th style={styles.thWithLeftBorder}>Qty</th>
                 <th style={styles.thWithLeftBorder}>Action</th>
               </tr>
             </thead>
@@ -992,194 +1318,166 @@ const QCCheckPage = ({ sidebarVisible }) => {
               )}
 
               {!loading &&
-                currentQCChecks.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
+                currentData.map((item, index) => {
+                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr
+                      key={item.id}
+                      onMouseEnter={(e) =>
+                        (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                      }
+                      onMouseLeave={(e) =>
                       (e.target.closest("tr").style.backgroundColor =
                         "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                      title={index + 1}
+                      }
                     >
-                      {index + 1}
-                    </td>
-                    <td
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCurrentIds.has(item.id)}
-                        onChange={(e) =>
-                          toggleCurrentCheckbox(item.id, e.target.checked)
-                        }
+                      <td
                         style={{
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
+                          ...styles.expandedTd,
+                          ...styles.expandedWithLeftBorder,
+                          ...styles.emptyColumn,
                         }}
-                      />
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={toDDMMYYYY(item.production_date)}
-                    >
-                      {toDDMMYYYY(item.production_date)}
-                    </td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_code}>
-                      {item.part_code}
-                    </td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_name}>
-                      {item.part_name}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={item.vendor_name || "-"}
-                    >
-                      {item.vendor_name || "-"}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={item.qc_status || "-"}
-                    >
-                      {editingCurrentId === item.id ? (
-                        <select
-                          style={{
-                            padding: "2px 4px",
-                            fontSize: "11px",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "4px",
-                            width: "100%",
-                          }}
-                          value={editCurrentData.qc_status || ""}
-                          onChange={(e) =>
-                            setEditCurrentData((prev) => ({
-                              ...prev,
-                              qc_status: e.target.value,
-                            }))
-                          }
-                        >
-                          <option value="">-</option>
-                          <option value="OK">OK</option>
-                          <option value="NG">NG</option>
-                          <option value="HOLD">HOLD</option>
-                        </select>
-                      ) : (
-                        item.qc_status || "-"
-                      )}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={item.created_by || "-"}
-                    >
-                      {item.created_by || "-"}
-                    </td>
-                    <td style={{ ...styles.tdWithLeftBorder }}>
-                      <div
+                        title={(currentPage - 1) * itemsPerPage + index + 1}
+                      >
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </td>
+                      <td
                         style={{
-                          display: "flex",
-                          gap: "4px",
-                          justifyContent: "center",
+                          ...styles.tdWithLeftBorder,
+                          textAlign: "center",
                         }}
                       >
-                        {editingCurrentId === item.id ? (
-                          <>
-                            <button
-                              style={{
-                                ...styles.editButton,
-                                backgroundColor: "#dcfce7",
-                                color: "#166534",
-                              }}
-                              onClick={() => handleSaveEditCurrent(item.id)}
-                              title="Save"
-                            >
-                              <Save size={12} />
-                            </button>
-                            <button
-                              style={{
-                                ...styles.editButton,
-                                backgroundColor: "#fee2e2",
-                                color: "#991b1b",
-                              }}
-                              onClick={handleCancelEditCurrent}
-                              title="Cancel"
-                            >
-                              <X size={12} />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              style={styles.editButton}
-                              onClick={() => handleEditCurrent(item)}
-                              title="Edit"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button
-                              style={{
-                                ...styles.editButton,
-                                backgroundColor: "#dcfce7",
-                                color: "#166534",
-                              }}
-                              onClick={() =>
-                                handleApproveQCCheck(item.id, "Current Check")
-                              }
-                              title="Approve"
-                            >
-                              <Check size={12} />
-                            </button>
-                            <button
-                              style={{
-                                ...styles.editButton,
-                                backgroundColor: "#fee2e2",
-                                color: "#991b1b",
-                              }}
-                              onClick={() => handleRejectQCCheck(item.id)}
-                              title="Reject"
-                            >
-                              <X size={12} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        <input
+                          type="checkbox"
+                          checked={selectedM101Ids.has(item.id)}
+                          onChange={(e) =>
+                            toggleM101Checkbox(item.id, e.target.checked)
+                          }
+                          style={{
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
+                          }}
+                        />
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={toDDMMYYYY(item.production_date)}
+                      >
+                        {toDDMMYYYY(item.production_date)}
+                      </td>
+                      <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                        {item.part_code}
+                      </td>
+                      <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                        {item.part_name}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.vendor_name || "-"}
+                      >
+                        {item.vendor_name || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.qc_status || "-"}
+                      >
+                        {item.qc_status || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.qty || "-"}
+                      >
+                        {item.qty || "-"}
+                      </td>
+                      <td style={{ ...styles.tdWithLeftBorder }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "4px",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <button
+                            style={{
+                              ...styles.editButton,
+                              backgroundColor: "#dcfce7",
+                              color: "#166534",
+                            }}
+                            onClick={() =>
+                              handleApprovePartFromSample(item, "M101 Part")
+                            }
+                            title="Approve"
+                          >
+                            <Check size={12} />
+                          </button>
+                          <button
+                            style={{
+                              ...styles.editButton,
+                              backgroundColor: "#fee2e2",
+                              color: "#991b1b",
+                            }}
+                            onClick={() => handleRejectPartFromSample(item, "M101 Part")}
+                            title="Reject"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
 
         <div style={styles.paginationBar}>
           <div style={styles.paginationControls}>
-            <button style={styles.paginationButton}>{"<<"}</button>
-            <button style={styles.paginationButton}>{"<"}</button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              {"<<"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              {"<"}
+            </button>
             <span>Page</span>
             <input
               type="text"
-              value="1"
+              value={currentPage}
               style={styles.paginationInput}
-              readOnly
+              onChange={(e) => {
+                const page = parseInt(e.target.value);
+                if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                  setCurrentPage(page);
+                }
+              }}
             />
-            <span>of 1</span>
-            <button style={styles.paginationButton}>{">"}</button>
-            <button style={styles.paginationButton}>{">>"}</button>
+            <span>of {totalPages}</span>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              {">"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              {">>"}
+            </button>
           </div>
         </div>
         {/* Bulk Approve Button */}
-        {selectedCurrentIds.size > 0 && (
+        {selectedM101Ids.size > 0 && (
           <div
             style={{
               marginTop: "12px",
@@ -1191,10 +1489,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 ...styles.submitButton,
                 ...styles.button
               }}
-              onClick={handleBulkApprove}
+              onClick={() => handleBulkApprove("M101 Part")}
             >
               <Check size={14} />
-              Approve All
+              Approve All ({selectedM101Ids.size})
             </button>
           </div>
         )}
@@ -1202,8 +1500,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render Complete Tab Table
-  const renderCompleteTable = () => {
+  // Render M136 Part Tab Table (sama persis dengan M101, hanya data source berbeda)
+  const renderM136PartTable = () => {
+    const currentData = getCurrentPageData(m136Parts);
+    const totalPages = getTotalPages(m136Parts);
     return (
       <div style={styles.tableContainer}>
         <div style={styles.tableBodyWrapper}>
@@ -1214,16 +1514,272 @@ const QCCheckPage = ({ sidebarVisible }) => {
               tableLayout: "fixed",
             }}
           >
-            {/* Colgroup untuk Complete Table */}
             <colgroup>
-              <col style={{ width: "2.5%" }} />  
-              <col style={{ width: "10%" }} />   
-              <col style={{ width: "10%" }} />  
-              <col style={{ width: "18%" }} />  
-              <col style={{ width: "15%" }} />  
-              <col style={{ width: "7%" }} />   
-              <col style={{ width: "20%" }} /> 
-              <col style={{ width: "5%" }} />  
+              <col style={{ width: "2.5%" }} />
+              <col style={{ width: "2.5%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "8%" }} />
+            </colgroup>
+            <thead>
+              <tr style={styles.tableHeader}>
+                <th style={styles.expandedTh}>No</th>
+                <th style={styles.thWithLeftBorder}>
+                  {m136Parts.length > 0 && (
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedM136Ids.size === m136Parts.length &&
+                        m136Parts.length > 0
+                      }
+                      onChange={toggleSelectAllM136}
+                      style={{
+                        margin: "0 auto",
+                        display: "block",
+                        cursor: "pointer",
+                        width: "12px",
+                        height: "12px",
+                      }}
+                    />
+                  )}
+                </th>
+                <th style={styles.thWithLeftBorder}>Production Date</th>
+                <th style={styles.thWithLeftBorder}>Part Code</th>
+                <th style={styles.thWithLeftBorder}>Part Name</th>
+                <th style={styles.thWithLeftBorder}>Vendor Name</th>
+                <th style={styles.thWithLeftBorder}>Status</th>
+                <th style={styles.thWithLeftBorder}>Received By</th>
+                <th style={styles.thWithLeftBorder}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td
+                    colSpan={9}
+                    style={{
+                      ...styles.tdWithLeftBorder,
+                      textAlign: "center",
+                      color: "#6b7280",
+                      padding: "20px",
+                    }}
+                  >
+                    Loading…
+                  </td>
+                </tr>
+              )}
+
+              {!loading &&
+                currentData.map((item, index) => {
+                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr
+                      key={item.id}
+                      onMouseEnter={(e) =>
+                        (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                      }
+                      onMouseLeave={(e) =>
+                      (e.target.closest("tr").style.backgroundColor =
+                        "transparent")
+                      }
+                    >
+                      <td
+                        style={{
+                          ...styles.expandedTd,
+                          ...styles.expandedWithLeftBorder,
+                          ...styles.emptyColumn,
+                        }}
+                        title={(currentPage - 1) * itemsPerPage + index + 1}
+                      >
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </td>
+                      <td
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          textAlign: "center",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedM136Ids.has(item.id)}
+                          onChange={(e) =>
+                            toggleM136Checkbox(item.id, e.target.checked)
+                          }
+                          style={{
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
+                          }}
+                        />
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={toDDMMYYYY(item.production_date)}
+                      >
+                        {toDDMMYYYY(item.production_date)}
+                      </td>
+                      <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                        {item.part_code}
+                      </td>
+                      <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                        {item.part_name}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.vendor_name || "-"}
+                      >
+                        {item.vendor_name || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.qc_status || "-"}
+                      >
+                        {item.qc_status || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={formatApprovedBy(item.approve_by_name, item.approve_at)}
+                      >
+                        {formatApprovedBy(item.approve_by_name, item.approve_at)}
+                      </td>
+                      <td style={{ ...styles.tdWithLeftBorder }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "4px",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <button
+                            style={{
+                              ...styles.editButton,
+                              backgroundColor: "#dcfce7",
+                              color: "#166534",
+                            }}
+                            onClick={() =>
+                              handleApprovePartFromSample(item, "M136 Part")
+                            }
+                            title="Approve"
+                          >
+                            <Check size={12} />
+                          </button>
+                          <button
+                            style={{
+                              ...styles.editButton,
+                              backgroundColor: "#fee2e2",
+                              color: "#991b1b",
+                            }}
+                            onClick={() => handleRejectPartFromSample(item, "M136 Part")}
+                            title="Reject"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={styles.paginationBar}>
+          <div style={styles.paginationControls}>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              {"<<"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              {"<"}
+            </button>
+            <span>Page</span>
+            <input
+              type="text"
+              value={currentPage}
+              style={styles.paginationInput}
+              onChange={(e) => {
+                const page = parseInt(e.target.value);
+                if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                  setCurrentPage(page);
+                }
+              }}
+            />
+            <span>of {totalPages}</span>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              {">"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              {">>"}
+            </button>
+          </div>
+        </div>
+        {/* Bulk Approve Button */}
+        {selectedM136Ids.size > 0 && (
+          <div
+            style={{
+              marginTop: "12px",
+              display: "flex",
+            }}
+          >
+            <button
+              style={{
+                ...styles.submitButton,
+                ...styles.button
+              }}
+              onClick={() => handleBulkApprove("M136 Part")}
+            >
+              <Check size={14} />
+              Approve All ({selectedM136Ids.size})
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+
+  // Render Complete Tab Table
+  const renderCompleteTable = () => {
+    const currentData = getCurrentPageData(completeQCChecks);
+    const totalPages = getTotalPages(completeQCChecks);
+    return (
+      <div style={styles.tableContainer}>
+        <div style={styles.tableBodyWrapper}>
+          <table
+            style={{
+              ...styles.table,
+              minWidth: "900px",
+              tableLayout: "fixed",
+            }}
+          >
+            <colgroup>
+              <col style={{ width: "2.5%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "5%" }} />
             </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
@@ -1254,102 +1810,136 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 </tr>
               )}
               {!loading &&
-                completeQCChecks.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
+                currentData.map((item, index) => {
+                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr
+                      key={item.id}
+                      onMouseEnter={(e) =>
+                        (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                      }
+                      onMouseLeave={(e) =>
                       (e.target.closest("tr").style.backgroundColor =
                         "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                      title={index + 1}
+                      }
                     >
-                      {index + 1}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={toDDMMYYYY(item.production_date)}
-                    >
-                      {toDDMMYYYY(item.production_date)}
-                    </td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_code}>
-                      {item.part_code}
-                    </td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_name}>
-                      {item.part_name}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={item.vendor_name || "-"}
-                    >
-                      {item.vendor_name || "-"}
-                    </td>
-                    <td
-                      style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
-                    >
-                      <span
+                      <td
                         style={{
-                          ...styles.dataFromBadge,
-                          ...styles.dataFrom,
-                          ...(item.data_from === "Create"
-                            ? styles.dataFromCreate
-                            : item.data_from === "Check"
-                              ? { backgroundColor: "#dcfce7", color: "#166534" }
-                              : styles.dataFromSample),
+                          ...styles.expandedTd,
+                          ...styles.expandedWithLeftBorder,
+                          ...styles.emptyColumn,
                         }}
-                        title={item.data_from || "Create"}
+                        title={(currentPage - 1) * itemsPerPage + index + 1}
                       >
-                        {item.data_from || "Create"}
-                      </span>
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={formatApprovedBy(
-                        item.approved_by,
-                        item.approved_at,
-                      )}
-                    >
-                      {formatApprovedBy(item.approved_by, item.approved_at)}
-                    </td>
-                    <td
-                      style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
-                    >
-                      <button
-                        style={styles.deleteButton}
-                        onClick={() => handleDeleteQCCheck(item.id)}
-                        title="Delete"
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={toDDMMYYYY(item.production_date)}
                       >
-                        <Trash2 size={12} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        {toDDMMYYYY(item.production_date)}
+                      </td>
+                      <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                        {item.part_code}
+                      </td>
+                      <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                        {item.part_name}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.vendor_name || "-"}
+                      >
+                        {item.vendor_name || "-"}
+                      </td>
+                      <td
+                        style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
+                      >
+                        <span
+                          style={{
+                            ...styles.dataFromBadge,
+                            ...styles.dataFrom,
+                            ...(item.data_from === "M101"
+                              ? { backgroundColor: "#dbeafe", color: "#1e40af" }
+                              : item.data_from === "M136"
+                                ? { backgroundColor: "#fef3c7", color: "#92400e" }
+                                : item.data_from === "Create"
+                                  ? styles.dataFromCreate
+                                  : { backgroundColor: "#dcfce7", color: "#166534" }),
+                          }}
+                          title={item.data_from || "Create"}
+                        >
+                          {item.data_from || "Create"}
+                        </span>
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={formatApprovedBy(
+                          item.approved_by,
+                          item.approved_at,
+                        )}
+                      >
+                        {formatApprovedBy(item.approved_by, item.approved_at)}
+                      </td>
+                      <td
+                        style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
+                      >
+                        <button
+                          style={styles.deleteButton}
+                          onClick={() => handleDeleteQCCheck(item.id)}
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
         <div style={styles.paginationBar}>
           <div style={styles.paginationControls}>
-            <button style={styles.paginationButton}>{"<<"}</button>
-            <button style={styles.paginationButton}>{"<"}</button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              {"<<"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              {"<"}
+            </button>
             <span>Page</span>
             <input
               type="text"
-              value="1"
+              value={currentPage}
               style={styles.paginationInput}
-              readOnly
+              onChange={(e) => {
+                const page = parseInt(e.target.value);
+                if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                  setCurrentPage(page);
+                }
+              }}
             />
-            <span>of 1</span>
-            <button style={styles.paginationButton}>{">"}</button>
-            <button style={styles.paginationButton}>{">>"}</button>
+            <span>of {totalPages}</span>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              {">"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              {">>"}
+            </button>
           </div>
         </div>
       </div>
@@ -1358,6 +1948,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
   // Render Reject Tab Table
   const renderRejectTable = () => {
+    const currentData = getCurrentPageData(m101Parts);
+    const totalPages = getTotalPages(m101Parts);
     return (
       <div style={styles.tableContainer}>
         <div style={styles.tableBodyWrapper}>
@@ -1368,16 +1960,15 @@ const QCCheckPage = ({ sidebarVisible }) => {
               tableLayout: "fixed",
             }}
           >
-            {/* Colgroup untuk Reject Table */}
             <colgroup>
-              <col style={{ width: "2.5%" }} />  {/* No */}
-              <col style={{ width: "10%" }} />   {/* Production Date */}
-              <col style={{ width: "10%" }} />   {/* Part Code */}
-              <col style={{ width: "18%" }} />   {/* Part Name */}
-              <col style={{ width: "15%" }} />   {/* Vendor Name */}
-              <col style={{ width: "7%" }} />    {/* Status */}
-              <col style={{ width: "18%" }} />   {/* Rejected By */}
-              <col style={{ width: "8%" }} />    {/* Action */}
+              <col style={{ width: "2.5%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "8%" }} />
             </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
@@ -1408,114 +1999,146 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 </tr>
               )}
               {!loading &&
-                rejectQCChecks.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
+                currentData.map((item, index) => {
+                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr
+                      key={item.id}
+                      onMouseEnter={(e) =>
+                        (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                      }
+                      onMouseLeave={(e) =>
                       (e.target.closest("tr").style.backgroundColor =
                         "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                      title={index + 1}
+                      }
                     >
-                      {index + 1}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={toDDMMYYYY(item.production_date)}
-                    >
-                      {toDDMMYYYY(item.production_date)}
-                    </td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_code}>
-                      {item.part_code}
-                    </td>
-                    <td style={styles.tdWithLeftBorder} title={item.part_name}>
-                      {item.part_name}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={item.vendor_name || "-"}
-                    >
-                      {item.vendor_name || "-"}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={item.qc_status || "-"}
-                    >
-                      {item.qc_status || "-"}
-                    </td>
-                    <td
-                      style={styles.tdWithLeftBorder}
-                      title={formatApprovedBy(
-                        item.rejected_by_name,
-                        item.rejected_at,
-                      )}
-                    >
-                      {formatApprovedBy(
-                        item.rejected_by_name,
-                        item.rejected_at,
-                      )}
-                    </td>
-                    <td
-                      style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
-                    >
-                      <div
+                      <td
                         style={{
-                          display: "flex",
-                          gap: "4px",
-                          justifyContent: "center",
+                          ...styles.expandedTd,
+                          ...styles.expandedWithLeftBorder,
+                          ...styles.emptyColumn,
                         }}
+                        title={(currentPage - 1) * itemsPerPage + index + 1}
                       >
-                        <button
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={toDDMMYYYY(item.production_date)}
+                      >
+                        {toDDMMYYYY(item.production_date)}
+                      </td>
+                      <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                        {item.part_code}
+                      </td>
+                      <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                        {item.part_name}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.vendor_name || "-"}
+                      >
+                        {item.vendor_name || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.qc_status || "-"}
+                      >
+                        {item.qc_status || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={formatApprovedBy(
+                          item.rejected_by_name,
+                          item.rejected_at,
+                        )}
+                      >
+                        {formatApprovedBy(
+                          item.rejected_by_name,
+                          item.rejected_at,
+                        )}
+                      </td>
+                      <td
+                        style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
+                      >
+                        <div
                           style={{
-                            ...styles.editButton,
-                            backgroundColor: "#dcfce7",
-                            color: "#166534",
+                            display: "flex",
+                            gap: "4px",
+                            justifyContent: "center",
                           }}
-                          onClick={() =>
-                            handleApproveQCCheck(item.id, "Reject")
-                          }
-                          title="Approve"
                         >
-                          <Check size={12} />
-                        </button>
-                        <button
-                          style={styles.deleteButton}
-                          onClick={() => handleDeleteQCCheck(item.id)}
-                          title="Delete"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            style={{
+                              ...styles.editButton,
+                              backgroundColor: "#dcfce7",
+                              color: "#166534",
+                            }}
+                            onClick={() =>
+                              handleApproveQCCheck(item.id, "Reject")
+                            }
+                            title="Approve"
+                          >
+                            <Check size={12} />
+                          </button>
+                          <button
+                            style={styles.deleteButton}
+                            onClick={() => handleDeleteQCCheck(item.id)}
+                            title="Delete"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
         <div style={styles.paginationBar}>
           <div style={styles.paginationControls}>
-            <button style={styles.paginationButton}>{"<<"}</button>
-            <button style={styles.paginationButton}>{"<"}</button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              {"<<"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              {"<"}
+            </button>
             <span>Page</span>
             <input
               type="text"
-              value="1"
+              value={currentPage}
               style={styles.paginationInput}
-              readOnly
+              onChange={(e) => {
+                const page = parseInt(e.target.value);
+                if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                  setCurrentPage(page);
+                }
+              }}
             />
-            <span>of 1</span>
-            <button style={styles.paginationButton}>{">"}</button>
-            <button style={styles.paginationButton}>{">>"}</button>
+            <span>of {totalPages}</span>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              {">"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              {">>"}
+            </button>
           </div>
         </div>
       </div>
@@ -1524,6 +2147,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
   // Render default table untuk tab lainnya
   const renderDefaultTable = () => {
+    const currentData = getCurrentPageData(m101Parts);
+    const totalPages = getTotalPages(m101Parts);
     return (
       <div style={styles.tableContainer}>
         <div style={styles.tableBodyWrapper}>
@@ -1534,20 +2159,19 @@ const QCCheckPage = ({ sidebarVisible }) => {
               tableLayout: "fixed",
             }}
           >
-            {/* Colgroup untuk Default Table */}
             <colgroup>
-              <col style={{ width: "25px" }} />  {/* No */}
-              <col style={{ width: "3.3%" }} />  {/* Checkbox (New tab) */}
-              <col style={{ width: "23px" }} />  {/* Expand arrow */}
-              <col style={{ width: "15%" }} />   {/* Date */}
-              <col style={{ width: "15%" }} />   {/* Line */}
-              <col style={{ width: "15%" }} />   {/* Shift Time */}
-              <col style={{ width: "12%" }} />   {/* Total Input */}
-              <col style={{ width: "12%" }} />   {/* Total Customer */}
-              <col style={{ width: "12%" }} />   {/* Total Model */}
-              <col style={{ width: "12%" }} />   {/* Total Pallet */}
-              <col style={{ width: "15%" }} />   {/* Created By */}
-              <col style={{ width: "12%" }} />   {/* Action */}
+              <col style={{ width: "25px" }} />
+              <col style={{ width: "3.3%" }} />
+              <col style={{ width: "23px" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "12%" }} />
             </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
@@ -1618,18 +2242,47 @@ const QCCheckPage = ({ sidebarVisible }) => {
         </div>
         <div style={styles.paginationBar}>
           <div style={styles.paginationControls}>
-            <button style={styles.paginationButton}>{"<<"}</button>
-            <button style={styles.paginationButton}>{"<"}</button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              {"<<"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              {"<"}
+            </button>
             <span>Page</span>
             <input
               type="text"
-              value="1"
+              value={currentPage}
               style={styles.paginationInput}
-              readOnly
+              onChange={(e) => {
+                const page = parseInt(e.target.value);
+                if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                  setCurrentPage(page);
+                }
+              }}
             />
-            <span>of 1</span>
-            <button style={styles.paginationButton}>{">"}</button>
-            <button style={styles.paginationButton}>{">>"}</button>
+            <span>of {totalPages}</span>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              {">"}
+            </button>
+            <button
+              style={styles.paginationButton}
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              {">>"}
+            </button>
           </div>
         </div>
       </div>
@@ -1764,17 +2417,32 @@ const QCCheckPage = ({ sidebarVisible }) => {
           <button
             style={{
               ...styles.tabButton,
-              ...(activeTab === "Current Check" && styles.tabButtonActive),
+              ...(activeTab === "M101 Part" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("Current Check")}
+            onClick={() => setActiveTab("M101 Part")}
             onMouseEnter={(e) =>
-              handleTabHover(e, true, activeTab === "Current Check")
+              handleTabHover(e, true, activeTab === "M101 Part")
             }
             onMouseLeave={(e) =>
-              handleTabHover(e, false, activeTab === "Current Check")
+              handleTabHover(e, false, activeTab === "M101 Part")
             }
           >
-            Current Check
+            M101 Part
+          </button>
+          <button
+            style={{
+              ...styles.tabButton,
+              ...(activeTab === "M136 Part" && styles.tabButtonActive),
+            }}
+            onClick={() => setActiveTab("M136 Part")}
+            onMouseEnter={(e) =>
+              handleTabHover(e, true, activeTab === "M136 Part")
+            }
+            onMouseLeave={(e) =>
+              handleTabHover(e, false, activeTab === "M136 Part")
+            }
+          >
+            M136 Part
           </button>
           <button
             style={{
@@ -1810,11 +2478,13 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
         {activeTab === "Complete"
           ? renderCompleteTable()
-          : activeTab === "Current Check"
-            ? renderCurrentCheckTable()
-            : activeTab === "Reject"
-              ? renderRejectTable()
-              : renderDefaultTable()}
+          : activeTab === "M101 Part"
+            ? renderM101PartTable()
+            : activeTab === "M136 Part"
+              ? renderM136PartTable()
+              : activeTab === "Reject"
+                ? renderRejectTable()
+                : renderDefaultTable()}
 
         {activeTab === "New" && hasNewSchedules && (
           <div style={styles.saveConfiguration}>

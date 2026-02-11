@@ -45,6 +45,7 @@ import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
 import QCLocalSchedulePage from "./pages/iqcpage/QCLocalSchedulePage";
 import QCCheckPage from "./pages/iqcpage/QCCheckPage";
 import AddQCCheckPage from "./pages/iqcpage/AddQCCheckPage";
+import QCOverseaPartSchedulePage from "./pages/iqcpage/QCOverseaPartSchedulePage";
 
 import PartsEnquiryIdPage from "./pages/mhpage/PartsEnquiryIdPage";
 import AddPartsEnquiryIdPage from "./pages/mhpage/AddPartsEnquiryIdPage";
@@ -181,6 +182,7 @@ const LayoutHandler = () => {
       "/quality": { app: "quality", dept: "SCN-IQC" },
       "/qc-local-schedule": { app: "quality", dept: "SCN-IQC" },
       "/qc-part": { app: "quality", dept: "SCN-IQC" },
+      "/qc-oversea-schedule": { app: "quality", dept: "SCN-IQC" },
 
       // System Management routes
       "/user-control": { app: "system", dept: "ADMIN" },
@@ -248,6 +250,7 @@ const LayoutHandler = () => {
       {location.pathname === "/local-schedule/add" && <AddLocalSchedulePage />}
       {location.pathname === "/mh-local-schedule" && <MHLocalSchedulePage />}
       {location.pathname === "/qc-local-schedule" && <QCLocalSchedulePage />}
+      {location.pathname === "/qc-oversea-schedule" && <QCOverseaPartSchedulePage />}
       {location.pathname === "/oversea-schedule" && <OverseaPartSchedulePage />}
       {location.pathname === "/oversea-schedule/add" && <AddOverseaPartSchedulePage />}
       {location.pathname === "/storage-inventory" && <StorageInventoryPage />}
