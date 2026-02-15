@@ -1,11 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
-import { Plus, Trash2, Pencil, Save, Search } from "lucide-react";
+import { Plus, Trash2, Pencil, Save, Search, RefreshCw } from "lucide-react";
+
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+
+const getAuthUserLocal = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
+  } catch {
+    return null;
+  }
+};
 
 const AddPartsEnquiryNonIdPage = () => {
+  // ==================== STATE MANAGEMENT ====================
   const navigate = useNavigate();
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
@@ -13,15 +24,20 @@ const AddPartsEnquiryNonIdPage = () => {
     useState("ZAHRUL ROMADHON");
   const [scheduleDate, setScheduleDate] = useState("");
   const [expandedRows, setExpandedRows] = useState({});
+
+  const [searchPartCode, setSearchPartCode] = useState("");
+  const [storageInventoryData, setStorageInventoryData] = useState([]);
+  const [selectedStorageItems, setSelectedStorageItems] = useState(new Set());
+  const [addedStorageIds, setAddedStorageIds] = useState(new Set());
+  const [loadingStorage, setLoadingStorage] = useState(false);
+
+  const [popupCurrentPage, setPopupCurrentPage] = useState(1);
+  const popupItemsPerPage = 10;
+
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
   const [remarks, setRemarks] = useState({});
-
-  const handleRemarkChange = (rowId, value) => {
-    setRemarks((prev) => ({
-      ...prev,
-      [rowId]: value,
-    }));
-  };
+  const [selectedMainTableItems, setSelectedMainTableItems] = useState(new Set());
+  const [selectAllMainTable, setSelectAllMainTable] = useState(false);
 
   const [addVendorDetail, setAddVendorDetail] = useState(false);
   const [addVendorFormData, setAddVendorFormData] = useState({
@@ -48,173 +64,15 @@ const AddPartsEnquiryNonIdPage = () => {
     parts: [],
   });
 
-  const [partData, setPartData] = useState([
-    {
-      id: 1,
-      partCode: "142220401",
-      partName: "SHAFT, CR, TPU",
-      reqQty: "60 pcs",
-      qtyperLabel: "60 pcs",
-      stcokM136: "1200 pcs",
-    },
-    {
-      id: 2,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 3,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 4,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 5,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 6,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 7,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 8,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 9,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 10,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 11,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 12,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 13,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 14,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 15,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 16,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 17,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 18,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 19,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-    {
-      id: 20,
-      partCode: "",
-      partName: "",
-      reqQty: "",
-      qtyperLabel: "",
-      stcokM136: "",
-    },
-  ]);
+  const [partData, setPartData] = useState([]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const totalPages = Math.ceil(partData.length / itemsPerPage);
 
+  // ==================== UTILITY FUNCTIONS ====================
+
+  // Pagination Functions
   const getCurrentPageData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -228,6 +86,17 @@ const AddPartsEnquiryNonIdPage = () => {
     }
   };
 
+  const handlePopupPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= popupTotalPages) {
+      setPopupCurrentPage(newPage);
+    }
+  };
+
+  const computeAddedStorageIds = () => {
+    return new Set(partData.map(p => p.storage_inventory_id).filter(id => id));
+  };
+
+  // Expansion Functions
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
       const newExpandedRows = {
@@ -261,12 +130,84 @@ const AddPartsEnquiryNonIdPage = () => {
     }));
   };
 
+  // ==================== POPUP & FORM HANDLERS ====================
+
   const openThirdLevelPopup = () => {
     setAddVendorDetail(true);
   };
 
-  const openVendorPartDetailPopup = () => {
+  // ==================== STORAGE INVENTORY HANDLERS ====================
+
+  const openVendorPartDetailPopup = async () => {
+    if (!searchPartCode.trim()) {
+      alert("Please enter part code");
+      return;
+    }
+
+    setLoadingStorage(true);
     setAddVendorPartDetail(true);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/storage-inventory?part_code=${searchPartCode.trim()}&status_tab=M136 System`
+      );
+      const result = await response.json();
+      if (result.success) {
+        const sortedData = result.data.sort((a, b) => {
+          const getSuffix = (label) => {
+            const str = label || '';
+            return parseInt(str.slice(-6)) || 0;
+          };
+          return getSuffix(a.label_id) - getSuffix(b.label_id);
+        });
+        setStorageInventoryData(sortedData);
+        setPopupCurrentPage(1);
+        setAddedStorageIds(computeAddedStorageIds());
+      } else {
+        alert("No data found");
+        setStorageInventoryData([]);
+        setAddedStorageIds(new Set());
+      }
+    } catch (error) {
+      console.error("Error fetching storage inventory:", error);
+      alert("Error fetching data");
+      setStorageInventoryData([]);
+      setAddedStorageIds(new Set());
+    } finally {
+      setLoadingStorage(false);
+    }
+  };
+
+  const refreshStorageData = async () => {
+    if (!searchPartCode.trim()) return;
+
+    setLoadingStorage(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/storage-inventory?part_code=${searchPartCode.trim()}&status_tab=M136 System`
+      );
+      const result = await response.json();
+      if (result.success) {
+        const sortedData = result.data.sort((a, b) => {
+          const getSuffix = (label) => {
+            const str = label || '';
+            return parseInt(str.slice(-6)) || 0;
+          };
+          return getSuffix(a.label_id) - getSuffix(b.label_id);
+        });
+        setStorageInventoryData(sortedData);
+        setPopupCurrentPage(1);
+        setAddedStorageIds(computeAddedStorageIds());
+      } else {
+        setStorageInventoryData([]);
+        setAddedStorageIds(new Set());
+      }
+    } catch (error) {
+      console.error("Error refreshing storage inventory:", error);
+      alert("Error refreshing data");
+    } finally {
+      setLoadingStorage(false);
+    }
   };
 
   const handleAddVendorInputChange = (field, value) => {
@@ -281,6 +222,105 @@ const AddPartsEnquiryNonIdPage = () => {
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleSelectStorageItem = (id) => {
+    setSelectedStorageItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAddSelectedStorageItems = () => {
+    const holdItems = storageInventoryData.filter(
+      item => selectedStorageItems.has(item.id) && item.status_part === 'HOLD'
+    );
+
+    if (holdItems.length > 0) {
+      alert("Cannot insert items with HOLD status. Please deselect HOLD items.");
+      return;
+    }
+
+    const selectedItems = storageInventoryData.filter((item) =>
+      selectedStorageItems.has(item.id) && item.status_part !== 'HOLD'
+    );
+
+    if (selectedItems.length === 0) {
+      alert("No items selected");
+      return;
+    }
+
+    const newParts = selectedItems.map((item, index) => ({
+      id: Date.now() + index,
+      storage_inventory_id: item.id,
+      partCode: item.part_code,
+      partName: item.part_name,
+      model: item.model,
+      reqQty: item.qty,
+      qtyperLabel: "",
+      stcokM136: item.qty,
+      labelId: item.label_id,
+      stockLevel: item.stock_level,
+      status: item.status_part,
+      remark: ""
+    }));
+
+    setPartData((prev) => [...prev, ...newParts]);
+    setAddedStorageIds(computeAddedStorageIds());
+    setSelectedStorageItems(new Set());
+    setAddVendorPartDetail(false);
+    setSearchPartCode("");
+    setStorageInventoryData([]);
+    setAddedStorageIds(new Set());
+  };
+
+  // ==================== MAIN TABLE HANDLERS ====================
+
+  const handleRemarkChange = (partId, value) => {
+    setPartData((prevParts) =>
+      prevParts.map((part) =>
+        part.id === partId ? { ...part, remark: value } : part
+      )
+    );
+  };
+
+  const handleMainTableCheckbox = (id) => {
+    setSelectedMainTableItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllMainTable = () => {
+    const validParts = partData.filter(p => p.partCode && p.partCode.trim() !== "");
+    if (selectAllMainTable) {
+      setSelectedMainTableItems(new Set());
+    } else {
+      setSelectedMainTableItems(new Set(validParts.map(p => p.id)));
+    }
+    setSelectAllMainTable(!selectAllMainTable);
+  };
+
+  const handleDeleteFromMainTable = (id) => {
+    setPartData(prev => prev.filter(p => p.id !== id));
+    setSelectedMainTableItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(id);
+      return newSet;
+    });
+    if (addVendorPartDetail) {
+      setAddedStorageIds(computeAddedStorageIds());
+    }
   };
 
   const handleDoNumberChange = (index, value) => {
@@ -399,6 +439,74 @@ const AddPartsEnquiryNonIdPage = () => {
     setPartData(partData.filter((part) => part.id !== id));
   };
 
+
+  // ==================== SAVE & SUBMIT HANDLERS ====================
+
+  const handleSaveConfiguration = async () => {
+    const validParts = partData.filter(p => p.partCode && p.partCode.trim() !== "");
+
+    if (validParts.length === 0) {
+      alert("No parts to save");
+      return;
+    }
+
+    if (validParts.length > 1 && selectedMainTableItems.size === 0) {
+      alert("Please select at least one part to save");
+      return;
+    }
+
+    const partsToSave = validParts.length === 1
+      ? validParts
+      : validParts.filter(p => selectedMainTableItems.has(p.id));
+
+    if (partsToSave.length === 0) {
+      alert("No parts selected");
+      return;
+    }
+
+    try {
+      const user = getAuthUserLocal();
+      const requestedByName = user?.emp_name || user?.name || "Unknown";
+
+      const parts = partsToSave.map(part => ({
+        storage_inventory_id: part.storage_inventory_id,
+        label_id: part.labelId,
+        part_code: part.partCode,
+        part_name: part.partName || "",
+        model: part.model || "",
+        qty_requested: parseInt(part.reqQty) || 0,
+        remark: part.remark || ""
+      }));
+
+      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parts: parts,
+          requested_by_name: requestedByName
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert("Parts enquiry saved successfully!");
+        navigate("/part-enquiry-non-id?tab=new");
+      } else {
+        alert("Failed to save: " + result.message);
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+      alert("Error saving configuration");
+    }
+  };
+
+  const popupTotalPages = Math.ceil(storageInventoryData.length / popupItemsPerPage);
+  const popupCurrentData = storageInventoryData.slice(
+    (popupCurrentPage - 1) * popupItemsPerPage,
+    popupCurrentPage * popupItemsPerPage
+  );
+
+  // ==================== STYLES ====================
   const styles = {
     pageContainer: {
       fontFamily:
@@ -493,7 +601,7 @@ const AddPartsEnquiryNonIdPage = () => {
     },
     remarkInput: {
       display: "flex",
-      height: "1.7rem",
+      height: "1rem",
       width: "90%",
       borderRadius: "6px",
       border: "1px solid #d1d5db",
@@ -974,6 +1082,7 @@ const AddPartsEnquiryNonIdPage = () => {
     },
   };
 
+
   const vendorPartStyles = {
     popupOverlay: {
       position: "fixed",
@@ -1262,6 +1371,8 @@ const AddPartsEnquiryNonIdPage = () => {
     },
   };
 
+
+  // ==================== RENDER ====================
   return (
     <div style={styles.pageContainer}>
       <div style={styles.welcomeCard}>
@@ -1305,6 +1416,14 @@ const AddPartsEnquiryNonIdPage = () => {
                         type="text"
                         style={styles.inputPartCode}
                         placeholder="Enter part code"
+                        value={searchPartCode}
+                        onChange={(e) => setSearchPartCode(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            openVendorPartDetailPopup();
+                          }
+                        }}
                       />
                       <button
                         type="button"
@@ -1361,146 +1480,122 @@ const AddPartsEnquiryNonIdPage = () => {
               <table
                 style={{
                   ...styles.table,
-                  minWidth: "1200px",
+                  minWidth: "900px",
                   tableLayout: "fixed",
                 }}
               >
                 <colgroup>
-                  <col style={{ width: "2%" }} />
-                  <col style={{ width: "2%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "3%" }} />
+                  <col style={{ width: "3%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "25%" }} />
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "8.5%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "4%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "6%" }} />
                 </colgroup>
                 <thead>
                   <tr style={styles.tableHeader}>
                     <th style={styles.expandedTh}>No</th>
-                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>
+                      {partData.filter(p => p.partCode && p.partCode.trim() !== "").length > 1 && (
+                        <input
+                          type="checkbox"
+                          checked={selectAllMainTable}
+                          onChange={handleSelectAllMainTable}
+                          style={{
+                            margin: "0 auto",
+                            display: "block",
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
+                          }}
+                        />
+                      )}
+                    </th>
+                    <th style={styles.thWithLeftBorder}>Label ID</th>
                     <th style={styles.thWithLeftBorder}>Part Code</th>
                     <th style={styles.thWithLeftBorder}>Part Name</th>
-                    <th style={styles.thWithLeftBorder}>Req QTY</th>
-                    <th style={styles.thWithLeftBorder}>Qty /Label</th>
-                    <th style={styles.thWithLeftBorder}>Stock M136</th>
-                    <th style={styles.thWithLeftBorder}>Trip Request</th>
+                    <th style={styles.thWithLeftBorder}>Model</th>
+                    <th style={styles.thWithLeftBorder}>Qty Req</th>
+                    <th style={styles.thWithLeftBorder}>Stock Level</th>
+                    <th style={styles.thWithLeftBorder}>Status</th>
                     <th style={styles.thWithLeftBorder}>Remark</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      1
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="checkbox"
-                        style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
-                        }}
-                      />
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>142220401</td>
-                    <td style={styles.tdWithLeftBorder}>SHAFT, CR, TPU</td>
-                    <td style={styles.tdWithLeftBorder}>60 pcs</td>
-                    <td style={styles.tdWithLeftBorder}>60 pcs</td>
-                    <td style={styles.tdWithLeftBorder}>1200 pcs</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <p style={styles.tripDisplayTable}>Trip-11</p>
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="text"
-                        value={remarks[1] || ""}
-                        onChange={(e) => handleRemarkChange(1, e.target.value)}
-                        placeholder="-"
-                        style={styles.remarkInput}
-                      />
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <button style={styles.deleteButton}>
-                        <Trash2 size={10} />
-                      </button>
-                    </td>
-                  </tr>
+                  {partData.filter(p => p.partCode && p.partCode.trim() !== "").length === 0 ? (
+                    <tr>
 
-                  <tr
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
-                  >
-                    <td
-                      style={{
-                        ...styles.expandedTd,
-                        ...styles.expandedWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
-                    >
-                      2
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="checkbox"
+                    </tr>
+                  ) : (
+                    partData.filter(p => p.partCode && p.partCode.trim() !== "").map((part, index) => (
+                      <tr
+                        key={part.id}
                         style={{
-                          margin: "0 auto",
-                          display: "block",
-                          cursor: "pointer",
-                          width: "12px",
-                          height: "12px",
+                          backgroundColor: selectedMainTableItems.has(part.id) ? "#c7cde8" : "transparent"
                         }}
-                      />
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>189064700</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      SHEET COVER CARRIAGE
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>150 pcs</td>
-                    <td style={styles.tdWithLeftBorder}>100 pcs</td>
-                    <td style={styles.tdWithLeftBorder}>2000 pcs</td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <p style={styles.tripDisplayTable}>Trip-11</p>
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <input
-                        type="text"
-                        value={remarks[1] || ""}
-                        onChange={(e) => handleRemarkChange(1, e.target.value)}
-                        placeholder="-"
-                        style={styles.remarkInput}
-                      />
-                    </td>
-                    <td style={styles.tdWithLeftBorder}>
-                      <button style={styles.deleteButton}>
-                        <Trash2 size={10} />
-                      </button>
-                    </td>
-                  </tr>
+                        onMouseEnter={(e) => {
+                          e.target.closest("tr").style.backgroundColor = "#c7cde8";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (selectedMainTableItems.has(part.id)) {
+                            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+                          } else {
+                            e.target.closest("tr").style.backgroundColor = "transparent";
+                          }
+                        }}
+                      >
+                        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+                          {index + 1}
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          {partData.filter(p => p.partCode && p.partCode.trim() !== "").length > 1 && (
+                            <input
+                              type="checkbox"
+                              checked={selectedMainTableItems.has(part.id)}
+                              onChange={() => handleMainTableCheckbox(part.id)}
+                              style={{
+                                margin: "0 auto",
+                                display: "block",
+                                cursor: "pointer",
+                                width: "12px",
+                                height: "12px",
+                              }}
+                            />
+                          )}
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>{part.labelId || "-"}</td>
+                        <td style={styles.tdWithLeftBorder}>{part.partCode}</td>
+                        <td style={styles.tdWithLeftBorder}>{part.partName}</td>
+                        <td style={styles.tdWithLeftBorder}>{part.model || "-"}</td>
+                        <td style={styles.tdWithLeftBorder}>{part.reqQty}</td>
+                        <td style={styles.tdWithLeftBorder}>M136</td>
+                        <td style={styles.tdWithLeftBorder}>{part.status || "-"}</td>
+                        <td style={styles.tdWithLeftBorder}>
+                          <input
+                            type="text"
+                            value={part.remark || ""}
+                            onChange={(e) => handleRemarkChange(part.id, e.target.value)}
+                            placeholder="Enter remark..."
+                            style={styles.remarkInput}
+                          />
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          <button
+                            onClick={() => handleDeleteFromMainTable(part.id)}
+                            style={styles.deleteButton}
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1524,7 +1619,7 @@ const AddPartsEnquiryNonIdPage = () => {
           <div style={styles.saveConfiguration}>
             <button
               style={{ ...styles.button, ...styles.primaryButton }}
-              onClick={() => navigate("/part-enquiry-non-id")}
+              onClick={handleSaveConfiguration}
             >
               <Save size={16} />
               Save Configuration
@@ -1540,104 +1635,191 @@ const AddPartsEnquiryNonIdPage = () => {
               <h3 style={vendorPartStyles.popupTitle}>
                 Part List Stock In M136
               </h3>
-              <button
-                onClick={() => setAddVendorPartDetail(false)}
-                style={vendorPartStyles.closeButton}
-              >
-                ×
-              </button>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  onClick={refreshStorageData}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "4px",
+                    color: "#4b5563",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                  title="Refresh"
+                >
+                  <RefreshCw size={12} />
+                </button>
+                <button
+                  onClick={() => {
+                    setAddVendorPartDetail(false);
+                    setAddedStorageIds(new Set());
+                  }}
+                  style={vendorPartStyles.closeButton}
+                  title="Close"
+                >
+                  ×
+                </button>
+              </div>
             </div>
-            <form
-              onSubmit={handleAddVendorPartSubmit}
-              style={vendorPartStyles.form}
-            >
+            <form onSubmit={(e) => { e.preventDefault(); handleAddSelectedStorageItems(); }} style={vendorPartStyles.form}>
               <div style={vendorPartStyles.partDetailsSection}>
                 <div style={vendorPartStyles.tableContainer}>
                   <div style={vendorPartStyles.tableBodyWrapper}>
                     <table
                       style={{
                         ...vendorPartStyles.table,
+                        minWidth: "950px",
                         tableLayout: "fixed",
                       }}
                     >
                       <colgroup>
-                        <col style={{ width: "2%" }} />
-                        <col style={{ width: "2%" }} />
-                        <col style={{ width: "8%" }} />
+                        <col style={{ width: "2.5%" }} />
+                        <col style={{ width: "2.5%" }} />
                         <col style={{ width: "15%" }} />
+                        <col style={{ width: "15%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "10%" }} />
                         <col style={{ width: "8%" }} />
                         <col style={{ width: "8%" }} />
                         <col style={{ width: "8%" }} />
-                        <col style={{ width: "3%" }} />
+                        <col style={{ width: "7%" }} />
                       </colgroup>
                       <thead>
                         <tr style={vendorPartStyles.tableHeader}>
-                          <th style={vendorPartStyles.th}>No</th>
-                          <th style={vendorPartStyles.th}></th>
+                          <th style={styles.thWithLeftBorder}>No</th>
+                          <th style={styles.thWithLeftBorder}>
+                            <input
+                              type="checkbox"
+                              checked={
+                                storageInventoryData.filter(item => item.status_part !== 'HOLD').length > 0 &&
+                                storageInventoryData.filter(item => item.status_part !== 'HOLD').every(item => selectedStorageItems.has(item.id))
+                              }
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  const allSelectable = storageInventoryData
+                                    .filter(item => item.status_part !== 'HOLD')
+                                    .map(item => item.id);
+                                  setSelectedStorageItems(new Set(allSelectable));
+                                } else {
+                                  setSelectedStorageItems(new Set());
+                                }
+                              }}
+                              style={{
+                                margin: "0 auto",
+                                display: "block",
+                                cursor: "pointer",
+                                width: "12px",
+                                height: "12px",
+                              }}
+                            />
+                          </th>
+                          <th style={styles.thWithLeftBorder}>Label ID</th>
                           <th style={styles.thWithLeftBorder}>Part Code</th>
                           <th style={styles.thWithLeftBorder}>Part Name</th>
-                          <th style={styles.thWithLeftBorder}>Req QTY</th>
-                          <th style={styles.thWithLeftBorder}>Qty /Label</th>
-                          <th style={styles.thWithLeftBorder}>Stock M136</th>
-                          <th style={vendorPartStyles.th}>Action</th>
+                          <th style={styles.thWithLeftBorder}>Model</th>
+                          <th style={styles.thWithLeftBorder}>Qty</th>
+                          <th style={styles.thWithLeftBorder}>Stock Level</th>
+                          <th style={styles.thWithLeftBorder}>Status</th>
+                          <th style={styles.thWithLeftBorder}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {getCurrentPageData().map((part, index) => {
-                          const globalIndex =
-                            (currentPage - 1) * itemsPerPage + index + 1;
-                          return (
-                            <tr
-                              key={part.id}
-                              onMouseEnter={(e) =>
-                                (e.target.closest("tr").style.backgroundColor =
-                                  "#c7cde8")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.target.closest("tr").style.backgroundColor =
-                                  "transparent")
-                              }
-                            >
-                              <td style={vendorPartStyles.tdNumber}>
-                                {globalIndex}
-                              </td>
-                              <td style={vendorPartStyles.td}>
-                                <input
-                                  type="checkbox"
-                                  style={{
-                                    margin: "0 auto",
-                                    display: "block",
-                                    cursor: "pointer",
-                                    width: "12px",
-                                    height: "12px",
-                                  }}
-                                />
-                              </td>
-                              <td style={vendorPartStyles.td}>
-                                {part.partCode}
-                              </td>
-                              <td style={vendorPartStyles.td}>
-                                {part.partName}
-                              </td>
-                              <td style={vendorPartStyles.td}>{part.reqQty}</td>
-                              <td style={vendorPartStyles.td}>
-                                {part.qtyperLabel}
-                              </td>
-                              <td style={vendorPartStyles.td}>
-                                {part.stcokM136}
-                              </td>
-                              <td style={vendorPartStyles.td}>
-                                <button
-                                  type="button"
-                                  style={vendorPartStyles.deleteButton}
-                                  onClick={() => handleDeletePart(part.id)}
-                                >
-                                  <Trash2 size={10} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                        {loadingStorage ? (
+                          <tr>
+                            <td colSpan="10" style={{ textAlign: "center", padding: "20px" }}>
+                              Loading...
+                            </td>
+                          </tr>
+                        ) : storageInventoryData.length === 0 ? (
+                          <tr>
+                            {/* Optional: tampilkan pesan kosong */}
+                            <td colSpan="10" style={{ textAlign: "center", padding: "20px", color: "#9ca3af" }}>
+                              No data available
+                            </td>
+                          </tr>
+                        ) : (
+                          popupCurrentData.map((item, index) => {
+                            const actualIndex = (popupCurrentPage - 1) * popupItemsPerPage + index + 1;
+                            return (
+                              <tr
+                                key={item.id}
+                                style={{
+                                  backgroundColor: addedStorageIds.has(item.id)
+                                    ? "#a5b4fc"
+                                    : item.status_part === 'HOLD'
+                                      ? '#fee2e2'
+                                      : selectedStorageItems.has(item.id)
+                                        ? "#c7cde8"
+                                        : "transparent"
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!addedStorageIds.has(item.id) && item.status_part !== 'HOLD') {
+                                    e.target.closest("tr").style.backgroundColor = "#c7cde8";
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (addedStorageIds.has(item.id)) {
+                                    e.target.closest("tr").style.backgroundColor = "#a5b4fc";
+                                  } else if (item.status_part === 'HOLD') {
+                                    e.target.closest("tr").style.backgroundColor = '#fee2e2';
+                                  } else if (selectedStorageItems.has(item.id)) {
+                                    e.target.closest("tr").style.backgroundColor = "#c7cde8";
+                                  } else {
+                                    e.target.closest("tr").style.backgroundColor = "transparent";
+                                  }
+                                }}
+                              >
+                                <td style={vendorPartStyles.tdNumber}>
+                                  {actualIndex}
+                                </td>
+                                <td style={vendorPartStyles.td}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedStorageItems.has(item.id) || addedStorageIds.has(item.id)}
+                                    onChange={() => handleSelectStorageItem(item.id)}
+                                    disabled={item.status_part === 'HOLD' || addedStorageIds.has(item.id)}
+                                    style={{
+                                      margin: "0 auto",
+                                      display: "block",
+                                      cursor: (item.status_part === 'HOLD' || addedStorageIds.has(item.id)) ? 'not-allowed' : 'pointer',
+                                      width: "12px",
+                                      height: "12px",
+                                      opacity: (item.status_part === 'HOLD' || addedStorageIds.has(item.id)) ? 0.5 : 1
+                                    }}
+                                  />
+                                </td>
+                                <td style={vendorPartStyles.td}>
+                                  {item.label_id}
+                                </td>
+                                <td style={vendorPartStyles.td}>
+                                  {item.part_code}
+                                </td>
+                                <td style={vendorPartStyles.td}>
+                                  {item.part_name}
+                                </td>
+                                <td style={vendorPartStyles.td}>
+                                  {item.model}
+                                </td>
+                                <td style={vendorPartStyles.td}>{item.qty}</td>
+                                <td style={vendorPartStyles.td}>
+                                  M136
+                                </td>
+                                <td style={{
+                                  ...vendorPartStyles.td,
+                                  color: item.status_part === 'HOLD' ? '#dc2626' : 'inherit',
+                                  fontWeight: item.status_part === 'HOLD' ? '600' : 'normal'
+                                }}>
+                                  {item.status_part}
+                                </td>
+                                <td style={vendorPartStyles.td}>
+                                  -
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1645,50 +1827,48 @@ const AddPartsEnquiryNonIdPage = () => {
                     <div style={vendorPartStyles.paginationControls}>
                       <button
                         style={vendorPartStyles.paginationButton}
-                        onClick={() => handlePageChange(1)}
-                        disabled={currentPage === 1}
+                        onClick={() => handlePopupPageChange(1)}
+                        disabled={popupCurrentPage === 1}
                       >
                         {"<<"}
                       </button>
                       <button
                         style={vendorPartStyles.paginationButton}
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
+                        onClick={() => handlePopupPageChange(popupCurrentPage - 1)}
+                        disabled={popupCurrentPage === 1}
                       >
                         {"<"}
                       </button>
                       <span>Page</span>
                       <input
                         type="text"
-                        value={currentPage}
+                        value={popupCurrentPage}
                         style={vendorPartStyles.paginationInput}
                         onChange={(e) => {
                           const page = parseInt(e.target.value);
-                          if (!isNaN(page) && page >= 1 && page <= totalPages) {
-                            handlePageChange(page);
+                          if (!isNaN(page) && page >= 1 && page <= popupTotalPages) {
+                            handlePopupPageChange(page);
                           }
                         }}
                       />
-                      <span>of {totalPages}</span>
+                      <span>of {popupTotalPages}</span>
                       <button
                         style={vendorPartStyles.paginationButton}
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
+                        onClick={() => handlePopupPageChange(popupCurrentPage + 1)}
+                        disabled={popupCurrentPage === popupTotalPages}
                       >
                         {">"}
                       </button>
                       <button
                         style={vendorPartStyles.paginationButton}
-                        onClick={() => handlePageChange(totalPages)}
-                        disabled={currentPage === totalPages}
+                        onClick={() => handlePopupPageChange(popupTotalPages)}
+                        disabled={popupCurrentPage === popupTotalPages}
                       >
                         {">>"}
                       </button>
                     </div>
                     <div style={vendorPartStyles.paginationInfo}>
-                      Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-                      {Math.min(currentPage * itemsPerPage, partData.length)} of{" "}
-                      {partData.length} entries
+                      Total Row: {storageInventoryData.length}
                     </div>
                   </div>
                 </div>
@@ -1697,7 +1877,10 @@ const AddPartsEnquiryNonIdPage = () => {
               <div style={vendorPartStyles.buttonGroup}>
                 <button
                   type="button"
-                  onClick={() => setAddVendorPartDetail(false)}
+                  onClick={() => {
+                    setAddVendorPartDetail(false);
+                    setAddedStorageIds(new Set());
+                  }}
                   style={vendorPartStyles.cancelButton}
                 >
                   Cancel

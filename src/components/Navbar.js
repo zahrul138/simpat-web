@@ -15,14 +15,14 @@ import LogoSimkom from "../assets/images/logo-simkom.png";
 // helper auth
 const getAuthUser = () => {
   try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
   } catch {
     return null;
   }
 };
 const clearAuth = () => {
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("auth_user");
+  sessionStorage.removeItem("auth_token");
+  sessionStorage.removeItem("auth_user");
 };
 
 const Navbar = ({

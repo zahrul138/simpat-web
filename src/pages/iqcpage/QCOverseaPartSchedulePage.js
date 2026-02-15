@@ -20,7 +20,7 @@ const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const getAuthUserLocal = () => {
   try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
   } catch {
     return null;
   }
@@ -133,8 +133,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         cols: ["24px", "24px", "14%", "36%", "15%", "10%", "10%", "10%"],
       },
       partsTable: {
-        marginLeft: "46.5px",
-        cols: ["2.8%", "10%", "22%", "8%", "8%", "8%", "18%", "15%"],
+        marginLeft: "51px",
+        cols: ["2.8%", "10%", "22%", "8%", "8%", "8%", "18%", "20%"],
       },
     },
     Received: {
@@ -287,14 +287,11 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   };
 
   const getPartSampleStatus = (part) => {
-    // Column Sample is STATIC - read from database sample_dates
-    // sample_dates is set once when vendor moves to IQC Progress
-    // It does NOT change even after QC approve
     const sampleDates = part.sample_dates || [];
 
     return {
-      status: "SAMPLE",
-      sampleDates: sampleDates  // STATIC from database!
+      status: sampleDates.length > 0 ? "SAMPLE" : "PASS",
+      sampleDates: sampleDates
     };
   };
 
@@ -3587,7 +3584,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
               >
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
-                    tableConfig["Pass"].partsTable?.cols || []  
+                    tableConfig["Pass"].partsTable?.cols || []
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -4133,7 +4130,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                           <th style={styles.expandedTh}>Arrival Time</th>
                           <th style={styles.expandedTh}>Total Pallet</th>
                           <th style={styles.expandedTh}>Total Item</th>
-                          <th style={styles.expandedTh}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4201,35 +4197,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               <td style={styles.expandedTd}>
                                 {calculateVendorTotalItem(vendor)}
                               </td>
-                              <td style={styles.expandedTd}>
-                                <button
-                                  style={styles.addButton}
-                                  onClick={() =>
-                                    handleOpenAddPart(schedule.id, vendor.id)
-                                  }
-                                  title="Add Part"
-                                >
-                                  <Plus size={10} />
-                                </button>
-                                <button
-                                  style={styles.checkButton}
-                                  onClick={() =>
-                                    handleMoveVendorToReceived(vendor.id)
-                                  }
-                                  title="Move to Received"
-                                >
-                                  <CheckCircle size={10} />
-                                </button>
-                                <button
-                                  style={styles.deleteButton}
-                                  onClick={() =>
-                                    handleDeleteVendor(vendor.id, schedule.id)
-                                  }
-                                  title="Delete"
-                                >
-                                  <Trash2 size={10} />
-                                </button>
-                              </td>
+
                             </tr>
 
                             {/* Expanded Parts Row */}
@@ -4239,7 +4207,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               vendor.parts && (
                                 <tr>
                                   <td
-                                    colSpan="9"
+                                    colSpan="8"
                                     style={{ padding: 0, border: "none" }}
                                   >
                                     <div
@@ -4738,7 +4706,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Total Item</th>
                     <th style={styles.thWithLeftBorder}>Arrival Time</th>
                     <th style={styles.thWithLeftBorder}>Schedule Date</th>
-                    <th style={styles.thWithLeftBorder}>Approve By</th>
+                    <th style={styles.thWithLeftBorder}>Pass By</th>
                   </tr>
                 </thead>
                 <tbody>{renderPassTab()}</tbody>
@@ -4789,7 +4757,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Total Vendor</th>
                     <th style={styles.thWithLeftBorder}>Total Pallet</th>
                     <th style={styles.thWithLeftBorder}>Total Item</th>
-                    <th style={styles.thWithLeftBorder}>Upload By</th>
+                    <th style={styles.thWithLeftBorder}>Updated By</th>
                   </tr>
                 </thead>
                 <tbody>{renderScheduleTab()}</tbody>

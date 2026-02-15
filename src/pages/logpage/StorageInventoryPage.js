@@ -1,34 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
-import { Plus, Trash2, Pencil, Save, Check } from "lucide-react";
+import { Plus, Trash2, Pencil, Save, Check, X } from "lucide-react";
 import { Helmet } from "react-helmet";
+
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+
+const getAuthUserLocal = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
+  } catch {
+    return null;
+  }
+};
 
 const StorageInventoryPage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
-  
-  // State declarations
-  const [productionSchedules, setProductionSchedules] = useState([]);
-  const [expandedRows, setExpandedRows] = useState({});
-  const [expandedVendorRows, setExpandedVendorRows] = useState({});
-  const [addCustomerDetail, setAddCustomerDetail] = useState(false);
-  const [addCustomerFormData, setAddCustomerFormData] = useState({
-    partCode: "",
-    partName: "",
-    input: "",
-    poNumber: "",
-    description: "",
-  });
-  const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
-  const [selectAll, setSelectAll] = useState(false);
-  const [saveLoading, setSaveLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("New");
-  const [loading, setLoading] = useState(false);
-  const [loadingDetail, setLoadingDetail] = useState({});
+
+  // ========== STATE ==========
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [loadingInventory, setLoadingInventory] = useState(false);
   const [error, setError] = useState(null);
-  const [detailCache, setDetailCache] = useState({});
+  const [expandedRows, setExpandedRows] = useState({});
+  const [activeTab, setActiveTab] = useState("Off System");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [searchBy, setSearchBy] = useState("Customer");
@@ -41,17 +37,87 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     x: 0,
     y: 0,
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  // Filtered schedules
-  const filteredSchedules = productionSchedules.filter(
-    (schedule) => activeTab === "All" || schedule.status === activeTab
-  );
+  // State untuk checkbox
+  const [selectedItemIds, setSelectedItemIds] = useState(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [moveLoading, setMoveLoading] = useState(false);
 
-  const hasNewSchedules = productionSchedules.some(
-    (schedule) => schedule.status === "New"
-  );
+  // State untuk edit M136 System
+  const [editingM136Id, setEditingM136Id] = useState(null);
+  const [editM136Data, setEditM136Data] = useState({ qty: '', status_part: 'OK' });
+  const [updateM136Loading, setUpdateM136Loading] = useState(false);
 
-  // Helper functions
+  // ========== PAGINATION (dihitung dari state) ==========
+  const totalItems = inventoryItems.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = inventoryItems.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  // ========== TABLE CONFIGURATION PER TAB ==========
+  const tableConfig = {
+    "Off System": {
+      cols: [
+        "25px", // No
+        "25px", // Checkbox
+        "15%",  // Label ID
+        "10%",  // Part Code
+        "25%",  // Part Name
+        "8%",   // Model
+        "8%",   // Qty
+        "25%",  // Vendor Name
+        "10%",   // Stock Level
+        "12%",   // Schedule Date
+        "25%",  // Received By
+        "9%",   // Action
+      ],
+    },
+    "M136 System": {
+      cols: [
+        "25px", // No
+        "25px", // Checkbox
+        "15%",  // Label ID
+        "10%",  // Part Code
+        "25%",  // Part Name
+        "8%",   // Model
+        "8%",   // Qty
+        "25%",  // Vendor Name
+        "10%",   // Stock Level
+        "10%",   // Stock Level
+        "12%",   // Schedule Date
+        "25%",  // Received By
+        "9%",   // Action
+      ],
+    },
+    "Out System": {
+      cols: [
+        "25px", // No
+        "25px", // Checkbox
+        "25px", // Arrow
+        "15%",  // Label ID
+        "10%",  // Part Code
+        "15%",  // Part Name
+        "8%",   // Model
+        "5%",   // Qty
+        "10%",  // Vendor Name
+        "8%",   // Stock Level
+        "8%",   // Schedule Date
+        "15%",  // Received By
+        // No Action column
+      ],
+    },
+  };
+
+  // ========== HELPER FUNCTIONS ==========
   const toDDMMYYYY = (iso) => {
     if (!iso) return "-";
     try {
@@ -72,63 +138,211 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     }
   };
 
-  const getColgroup = () => {
-    if (activeTab === "New") {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "3.3%" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-        </colgroup>
-      );
-    } else if (activeTab === "OnProgress") {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-        </colgroup>
-      );
-    } else {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "18%" }} />
-        </colgroup>
-      );
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "-";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch {
+      return dateString;
     }
   };
 
-  const getColSpanCount = () => {
-    if (activeTab === "New") return 12;
-    if (activeTab === "OnProgress") return 10;
-    return 9;
+  const renderColgroup = (cols) => (
+    <colgroup>
+      {cols.map((width, index) => (
+        <col key={index} style={{ width }} />
+      ))}
+    </colgroup>
+  );
+
+  const toggleRowExpansion = (id) => {
+    setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
+  const handleSelectItem = (id) => {
+    console.log('Checkbox clicked, id:', id, 'typeof id:', typeof id);
+    const newSelected = new Set(selectedItemIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedItemIds(newSelected);
+    setSelectAll(newSelected.size === currentItems.length && currentItems.length > 0);
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedItemIds(new Set());
+    } else {
+      const allIds = new Set(currentItems.map(item => item.id));
+      setSelectedItemIds(allIds);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  useEffect(() => {
+    setSelectedItemIds(new Set());
+    setSelectAll(false);
+  }, [inventoryItems, currentPage]);
+
+  const handleMoveToM136 = async () => {
+    if (selectedItemIds.size === 0) {
+      setToastMessage("Please select at least one item");
+      setToastType("error");
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+
+    if (!window.confirm(`Move ${selectedItemIds.size} item(s) to M136 System?`)) {
+      return;
+    }
+
+    setMoveLoading(true);
+    try {
+      const user = getAuthUserLocal();
+      const movedByName = user?.emp_name || user?.name || "Unknown";
+
+      const response = await fetch(`${API_BASE}/api/storage-inventory/move-to-m136`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: Array.from(selectedItemIds),
+          moved_by_name: movedByName
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setToastMessage(result.message);
+        setToastType("success");
+        await fetchInventory();
+        setSelectedItemIds(new Set());
+        setSelectAll(false);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (err) {
+      setToastMessage("Error: " + err.message);
+      setToastType("error");
+    } finally {
+      setMoveLoading(false);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  // ========== FUNCTIONS FOR M136 SYSTEM EDIT ==========
+  const handleEditM136Item = (item) => {
+    setEditingM136Id(item.id);
+    setEditM136Data({
+      qty: item.qty || 0,
+      status_part: item.status_part || 'OK'
+    });
+  };
+
+  const handleCancelEditM136 = () => {
+    setEditingM136Id(null);
+    setEditM136Data({ qty: '', status_part: 'OK' });
+  };
+
+  const handleSaveM136Item = async (id) => {
+    if (!editM136Data.qty || editM136Data.qty <= 0) {
+      setToastMessage("Qty must be greater than 0");
+      setToastType("error");
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+
+    setUpdateM136Loading(true);
+    try {
+      const user = getAuthUserLocal();
+      const movedByName = user?.emp_name || user?.name || "Unknown";
+
+      const response = await fetch(`${API_BASE}/api/storage-inventory/${id}/update-m136`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          qty: parseInt(editM136Data.qty),
+          status_part: editM136Data.status_part,
+          moved_by_name: movedByName
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setToastMessage("Item updated successfully");
+        setToastType("success");
+        await fetchInventory();
+        setEditingM136Id(null);
+        setEditM136Data({ qty: '', status_part: 'OK' });
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (err) {
+      setToastMessage("Error: " + err.message);
+      setToastType("error");
+    } finally {
+      setUpdateM136Loading(false);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  // ========== FETCH DATA ==========
+  const fetchInventory = useCallback(async () => {
+    setLoadingInventory(true);
+    setError(null);
+    try {
+      let statusParam = activeTab;
+
+      let url = `${API_BASE}/api/storage-inventory?status_tab=${encodeURIComponent(statusParam)}`;
+      if (dateFrom) url += `&date_from=${dateFrom}`;
+      if (dateTo) url += `&date_to=${dateTo}`;
+      if (keyword) {
+        if (searchBy === "Customer")
+          url += `&vendor_name=${encodeURIComponent(keyword)}`;
+        else if (searchBy === "Product Code")
+          url += `&part_code=${encodeURIComponent(keyword)}`;
+        else if (searchBy === "Product Description")
+          url += `&part_name=${encodeURIComponent(keyword)}`;
+      }
+
+      const response = await fetch(url);
+      const result = await response.json();
+      if (result.success) {
+        setInventoryItems(result.data);
+        setCurrentPage(1);
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingInventory(false);
+    }
+  }, [activeTab, dateFrom, dateTo, searchBy, keyword]);
+
+  useEffect(() => {
+    fetchInventory();
+  }, [fetchInventory]);
+
+  const getColSpanCount = () => {
+    if (activeTab === "Off System") {
+      return 12; // No, checkbox, label_id, part_code, part_name, model, qty, vendor, stock_level, schedule_date, received_by, action
+    } else if (activeTab === "M136 System") {
+      return 13; // termasuk arrow
+    } else if (activeTab === "Out System") {
+      return 12; // tanpa action
+    }
+    return 12;
+  };
+
+
 
   // Option style
   const optionStyle = {
@@ -138,10 +352,11 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     padding: "4px 8px",
   };
 
-  // Main styles
+  // Main styles (sama seperti sebelumnya, tidak diubah)
   const styles = {
     pageContainer: {
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+      fontFamily:
+        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
       paddingRight: "24px",
     },
     welcomeCard: {
@@ -498,7 +713,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     },
   };
 
-  // Customer detail popup styles
+  // Customer detail popup styles (tidak digunakan)
   const customerDetailStyles = {
     popupOverlay: {
       position: "fixed",
@@ -591,15 +806,396 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     },
   };
 
+  // ========== RENDER FUNCTIONS FOR EACH TAB ==========
+  const renderOffSystemTab = () => {
+    if (loadingInventory) {
+      return (
+        <tr>
+          <td colSpan="13" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+            Loading...
+          </td>
+        </tr>
+      );
+    }
+    if (error) {
+      return (
+        <tr>
+          <td colSpan="13" style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}>
+            {error}
+          </td>
+        </tr>
+      );
+    }
+
+    return currentItems.map((item, idx) => (
+      <React.Fragment key={item.id}>
+        <tr>
+          <td style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}>{startIndex + idx + 1}</td>
+          <td style={styles.tdWithLeftBorder}>
+            <input
+              type="checkbox"
+              checked={selectedItemIds.has(item.id)}
+              onChange={() => handleSelectItem(item.id)}
+              style={{
+                margin: "0 auto",
+                display: "block",
+                cursor: "pointer",
+                width: "12px",
+                height: "12px",
+              }}
+            />
+          </td>
+          {/* <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}>
+            <button
+              style={styles.arrowButton}
+              onClick={() => toggleRowExpansion(item.id)}
+            >
+              {expandedRows[item.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td> */}
+          <td style={styles.tdWithLeftBorder} title={item.label_id}>
+            {item.label_id}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.part_code}>
+            {item.part_code}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.part_name}>
+            {item.part_name}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.model || "-"}>
+            {item.model || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.qty}>{item.qty}</td>
+          <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
+            {item.vendor_name || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.stock_level || "-"}>{item.stock_level || "-"}</td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(item.schedule_date)}>
+            {toDDMMYYYY(item.schedule_date)}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.received_by_name
+            ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
+            : "-"}>
+            {item.received_by_name
+              ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
+              : "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder}>
+            <button style={styles.editButton} title="Edit">
+              <Pencil size={10} />
+            </button>
+            <button style={styles.deleteButton} title="Delete">
+              <Trash2 size={10} />
+            </button>
+          </td>
+        </tr>
+        {expandedRows[item.id] && (
+          <tr>
+            <td colSpan="13" style={{ padding: 0, border: "none" }}>
+              <div style={styles.expandedTableContainer}>
+                <div
+                  style={{
+                    padding: "10px",
+                    textAlign: "center",
+                    color: "#6b7280",
+                  }}
+                >
+                  Detail for {item.label_id} (to be implemented)
+                </div>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  const renderM136SystemTab = () => {
+    if (loadingInventory) {
+      return (
+        <tr>
+          <td colSpan="13" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+            Loading...
+          </td>
+        </tr>
+      );
+    }
+    if (error) {
+      return (
+        <tr>
+          <td colSpan="13" style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}>
+            {error}
+          </td>
+        </tr>
+      );
+    }
+
+    return currentItems.map((item, idx) => {
+      const isEditing = editingM136Id === item.id;
+      const isHold = item.status_part === 'HOLD';
+
+      // Row style with red background for HOLD status
+      const rowStyle = isHold ? {
+        backgroundColor: '#fee2e2', // Very light red
+      } : {};
+
+      return (
+        <React.Fragment key={item.id}>
+          <tr style={rowStyle}>
+            <td style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}>{startIndex + idx + 1}</td>
+            <td style={styles.tdWithLeftBorder}>
+              <input
+                type="checkbox"
+                checked={selectedItemIds.has(item.id)}
+                onChange={() => handleSelectItem(item.id)}
+                style={{
+                  margin: "0 auto",
+                  display: "block",
+                  cursor: "pointer",
+                  width: "12px",
+                  height: "12px",
+                }}
+              />
+            </td>
+            <td style={styles.tdWithLeftBorder} title={item.label_id}>
+              {item.label_id}
+            </td>
+            <td style={styles.tdWithLeftBorder} title={item.part_code}>
+              {item.part_code}
+            </td>
+            <td style={styles.tdWithLeftBorder} title={item.part_name}>
+              {item.part_name}
+            </td>
+            <td style={styles.tdWithLeftBorder} title={item.model || "-"}>
+              {item.model || "-"}
+            </td>
+
+            {/* QTY - Editable saat mode edit */}
+            <td style={styles.tdWithLeftBorder}>
+              {isEditing ? (
+                <input
+                  type="number"
+                  value={editM136Data.qty}
+                  onChange={(e) => setEditM136Data({ ...editM136Data, qty: e.target.value })}
+                  style={{
+                    width: "60px",
+                    padding: "2px 4px",
+                    fontSize: "12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "3px",
+                    textAlign: "center"
+                  }}
+                  min="1"
+                />
+              ) : (
+                item.qty
+              )}
+            </td>
+
+            <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
+              {item.vendor_name || "-"}
+            </td>
+            <td style={styles.tdWithLeftBorder}>{item.stock_level || "-"}</td>
+
+            {/* STATUS - Editable saat mode edit */}
+            <td style={styles.tdWithLeftBorder}>
+              {isEditing ? (
+                <select
+                  value={editM136Data.status_part}
+                  onChange={(e) => setEditM136Data({ ...editM136Data, status_part: e.target.value })}
+                  style={{
+                    width: "70px",
+                    padding: "2px",
+                    fontSize: "12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "3px",
+                    backgroundColor: "white",
+                    cursor: "pointer"
+                  }}
+                >
+                  <option value="OK">OK</option>
+                  <option value="HOLD">HOLD</option>
+                </select>
+              ) : (
+                <span style={{
+                  color: item.status_part === 'HOLD' ? '#dc2626' : '#16a34a',
+                  fontWeight: '500'
+                }}>
+                  {item.status_part || 'OK'}
+                </span>
+              )}
+            </td>
+
+            <td style={styles.tdWithLeftBorder}>
+              {toDDMMYYYY(item.schedule_date)}
+            </td>
+            <td style={styles.tdWithLeftBorder}>
+              {item.received_by_name
+                ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
+                : "-"}
+            </td>
+
+            {/* ACTION BUTTONS */}
+            <td style={styles.tdWithLeftBorder}>
+              {isEditing ? (
+                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => handleSaveM136Item(item.id)}
+                    disabled={updateM136Loading}
+                    style={{
+                      ...styles.editButton,
+                      backgroundColor: '#16a34a',
+                      color: 'white'
+                    }}
+                    title="Save"
+                  >
+                    <Save size={10} />
+                  </button>
+                  <button
+                    onClick={handleCancelEditM136}
+                    disabled={updateM136Loading}
+                    style={{
+                      ...styles.deleteButton,
+                      backgroundColor: '#6b7280',
+                      color: 'white'
+                    }}
+                    title="Cancel"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleEditM136Item(item)}
+                  style={styles.editButton}
+                  title="Edit"
+                >
+                  <Pencil size={10} />
+                </button>
+              )}
+            </td>
+          </tr>
+        </React.Fragment>
+      );
+    });
+  };
+
+  const renderOutSystemTab = () => {
+    if (loadingInventory) {
+      return (
+        <tr>
+          <td colSpan="12" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+            Loading...
+          </td>
+        </tr>
+      );
+    }
+    if (error) {
+      return (
+        <tr>
+          <td colSpan="12" style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}>
+            {error}
+          </td>
+        </tr>
+      );
+    }
+
+    return currentItems.map((item, idx) => (
+      <React.Fragment key={item.id}>
+        <tr>
+          <td style={styles.expandedTd}>{startIndex + idx + 1}</td>
+          <td style={styles.tdWithLeftBorder}>
+            <input
+              type="checkbox"
+              checked={selectedItemIds.has(item.id)}
+              onChange={() => handleSelectItem(item.id)}
+              style={{
+                margin: "0 auto",
+                display: "block",
+                cursor: "pointer",
+                width: "12px",
+                height: "12px",
+              }}
+            />
+          </td>
+          <td style={styles.tdWithLeftBorder}>
+            <button
+              style={styles.arrowButton}
+              onClick={() => toggleRowExpansion(item.id)}
+            >
+              {expandedRows[item.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.label_id}>
+            {item.label_id}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.part_code}>
+            {item.part_code}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.part_name}>
+            {item.part_name}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={item.model || "-"}>
+            {item.model || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder}>{item.qty}</td>
+          <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
+            {item.vendor_name || "-"}
+          </td>
+          <td style={styles.tdWithLeftBorder}>{item.stock_level || "-"}</td>
+          <td style={styles.tdWithLeftBorder}>
+            {toDDMMYYYY(item.schedule_date)}
+          </td>
+          <td style={styles.tdWithLeftBorder}>
+            {item.received_by_name
+              ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
+              : "-"}
+          </td>
+        </tr>
+        {expandedRows[item.id] && (
+          <tr>
+            <td colSpan="12" style={{ padding: 0, border: "none" }}>
+              <div style={styles.expandedTableContainer}>
+                <div
+                  style={{
+                    padding: "10px",
+                    textAlign: "center",
+                    color: "#6b7280",
+                  }}
+                >
+                  Detail for {item.label_id} (to be implemented)
+                </div>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  // ========== RENDER ==========
   return (
     <div style={styles.pageContainer}>
-      <div>
-        <Helmet>
-          <title>Production | Target Schedule</title>
-        </Helmet>
-      </div>
+      <Helmet>
+        <title>Storage Inventory</title>
+      </Helmet>
 
-      {/* Toast Message */}
       {toastMessage && (
         <div
           style={{
@@ -619,12 +1215,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       )}
 
       <div style={styles.welcomeCard}>
-        {/* Header and Filter Section */}
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
             <h1 style={styles.title}>Storage Inventory</h1>
           </div>
-
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Date Filter</span>
@@ -665,88 +1259,63 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
               />
-              <button style={styles.button}>Search</button>
+              <button style={styles.button} onClick={fetchInventory}>
+                Search
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div style={styles.actionButtonsGroup}>
-          <button
-            style={{ ...styles.button, ...styles.primaryButton }}
-            onClick={() => navigate("")}
-          >
-            <Plus size={16} />
-            Create
-          </button>
-
-          {activeTab === "OnProgress" && selectedHeaderIds.size > 0 && (
-            <button
-              style={{
-                ...styles.button,
-                ...styles.successButton,
-                ...(saveLoading && { opacity: 0.7, cursor: "not-allowed" }),
-              }}
-              disabled={saveLoading}
-            >
-              <Save size={16} />
-              {saveLoading ? "Currently" : `Complete (${selectedHeaderIds.size})`}
-            </button>
-          )}
-        </div>
-
-        {/* Tabs */}
         <div style={styles.tabsContainer}>
           <button
             style={{
               ...styles.tabButton,
-              ...(activeTab === "New" && styles.tabButtonActive),
+              ...(activeTab === "Off System" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("New")}
+            onClick={() => setActiveTab("Off System")}
           >
             Off System
           </button>
           <button
             style={{
               ...styles.tabButton,
-              ...(activeTab === "OnProgress" && styles.tabButtonActive),
+              ...(activeTab === "M136 System" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("OnProgress")}
+            onClick={() => setActiveTab("M136 System")}
           >
             M136 System
           </button>
           <button
             style={{
               ...styles.tabButton,
-              ...(activeTab === "Complete" && styles.tabButtonActive),
+              ...(activeTab === "Out System" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("Complete")}
+            onClick={() => setActiveTab("Out System")}
           >
             Out System
           </button>
         </div>
 
-        {/* Table */}
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
-            <table
-              style={{
-                ...styles.table,
-                minWidth: "1200px",
-                tableLayout: "fixed",
-              }}
-            >
-              {getColgroup()}
-              <thead>
-                <tr style={styles.tableHeader}>
-                  <th style={styles.expandedTh}>No</th>
-                  {activeTab === "New" && (
+            {activeTab === "Off System" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig["Off System"].cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
                     <th style={styles.thWithLeftBorder}>
-                      {filteredSchedules.length > 1 && (
+                      {currentItems.length > 1 && (
                         <input
                           type="checkbox"
                           checked={selectAll}
-                          onChange={() => setSelectAll(!selectAll)}
+                          onChange={handleSelectAll}
                           style={{
                             margin: "0 auto",
                             display: "block",
@@ -757,434 +1326,176 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                         />
                       )}
                     </th>
-                  )}
-                  <th style={styles.thWithLeftBorder}></th>
-                  <th style={styles.thWithLeftBorder}>Date</th>
-                  <th style={styles.thWithLeftBorder}>Line</th>
-                  <th style={styles.thWithLeftBorder}>Shift Time</th>
-                  <th style={styles.thWithLeftBorder}>Total Input</th>
-                  <th style={styles.thWithLeftBorder}>Total Customer</th>
-                  <th style={styles.thWithLeftBorder}>Total Model</th>
-                  <th style={styles.thWithLeftBorder}>Total Pallet</th>
-                  <th style={styles.thWithLeftBorder}>Created By</th>
-                  {(activeTab === "New" || activeTab === "OnProgress") && (
+                    {/* <th style={styles.thWithLeftBorder}></th> */}
+                    <th style={styles.thWithLeftBorder}>Label ID</th>
+                    <th style={styles.thWithLeftBorder}>Part Code</th>
+                    <th style={styles.thWithLeftBorder}>Part Name</th>
+                    <th style={styles.thWithLeftBorder}>Model</th>
+                    <th style={styles.thWithLeftBorder}>Qty</th>
+                    <th style={styles.thWithLeftBorder}>Vendor Name</th>
+                    <th style={styles.thWithLeftBorder}>Stock Level</th>
+                    <th style={styles.thWithLeftBorder}>Schedule Date</th>
+                    <th style={styles.thWithLeftBorder}>Received By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td
-                      colSpan={getColSpanCount()}
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                        color: "#6b7280",
-                      }}
-                    >
-                      Loading…
-                    </td>
                   </tr>
-                )}
-                {!loading && error && (
-                  <tr>
-                    <td
-                      colSpan={getColSpanCount()}
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                        color: "#ef4444",
-                      }}
-                    >
-                      {error}
-                    </td>
-                  </tr>
-                )}
-                {!loading && !error && filteredSchedules.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={getColSpanCount()}
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                        color: "#6b7280",
-                      }}
-                    >
-                      No data available
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  !error &&
-                  filteredSchedules.map((h, idx) => (
-                    <FragmentLike key={h.id}>
-                      <tr>
-                        <td
+                </thead>
+                <tbody>{renderOffSystemTab()}</tbody>
+              </table>
+            )}
+            {activeTab === "M136 System" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig["M136 System"].cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
+                    <th style={styles.thWithLeftBorder}>
+                      {currentItems.length > 1 && (
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={handleSelectAll}
                           style={{
-                            ...styles.expandedTd,
-                            ...styles.expandedWithLeftBorder,
-                            ...styles.emptyColumn,
+                            margin: "0 auto",
+                            display: "block",
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
                           }}
-                        >
-                          {idx + 1}
-                        </td>
-                        {activeTab === "New" && (
-                          <td style={styles.tdWithLeftBorder}>
-                            <input
-                              type="checkbox"
-                              checked={selectedHeaderIds.has(h.id)}
-                              onChange={() => {}}
-                              style={{
-                                margin: "0 auto",
-                                display: "block",
-                                cursor: "pointer",
-                                width: "12px",
-                                height: "12px",
-                              }}
-                            />
-                          </td>
-                        )}
-                        <td
-                          style={{
-                            ...styles.tdWithLeftBorder,
-                            ...styles.emptyColumn,
-                          }}
-                        >
-                          <button style={styles.arrowButton}>
-                            {expandedRows[h.id] ? (
-                              <MdArrowDropDown style={styles.arrowIcon} />
-                            ) : (
-                              <MdArrowRight style={styles.arrowIcon} />
-                            )}
-                          </button>
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {toDDMMYYYY(h.date)}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>{h.line}</td>
-                        <td style={styles.tdWithLeftBorder}>{h.shiftTime}</td>
-                        <td style={styles.tdWithLeftBorder}>{h.total_input}</td>
-                        <td style={styles.tdWithLeftBorder}>{h.total_customer}</td>
-                        <td style={styles.tdWithLeftBorder}>{h.total_model}</td>
-                        <td style={styles.tdWithLeftBorder}>{h.total_pallet}</td>
-                        <td style={styles.tdWithLeftBorder}>{h.createdBy}</td>
-                        {(activeTab === "New" || activeTab === "OnProgress") && (
-                          <td style={styles.tdWithLeftBorder}>
-                            <button style={styles.editButton}>
-                              <Pencil size={10} />
-                            </button>
-                            <button style={styles.deleteButton}>
-                              <Trash2 size={10} />
-                            </button>
-                            {activeTab === "OnProgress" && (
-                              <button style={styles.completeButton}>
-                                <Check size={10} />
-                              </button>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-
-                      {/* Expanded Row - Detail Table */}
-                      {expandedRows[h.id] && (
-                        <tr>
-                          <td
-                            colSpan={getColSpanCount()}
-                            style={{ padding: "0", border: "none" }}
-                          >
-                            <div style={styles.expandedTableContainer}>
-                              <table style={styles.expandedTable}>
-                                <colgroup>
-                                  <col style={{ width: "25px" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "20%" }} />
-                                  <col style={{ width: "10%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "10%" }} />
-                                  <col style={{ width: "10%" }} />
-                                </colgroup>
-                                <thead>
-                                  <tr style={styles.expandedTableHeader}>
-                                    <th style={styles.expandedTh}>No</th>
-                                    <th style={styles.expandedTh}>Material Code</th>
-                                    <th style={styles.expandedTh}>Customer</th>
-                                    <th style={styles.expandedTh}>Model</th>
-                                    <th style={styles.expandedTh}>Description</th>
-                                    <th style={styles.expandedTh}>Input</th>
-                                    <th style={styles.expandedTh}>PO Number</th>
-                                    <th style={styles.expandedTh}>Pallet Type</th>
-                                    <th style={styles.expandedTh}>Pallet Use</th>
-                                    <th style={styles.expandedTh}>Action</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {loadingDetail[h.id] && (
-                                    <tr>
-                                      <td
-                                        colSpan="10"
-                                        style={{
-                                          ...styles.expandedTd,
-                                          textAlign: "center",
-                                          color: "#6b7280",
-                                        }}
-                                      >
-                                        Loading…
-                                      </td>
-                                    </tr>
-                                  )}
-                                  {!loadingDetail[h.id] &&
-                                    (!detailCache[h.id] ||
-                                      detailCache[h.id].length === 0) && (
-                                      <tr>
-                                        <td
-                                          colSpan="10"
-                                          style={{
-                                            ...styles.expandedTd,
-                                            textAlign: "center",
-                                          }}
-                                        >
-                                          Details not yet added.
-                                        </td>
-                                      </tr>
-                                    )}
-                                  {!loadingDetail[h.id] &&
-                                    detailCache[h.id]?.map((d, i) => (
-                                      <tr key={`${h.id}-${d.id || i}`}>
-                                        <td
-                                          style={{
-                                            ...styles.expandedTd,
-                                            ...styles.expandedWithLeftBorder,
-                                            ...styles.emptyColumn,
-                                          }}
-                                        >
-                                          {i + 1}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.materialCode}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.customer}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.model || ""}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.description || ""}
-                                        </td>
-                                        <td style={styles.expandedTd}>{d.input}</td>
-                                        <td style={styles.expandedTd}>
-                                          {d.poNumber}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.palletType}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          {d.palletUse}
-                                        </td>
-                                        <td style={styles.expandedTd}>
-                                          <button style={styles.editButton}>
-                                            <Pencil size={10} />
-                                          </button>
-                                          <button style={styles.deleteButton}>
-                                            <Trash2 size={10} />
-                                          </button>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
+                        />
                       )}
-                    </FragmentLike>
-                  ))}
-              </tbody>
-            </table>
+                    </th>
+                    {/* <th style={styles.thWithLeftBorder}></th> */}
+                    <th style={styles.thWithLeftBorder}>Label ID</th>
+                    <th style={styles.thWithLeftBorder}>Part Code</th>
+                    <th style={styles.thWithLeftBorder}>Part Name</th>
+                    <th style={styles.thWithLeftBorder}>Model</th>
+                    <th style={styles.thWithLeftBorder}>Qty</th>
+                    <th style={styles.thWithLeftBorder}>Vendor Name</th>
+                    <th style={styles.thWithLeftBorder}>Stock Level</th>
+                    <th style={styles.thWithLeftBorder}>Status</th>
+                    <th style={styles.thWithLeftBorder}>Schedule Date</th>
+                    <th style={styles.thWithLeftBorder}>Received By</th>
+                    <th style={styles.thWithLeftBorder}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>{renderM136SystemTab()}</tbody>
+              </table>
+            )}
+            {activeTab === "Out System" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig["Out System"].cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
+                    <th style={styles.thWithLeftBorder}>
+                      {currentItems.length > 1 && (
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={handleSelectAll}
+                          style={{
+                            margin: "0 auto",
+                            display: "block",
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
+                          }}
+                        />
+                      )}
+                    </th>
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Label ID</th>
+                    <th style={styles.thWithLeftBorder}>Part Code</th>
+                    <th style={styles.thWithLeftBorder}>Part Name</th>
+                    <th style={styles.thWithLeftBorder}>Model</th>
+                    <th style={styles.thWithLeftBorder}>Qty</th>
+                    <th style={styles.thWithLeftBorder}>Vendor Name</th>
+                    <th style={styles.thWithLeftBorder}>Stock Level</th>
+                    <th style={styles.thWithLeftBorder}>Schedule Date</th>
+                    <th style={styles.thWithLeftBorder}>Received By</th>
+                  </tr>
+                </thead>
+                <tbody>{renderOutSystemTab()}</tbody>
+              </table>
+            )}
           </div>
 
-          {/* Pagination */}
           <div style={styles.paginationBar}>
             <div style={styles.paginationControls}>
-              <button style={styles.paginationButton}>{"<<"}</button>
-              <button style={styles.paginationButton}>{"<"}</button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(1)}
+                disabled={currentPage === 1}
+              >
+                {"<<"}
+              </button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                {"<"}
+              </button>
               <span>Page</span>
               <input
                 type="text"
-                value="1"
+                value={currentPage}
                 style={styles.paginationInput}
                 readOnly
               />
-              <span>of 1</span>
-              <button style={styles.paginationButton}>{">"}</button>
-              <button style={styles.paginationButton}>{">>"}</button>
+              <span>of {totalPages || 1}</span>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                {">"}
+              </button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                {">>"}
+              </button>
             </div>
+            <div>Total Row: {totalItems}</div>
           </div>
         </div>
-
-        {/* Save Button for New Tab */}
-        {activeTab === "New" && hasNewSchedules && (
-          <div style={styles.saveConfiguration}>
+        {activeTab === "Off System" && selectedItemIds.size > 0 && (
+          <div style={{ marginTop: "10px", marginBottom: "10px", marginLeft: "12px", display: "flex", justifyContent: "flex-start" }}>
             <button
               style={{
                 ...styles.button,
                 ...styles.primaryButton,
-                ...(saveLoading && { opacity: 0.7, cursor: "not-allowed" }),
+                opacity: moveLoading ? 0.6 : 1,
+                cursor: moveLoading ? "not-allowed" : "pointer"
               }}
-              disabled={saveLoading}
+              onClick={handleMoveToM136}
+              disabled={moveLoading}
             >
               <Save size={16} />
-              {saveLoading ? "Menyimpan..." : "Save Schedule"}
-            </button>
-          </div>
-        )}
-
-        {/* Complete Button for OnProgress Tab */}
-        {activeTab === "OnProgress" && selectedHeaderIds.size > 0 && (
-          <div style={styles.saveConfiguration}>
-            <button
-              style={{
-                ...styles.button,
-                ...styles.successButton,
-                ...(saveLoading && { opacity: 0.7, cursor: "not-allowed" }),
-              }}
-              disabled={saveLoading}
-            >
-              <Save size={16} />
-              {saveLoading
-                ? "Menyelesaikan..."
-                : `Complete ${selectedHeaderIds.size} Schedule`}
+              {moveLoading ? "Moving..." : "Move to M136 System"}
             </button>
           </div>
         )}
       </div>
 
-      {/* Add Customer Detail Popup */}
-      {addCustomerDetail && (
-        <div style={customerDetailStyles.popupOverlay}>
-          <div style={customerDetailStyles.popupContainer}>
-            <div style={customerDetailStyles.popupHeader}>
-              <h3 style={customerDetailStyles.popupTitle}>Add Customer Detail</h3>
-              <button
-                style={customerDetailStyles.closeButton}
-                onClick={() => setAddCustomerDetail(false)}
-              >
-                ×
-              </button>
-            </div>
-            <form style={customerDetailStyles.form}>
-              <div style={customerDetailStyles.formGroup}>
-                <label style={customerDetailStyles.label}>Customer:</label>
-                <select
-                  value={addCustomerFormData.partCode}
-                  onChange={(e) =>
-                    setAddCustomerFormData({
-                      ...addCustomerFormData,
-                      partCode: e.target.value,
-                    })
-                  }
-                  style={customerDetailStyles.select}
-                  required
-                >
-                  <option value="">Select Customer</option>
-                  <option value="EEB">EEB</option>
-                  <option value="EHC">EHC</option>
-                  <option value="ECC">ECC</option>
-                </select>
-              </div>
-
-              <div style={customerDetailStyles.formGroup}>
-                <label style={customerDetailStyles.label}>Material Code:</label>
-                <input
-                  type="text"
-                  value={addCustomerFormData.partName}
-                  onChange={(e) =>
-                    setAddCustomerFormData({
-                      ...addCustomerFormData,
-                      partName: e.target.value,
-                    })
-                  }
-                  placeholder="Material code will be set automatically"
-                  style={customerDetailStyles.input}
-                />
-              </div>
-
-              <div style={customerDetailStyles.formGroup}>
-                <label style={customerDetailStyles.label}>Input:</label>
-                <input
-                  type="number"
-                  value={addCustomerFormData.input}
-                  onChange={(e) =>
-                    setAddCustomerFormData({
-                      ...addCustomerFormData,
-                      input: e.target.value,
-                    })
-                  }
-                  placeholder="Enter Input"
-                  style={customerDetailStyles.input}
-                  required
-                />
-              </div>
-
-              <div style={customerDetailStyles.formGroup}>
-                <label style={customerDetailStyles.label}>PO Number:</label>
-                <input
-                  type="text"
-                  value={addCustomerFormData.poNumber || ""}
-                  onChange={(e) =>
-                    setAddCustomerFormData({
-                      ...addCustomerFormData,
-                      poNumber: e.target.value,
-                    })
-                  }
-                  placeholder="Enter PO number"
-                  style={customerDetailStyles.input}
-                />
-              </div>
-
-              <div style={customerDetailStyles.formGroup}>
-                <label style={customerDetailStyles.label}>Description:</label>
-                <input
-                  type="text"
-                  value={addCustomerFormData.description || ""}
-                  onChange={(e) =>
-                    setAddCustomerFormData({
-                      ...addCustomerFormData,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="Enter description"
-                  style={customerDetailStyles.input}
-                />
-              </div>
-
-              <div style={customerDetailStyles.buttonGroup}>
-                <button
-                  type="button"
-                  onClick={() => setAddCustomerDetail(false)}
-                  style={customerDetailStyles.cancelButton}
-                >
-                  Cancel
-                </button>
-                <button type="submit" style={customerDetailStyles.submitButton}>
-                  Add
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Tooltip */}
       <div style={styles.tooltip}>{tooltip.content}</div>
     </div>
   );
 };
-
-const FragmentLike = ({ children }) => children;
 
 export default StorageInventoryPage;

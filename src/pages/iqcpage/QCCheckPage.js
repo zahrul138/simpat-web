@@ -8,6 +8,14 @@ import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
+const getAuthUserLocal = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
+  } catch {
+    return null;
+  }
+};
+
 const toDDMMYYYY = (iso) => {
   if (!iso) return "-";
   try {
@@ -219,12 +227,12 @@ const QCCheckPage = ({ sidebarVisible }) => {
       // Fetch qc_checks dengan status "M136 Part" (waiting for approval)
       const response = await fetch(`${API_BASE}/api/qc-checks?status=M136 Part`);
       const result = await response.json();
-      
+
       console.log("[fetchM136Parts] QC checks with M136 Part status:", result);
 
       if (result.success) {
         const qcChecks = result.data || [];
-        
+
         // Transform to match current M136Parts structure
         const formattedParts = qcChecks.map(qc => ({
           id: qc.id,  // qc_checks.id (for approve endpoint)
@@ -238,7 +246,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
           approve_by_name: qc.created_by || "-",  // Who created this entry
           approve_at: qc.created_at || null,
         }));
-        
+
         console.log("[fetchM136Parts] Total M136 Part entries:", formattedParts.length);
         setM136Parts(formattedParts);
       } else {
@@ -304,13 +312,14 @@ const QCCheckPage = ({ sidebarVisible }) => {
     if (!window.confirm("Approve this QC Check?")) return;
 
     try {
-      const authUser = getAuthUser();
+      // PERBAIKAN: Gunakan getAuthUserLocal() untuk mengambil data user
+      const authUser = getAuthUserLocal();
       const response = await fetch(`${API_BASE}/api/qc-checks/${id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           approved_by: authUser?.id,
-          approved_by_name: authUser?.emp_name || "Unknown",
+          approved_by_name: authUser?.emp_name || authUser?.name || "Unknown",
         }),
       });
 
@@ -344,7 +353,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       console.log("[handleApprovePartFromSample] Already processing, ignoring duplicate call");
       return;
     }
-    
+
     if (!window.confirm("Approve this QC Check?")) return;
 
     // Set processing flag IMMEDIATELY
@@ -352,7 +361,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
     console.log("[handleApprovePartFromSample] Processing locked");
 
     try {
-      const authUser = getAuthUser();
+      // PERBAIKAN: Gunakan getAuthUserLocal() untuk mengambil data user
+      const authUser = getAuthUserLocal();
+      console.log("[handleApprovePartFromSample] Auth user:", authUser);
 
       console.log(`[handleApprovePartFromSample] Approving QC check:`, part.id, part.part_code, part.production_date);
 
@@ -361,7 +372,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       const currentPartsList = sourceTab === "M101 Part" ? m101Parts : m136Parts;
       const sameVendorRows = currentPartsList.filter(p => p.vendor_id === part.vendor_id);
       const isLastRow = sameVendorRows.length === 1; // Only this row left
-      
+
       console.log(`[handleApprovePartFromSample] Vendor ${part.vendor_id}: ${sameVendorRows.length} row(s) remaining, isLastRow: ${isLastRow}`);
 
       // UPDATE QC Check status from "M136 Part" to "Complete"
@@ -370,7 +381,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           approved_by: authUser?.id,
-          approved_by_name: authUser?.emp_name || "Unknown",
+          approved_by_name: authUser?.emp_name || authUser?.name || "Unknown",
           isLastQcCheck: isLastRow, // Flag untuk backend (auto-move to Pass)
         }),
       });
@@ -378,7 +389,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       const result = await response.json();
       if (response.ok && result.success) {
         console.log(`[handleApprovePartFromSample] Success, vendorMovedToPass:`, result.vendorMovedToPass);
-        
+
         // CRITICAL: Always do optimistic update first
         // Remove the approved item from UI immediately
         if (sourceTab === "M101 Part") {
@@ -394,13 +405,13 @@ const QCCheckPage = ({ sidebarVisible }) => {
             return filtered;
           });
         }
-        
+
         // Check if vendor was auto-moved to Pass
         if (result.vendorMovedToPass) {
           setToastMessage("QC Check approved! Vendor moved to Pass tab.");
           setToastType("success");
           setTimeout(() => setToastMessage(null), 5000);
-          
+
           // Refresh after delay to ensure all data is updated
           setTimeout(() => {
             console.log(`[handleApprovePartFromSample] Refreshing after vendor moved to Pass`);
@@ -579,7 +590,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
     if (!window.confirm(`Approve ${selectedIds.size} selected QC Checks?`)) return;
 
     try {
-      const authUser = getAuthUser();
+      // PERBAIKAN: Gunakan getAuthUserLocal() untuk mengambil data user
+      const authUser = getAuthUserLocal();
       const selectedParts = parts.filter((p) => selectedIds.has(p.id));
 
       // Create QC Check entries for each selected part
@@ -595,7 +607,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
             data_from: sourceTab === "M101 Part" ? "M101" : "M136",
             status: "Complete",
             approved_by: authUser?.id,
-            approved_by_name: authUser?.emp_name || "Unknown",
+            approved_by_name: authUser?.emp_name || authUser?.name || "Unknown",
           }),
         })
       );
@@ -1598,10 +1610,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
                         {(currentPage - 1) * itemsPerPage + index + 1}
                       </td>
                       <td
-                        style={{
-                          ...styles.tdWithLeftBorder,
-                          textAlign: "center",
-                        }}
+                        style={styles.tdWithLeftBorder}
                       >
                         <input
                           type="checkbox"
@@ -1610,6 +1619,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
                             toggleM136Checkbox(item.id, e.target.checked)
                           }
                           style={{
+                            margin: "0 auto",
+                            display: "block",
                             cursor: "pointer",
                             width: "12px",
                             height: "12px",

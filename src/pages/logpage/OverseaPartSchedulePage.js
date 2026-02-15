@@ -20,7 +20,7 @@ const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const getAuthUserLocal = () => {
   try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
   } catch {
     return null;
   }
@@ -96,6 +96,9 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
   const [activeSamplePart, setActiveSamplePart] = useState(null);
   const [newSampleDate, setNewSampleDate] = useState("");
 
+  const [toastMessage, setToastMessage] = useState(null);
+  const [toastType, setToastType] = useState(null);
+
   const [filters, setFilters] = useState({
     dateFrom: "",
     dateTo: "",
@@ -160,7 +163,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         cols: ["2.8%", "10%", "22%", "7%", "7%", "6%", "18%", "12%", "7%"],
       },
     },
-     Received: {
+    Received: {
       mainTable: {
         cols: [
           "26px", // No
@@ -238,7 +241,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         ],
       },
     },
-      Complete: {
+    Complete: {
       mainTable: {
         cols: [
           "26px", // No
@@ -1083,14 +1086,11 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
   };
 
   const getPartSampleStatus = (part) => {
-    // Column Sample is STATIC - read from database sample_dates
-    // sample_dates is set once when vendor moves to IQC Progress
-    // It does NOT change even after QC approve
     const sampleDates = part.sample_dates || [];
 
     return {
-      status: "SAMPLE",
-      sampleDates: sampleDates  // STATIC from database!
+      status: sampleDates.length > 0 ? "SAMPLE" : "PASS",
+      sampleDates: sampleDates
     };
   };
 
@@ -1448,6 +1448,12 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
 
     try {
+      // PERBAIKAN: Ambil user yang sedang login
+      const authUser = getAuthUserLocal();
+      const movedByName = authUser?.emp_name || authUser?.name || "Unknown";
+
+      console.log("[handleMoveToSchedule] Moving schedules by:", movedByName);
+
       const response = await fetch(
         `${API_BASE}/api/oversea-schedules/bulk/status`,
         {
@@ -1456,19 +1462,25 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           body: JSON.stringify({
             scheduleIds: Array.from(selectedScheduleIds),
             status: "Schedule", // Ini akan diubah ke "Scheduled" di backend
+            movedByName: movedByName, // TAMBAHKAN: kirim nama user
           }),
-        },
+        }
       );
 
       const data = await response.json();
 
       if (data.success) {
         alert(
-          `Successfully moved ${data.updated?.length || 0} schedule(s) to Schedule tab.`,
+          `Successfully moved ${data.updated?.length || 0} schedule(s) to Schedule tab.`
         );
         setSelectedScheduleIds(new Set());
         setSelectAll(false);
-        fetchSchedules();
+
+        // Refresh data untuk tab New dan Schedule
+        await fetchSchedules(); // Refresh tab New
+
+        // Pindah ke tab Schedule untuk melihat hasil
+        setActiveTab("Schedule");
       } else {
         alert(`Failed to move schedules: ${data.message}`);
       }
@@ -1731,6 +1743,10 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditPart = async (partId) => {
     try {
+      // PERBAIKAN: Gunakan getAuthUserLocal untuk mengambil data user
+      const authUser = getAuthUserLocal();
+      console.log("[handleSaveEditPart] Auth user:", authUser);
+
       const validProdDates = (editPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== ""
       );
@@ -1740,7 +1756,11 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         quantityBox: editPartData.qty_box,
         remark: editPartData.remark,
         prod_dates: validProdDates,
+        // PERBAIKAN: Kirim updated_by_name ke backend (nama user yang melakukan edit)
+        updated_by_name: authUser?.emp_name || authUser?.name || "Unknown",
       };
+
+      console.log("[handleSaveEditPart] Payload:", payload);
 
       const response = await fetch(
         `${API_BASE}/api/oversea-schedules/parts/${partId}`,
@@ -1754,6 +1774,9 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       if (!response.ok) {
         throw new Error("Failed to update part");
       }
+
+      const result = await response.json();
+      console.log("[handleSaveEditPart] Response:", result);
 
       const vendorId = editPartData.vendorId;
 
@@ -1778,9 +1801,16 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         }
       }
 
+      // Tampilkan notifikasi sukses
+      setToastMessage("Part updated successfully!");
+      setToastType("success");
+      setTimeout(() => setToastMessage(null), 3000);
+
     } catch (error) {
-      console.error("Error saving part:", error);
-      alert("Failed to save part changes");
+      console.error("[handleSaveEditPart] Error saving part:", error);
+      setToastMessage("Failed to save part changes: " + error.message);
+      setToastType("error");
+      setTimeout(() => setToastMessage(null), 3000);
     }
   };
 
@@ -4213,7 +4243,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
             {vendor.do_numbers || "-"}
           </td>
-           <td
+          <td
             style={styles.tdWithLeftBorder}
             title={getVendorTotalPallet(vendor).toString()}
           >
@@ -4264,7 +4294,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
               title="Move to Complete"
             >
               <CheckCircle size={10} />
-              
+
             </button>
           </td>
         </tr>
@@ -5871,7 +5901,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Total Item</th>
                     <th style={styles.thWithLeftBorder}>Arrival Time</th>
                     <th style={styles.thWithLeftBorder}>Schedule Date</th>
-                    <th style={styles.thWithLeftBorder}>Approve By</th>
+                    <th style={styles.thWithLeftBorder}>Pass By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
                 </thead>
@@ -5963,7 +5993,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Total Vendor</th>
                     <th style={styles.thWithLeftBorder}>Total Pallet</th>
                     <th style={styles.thWithLeftBorder}>Total Item</th>
-                    <th style={styles.thWithLeftBorder}>Upload By</th>
+                    <th style={styles.thWithLeftBorder}>Updated By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
                 </thead>

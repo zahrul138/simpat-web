@@ -5,8 +5,8 @@ import LogoSimkom from "../assets/images/logo-simkom.png";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const saveAuth = ({ token, user }) => {
-  localStorage.setItem("auth_token", token);
-  localStorage.setItem("auth_user", JSON.stringify(user));
+  sessionStorage.setItem("auth_token", token);
+  sessionStorage.setItem("auth_user", JSON.stringify(user));
 };
 
 const Button = ({

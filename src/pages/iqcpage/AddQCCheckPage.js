@@ -7,8 +7,8 @@ import { Plus, Trash2, Save, Search } from "lucide-react";
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const getAuthUserLocal = () => {
-  try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+ try {
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
   } catch {
     return null;
   }

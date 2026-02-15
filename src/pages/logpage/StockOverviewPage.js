@@ -27,7 +27,7 @@ const StockOverviewPage = () => {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const itemsPerPage = 10;
 
   const [currentDate] = useState(() => {
     const now = new Date();
@@ -599,14 +599,14 @@ const StockOverviewPage = () => {
               <div style={{ flex: "1", display: "grid", gap: "20px" }}>
                 <div>
                   <label htmlFor="" style={styles.label}>
-                    Stock M1Y2 (Transit)
+                    Stock Off System
                   </label>
                   <input
                     type="text"
                     style={styles.inputReadOnly}
                     value={
                       stockData
-                        ? `${stockData.stock_m1y2 || 0} ${stockData.unit || "PCS"}`
+                        ? `${stockData.stock_off_system || 0} ${stockData.unit || "PCS"}`
                         : ""
                     }
                     readOnly
@@ -705,17 +705,17 @@ const StockOverviewPage = () => {
             <button
               style={{
                 ...styles.tabButton,
-                ...(activeTab === "M1Y2" && styles.tabButtonActive),
+                ...(activeTab === "Off System" && styles.tabButtonActive),
               }}
-              onClick={() => handleTabClick("M1Y2")}
+              onClick={() => handleTabClick("Off System")}
               onMouseEnter={(e) =>
-                handleTabHover(e, true, activeTab === "M1Y2")
+                handleTabHover(e, true, activeTab === "Off System")
               }
               onMouseLeave={(e) =>
-                handleTabHover(e, false, activeTab === "M1Y2")
+                handleTabHover(e, false, activeTab === "Off System")
               }
             >
-              M1Y2
+              Off System
             </button>
             <button
               style={{
@@ -764,7 +764,7 @@ const StockOverviewPage = () => {
               <table
                 style={{
                   ...styles.table,
-                  minWidth: "500px",
+                  minWidth: "900px",
                   tableLayout: "fixed",
                 }}
               >
@@ -775,8 +775,8 @@ const StockOverviewPage = () => {
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "12%" }} />
-                  <col style={{ width: "20%" }} />
-                  <col style={{ width: "30%" }} />
+                  <col style={{ width: "25%" }} />
+                  <col style={{ width: "25%" }} />
                 </colgroup>
                 <thead>
                   <tr style={styles.tableHeader}>
@@ -866,8 +866,8 @@ const StockOverviewPage = () => {
                           title={movement.remark || "-"}
                         >
                           {movement.remark
-                            ? movement.remark.length > 25
-                              ? `${movement.remark.substring(0, 25)}...`
+                            ? movement.remark.length > 50
+                              ? `${movement.remark.substring(0, 50)}...`
                               : movement.remark
                             : "-"}
                         </td>

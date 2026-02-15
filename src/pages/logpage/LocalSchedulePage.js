@@ -21,7 +21,7 @@ const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const getAuthUser = () => {
   try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
   } catch {
     return null;
   }

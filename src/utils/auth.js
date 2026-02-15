@@ -1,9 +1,8 @@
-
-export const getToken = () => localStorage.getItem("auth_token");
+export const getToken = () => sessionStorage.getItem("auth_token");
 
 export const getUser = () => {
   try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
   } catch {
     return null;
   }
@@ -12,11 +11,11 @@ export const getUser = () => {
 export const isAuthenticated = () => !!getToken();
 
 export const saveAuth = ({ token, user }) => {
-  localStorage.setItem("auth_token", token);
-  localStorage.setItem("auth_user", JSON.stringify(user));
+  sessionStorage.setItem("auth_token", token);
+  sessionStorage.setItem("auth_user", JSON.stringify(user));
 };
 
 export const clearAuth = () => {
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("auth_user");
+  sessionStorage.removeItem("auth_token");
+  sessionStorage.removeItem("auth_user");
 };
