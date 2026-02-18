@@ -102,16 +102,16 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       cols: [
         "25px", // No
         "25px", // Checkbox
-        "25px", // Arrow
-        "15%",  // Label ID
+        // "25px", // Arrow
+        "12%",  // Label ID
         "10%",  // Part Code
-        "15%",  // Part Name
+        "25%",  // Part Name
         "8%",   // Model
         "5%",   // Qty
-        "10%",  // Vendor Name
+        "25%",  // Vendor Name
         "8%",   // Stock Level
-        "8%",   // Schedule Date
-        "15%",  // Received By
+        "12%",   // Schedule Date
+        "25%",  // Received By
         // No Action column
       ],
     },
@@ -1115,7 +1115,11 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     return currentItems.map((item, idx) => (
       <React.Fragment key={item.id}>
         <tr>
-          <td style={styles.expandedTd}>{startIndex + idx + 1}</td>
+          <td style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}>{startIndex + idx + 1}</td>
           <td style={styles.tdWithLeftBorder}>
             <input
               type="checkbox"
@@ -1130,7 +1134,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               }}
             />
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          {/* <td style={styles.tdWithLeftBorder}>
             <button
               style={styles.arrowButton}
               onClick={() => toggleRowExpansion(item.id)}
@@ -1141,7 +1145,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 <MdArrowRight style={styles.arrowIcon} />
               )}
             </button>
-          </td>
+          </td> */}
           <td style={styles.tdWithLeftBorder} title={item.label_id}>
             {item.label_id}
           </td>
@@ -1158,7 +1162,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
             {item.vendor_name || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder}>{item.stock_level || "-"}</td>
+          <td style={styles.tdWithLeftBorder}>M136</td>
           <td style={styles.tdWithLeftBorder}>
             {toDDMMYYYY(item.schedule_date)}
           </td>
@@ -1391,7 +1395,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               <table
                 style={{
                   ...styles.table,
-                  minWidth: "1200px",
+                  minWidth: "1250px",
                   tableLayout: "fixed",
                 }}
               >
@@ -1415,7 +1419,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                         />
                       )}
                     </th>
-                    <th style={styles.thWithLeftBorder}></th>
+                    {/* <th style={styles.thWithLeftBorder}></th> */}
                     <th style={styles.thWithLeftBorder}>Label ID</th>
                     <th style={styles.thWithLeftBorder}>Part Code</th>
                     <th style={styles.thWithLeftBorder}>Part Name</th>

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, Search, RefreshCw } from "lucide-react";
+import timerService from "../../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -16,7 +17,6 @@ const getAuthUserLocal = () => {
 };
 
 const AddPartsEnquiryNonIdPage = () => {
-  // ==================== STATE MANAGEMENT ====================
   const navigate = useNavigate();
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
@@ -36,8 +36,11 @@ const AddPartsEnquiryNonIdPage = () => {
 
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
   const [remarks, setRemarks] = useState({});
-  const [selectedMainTableItems, setSelectedMainTableItems] = useState(new Set());
+  const [selectedMainTableItems, setSelectedMainTableItems] = useState(
+    new Set(),
+  );
   const [selectAllMainTable, setSelectAllMainTable] = useState(false);
+  const [serverRequestedIds, setServerRequestedIds] = useState(new Set());
 
   const [addVendorDetail, setAddVendorDetail] = useState(false);
   const [addVendorFormData, setAddVendorFormData] = useState({
@@ -55,6 +58,59 @@ const AddPartsEnquiryNonIdPage = () => {
     return `${year}-${month}-${day}`;
   });
 
+  // ── Real-time clock ────────────────────────────────────────────────────────
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    timerService.start();
+    const unsubscribe = timerService.subscribe((newTime) => {
+      setCurrentTime(newTime);
+    });
+    return () => unsubscribe();
+  }, []);
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ── Trip dari DB ───────────────────────────────────────────────────────────
+  const [tripsData, setTripsData] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/trips`)
+      .then((r) => r.json())
+      .then((result) => {
+        if (result.success) setTripsData(result.data);
+      })
+      .catch((err) => console.error("[Trips] Fetch error:", err));
+  }, []);
+
+  /**
+   * Hitung trip aktif berdasarkan currentTime dan data dari DB.
+   * Menggunakan kolom depart_start–depart_end sebagai window request.
+   * Returns: { label: "Trip-04", timeRange: "09:30-10:15" } atau null jika di luar jadwal.
+   */
+  const getActiveTripInfo = (now) => {
+    const totalMinutes = (h, m) => h * 60 + m;
+    const parseTime = (str) => {
+      // str format "HH:MM"
+      const [h, m] = (str || "").split(":").map(Number);
+      return totalMinutes(h, m);
+    };
+
+    const nowMin = totalMinutes(now.getHours(), now.getMinutes());
+
+    for (const t of tripsData) {
+      const startMin = parseTime(t.req_from);
+      const endMin   = parseTime(t.req_to);
+      if (nowMin >= startMin && nowMin < endMin) {
+        return {
+          label:     t.trip_code,
+          timeRange: `${t.req_from}-${t.req_to}`,
+        };
+      }
+    }
+    return { label: "-", timeRange: "-" };
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
   const [addVendorPartDetail, setAddVendorPartDetail] = useState(false);
   const [addVendorPartFormData, setAddVendorPartFormData] = useState({
     trip: "",
@@ -70,16 +126,12 @@ const AddPartsEnquiryNonIdPage = () => {
   const itemsPerPage = 10;
   const totalPages = Math.ceil(partData.length / itemsPerPage);
 
-  // ==================== UTILITY FUNCTIONS ====================
-
-  // Pagination Functions
   const getCurrentPageData = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return partData.slice(startIndex, endIndex);
   };
 
-  // Fungsi untuk menangani perubahan halaman
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -93,10 +145,11 @@ const AddPartsEnquiryNonIdPage = () => {
   };
 
   const computeAddedStorageIds = () => {
-    return new Set(partData.map(p => p.storage_inventory_id).filter(id => id));
+    return new Set(
+      partData.map((p) => p.storage_inventory_id).filter((id) => id),
+    );
   };
 
-  // Expansion Functions
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
       const newExpandedRows = {
@@ -130,13 +183,9 @@ const AddPartsEnquiryNonIdPage = () => {
     }));
   };
 
-  // ==================== POPUP & FORM HANDLERS ====================
-
   const openThirdLevelPopup = () => {
     setAddVendorDetail(true);
   };
-
-  // ==================== STORAGE INVENTORY HANDLERS ====================
 
   const openVendorPartDetailPopup = async () => {
     if (!searchPartCode.trim()) {
@@ -149,30 +198,36 @@ const AddPartsEnquiryNonIdPage = () => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/storage-inventory?part_code=${searchPartCode.trim()}&status_tab=M136 System`
+        `${API_BASE}/api/storage-inventory?part_code=${searchPartCode.trim()}&status_tab=M136 System`,
       );
       const result = await response.json();
       if (result.success) {
         const sortedData = result.data.sort((a, b) => {
-          const getSuffix = (label) => {
-            const str = label || '';
-            return parseInt(str.slice(-6)) || 0;
-          };
+          const getSuffix = (label) => parseInt((label || "").slice(-6)) || 0;
           return getSuffix(a.label_id) - getSuffix(b.label_id);
         });
         setStorageInventoryData(sortedData);
+
+        // Hitung serverRequestedIds dari data yang baru
+        const requestedIds = new Set(
+          sortedData.filter(item => item.is_requested).map(item => item.id)
+        );
+        setServerRequestedIds(requestedIds);
+
         setPopupCurrentPage(1);
         setAddedStorageIds(computeAddedStorageIds());
       } else {
         alert("No data found");
         setStorageInventoryData([]);
         setAddedStorageIds(new Set());
+        setServerRequestedIds(new Set());
       }
     } catch (error) {
       console.error("Error fetching storage inventory:", error);
       alert("Error fetching data");
       setStorageInventoryData([]);
       setAddedStorageIds(new Set());
+      setServerRequestedIds(new Set());
     } finally {
       setLoadingStorage(false);
     }
@@ -180,27 +235,29 @@ const AddPartsEnquiryNonIdPage = () => {
 
   const refreshStorageData = async () => {
     if (!searchPartCode.trim()) return;
-
     setLoadingStorage(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/storage-inventory?part_code=${searchPartCode.trim()}&status_tab=M136 System`
+        `${API_BASE}/api/storage-inventory?part_code=${searchPartCode.trim()}&status_tab=M136 System`,
       );
       const result = await response.json();
       if (result.success) {
         const sortedData = result.data.sort((a, b) => {
-          const getSuffix = (label) => {
-            const str = label || '';
-            return parseInt(str.slice(-6)) || 0;
-          };
+          const getSuffix = (label) => parseInt((label || "").slice(-6)) || 0;
           return getSuffix(a.label_id) - getSuffix(b.label_id);
         });
         setStorageInventoryData(sortedData);
+        const requestedIds = new Set(
+          sortedData.filter(item => item.is_requested).map(item => item.id)
+        );
+        setServerRequestedIds(requestedIds);
+
         setPopupCurrentPage(1);
         setAddedStorageIds(computeAddedStorageIds());
       } else {
         setStorageInventoryData([]);
         setAddedStorageIds(new Set());
+        setServerRequestedIds(new Set());
       }
     } catch (error) {
       console.error("Error refreshing storage inventory:", error);
@@ -225,6 +282,13 @@ const AddPartsEnquiryNonIdPage = () => {
   };
 
   const handleSelectStorageItem = (id) => {
+    const item = storageInventoryData.find(i => i.id === id);
+    if (!item) return;
+
+    // Cek apakah item sudah ada di addedStorageIds atau serverRequestedIds
+    const isDisabled = addedStorageIds.has(id) || serverRequestedIds.has(id);
+    if (isDisabled) return;
+
     setSelectedStorageItems((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
@@ -237,21 +301,26 @@ const AddPartsEnquiryNonIdPage = () => {
   };
 
   const handleAddSelectedStorageItems = () => {
+    // Cek HOLD dulu
     const holdItems = storageInventoryData.filter(
-      item => selectedStorageItems.has(item.id) && item.status_part === 'HOLD'
+      (item) => selectedStorageItems.has(item.id) && item.status_part === "HOLD"
     );
-
     if (holdItems.length > 0) {
       alert("Cannot insert items with HOLD status. Please deselect HOLD items.");
       return;
     }
 
-    const selectedItems = storageInventoryData.filter((item) =>
-      selectedStorageItems.has(item.id) && item.status_part !== 'HOLD'
+    // Ambil item yang dipilih dan belum ada di mana pun
+    const selectedItems = storageInventoryData.filter(
+      (item) =>
+        selectedStorageItems.has(item.id) &&
+        item.status_part !== "HOLD" &&
+        !addedStorageIds.has(item.id) &&
+        !serverRequestedIds.has(item.id)
     );
 
     if (selectedItems.length === 0) {
-      alert("No items selected");
+      alert("No valid items selected");
       return;
     }
 
@@ -267,7 +336,7 @@ const AddPartsEnquiryNonIdPage = () => {
       labelId: item.label_id,
       stockLevel: item.stock_level,
       status: item.status_part,
-      remark: ""
+      remark: "",
     }));
 
     setPartData((prev) => [...prev, ...newParts]);
@@ -279,13 +348,11 @@ const AddPartsEnquiryNonIdPage = () => {
     setAddedStorageIds(new Set());
   };
 
-  // ==================== MAIN TABLE HANDLERS ====================
-
   const handleRemarkChange = (partId, value) => {
     setPartData((prevParts) =>
       prevParts.map((part) =>
-        part.id === partId ? { ...part, remark: value } : part
-      )
+        part.id === partId ? { ...part, remark: value } : part,
+      ),
     );
   };
 
@@ -302,18 +369,20 @@ const AddPartsEnquiryNonIdPage = () => {
   };
 
   const handleSelectAllMainTable = () => {
-    const validParts = partData.filter(p => p.partCode && p.partCode.trim() !== "");
+    const validParts = partData.filter(
+      (p) => p.partCode && p.partCode.trim() !== "",
+    );
     if (selectAllMainTable) {
       setSelectedMainTableItems(new Set());
     } else {
-      setSelectedMainTableItems(new Set(validParts.map(p => p.id)));
+      setSelectedMainTableItems(new Set(validParts.map((p) => p.id)));
     }
     setSelectAllMainTable(!selectAllMainTable);
   };
 
   const handleDeleteFromMainTable = (id) => {
-    setPartData(prev => prev.filter(p => p.id !== id));
-    setSelectedMainTableItems(prev => {
+    setPartData((prev) => prev.filter((p) => p.id !== id));
+    setSelectedMainTableItems((prev) => {
       const newSet = new Set(prev);
       newSet.delete(id);
       return newSet;
@@ -358,7 +427,7 @@ const AddPartsEnquiryNonIdPage = () => {
   const removeDoNumberField = (index) => {
     if (addVendorFormData.doNumbers.length > 1) {
       const updatedDoNumbers = addVendorFormData.doNumbers.filter(
-        (_, i) => i !== index
+        (_, i) => i !== index,
       );
       setAddVendorFormData((prev) => ({
         ...prev,
@@ -370,7 +439,7 @@ const AddPartsEnquiryNonIdPage = () => {
   const removeVendorPartDoNumberField = (index) => {
     if (addVendorPartFormData.doNumbers.length > 1) {
       const updatedDoNumbers = addVendorPartFormData.doNumbers.filter(
-        (_, i) => i !== index
+        (_, i) => i !== index,
       );
       setAddVendorPartFormData((prev) => ({
         ...prev,
@@ -406,9 +475,8 @@ const AddPartsEnquiryNonIdPage = () => {
   const handleAddPart = (partCode) => {
     if (!partCode.trim()) return;
 
-    // Get available DO numbers from addVendorFormData
     const availableDoNumbers = addVendorFormData.doNumbers.filter((doNum) =>
-      doNum.trim()
+      doNum.trim(),
     );
 
     if (availableDoNumbers.length === 0) {
@@ -439,11 +507,10 @@ const AddPartsEnquiryNonIdPage = () => {
     setPartData(partData.filter((part) => part.id !== id));
   };
 
-
-  // ==================== SAVE & SUBMIT HANDLERS ====================
-
   const handleSaveConfiguration = async () => {
-    const validParts = partData.filter(p => p.partCode && p.partCode.trim() !== "");
+    const validParts = partData.filter(
+      (p) => p.partCode && p.partCode.trim() !== "",
+    );
 
     if (validParts.length === 0) {
       alert("No parts to save");
@@ -455,9 +522,10 @@ const AddPartsEnquiryNonIdPage = () => {
       return;
     }
 
-    const partsToSave = validParts.length === 1
-      ? validParts
-      : validParts.filter(p => selectedMainTableItems.has(p.id));
+    const partsToSave =
+      validParts.length === 1
+        ? validParts
+        : validParts.filter((p) => selectedMainTableItems.has(p.id));
 
     if (partsToSave.length === 0) {
       alert("No parts selected");
@@ -468,14 +536,14 @@ const AddPartsEnquiryNonIdPage = () => {
       const user = getAuthUserLocal();
       const requestedByName = user?.emp_name || user?.name || "Unknown";
 
-      const parts = partsToSave.map(part => ({
+      const parts = partsToSave.map((part) => ({
         storage_inventory_id: part.storage_inventory_id,
         label_id: part.labelId,
         part_code: part.partCode,
         part_name: part.partName || "",
         model: part.model || "",
         qty_requested: parseInt(part.reqQty) || 0,
-        remark: part.remark || ""
+        remark: part.remark || "",
       }));
 
       const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id`, {
@@ -483,8 +551,8 @@ const AddPartsEnquiryNonIdPage = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           parts: parts,
-          requested_by_name: requestedByName
-        })
+          requested_by_name: requestedByName,
+        }),
       });
 
       const result = await response.json();
@@ -500,13 +568,14 @@ const AddPartsEnquiryNonIdPage = () => {
     }
   };
 
-  const popupTotalPages = Math.ceil(storageInventoryData.length / popupItemsPerPage);
+  const popupTotalPages = Math.ceil(
+    storageInventoryData.length / popupItemsPerPage,
+  );
   const popupCurrentData = storageInventoryData.slice(
     (popupCurrentPage - 1) * popupItemsPerPage,
-    popupCurrentPage * popupItemsPerPage
+    popupCurrentPage * popupItemsPerPage,
   );
 
-  // ==================== STYLES ====================
   const styles = {
     pageContainer: {
       fontFamily:
@@ -1082,7 +1151,6 @@ const AddPartsEnquiryNonIdPage = () => {
     },
   };
 
-
   const vendorPartStyles = {
     popupOverlay: {
       position: "fixed",
@@ -1095,7 +1163,6 @@ const AddPartsEnquiryNonIdPage = () => {
       justifyContent: "center",
       alignItems: "center",
       zIndex: 99999,
-      boxSizing: "border-box",
     },
     popupContainer: {
       backgroundColor: "white",
@@ -1104,17 +1171,18 @@ const AddPartsEnquiryNonIdPage = () => {
       boxShadow: "0 50px 25px rgba(0, 0, 0, 0.1)",
       width: "100%",
       maxWidth: "900px",
-      maxHeight: "90vh",
-      overflowY: "auto",
+      height: "70vh", // Tinggi tetap
       display: "flex",
       flexDirection: "column",
       margin: "20px 0",
+      overflow: "hidden", // Mencegah scroll di luar container
     },
     popupHeader: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: "16px",
+      flexShrink: 0, // Header tidak mengecil
     },
     popupTitle: {
       margin: 0,
@@ -1176,7 +1244,7 @@ const AddPartsEnquiryNonIdPage = () => {
     partsListHeader: {
       padding: "12px 16px",
       borderBottom: "1px solid #e5e7eb",
-      backgroundColor: "##e0e7ff",
+      backgroundColor: "#e0e7ff",
       fontWeight: "600",
       fontSize: "14px",
     },
@@ -1214,24 +1282,35 @@ const AddPartsEnquiryNonIdPage = () => {
       alignItems: "center",
       gap: "4px",
     },
-    partDetailsSection: {
-      marginBottom: "16px",
+    form: {
+      display: "flex",
+      flexDirection: "column",
+      flex: 1, // Mengisi sisa ruang setelah header
+      minHeight: 0,
     },
-    sectionTitle: {
-      marginBottom: "8px",
-      fontWeight: "500",
-      fontSize: "16px",
+    partDetailsSection: {
+      flex: 1,
+      minHeight: 0,
+      display: "flex",
+      flexDirection: "column",
+      marginBottom: "8.7px",
     },
     tableContainer: {
-      marginLeft: "5px",
+      flex: 1,
+      minHeight: 0,
+      display: "flex",
+      flexDirection: "column",
       backgroundColor: "white",
       borderRadius: "8px",
       boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
       overflow: "hidden",
-      display: "flex",
-      flexDirection: "column",
-      maxHeight: "500px",
-      width: "calc(100% - 5px)",
+      width: "100%",
+    },
+    tableBodyWrapper: {
+      flex: 1,
+      overflowY: "auto",
+      border: "1.5px solid #9fa8da",
+      borderBottom: "none",
     },
     table: {
       width: "100%",
@@ -1246,12 +1325,6 @@ const AddPartsEnquiryNonIdPage = () => {
       fontSize: "12px",
       textAlign: "center",
     },
-    tableBodyWrapper: {
-      overflowY: "auto",
-      flex: "1",
-      border: "1.5px solid #9fa8da",
-      borderBottom: "none",
-    },
     th: {
       padding: "2px 4px",
       borderTop: "1.5px solid #9fa8da",
@@ -1264,8 +1337,6 @@ const AddPartsEnquiryNonIdPage = () => {
       height: "25px",
       lineHeight: "1",
       verticalAlign: "middle",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
     },
     td: {
       padding: "2px 4px",
@@ -1276,8 +1347,6 @@ const AddPartsEnquiryNonIdPage = () => {
       height: "25px",
       lineHeight: "1",
       verticalAlign: "middle",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
     },
     tdNumber: {
       padding: "2px 4px",
@@ -1288,7 +1357,6 @@ const AddPartsEnquiryNonIdPage = () => {
       height: "25px",
       lineHeight: "1",
       verticalAlign: "middle",
-      overflow: "hidden",
       backgroundColor: "#e0e7ff",
       textAlign: "center",
     },
@@ -1306,7 +1374,8 @@ const AddPartsEnquiryNonIdPage = () => {
       display: "flex",
       justifyContent: "flex-end",
       gap: "8px",
-      marginTop: "16px",
+      marginTop: "16px", // ← jarak konsisten antara pagination dan tombol
+      flexShrink: 0,
     },
     cancelButton: {
       padding: "8px 16px",
@@ -1337,6 +1406,7 @@ const AddPartsEnquiryNonIdPage = () => {
       fontSize: "12px",
       color: "#374151",
       height: "20px",
+      flexShrink: 0, // Pagination tetap di bawah tabel
     },
     paginationControls: {
       display: "flex",
@@ -1371,8 +1441,6 @@ const AddPartsEnquiryNonIdPage = () => {
     },
   };
 
-
-  // ==================== RENDER ====================
   return (
     <div style={styles.pageContainer}>
       <div style={styles.welcomeCard}>
@@ -1419,7 +1487,7 @@ const AddPartsEnquiryNonIdPage = () => {
                         value={searchPartCode}
                         onChange={(e) => setSearchPartCode(e.target.value)}
                         onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             e.preventDefault();
                             openVendorPartDetailPopup();
                           }
@@ -1463,13 +1531,13 @@ const AddPartsEnquiryNonIdPage = () => {
                   <label htmlFor="tripDisplay" style={styles.label}>
                     Trip
                   </label>
-                  <p style={styles.tripDisplay}>Trip-11</p>
+                  <p style={styles.tripDisplay}>{getActiveTripInfo(currentTime).label}</p>
                 </div>
                 <div>
                   <label htmlFor="timeTrip" style={styles.label}>
                     Trip Time
                   </label>
-                  <p style={styles.timeDisplay}>18:30-19:15</p>
+                  <p style={styles.timeDisplay}>{getActiveTripInfo(currentTime).timeRange}</p>
                 </div>
               </div>
             </div>
@@ -1494,6 +1562,7 @@ const AddPartsEnquiryNonIdPage = () => {
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "15%" }} />
                   <col style={{ width: "6%" }} />
                 </colgroup>
@@ -1501,20 +1570,22 @@ const AddPartsEnquiryNonIdPage = () => {
                   <tr style={styles.tableHeader}>
                     <th style={styles.expandedTh}>No</th>
                     <th style={styles.thWithLeftBorder}>
-                      {partData.filter(p => p.partCode && p.partCode.trim() !== "").length > 1 && (
-                        <input
-                          type="checkbox"
-                          checked={selectAllMainTable}
-                          onChange={handleSelectAllMainTable}
-                          style={{
-                            margin: "0 auto",
-                            display: "block",
-                            cursor: "pointer",
-                            width: "12px",
-                            height: "12px",
-                          }}
-                        />
-                      )}
+                      {partData.filter(
+                        (p) => p.partCode && p.partCode.trim() !== "",
+                      ).length > 1 && (
+                          <input
+                            type="checkbox"
+                            checked={selectAllMainTable}
+                            onChange={handleSelectAllMainTable}
+                            style={{
+                              margin: "0 auto",
+                              display: "block",
+                              cursor: "pointer",
+                              width: "12px",
+                              height: "12px",
+                            }}
+                          />
+                        )}
                     </th>
                     <th style={styles.thWithLeftBorder}>Label ID</th>
                     <th style={styles.thWithLeftBorder}>Part Code</th>
@@ -1522,79 +1593,112 @@ const AddPartsEnquiryNonIdPage = () => {
                     <th style={styles.thWithLeftBorder}>Model</th>
                     <th style={styles.thWithLeftBorder}>Qty Req</th>
                     <th style={styles.thWithLeftBorder}>Stock Level</th>
+                    <th style={styles.thWithLeftBorder}>Trip</th>
                     <th style={styles.thWithLeftBorder}>Status</th>
                     <th style={styles.thWithLeftBorder}>Remark</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {partData.filter(p => p.partCode && p.partCode.trim() !== "").length === 0 ? (
-                    <tr>
-
-                    </tr>
+                  {partData.filter(
+                    (p) => p.partCode && p.partCode.trim() !== "",
+                  ).length === 0 ? (
+                    <tr></tr>
                   ) : (
-                    partData.filter(p => p.partCode && p.partCode.trim() !== "").map((part, index) => (
-                      <tr
-                        key={part.id}
-                        style={{
-                          backgroundColor: selectedMainTableItems.has(part.id) ? "#c7cde8" : "transparent"
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.closest("tr").style.backgroundColor = "#c7cde8";
-                        }}
-                        onMouseLeave={(e) => {
-                          if (selectedMainTableItems.has(part.id)) {
-                            e.target.closest("tr").style.backgroundColor = "#c7cde8";
-                          } else {
-                            e.target.closest("tr").style.backgroundColor = "transparent";
-                          }
-                        }}
-                      >
-                        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
-                          {index + 1}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {partData.filter(p => p.partCode && p.partCode.trim() !== "").length > 1 && (
-                            <input
-                              type="checkbox"
-                              checked={selectedMainTableItems.has(part.id)}
-                              onChange={() => handleMainTableCheckbox(part.id)}
-                              style={{
-                                margin: "0 auto",
-                                display: "block",
-                                cursor: "pointer",
-                                width: "12px",
-                                height: "12px",
-                              }}
-                            />
-                          )}
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>{part.labelId || "-"}</td>
-                        <td style={styles.tdWithLeftBorder}>{part.partCode}</td>
-                        <td style={styles.tdWithLeftBorder}>{part.partName}</td>
-                        <td style={styles.tdWithLeftBorder}>{part.model || "-"}</td>
-                        <td style={styles.tdWithLeftBorder}>{part.reqQty}</td>
-                        <td style={styles.tdWithLeftBorder}>M136</td>
-                        <td style={styles.tdWithLeftBorder}>{part.status || "-"}</td>
-                        <td style={styles.tdWithLeftBorder}>
-                          <input
-                            type="text"
-                            value={part.remark || ""}
-                            onChange={(e) => handleRemarkChange(part.id, e.target.value)}
-                            placeholder="Enter remark..."
-                            style={styles.remarkInput}
-                          />
-                        </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          <button
-                            onClick={() => handleDeleteFromMainTable(part.id)}
-                            style={styles.deleteButton}
+                    partData
+                      .filter((p) => p.partCode && p.partCode.trim() !== "")
+                      .map((part, index) => (
+                        <tr
+                          key={part.id}
+                          style={{
+                            backgroundColor: selectedMainTableItems.has(part.id)
+                              ? "#c7cde8"
+                              : "transparent",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedMainTableItems.has(part.id)) {
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                            } else {
+                              e.target.closest("tr").style.backgroundColor =
+                                "transparent";
+                            }
+                          }}
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
                           >
-                            <Trash2 size={10} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                            {index + 1}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {partData.filter(
+                              (p) => p.partCode && p.partCode.trim() !== "",
+                            ).length > 1 && (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedMainTableItems.has(part.id)}
+                                  onChange={() =>
+                                    handleMainTableCheckbox(part.id)
+                                  }
+                                  style={{
+                                    margin: "0 auto",
+                                    display: "block",
+                                    cursor: "pointer",
+                                    width: "12px",
+                                    height: "12px",
+                                  }}
+                                />
+                              )}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.labelId || "-"}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.partCode}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.partName}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.model || "-"}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>{part.reqQty}</td>
+                          <td style={styles.tdWithLeftBorder}>M136</td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {getActiveTripInfo(currentTime).label}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            {part.status || "-"}
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            <input
+                              type="text"
+                              value={part.remark || ""}
+                              onChange={(e) =>
+                                handleRemarkChange(part.id, e.target.value)
+                              }
+                              placeholder="Enter remark..."
+                              style={styles.remarkInput}
+                            />
+                          </td>
+                          <td style={styles.tdWithLeftBorder}>
+                            <button
+                              onClick={() => handleDeleteFromMainTable(part.id)}
+                              style={styles.deleteButton}
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -1635,8 +1739,11 @@ const AddPartsEnquiryNonIdPage = () => {
               <h3 style={vendorPartStyles.popupTitle}>
                 Part List Stock In M136
               </h3>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <div
+                style={{ display: "flex", gap: "8px", alignItems: "center" }}
+              >
                 <button
+                  type="button"
                   onClick={refreshStorageData}
                   style={{
                     background: "none",
@@ -1652,6 +1759,7 @@ const AddPartsEnquiryNonIdPage = () => {
                   <RefreshCw size={12} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setAddVendorPartDetail(false);
                     setAddedStorageIds(new Set());
@@ -1663,28 +1771,34 @@ const AddPartsEnquiryNonIdPage = () => {
                 </button>
               </div>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); handleAddSelectedStorageItems(); }} style={vendorPartStyles.form}>
-              <div style={vendorPartStyles.partDetailsSection}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAddSelectedStorageItems();
+              }}
+              style={vendorPartStyles.form}
+            >
+              <div style={{ ...vendorPartStyles.partDetailsSection, gap: 0 }}>
                 <div style={vendorPartStyles.tableContainer}>
                   <div style={vendorPartStyles.tableBodyWrapper}>
                     <table
                       style={{
                         ...vendorPartStyles.table,
-                        minWidth: "950px",
+                        minWidth: "880px",
                         tableLayout: "fixed",
                       }}
                     >
                       <colgroup>
                         <col style={{ width: "2.5%" }} />
                         <col style={{ width: "2.5%" }} />
-                        <col style={{ width: "15%" }} />
-                        <col style={{ width: "15%" }} />
-                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "12%" }} />
                         <col style={{ width: "10%" }} />
+                        <col style={{ width: "20%" }} />
                         <col style={{ width: "8%" }} />
+                        <col style={{ width: "6%" }} />
                         <col style={{ width: "8%" }} />
-                        <col style={{ width: "8%" }} />
-                        <col style={{ width: "7%" }} />
+                        <col style={{ width: "6%" }} />
+                        <col style={{ width: "5%" }} />
                       </colgroup>
                       <thead>
                         <tr style={vendorPartStyles.tableHeader}>
@@ -1693,15 +1807,25 @@ const AddPartsEnquiryNonIdPage = () => {
                             <input
                               type="checkbox"
                               checked={
-                                storageInventoryData.filter(item => item.status_part !== 'HOLD').length > 0 &&
-                                storageInventoryData.filter(item => item.status_part !== 'HOLD').every(item => selectedStorageItems.has(item.id))
+                                storageInventoryData.filter(
+                                  (item) => item.status_part !== "HOLD",
+                                ).length > 0 &&
+                                storageInventoryData
+                                  .filter((item) => item.status_part !== "HOLD")
+                                  .every((item) =>
+                                    selectedStorageItems.has(item.id),
+                                  )
                               }
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   const allSelectable = storageInventoryData
-                                    .filter(item => item.status_part !== 'HOLD')
-                                    .map(item => item.id);
-                                  setSelectedStorageItems(new Set(allSelectable));
+                                    .filter(
+                                      (item) => item.status_part !== "HOLD",
+                                    )
+                                    .map((item) => item.id);
+                                  setSelectedStorageItems(
+                                    new Set(allSelectable),
+                                  );
                                 } else {
                                   setSelectedStorageItems(new Set());
                                 }
@@ -1734,7 +1858,6 @@ const AddPartsEnquiryNonIdPage = () => {
                           </tr>
                         ) : storageInventoryData.length === 0 ? (
                           <tr>
-                            {/* Optional: tampilkan pesan kosong */}
                             <td colSpan="10" style={{ textAlign: "center", padding: "20px", color: "#9ca3af" }}>
                               No data available
                             </td>
@@ -1742,80 +1865,64 @@ const AddPartsEnquiryNonIdPage = () => {
                         ) : (
                           popupCurrentData.map((item, index) => {
                             const actualIndex = (popupCurrentPage - 1) * popupItemsPerPage + index + 1;
+                            const isDisabled = addedStorageIds.has(item.id) || serverRequestedIds.has(item.id);
+                            const isSelected = selectedStorageItems.has(item.id);
+
+                            let backgroundColor = "transparent";
+                            if (addedStorageIds.has(item.id) || serverRequestedIds.has(item.id)) {
+                              backgroundColor = "#a5b4fc"; // biru untuk yang sudah ada
+                            } else if (isSelected) {
+                              backgroundColor = "#c7cde8";
+                            } else if (item.status_part === "HOLD") {
+                              backgroundColor = "#fee2e2";
+                            }
+
                             return (
                               <tr
                                 key={item.id}
-                                style={{
-                                  backgroundColor: addedStorageIds.has(item.id)
-                                    ? "#a5b4fc"
-                                    : item.status_part === 'HOLD'
-                                      ? '#fee2e2'
-                                      : selectedStorageItems.has(item.id)
-                                        ? "#c7cde8"
-                                        : "transparent"
-                                }}
+                                style={{ backgroundColor }}
                                 onMouseEnter={(e) => {
-                                  if (!addedStorageIds.has(item.id) && item.status_part !== 'HOLD') {
+                                  if (!isDisabled && item.status_part !== "HOLD") {
                                     e.target.closest("tr").style.backgroundColor = "#c7cde8";
                                   }
                                 }}
                                 onMouseLeave={(e) => {
-                                  if (addedStorageIds.has(item.id)) {
-                                    e.target.closest("tr").style.backgroundColor = "#a5b4fc";
-                                  } else if (item.status_part === 'HOLD') {
-                                    e.target.closest("tr").style.backgroundColor = '#fee2e2';
-                                  } else if (selectedStorageItems.has(item.id)) {
-                                    e.target.closest("tr").style.backgroundColor = "#c7cde8";
-                                  } else {
-                                    e.target.closest("tr").style.backgroundColor = "transparent";
-                                  }
+                                  e.target.closest("tr").style.backgroundColor = backgroundColor;
                                 }}
                               >
-                                <td style={vendorPartStyles.tdNumber}>
-                                  {actualIndex}
-                                </td>
+                                <td style={vendorPartStyles.tdNumber}>{actualIndex}</td>
                                 <td style={vendorPartStyles.td}>
                                   <input
                                     type="checkbox"
-                                    checked={selectedStorageItems.has(item.id) || addedStorageIds.has(item.id)}
+                                    checked={selectedStorageItems.has(item.id)}
                                     onChange={() => handleSelectStorageItem(item.id)}
-                                    disabled={item.status_part === 'HOLD' || addedStorageIds.has(item.id)}
+                                    disabled={isDisabled || item.status_part === "HOLD"}
                                     style={{
                                       margin: "0 auto",
                                       display: "block",
-                                      cursor: (item.status_part === 'HOLD' || addedStorageIds.has(item.id)) ? 'not-allowed' : 'pointer',
+                                      cursor: (isDisabled || item.status_part === "HOLD") ? "not-allowed" : "pointer",
                                       width: "12px",
                                       height: "12px",
-                                      opacity: (item.status_part === 'HOLD' || addedStorageIds.has(item.id)) ? 0.5 : 1
+                                      opacity: (isDisabled || item.status_part === "HOLD") ? 0.5 : 1,
                                     }}
                                   />
                                 </td>
-                                <td style={vendorPartStyles.td}>
-                                  {item.label_id}
-                                </td>
-                                <td style={vendorPartStyles.td}>
-                                  {item.part_code}
-                                </td>
-                                <td style={vendorPartStyles.td}>
-                                  {item.part_name}
-                                </td>
-                                <td style={vendorPartStyles.td}>
-                                  {item.model}
-                                </td>
+                                <td style={vendorPartStyles.td}>{item.label_id}</td>
+                                <td style={vendorPartStyles.td}>{item.part_code}</td>
+                                <td style={vendorPartStyles.td}>{item.part_name}</td>
+                                <td style={vendorPartStyles.td}>{item.model}</td>
                                 <td style={vendorPartStyles.td}>{item.qty}</td>
-                                <td style={vendorPartStyles.td}>
-                                  M136
-                                </td>
-                                <td style={{
-                                  ...vendorPartStyles.td,
-                                  color: item.status_part === 'HOLD' ? '#dc2626' : 'inherit',
-                                  fontWeight: item.status_part === 'HOLD' ? '600' : 'normal'
-                                }}>
+                                <td style={vendorPartStyles.td}>M136</td>
+                                <td
+                                  style={{
+                                    ...vendorPartStyles.td,
+                                    color: item.status_part === "HOLD" ? "#dc2626" : "inherit",
+                                    fontWeight: item.status_part === "HOLD" ? "600" : "normal",
+                                  }}
+                                >
                                   {item.status_part}
                                 </td>
-                                <td style={vendorPartStyles.td}>
-                                  -
-                                </td>
+                                <td style={vendorPartStyles.td}>-</td>
                               </tr>
                             );
                           })
@@ -1826,6 +1933,7 @@ const AddPartsEnquiryNonIdPage = () => {
                   <div style={vendorPartStyles.paginationBar}>
                     <div style={vendorPartStyles.paginationControls}>
                       <button
+                        type="button"
                         style={vendorPartStyles.paginationButton}
                         onClick={() => handlePopupPageChange(1)}
                         disabled={popupCurrentPage === 1}
@@ -1833,8 +1941,11 @@ const AddPartsEnquiryNonIdPage = () => {
                         {"<<"}
                       </button>
                       <button
+                        type="button"
                         style={vendorPartStyles.paginationButton}
-                        onClick={() => handlePopupPageChange(popupCurrentPage - 1)}
+                        onClick={() =>
+                          handlePopupPageChange(popupCurrentPage - 1)
+                        }
                         disabled={popupCurrentPage === 1}
                       >
                         {"<"}
@@ -1846,20 +1957,28 @@ const AddPartsEnquiryNonIdPage = () => {
                         style={vendorPartStyles.paginationInput}
                         onChange={(e) => {
                           const page = parseInt(e.target.value);
-                          if (!isNaN(page) && page >= 1 && page <= popupTotalPages) {
+                          if (
+                            !isNaN(page) &&
+                            page >= 1 &&
+                            page <= popupTotalPages
+                          ) {
                             handlePopupPageChange(page);
                           }
                         }}
                       />
                       <span>of {popupTotalPages}</span>
                       <button
+                        type="button"
                         style={vendorPartStyles.paginationButton}
-                        onClick={() => handlePopupPageChange(popupCurrentPage + 1)}
+                        onClick={() =>
+                          handlePopupPageChange(popupCurrentPage + 1)
+                        }
                         disabled={popupCurrentPage === popupTotalPages}
                       >
                         {">"}
                       </button>
                       <button
+                        type="button"
                         style={vendorPartStyles.paginationButton}
                         onClick={() => handlePopupPageChange(popupTotalPages)}
                         disabled={popupCurrentPage === popupTotalPages}
@@ -1873,7 +1992,6 @@ const AddPartsEnquiryNonIdPage = () => {
                   </div>
                 </div>
               </div>
-
               <div style={vendorPartStyles.buttonGroup}>
                 <button
                   type="button"
