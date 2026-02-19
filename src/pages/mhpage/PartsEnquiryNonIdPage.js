@@ -71,7 +71,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     const nowMin = totalMinutes(now.getHours(), now.getMinutes());
     for (const t of source) {
       const startMin = parseTime(t.req_from);
-      const endMin   = parseTime(t.req_to);
+      const endMin = parseTime(t.req_to);
       if (nowMin >= startMin && nowMin < endMin) {
         return { label: t.trip_code, timeRange: `${t.req_from}-${t.req_to}` };
       }
@@ -165,6 +165,23 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       ],
       headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By"],
       showCheckbox: false,
+      showAction: false,
+    },
+    "Arrived": {
+      cols: [
+        "3.5%", // No
+        "3.5%", // Checkbox
+        "15%",  // Label ID
+        "12%",  // Part Code
+        "27%",  // Part Name
+        "8%",   // Model
+        "8%",   // Qty Req
+        "8%",   // Trip
+        "15%",  // Remark
+        "35%",  // Request By
+      ],
+      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By"],
+      showCheckbox: true,
       showAction: false,
     },
     "Complete": {
@@ -430,6 +447,44 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       alert("Error moving to InTransit");
     }
   };
+
+  // ========== MOVE TO COMPLETE (tab Arrived) ==========
+  const handleMoveToComplete = async () => {
+    if (selectedItems.size === 0) {
+      alert("Please select at least one item to move to Complete");
+      return;
+    }
+    if (!window.confirm(`Move ${selectedItems.size} item(s) to Complete?`)) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedItems) }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        alert(result.message);
+        setSelectedItems(new Set());
+        setSelectAll(false);
+        fetchPartsEnquiry();
+      } else {
+        alert("Failed: " + result.message);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error moving to Complete");
+    }
+  };
+
+  // ========== AUTO-REFRESH: polling tiap 60 detik di tab InTransit & Arrived ==========
+  // Agar perpindahan otomatis (InTransit → Arrived via scheduler) langsung terlihat
+  useEffect(() => {
+    if (!["InTransit", "Arrived"].includes(activeTab)) return;
+    const interval = setInterval(() => fetchPartsEnquiry(), 30 * 1000);
+    return () => clearInterval(interval);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ========== PDF DOWNLOAD (tab Received) ==========
   const handleDownloadPDF = () => {
@@ -721,6 +776,62 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       );
     }
 
+    return currentItems.map((part, idx) => (
+      <tr
+        key={part.id}
+        style={{
+          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+        }}
+        onMouseEnter={(e) =>
+          (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+        }
+        onMouseLeave={(e) => {
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
+            ? "#c7cde8"
+            : "transparent";
+        }}
+      >
+        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+          {startIndex + idx + 1}
+        </td>
+        <td style={styles.tdWithLeftBorder}>
+          <input
+            type="checkbox"
+            checked={selectedItems.has(part.id)}
+            onChange={() => handleCheckbox(part.id)}
+            style={{
+              margin: "0 auto",
+              display: "block",
+              cursor: "pointer",
+              width: "12px",
+              height: "12px",
+            }}
+          />
+        </td>
+        <td style={styles.tdWithLeftBorder}>{part.label_id || "-"}</td>
+        <td style={styles.tdWithLeftBorder}>{part.part_code}</td>
+        <td style={styles.tdWithLeftBorder}>{part.part_name}</td>
+        <td style={styles.tdWithLeftBorder}>{part.model}</td>
+        <td style={styles.tdWithLeftBorder}>{part.qty_requested}</td>
+        <td style={styles.tdWithLeftBorder}>{part.trip || "-"}</td>
+        <td style={styles.tdWithLeftBorder}>{part.remark || "-"}</td>
+        <td style={styles.tdWithLeftBorder}>
+          {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
+        </td>
+      </tr>
+    ));
+  };
+
+  const renderArrivedTab = () => {
+    if (loading) {
+      return (
+        <tr>
+          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+            Loading...
+          </td>
+        </tr>
+      );
+    }
     return currentItems.map((part, idx) => (
       <tr
         key={part.id}
@@ -1093,7 +1204,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       cursor: "pointer",
       marginLeft: "4px",
     },
-     remarkInput: {
+    remarkInput: {
       display: "flex",
       height: "1rem",
       width: "90%",
@@ -1305,7 +1416,42 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               </table>
             )}
 
-            {!["New", "Waiting", "Received"].includes(activeTab) && (
+            {activeTab === "Arrived" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "950px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig["Arrived"].cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    {tableConfig["Arrived"].headers.map((header, idx) => (
+                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                        {header === "☑" && currentItems.length > 1 ? (
+                          <input
+                            type="checkbox"
+                            checked={selectAll}
+                            onChange={handleSelectAll}
+                            style={{
+                              margin: "0 auto",
+                              display: "block",
+                              cursor: "pointer",
+                              width: "12px",
+                              height: "12px",
+                            }}
+                          />
+                        ) : header === "☑" ? "" : header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>{renderArrivedTab()}</tbody>
+              </table>
+            )}
+
+            {!["New", "Waiting", "Received", "Arrived"].includes(activeTab) && (
               <table
                 style={{
                   ...styles.table,
@@ -1431,6 +1577,18 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             >
               <MdArrowRight size={16} />
               Move to InTransit
+            </button>
+          </div>
+        )}
+
+        {activeTab === "Arrived" && partsData.length > 0 && (
+          <div style={styles.saveConfiguration}>
+            <button
+              style={{ ...styles.button, ...styles.primaryButton }}
+              onClick={handleMoveToComplete}
+            >
+              <Check size={16} />
+              Move to Complete
             </button>
           </div>
         )}
