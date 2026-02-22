@@ -210,7 +210,7 @@ const StockOverviewPage = () => {
     },
     h2: {
       fontSize: "18px",
-      fontWeight: "600",
+      fontWeight: "630",
       marginBottom: "5px",
       color: "#4b5563",
     },
@@ -774,7 +774,7 @@ const StockOverviewPage = () => {
                   <col style={{ width: "12%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "10%" }} />
-                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "18%" }} />
                   <col style={{ width: "25%" }} />
                   <col style={{ width: "25%" }} />
                 </colgroup>
@@ -804,12 +804,12 @@ const StockOverviewPage = () => {
                       <tr
                         key={movement.id}
                         onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8")
                         }
                         onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "transparent")
                         }
                       >
                         <td
@@ -856,10 +856,16 @@ const StockOverviewPage = () => {
                           {movement.movement_type === "IN" ? "+" : "-"}
                           {movement.quantity}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
-                          {movement.production_date
+                        <td style={styles.tdWithLeftBorder} title={movement.production_dates
+                          ? movement.production_dates
+                          : movement.production_date
                             ? formatDate(movement.production_date)
-                            : "-"}
+                            : "-"}>
+                          {movement.production_dates
+                            ? movement.production_dates
+                            : movement.production_date
+                              ? formatDate(movement.production_date)
+                              : "-"}
                         </td>
                         <td
                           style={styles.tdWithLeftBorder}
@@ -872,9 +878,7 @@ const StockOverviewPage = () => {
                             : "-"}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
-                          {movement.moved_by_name
-                            ? `${movement.moved_by_name} | ${formatDateTime(movement.moved_at)}`
-                            : formatDateTime(movement.moved_at)}
+                          {movement.moved_by_display || formatDateTime(movement.moved_at)}
                         </td>
                       </tr>
                     ))

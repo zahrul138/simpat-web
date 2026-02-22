@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import {
@@ -15,13 +15,12 @@ import {
   Calendar,
 } from "lucide-react";
 import { Helmet } from "react-helmet";
-import timerService from "../../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const getAuthUser = () => {
   try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
   } catch {
     return null;
   }
@@ -29,7 +28,6 @@ const getAuthUser = () => {
 
 const MHLocalSchedulePage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
-  const [currentDate, setCurrentDate] = useState(new Date());
 
   // INVENTORY ONLY - FULL ACCESS
   const canCreateSchedule = true;
@@ -86,10 +84,10 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   const [editIqcPartData, setEditIqcPartData] = useState({});
   const [qcChecksComplete, setQcChecksComplete] = useState([]);
 
-  // STATE FOR SAMPLE TAB
-  const [sampleVendors, setSampleVendors] = useState([]);
-  const [editingSamplePartId, setEditingSamplePartId] = useState(null);
-  const [editSamplePartData, setEditSamplePartData] = useState({});
+  // STATE FOR PASS TAB
+  const [passVendors, setPassVendors] = useState([]);
+  const [editingPassPartId, setEditingPassPartId] = useState(null);
+  const [editPassPartData, setEditPassPartData] = useState({});
 
   // STATE FOR PRODUCTION DATES POPUP (Multiple Prod Dates - Today Tab)
   const [showProdDatesPopup, setShowProdDatesPopup] = useState(false);
@@ -145,33 +143,22 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
 
   // Helper function untuk mendapatkan status dan sample dates
   // Status otomatis: SAMPLE jika ada tanggal yang belum Complete, PASS jika semua sudah Complete
+  // Status & Sample berdasarkan sample_dates frozen yang disimpan di DB saat approve
+  // Tidak berubah setelah QC approve di QCCheckPage — sama persis seperti OverseaPartSchedulePage
   const getPartSampleStatus = (part) => {
     const prodDates =
       part.prod_dates || (part.prod_date ? [part.prod_date] : []);
 
-    // Jika tidak ada prod_dates, tampilkan -
     if (prodDates.length === 0) {
       return { status: "-", sampleDates: [] };
     }
 
-    // Hitung sample dates (tanggal yang belum Complete di qc_checks)
-    const sampleDates = [];
-    let allComplete = true;
+    // Gunakan sample_dates yang sudah disimpan frozen di DB (diset saat vendor approve di Received)
+    const sampleDates = Array.isArray(part.sample_dates)
+      ? part.sample_dates.map((d) => (typeof d === "string" ? d.split("T")[0] : d)).filter(Boolean)
+      : [];
 
-    prodDates.forEach((date) => {
-      const normalizedDate = date.split("T")[0];
-      const isComplete = isProductionDateComplete(
-        part.part_code,
-        normalizedDate,
-      );
-      if (!isComplete) {
-        allComplete = false;
-        sampleDates.push(normalizedDate);
-      }
-    });
-
-    // Otomatis tentukan status berdasarkan qc_checks
-    if (allComplete && prodDates.length > 0) {
+    if (sampleDates.length === 0) {
       return { status: "PASS", sampleDates: [] };
     }
 
@@ -274,7 +261,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
         ],
       },
     },
-    Sample: {
+    Pass: {
       mainTable: {
         cols: [
           "26px",
@@ -323,7 +310,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           "7%", // Total Item
           "8%", // Arrival Time
           "9%", // Schedule Date
-          "18%", // Move By
+          "18%", // Pass By
         ],
       },
       partsTable: {
@@ -362,8 +349,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       fetchReceivedVendors();
     } else if (activeTab === "IQC Progress") {
       fetchIqcProgressVendors();
-    } else if (activeTab === "Sample") {
-      fetchSampleVendors();
+    } else if (activeTab === "Pass") {
+      fetchPassVendors();
     } else if (activeTab === "Complete") {
       fetchCompleteVendors();
     } else {
@@ -375,6 +362,42 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     fetchTripOptions();
     fetchVendorOptions();
   }, []);
+
+  // ====== AUTO-MOVE SCHEDULE → TODAY (sekali saat halaman dibuka/refresh) ======
+  // Tidak menggunakan interval — cukup dipanggil sekali saat mount.
+  // Jika schedule_date === hari ini, otomatis pindah ke tab Today.
+  useEffect(() => {
+    const autoMoveOnMount = async () => {
+      try {
+        // Ambil semua schedule berstatus 'Schedule'
+        const response = await fetch(`${API_BASE}/api/local-schedules?status=Schedule`);
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!result.success || !result.data || result.data.length === 0) return;
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+        const toMove = result.data.filter((s) => {
+          const d = typeof s.schedule_date === "string" ? s.schedule_date.split("T")[0] : "";
+          return d === todayStr;
+        });
+
+        if (toMove.length === 0) return;
+
+        await fetch(`${API_BASE}/api/local-schedules/bulk/status`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scheduleIds: toMove.map((s) => s.id), targetTab: "Today" }),
+        });
+
+        // Refresh tab Schedule/Today jika sedang aktif
+        if (activeTab === "Schedule" || activeTab === "Today") fetchSchedules();
+      } catch (_) {}
+    };
+    autoMoveOnMount();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // [] = hanya sekali saat mount (refresh browser)
 
   useEffect(() => {
     if (activeTab === "Today" && schedules.length > 0) {
@@ -445,6 +468,13 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   const fetchIqcProgressVendors = async () => {
     setLoading(true);
     try {
+      // Cek dulu apakah ada vendor IQC Progress yang sudah bisa pindah ke Pass
+      // (semua sample_dates sudah Complete di qc_checks) — mirip mekanisme Oversea
+      await fetch(`${API_BASE}/api/local-schedules/check-iqc-to-pass`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).catch(() => {}); // Jangan hentikan flow jika gagal
+
       const response = await fetch(
         `${API_BASE}/api/local-schedules/iqc-progress-vendors`,
       );
@@ -460,7 +490,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  const fetchSampleVendors = async () => {
+  const fetchPassVendors = async () => {
     setLoading(true);
     try {
       const response = await fetch(
@@ -468,11 +498,11 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       );
       const result = await response.json();
       if (result.success) {
-        setSampleVendors(result.data || []);
+        setPassVendors(result.data || []);
       }
     } catch (error) {
-      console.error("Error fetching Sample vendors:", error);
-      setSampleVendors([]);
+      console.error("Error fetching Pass vendors:", error);
+      setPassVendors([]);
     } finally {
       setLoading(false);
     }
@@ -505,7 +535,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
         Today: "Today",
         Received: "Received",
         "IQC Progress": "IQC Progress",
-        Sample: "Sample",
+        Pass: "Sample",
         Complete: "Complete",
       };
 
@@ -660,6 +690,11 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
         (d) => d && d.trim() !== "",
       );
 
+      // Ambil user yang sedang login dari sessionStorage
+      const authUser = getAuthUser();
+      const uploadByName = authUser?.emp_name || authUser?.name || "";
+      const uploadById = authUser?.id || null;
+
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${partId}`,
         {
@@ -674,12 +709,36 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
             remark: editPartData.remark,
             prod_date: validDates[0] || null,
             prod_dates: validDates,
+            upload_by_id: uploadById,
           }),
         },
       );
 
       const result = await response.json();
       if (response.ok && result.success) {
+        // Langsung update local state agar kolom Upload By (Today tab) terupdate seketika
+        // tanpa perlu menunggu fetchSchedules() selesai
+        const vendorId = editPartData.vendorId;
+        const nowIso = new Date().toISOString();
+
+        if (uploadByName) {
+          setSchedules((prev) =>
+            prev.map((schedule) => {
+              const hasVendor = schedule.vendors?.some(
+                (v) => v.id === vendorId,
+              );
+              if (hasVendor) {
+                return {
+                  ...schedule,
+                  upload_by_name: uploadByName,
+                  updated_at: nowIso,
+                };
+              }
+              return schedule;
+            }),
+          );
+        }
+
         setEditingPartId(null);
         setEditPartData({});
         await fetchSchedules();
@@ -786,6 +845,14 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       existingProdDates.push(newSampleDate);
     }
 
+    // Juga perbarui sample_dates (frozen) agar Status & Sample column tetap konsisten
+    const existingSampleDates = Array.isArray(activeSamplePart.sample_dates)
+      ? [...activeSamplePart.sample_dates]
+      : [];
+    if (!existingSampleDates.includes(newSampleDate)) {
+      existingSampleDates.push(newSampleDate);
+    }
+
     try {
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${activeSamplePart.id}`,
@@ -794,6 +861,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prod_dates: existingProdDates,
+            sample_dates: existingSampleDates,
           }),
         },
       );
@@ -942,7 +1010,11 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleApproveVendor = async (vendorId) => {
-    if (!window.confirm("Approve this vendor and move to IQC Progress?"))
+    if (
+      !window.confirm(
+        "Approve this vendor?\n\nParts will be added to M101 stock inventory.\nIf all production dates are already complete in QC Check, vendor will go directly to Pass.\nOtherwise vendor will be moved to IQC Progress for sampling.",
+      )
+    )
       return;
 
     try {
@@ -960,7 +1032,15 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        alert("Vendor approved!");
+        const stockInfo =
+          result.data.partsAddedToStock > 0
+            ? `\n${result.data.partsAddedToStock} parts added to ${result.data.stockLevel} stock.`
+            : "";
+        const destinationInfo = result.data.allPartsPass
+          ? "\nNo sampling needed → moved to Pass."
+          : "\nProd dates pending QC → moved to IQC Progress.";
+
+        alert(`Vendor approved!${stockInfo}${destinationInfo}`);
         await fetchReceivedVendors();
       } else {
         throw new Error(result.message || "Failed to approve vendor");
@@ -1011,7 +1091,9 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           vendor_name: vendorName,
           vendor_type: vendorType,
           local_schedule_part_id: part.id,
-          data_from: "Sample",
+          source_vendor_id: vendor.id,
+          data_from: "M101",
+          status: "M101 Part",
           created_by: moveByName,
         };
 
@@ -1077,7 +1159,9 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                 vendor_name: vendor.vendor_name || "",
                 vendor_type: "Local",
                 local_schedule_part_id: part.id,
-                data_from: "Sample",
+                source_vendor_id: vendorId,
+                data_from: "M101",
+                status: "M101 Part",
                 created_by: moveByName,
                 skip_duplicate_check: true, // Skip duplicate check since we're doing vendor-level move
               };
@@ -1125,6 +1209,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       existingDates.unshift(part.prod_date.split("T")[0]);
     }
     setEditIqcPartData({
+      part_code: part.part_code,
       status: part.status || "",
       remark: part.remark || "",
       prod_dates: existingDates.length > 0 ? existingDates : [""],
@@ -1143,6 +1228,12 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
         (d) => d && d.trim() !== "",
       );
 
+      // Recalculate sample_dates dari prod_dates baru:
+      // hanya tanggal yang belum Complete di qc_checks yang masuk sample
+      const newSampleDates = validDates.filter(
+        (date) => !isProductionDateComplete(editIqcPartData.part_code, date.split("T")[0]),
+      );
+
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${partId}`,
         {
@@ -1153,6 +1244,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
             remark: editIqcPartData.remark || null,
             prod_date: validDates[0] || null,
             prod_dates: validDates,
+            sample_dates: newSampleDates,
           }),
         },
       );
@@ -1170,7 +1262,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== HANDLERS FOR SAMPLE TAB ======
+  // ====== HANDLERS FOR PASS TAB ======
   const handleMoveVendorToComplete = async (vendorId) => {
     if (!window.confirm("Move this vendor to Complete?")) return;
 
@@ -1190,7 +1282,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       const result = await response.json();
       if (response.ok && result.success) {
         alert("Vendor moved to Complete!");
-        await fetchSampleVendors();
+        await fetchPassVendors();
       } else {
         throw new Error(result.message || "Failed to move vendor");
       }
@@ -1199,20 +1291,20 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  const handleEditSamplePart = (part) => {
-    setEditingSamplePartId(part.id);
-    setEditSamplePartData({
+  const handleEditPassPart = (part) => {
+    setEditingPassPartId(part.id);
+    setEditPassPartData({
       status: part.status || "",
       remark: part.remark || "",
     });
   };
 
-  const handleCancelEditSamplePart = () => {
-    setEditingSamplePartId(null);
-    setEditSamplePartData({});
+  const handleCancelEditPassPart = () => {
+    setEditingPassPartId(null);
+    setEditPassPartData({});
   };
 
-  const handleSaveEditSamplePart = async (partId) => {
+  const handleSaveEditPassPart = async (partId) => {
     try {
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${partId}`,
@@ -1220,17 +1312,17 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            status: editSamplePartData.status || null,
-            remark: editSamplePartData.remark || null,
+            status: editPassPartData.status || null,
+            remark: editPassPartData.remark || null,
           }),
         },
       );
 
       const result = await response.json();
       if (response.ok && result.success) {
-        setEditingSamplePartId(null);
-        setEditSamplePartData({});
-        await fetchSampleVendors();
+        setEditingPassPartId(null);
+        setEditPassPartData({});
+        await fetchPassVendors();
       } else {
         throw new Error(result.message || "Failed to update part");
       }
@@ -1279,7 +1371,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       const result = await response.json();
       if (response.ok && result.success) {
         alert("Vendor returned to IQC Progress!");
-        await fetchSampleVendors();
+        await fetchPassVendors();
       } else {
         throw new Error(result.message || "Failed to return vendor");
       }
@@ -1649,77 +1741,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     }));
   };
 
-  // ====== TIMER & AUTO-MOVE ======
-  useEffect(() => {
-    setCurrentDate(new Date());
-    const unsubscribe = timerService.subscribe((time) => setCurrentDate(time));
-    if (!timerService.isRunning) timerService.start();
-    return () => unsubscribe();
-  }, []);
 
-  const autoMoveSchedulesToToday = useCallback(async () => {
-    try {
-      const response = await fetch(
-        `${API_BASE}/api/local-schedules?status=Schedule`,
-      );
-      if (!response.ok) return;
-
-      const result = await response.json();
-      if (!result.success || !result.data || result.data.length === 0) return;
-
-      const today = new Date(currentDate);
-      const todayString = `${today.getFullYear()}-${String(
-        today.getMonth() + 1,
-      ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-
-      const schedulesToMove = result.data.filter((schedule) => {
-        const rawDate = schedule.schedule_date;
-        const scheduleDate =
-          typeof rawDate === "string" ? rawDate.split("T")[0] : "";
-        return scheduleDate === todayString;
-      });
-
-      if (schedulesToMove.length === 0) return;
-
-      const scheduleIds = schedulesToMove.map((s) => s.id);
-      const moveResponse = await fetch(
-        `${API_BASE}/api/local-schedules/bulk/status`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scheduleIds, targetTab: "Today" }),
-        },
-      );
-
-      const moveResult = await moveResponse.json();
-      if (moveResponse.ok && moveResult.success) {
-        window.dispatchEvent(new CustomEvent("scheduleAutoMoved"));
-      }
-    } catch (error) {
-      console.error("[Auto Move] Error:", error);
-    }
-  }, [currentDate]);
-
-  useEffect(() => {
-    const initialDelay = setTimeout(() => autoMoveSchedulesToToday(), 1000);
-    const autoMoveInterval = setInterval(
-      () => autoMoveSchedulesToToday(),
-      5000,
-    );
-    return () => {
-      clearTimeout(initialDelay);
-      clearInterval(autoMoveInterval);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleAutoMoved = () => {
-      if (activeTab === "Schedule" || activeTab === "Today") fetchSchedules();
-    };
-    window.addEventListener("scheduleAutoMoved", handleAutoMoved);
-    return () =>
-      window.removeEventListener("scheduleAutoMoved", handleAutoMoved);
-  }, [activeTab]);
 
   const handleInputFocus = (e) => (e.target.style.borderColor = "#9fa8da");
   const handleInputBlur = (e) => (e.target.style.borderColor = "#d1d5db");
@@ -3582,8 +3604,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // ====== RENDER SAMPLE TAB ======
-  const renderSampleTab = () => {
+  // ====== RENDER PASS TAB ======
+  const renderPassTab = () => {
     if (loading)
       return (
         <tr>
@@ -3596,7 +3618,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
         </tr>
       );
 
-    return sampleVendors.map((vendor, index) => (
+    return passVendors.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -3718,7 +3740,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                      tableConfig.Sample.partsTable.cols,
+                      tableConfig.Pass.partsTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -3828,12 +3850,12 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                               return status || "-";
                             })()}
                           >
-                            {editingSamplePartId === part.id ? (
+                            {editingPassPartId === part.id ? (
                               <select
                                 style={styles.inlineInput}
-                                value={editSamplePartData.status || ""}
+                                value={editPassPartData.status || ""}
                                 onChange={(e) =>
-                                  setEditSamplePartData((p) => ({
+                                  setEditPassPartData((p) => ({
                                     ...p,
                                     status: e.target.value,
                                   }))
@@ -3876,13 +3898,13 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             style={styles.thirdLevelTd}
                             title={part.remark || "-"}
                           >
-                            {editingSamplePartId === part.id ? (
+                            {editingPassPartId === part.id ? (
                               <input
                                 type="text"
                                 style={styles.inlineInput}
-                                value={editSamplePartData.remark || ""}
+                                value={editPassPartData.remark || ""}
                                 onChange={(e) =>
-                                  setEditSamplePartData((p) => ({
+                                  setEditPassPartData((p) => ({
                                     ...p,
                                     remark: e.target.value,
                                   }))
@@ -3894,12 +3916,12 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             )}
                           </td>
                           <td style={styles.thirdLevelTd} title="Action">
-                            {editingSamplePartId === part.id ? (
+                            {editingPassPartId === part.id ? (
                               <>
                                 <button
                                   style={styles.saveButton}
                                   onClick={() =>
-                                    handleSaveEditSamplePart(part.id)
+                                    handleSaveEditPassPart(part.id)
                                   }
                                   title="Save"
                                 >
@@ -3907,7 +3929,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                 </button>
                                 <button
                                   style={styles.cancelButton}
-                                  onClick={handleCancelEditSamplePart}
+                                  onClick={handleCancelEditPassPart}
                                   title="Cancel"
                                 >
                                   <X size={10} />
@@ -3916,7 +3938,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             ) : (
                               <button
                                 style={styles.editButton}
-                                onClick={() => handleEditSamplePart(part)}
+                                onClick={() => handleEditPassPart(part)}
                                 title="Edit"
                               >
                                 <Pencil size={10} />
@@ -5078,7 +5100,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
             "Today",
             "Received",
             "IQC Progress",
-            "Sample",
+            "Pass",
             "Complete",
           ].map((tab) => (
             <button
@@ -5140,9 +5162,9 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                 </thead>
                 <tbody>{renderIqcProgressTab()}</tbody>
               </table>
-            ) : activeTab === "Sample" ? (
+            ) : activeTab === "Pass" ? (
               <table style={{ ...styles.table, minWidth: "1400px" }}>
-                {renderColgroup(tableConfig.Sample.mainTable.cols)}
+                {renderColgroup(tableConfig.Pass.mainTable.cols)}
                 <thead>
                   <tr style={styles.tableHeader}>
                     <th style={styles.expandedTh}>No</th>
@@ -5156,11 +5178,11 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Total Item</th>
                     <th style={styles.thWithLeftBorder}>Arrival Time</th>
                     <th style={styles.thWithLeftBorder}>Schedule Date</th>
-                    <th style={styles.thWithLeftBorder}>Move By</th>
+                    <th style={styles.thWithLeftBorder}>Pass By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
                 </thead>
-                <tbody>{renderSampleTab()}</tbody>
+                <tbody>{renderPassTab()}</tbody>
               </table>
             ) : activeTab === "Complete" ? (
               <table style={{ ...styles.table, minWidth: "1400px" }}>
@@ -5246,7 +5268,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
 
         {activeTab !== "Received" &&
           activeTab !== "IQC Progress" &&
-          activeTab !== "Sample" &&
+          activeTab !== "Pass" &&
           schedules.length > 0 && (
             <div style={styles.saveConfiguration}>
               {activeTab === "New" && (

@@ -1056,10 +1056,29 @@ const AddLocalSchedulePage = () => {
           parts: newParts,
         };
         
-        // PERBAIKAN: SELALU recalculate setelah save qty
-        setTimeout(() => {
-          recalculatePalletForVendor(headerId, vendorIndex);
-        }, 50);
+        // PERBAIKAN ROBUST: Check jika semua parts punya qtyBox = 0
+        const hasNonZeroQty = newParts.some(p => (p.qtyBox || 0) > 0);
+        
+        if (!hasNonZeroQty) {
+          // Semua parts qtyBox = 0, set pallet ke 0
+          setPalletCalculations((prevCalc) => ({
+            ...prevCalc,
+            [`${headerId}_${vendorIndex}`]: {
+              largePallets: 0,
+              smallPallets: 0,
+              totalPallets: 0,
+              details: [],
+              totalWeight: 0,
+              totalBoxes: 0,
+              optimized: false,
+            },
+          }));
+        } else {
+          // Ada parts dengan qtyBox > 0, recalculate dengan delay
+          setTimeout(() => {
+            recalculatePalletForVendor(headerId, vendorIndex);
+          }, 100);
+        }
         
         return { ...prev, [headerId]: newVendors };
       });
@@ -1181,10 +1200,29 @@ const AddLocalSchedulePage = () => {
           parts: newParts,
         };
         
-        // PERBAIKAN: SELALU recalculate setelah save qty
-        setTimeout(() => {
-          recalculatePalletForVendor(headerId, vendorIndex);
-        }, 50);
+        // PERBAIKAN ROBUST: Check jika semua parts punya qtyBox = 0
+        const hasNonZeroQty = newParts.some(p => (p.qtyBox || 0) > 0);
+        
+        if (!hasNonZeroQty) {
+          // Semua parts qtyBox = 0, set pallet ke 0
+          setPalletCalculations((prevCalc) => ({
+            ...prevCalc,
+            [`${headerId}_${vendorIndex}`]: {
+              largePallets: 0,
+              smallPallets: 0,
+              totalPallets: 0,
+              details: [],
+              totalWeight: 0,
+              totalBoxes: 0,
+              optimized: false,
+            },
+          }));
+        } else {
+          // Ada parts dengan qtyBox > 0, recalculate dengan delay
+          setTimeout(() => {
+            recalculatePalletForVendor(headerId, vendorIndex);
+          }, 100);
+        }
         
         return { ...prev, [headerId]: newVendors };
       });
@@ -1662,7 +1700,7 @@ const AddLocalSchedulePage = () => {
         parts: updatedParts,
       };
       
-      // PERBAIKAN: HANYA set ke 0 jika parts benar-benar kosong
+      // PERBAIKAN ROBUST: Langsung set pallet ke 0 jika parts kosong
       if (updatedParts.length === 0) {
         setPalletCalculations((prevCalc) => ({
           ...prevCalc,
@@ -1677,10 +1715,10 @@ const AddLocalSchedulePage = () => {
           },
         }));
       } else {
-        // Masih ada parts, SELALU recalculate
+        // Jika masih ada parts, recalculate dengan delay
         setTimeout(() => {
           recalculatePalletForVendor(headerId, vendorIndex);
-        }, 50);
+        }, 100);
       }
       
       return { ...prev, [headerId]: vendors };
@@ -2030,10 +2068,11 @@ const AddLocalSchedulePage = () => {
         parts: [...existingParts, ...uniquePartsToInsert],
       };
       
-      // PERBAIKAN: SELALU recalculate setelah add parts
+      // PERBAIKAN: Recalculate berdasarkan state yang baru
+      // Set timeout agar state update selesai dulu
       setTimeout(() => {
         recalculatePalletForVendor(headerId, vendorIndex);
-      }, 50);
+      }, 0);
       
       return { ...prev, [headerId]: vendors };
     });
@@ -2582,7 +2621,7 @@ const AddLocalSchedulePage = () => {
         parts: updatedParts,
       };
       
-      // PERBAIKAN: HANYA set ke 0 jika parts benar-benar kosong
+      // PERBAIKAN ROBUST: Langsung set pallet ke 0 jika parts kosong
       if (updatedParts.length === 0) {
         setPalletCalculations((prevCalc) => ({
           ...prevCalc,
@@ -2597,10 +2636,10 @@ const AddLocalSchedulePage = () => {
           },
         }));
       } else {
-        // Masih ada parts, SELALU recalculate
+        // Jika masih ada parts, recalculate dengan delay
         setTimeout(() => {
           recalculatePalletForVendor(headerId, vendorIndex);
-        }, 50);
+        }, 100);
       }
       
       return { ...prev, [headerId]: vendors };

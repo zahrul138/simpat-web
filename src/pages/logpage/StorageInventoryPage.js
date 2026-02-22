@@ -111,7 +111,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
         "25%",  // Vendor Name
         "8%",   // Stock Level
         "12%",   // Schedule Date
-        "25%",  // Received By
+        "25%",  // Moved By
         // No Action column
       ],
     },
@@ -1167,8 +1167,8 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
             {toDDMMYYYY(item.schedule_date)}
           </td>
           <td style={styles.tdWithLeftBorder}>
-            {item.received_by_name
-              ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
+            {item.moved_by_name
+              ? `${item.moved_by_name} | ${formatDateTime(item.moved_at)}`
               : "-"}
           </td>
         </tr>
@@ -1428,7 +1428,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Vendor Name</th>
                     <th style={styles.thWithLeftBorder}>Stock Level</th>
                     <th style={styles.thWithLeftBorder}>Schedule Date</th>
-                    <th style={styles.thWithLeftBorder}>Received By</th>
+                    <th style={styles.thWithLeftBorder}>Moved By</th>
                   </tr>
                 </thead>
                 <tbody>{renderOutSystemTab()}</tbody>

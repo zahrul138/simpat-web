@@ -12,6 +12,8 @@ import {
 } from "react-icons/fa";
 import LogoSimkom from "../assets/images/logo-simkom.png";
 
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+
 // helper auth
 const getAuthUser = () => {
   try {
@@ -46,6 +48,7 @@ const Navbar = ({
   const displayName = authUser?.emp_name || authUser?.name || "User";
 
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [onlineCount, setOnlineCount] = useState(1);
 
   useEffect(() => {
     timerService.start();
@@ -79,6 +82,45 @@ const Navbar = ({
     if (currentDepartment) setSelectedDepartment(currentDepartment);
   }, [currentDepartment]);
 
+  useEffect(() => {
+    const sendHeartbeat = async () => {
+      const user = getAuthUser();
+      if (!user) return;
+      try {
+        await fetch(`${API_BASE}/api/active-sessions/heartbeat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id || user.emp_id || user.username,
+            empName: user.emp_name || user.name || "Unknown",
+          }),
+        });
+      } catch {
+        
+      }
+    };
+
+    const fetchCount = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/active-sessions/count`);
+        const data = await res.json();
+        if (data.onlineCount !== undefined) setOnlineCount(data.onlineCount);
+      } catch {
+      }
+    };
+
+    sendHeartbeat();
+    fetchCount();     
+
+    const heartbeatInterval = setInterval(sendHeartbeat, 30000); 
+    const countInterval = setInterval(fetchCount, 5000);         
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      clearInterval(countInterval);
+    };
+  }, []);
+
   const applicationDepartments = {
     production: ["SCN-MH"],
     inventory: ["SCN-LOG"],
@@ -108,6 +150,14 @@ const Navbar = ({
   };
 
   const onLogout = () => {
+    const user = getAuthUser();
+    if (user) {
+      fetch(`${API_BASE}/api/active-sessions/logout`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id || user.emp_id || user.username }),
+      }).catch(() => { });
+    }
     clearAuth();
     navigate("/login");
   };
@@ -343,18 +393,18 @@ const Navbar = ({
       transition: "all 0.2s ease",
       overflow: "hidden",
       width: "32px",
-      height: "32px",
+      height: "28px",
       justifyContent: "center",
       boxSizing: "border-box",
     },
     editIconContainerHover: {
       backgroundColor: "#1d4ed8",
-      width: "55px",
+      width: "45px",
       justifyContent: "flex-start",
-      paddingLeft: "12px",
+      paddingLeft: "11px",
     },
     editIcon: {
-      fontSize: "16px",
+      fontSize: "12px",
       flexShrink: 0,
     },
     arrowIndicator: {
@@ -434,7 +484,7 @@ const Navbar = ({
             </span>
             |
             <span style={{ ...styles.badge, ...styles.blueBadge }}>
-              Online: 1247
+              Online: {onlineCount}
             </span>
             |
             <span
@@ -494,7 +544,7 @@ const Navbar = ({
                 style={styles.select}
                 value={isAdmin ? "ADMIN" : selectedDepartment}
                 onChange={handleDepartmentChange}
-                disabled={!isAdmin} // non-admin dikunci
+                disabled={!isAdmin}
               >
                 {applicationDepartments[selectedApplication].map((d) => (
                   <option key={d} value={d}>
@@ -510,6 +560,7 @@ const Navbar = ({
             <span style={styles.formBadge}>Form No: 1</span>
             <div
               style={styles.editIconContainer}
+              title="Send Feedback"
               onMouseEnter={(e) => {
                 e.currentTarget.style.width =
                   styles.editIconContainerHover.width;

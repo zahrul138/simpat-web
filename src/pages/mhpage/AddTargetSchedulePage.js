@@ -38,7 +38,7 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch {}
+  } catch { }
 
   if (!res.ok) {
     const msg = data?.message || text || `HTTP ${res.status}`;
@@ -71,7 +71,10 @@ const RESTORE_FROM_LOCALSTORAGE = false;
 
 const getAuthUserLocal = () => {
   try {
-    return JSON.parse(localStorage.getItem("auth_user") || "null");
+    return (
+      JSON.parse(sessionStorage.getItem("auth_user") || "null") ||
+      JSON.parse(localStorage.getItem("auth_user") || "null")
+    );
   } catch {
     return null;
   }
@@ -256,8 +259,8 @@ const AddTargetSchedulePage = () => {
         default_pallet_type: r.default_pallet_type ?? r.pallet_type ?? "R",
         pallet_capacity: Number(
           r.pallet_capacity ??
-            r.capacity ??
-            (r.default_pallet_type === "W" ? 32 : 16)
+          r.capacity ??
+          (r.default_pallet_type === "W" ? 32 : 16)
         ),
         min_pallet_w_quantity:
           r.min_pallet_w_quantity != null ? Number(r.min_pallet_w_quantity) : 5,
@@ -307,7 +310,7 @@ const AddTargetSchedulePage = () => {
         if (mounted && map && typeof map === "object") {
           setFromMap(map);
         }
-      } catch {}
+      } catch { }
     }
     loadCustomers();
 
@@ -325,7 +328,7 @@ const AddTargetSchedulePage = () => {
     if (stored) {
       try {
         setSavedProductionSchedules(JSON.parse(stored));
-      } catch {}
+      } catch { }
     }
   }, []);
 
@@ -1606,12 +1609,12 @@ const AddTargetSchedulePage = () => {
                       <FragmentLike key={h.id}>
                         <tr
                           onMouseEnter={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "#c7cde8")
+                          (e.target.closest("tr").style.backgroundColor =
+                            "#c7cde8")
                           }
                           onMouseLeave={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "transparent")
+                          (e.target.closest("tr").style.backgroundColor =
+                            "transparent")
                           }
                         >
                           <td
@@ -1796,15 +1799,15 @@ const AddTargetSchedulePage = () => {
                                       <tr
                                         key={`${h.id}-${i}`}
                                         onMouseEnter={(e) =>
-                                          (e.target.closest(
-                                            "tr"
-                                          ).style.backgroundColor = "#c7cde8")
+                                        (e.target.closest(
+                                          "tr"
+                                        ).style.backgroundColor = "#c7cde8")
                                         }
                                         onMouseLeave={(e) =>
-                                          (e.target.closest(
-                                            "tr"
-                                          ).style.backgroundColor =
-                                            "transparent")
+                                        (e.target.closest(
+                                          "tr"
+                                        ).style.backgroundColor =
+                                          "transparent")
                                         }
                                       >
                                         <td

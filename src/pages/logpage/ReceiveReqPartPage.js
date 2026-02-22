@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
-import { Plus, Trash2, Pencil, Save, X, Search, Check, FileDown } from "lucide-react";
-import timerService from "../../utils/TimerService";
+import { Trash2, Pencil, Save, X, Search, Check, FileDown } from "lucide-react";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -16,14 +15,14 @@ const getAuthUserLocal = () => {
   }
 };
 
-const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
+const ReceiveReqPartPage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [partsData, setPartsData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [remarks, setRemarks] = useState({});
-  const [activeTab, setActiveTab] = useState("New");
+  const [activeTab, setActiveTab] = useState("Waiting");
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
@@ -31,7 +30,6 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
 
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [tripsData, setTripsData] = useState([]);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -43,7 +41,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
   const currentItems = partsData.slice(startIndex, endIndex);
 
   const tableConfig = {
-    "New": {
+    "Waiting": {
       cols: [
         "3%",
         "3%",
@@ -55,26 +53,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "8%",
         "18%",
         "25%",
-        "6%",
+        "10.3%",
       ],
       headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By", "Action"],
-      showCheckbox: true,
-      showAction: true,
-    },
-    "Waiting": {
-      cols: [
-        "3%",
-        "3%",
-        "13%",
-        "11%",
-        "22%",
-        "9%",
-        "8%",
-        "7%",
-        "14%",
-        "20%",
-        ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By",],
       showCheckbox: true,
       showAction: true,
     },
@@ -91,7 +72,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "15%",
         "35%",
       ],
-      headers: ["No", "", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Received By"],
+      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Received By"],
       showCheckbox: true,
       showAction: false,
     },
@@ -124,7 +105,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "15%",
         "35%",
       ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Moved By"],
+      headers: ["No", "", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Moved By"],
       showCheckbox: true,
       showAction: false,
     },
@@ -292,52 +273,16 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     setSelectAll(!selectAll);
   };
 
-  const handleSendRequest = async () => {
-    if (selectedItems.size === 0) {
-      alert("Please select at least one item before sending request");
-      return;
-    }
-
-    if (!window.confirm(`Send ${selectedItems.size} item(s) to Waiting?`)) {
-      return;
-    }
-
-    const tripAtSend = getActiveTripInfo(new Date(), tripsData).label;
-
-    try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-waiting`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedItems), trip: tripAtSend })
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        alert(result.message);
-        setSelectedItems(new Set());
-        setSelectAll(false);
-        fetchPartsEnquiry();
-      } else {
-        alert("Failed: " + result.message);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Error sending request");
-    }
-  };
-
   const handleRejectPart = async (partId) => {
     if (!window.confirm("Move this part to Rejected?")) {
       return;
     }
-
     try {
       const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-rejected`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: partId }),
       });
-
       const result = await response.json();
       if (result.success) {
         alert("Part moved to Rejected");
@@ -355,12 +300,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (!window.confirm("Permanently delete this part? This cannot be undone.")) {
       return;
     }
-
     try {
       const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/${partId}`, {
         method: "DELETE",
       });
-
       const result = await response.json();
       if (result.success) {
         alert("Part deleted permanently");
@@ -378,14 +321,12 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (!window.confirm("Restore this part back to Waiting?")) {
       return;
     }
-
     try {
       const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/restore-to-waiting`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: partId }),
       });
-
       const result = await response.json();
       if (result.success) {
         alert("Part restored to Waiting");
@@ -609,14 +550,6 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     `);
     printWindow.document.close();
   };
-
-  useEffect(() => {
-    timerService.start();
-    const unsubscribe = timerService.subscribe((newTime) => {
-      setCurrentTime(newTime);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/trips`)
@@ -935,14 +868,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       marginLeft: "4px",
     },
     approveButton: {
-      backgroundColor: "#10b981",
-      color: "white",
+      backgroundColor: "#e0e7ff",
+      color: "black",
       padding: "4px 8px",
       fontSize: "12px",
       borderRadius: "4px",
       border: "none",
       cursor: "pointer",
-      marginLeft: "4px",
+      marginLeft: "6px",
     },
     remarkInput: {
       display: "flex",
@@ -974,7 +907,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     }
   };
 
-  const renderNewTab = () => {
+  const renderWaitingTab = () => {
     if (loading) {
       return (
         <tr>
@@ -1017,69 +950,46 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
         <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
         <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={getActiveTripInfo(currentTime).label}>
-          {getActiveTripInfo(currentTime).label}
-        </td>
-        <td style={styles.tdWithLeftBorder}>
-          <input
-            type="text"
-            value={remarks[part.id] || ""}
-            onChange={(e) => handleRemarkChange(part.id, e.target.value)}
-            onBlur={() => handleRemarkBlur(part.id)}
-            placeholder="Enter remark..."
-            style={styles.remarkInput}
-          />
-        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
           {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
         <td style={styles.tdWithLeftBorder}>
+          <button
+            style={styles.approveButton}
+            onClick={async () => {
+              const tempSelected = new Set([part.id]);
+              try {
+                if (!window.confirm("Approve this item?")) return;
+
+                const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/approve`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ ids: Array.from(tempSelected), approved_by_name: getAuthUserLocal()?.emp_name || null })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                  alert("Item approved successfully");
+                  fetchPartsEnquiry();
+                } else {
+                  alert("Failed: " + result.message);
+                }
+              } catch (error) {
+                console.error("Error:", error);
+                alert("Error approving item");
+              }
+            }}
+          >
+            <Check size={10} />
+          </button>
           <button
             style={styles.deleteButton}
             onClick={() => handleRejectPart(part.id)}
           >
             <Trash2 size={10} />
           </button>
-        </td>
-      </tr>
-    ));
-  };
-
-  const renderWaitingTab = () => {
-    if (loading) {
-      return (
-        <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
-            Loading...
-          </td>
-        </tr>
-      );
-    }
-
-    return currentItems.map((part, idx) => (
-      <tr
-        key={part.id}
-        onMouseEnter={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-        }
-        onMouseLeave={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "transparent")
-        }
-      >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
-          {startIndex + idx + 1}
-        </td>
-        <td style={styles.tdWithLeftBorder}>
-        </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
-          {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
       </tr>
     ));
@@ -1115,7 +1025,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           {startIndex + idx + 1}
         </td>
         <td style={styles.tdWithLeftBorder}>
-          {/* <input
+          <input
             type="checkbox"
             checked={selectedItems.has(part.id)}
             onChange={() => handleCheckbox(part.id)}
@@ -1126,7 +1036,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               width: "12px",
               height: "12px",
             }}
-          /> */}
+          />
         </td>
         <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
@@ -1171,7 +1081,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           {startIndex + idx + 1}
         </td>
         <td style={styles.tdWithLeftBorder}>
-          <input
+          {/* <input
             type="checkbox"
             checked={selectedItems.has(part.id)}
             onChange={() => handleCheckbox(part.id)}
@@ -1182,7 +1092,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               width: "12px",
               height: "12px",
             }}
-          />
+          /> */}
         </td>
         <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
@@ -1208,7 +1118,6 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         </tr>
       );
     }
-
     return currentItems.map((part, idx) => (
       <tr
         key={part.id}
@@ -1284,9 +1193,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={
-          activeTab === "InTransit" ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}` :
-          activeTab === "Complete"  ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}` :
-          `${part.requested_by_name || "-"} | ${part.requested_at || "-"}`
+          activeTab === "InTransit"
+            ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`
+            : activeTab === "Complete"
+            ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}`
+            : `${part.requested_by_name || "-"} | ${part.requested_at || "-"}`
         }>
           {activeTab === "InTransit"
             ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`
@@ -1303,7 +1214,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Request Parts</h1>
+            <h1 style={styles.title}>Receive Request Part</h1>
           </div>
 
           <div style={styles.filterRow}>
@@ -1343,18 +1254,6 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           </div>
         </div>
 
-        <div style={styles.actionButtonsGroup}>
-          <button
-            style={{ ...styles.button, ...styles.primaryButton }}
-            onMouseEnter={(e) => handleButtonHover(e, true, "primary")}
-            onMouseLeave={(e) => handleButtonHover(e, false, "primary")}
-            onClick={() => navigate("/part-enquiry-non-id/add")}
-          >
-            <Plus size={16} />
-            Create
-          </button>
-        </div>
-
         <div style={styles.tabsContainer}>
           {Object.keys(tableConfig).map((tab) => (
             <button
@@ -1374,41 +1273,6 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
-            {activeTab === "New" && (
-              <table
-                style={{
-                  ...styles.table,
-                  minWidth: "950px",
-                  tableLayout: "fixed",
-                }}
-              >
-                {renderColgroup(tableConfig["New"].cols)}
-                <thead>
-                  <tr style={styles.tableHeader}>
-                    {tableConfig["New"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
-                        {header === "☑" && currentItems.length > 1 ? (
-                          <input
-                            type="checkbox"
-                            checked={selectAll}
-                            onChange={handleSelectAll}
-                            style={{
-                              margin: "0 auto",
-                              display: "block",
-                              cursor: "pointer",
-                              width: "12px",
-                              height: "12px",
-                            }}
-                          />
-                        ) : header === "☑" ? "" : header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>{renderNewTab()}</tbody>
-              </table>
-            )}
-
             {activeTab === "Waiting" && (
               <table
                 style={{
@@ -1514,7 +1378,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               </table>
             )}
 
-            {!["New", "Waiting", "Received", "Arrived", "Rejected"].includes(activeTab) && (
+            {!["Waiting", "Received", "Arrived", "Rejected"].includes(activeTab) && (
               <table
                 style={{
                   ...styles.table,
@@ -1599,7 +1463,6 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               </button>
             </div>
 
-            {/* PDF Download Button — hanya di tab Received
             {activeTab === "Received" && partsData.length > 0 && (
               <button
                 onClick={handleDownloadPDF}
@@ -1608,7 +1471,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                   alignItems: "center",
                   gap: "6px",
                   padding: "4px 12px",
-                  backgroundColor: "#dc2626",
+                  backgroundColor:  "#2563eb",
                   color: "white",
                   border: "none",
                   borderRadius: "4px",
@@ -1618,31 +1481,18 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                   fontFamily: "inherit",
                   transition: "background-color 0.2s ease",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#b91c1c")}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#dc2626")}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor =  "#2563eb")}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor =  "#2563eb")}
                 title="Download PDF per Trip"
               >
                 <FileDown size={13} />
-                Download PDF
               </button>
-            )} */}
+            )}
           </div>
         </div>
 
         {/* Action Buttons Below Pagination */}
-        {activeTab === "New" && partsData.length > 0 && (
-          <div style={styles.saveConfiguration}>
-            <button
-              style={{ ...styles.button, ...styles.primaryButton }}
-              onClick={handleSendRequest}
-            >
-              <MdArrowRight size={16} />
-              Send Request
-            </button>
-          </div>
-        )}
-
-        {/* {activeTab === "Waiting" && partsData.length > 0 && (
+        {activeTab === "Waiting" && partsData.length > 0 && (
           <div style={styles.saveConfiguration}>
             <button
               style={{ ...styles.button, ...styles.primaryButton }}
@@ -1652,9 +1502,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               Approve
             </button>
           </div>
-        )} */}
+        )}
 
-        {/* {activeTab === "Received" && partsData.length > 0 && (
+        {activeTab === "Received" && partsData.length > 0 && (
           <div style={styles.saveConfiguration}>
             <button
               style={{ ...styles.button, ...styles.primaryButton }}
@@ -1664,9 +1514,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               Move to InTransit
             </button>
           </div>
-        )} */}
+        )}
 
-        {activeTab === "Arrived" && partsData.length > 0 && (
+        {/* {activeTab === "Arrived" && partsData.length > 0 && (
           <div style={styles.saveConfiguration}>
             <button
               style={{ ...styles.button, ...styles.primaryButton }}
@@ -1676,10 +1526,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               Move to Complete
             </button>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );
 };
 
-export default PartsEnquiryNonIdPage;
+export default ReceiveReqPartPage;

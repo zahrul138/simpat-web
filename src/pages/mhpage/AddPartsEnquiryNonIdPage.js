@@ -90,22 +90,33 @@ const AddPartsEnquiryNonIdPage = () => {
   const getActiveTripInfo = (now) => {
     const totalMinutes = (h, m) => h * 60 + m;
     const parseTime = (str) => {
-      // str format "HH:MM"
       const [h, m] = (str || "").split(":").map(Number);
       return totalMinutes(h, m);
     };
-
     const nowMin = totalMinutes(now.getHours(), now.getMinutes());
 
     for (const t of tripsData) {
       const startMin = parseTime(t.req_from);
       const endMin   = parseTime(t.req_to);
-      if (nowMin >= startMin && nowMin < endMin) {
-        return {
-          label:     t.trip_code,
-          timeRange: `${t.req_from}-${t.req_to}`,
-        };
+      const isActive = startMin > endMin
+        ? nowMin >= startMin || nowMin < endMin
+        : nowMin >= startMin && nowMin < endMin;
+      if (isActive) {
+        return { label: t.trip_code, timeRange: `${t.req_from}-${t.req_to}` };
       }
+    }
+
+    let nextTrip = null;
+    let minDiff = Infinity;
+    for (const t of tripsData) {
+      const startMin = parseTime(t.req_from);
+      let diff = startMin - nowMin;
+      if (diff < 0) diff += 24 * 60;
+      if (diff < minDiff) { minDiff = diff; nextTrip = t; }
+    }
+
+    if (nextTrip) {
+      return { label: nextTrip.trip_code, timeRange: `${nextTrip.req_from}-${nextTrip.req_to}` };
     }
     return { label: "-", timeRange: "-" };
   };
@@ -603,7 +614,7 @@ const AddPartsEnquiryNonIdPage = () => {
     },
     h2: {
       fontSize: "18px",
-      fontWeight: "600",
+      fontWeight: "630",
       marginBottom: "5px",
       color: "#4b5563",
     },
@@ -1447,7 +1458,7 @@ const AddPartsEnquiryNonIdPage = () => {
         <div style={styles.gridContainer}>
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
-              <h2 style={styles.h2}>Parts Enquiry Non-ID</h2>
+              <h2 style={styles.h2}>Parts Enquiry</h2>
             </div>
             <div style={{ display: "flex" }}>
               <div style={{ flex: "3", display: "grid", gap: "20px" }}>

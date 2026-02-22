@@ -146,74 +146,42 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fetch M101 Parts (dari Local Schedule IQC Progress)
+  // Fetch M101 Parts (dari qc_checks dengan status 'M101 Part' — mirip M136 Part)
   const fetchM101Parts = async () => {
     setLoading(true);
     try {
-      // Fetch QC checks complete first
-      const qcRes = await fetch(`${API_BASE}/api/qc-checks?status=Complete`);
-      const qcData = await qcRes.json();
-      const qcChecks = qcData.success ? qcData.data || [] : [];
-      setQcChecksComplete(qcChecks);
+      // Fetch qc_checks dengan status "M101 Part" (waiting for approval in QCCheckPage)
+      const response = await fetch(`${API_BASE}/api/qc-checks?status=M101 Part`);
+      const result = await response.json();
 
-      // Fetch IQC Progress vendors from local schedule
-      const response = await fetch(`${API_BASE}/api/local-schedules/iqc-progress-vendors`);
-      const data = await response.json();
+      console.log("[fetchM101Parts] QC checks with M101 Part status:", result);
 
-      let vendors = [];
-      if (data.vendors) {
-        vendors = data.vendors;
-      } else if (data.success && data.data) {
-        vendors = data.data;
+      if (result.success) {
+        const qcChecks = result.data || [];
+
+        // Transform ke struktur m101Parts (sama dengan m136Parts)
+        const formattedParts = qcChecks.map(qc => ({
+          id: qc.id,              // qc_checks.id — real ID untuk approve endpoint
+          part_id: qc.source_part_id,
+          vendor_id: qc.source_vendor_id,
+          part_code: qc.part_code,
+          part_name: qc.part_name,
+          vendor_name: qc.vendor_name,
+          production_date: qc.production_date,
+          qc_status: qc.status || "",
+          source: "M101",
+          approve_by_name: qc.created_by || "-",
+          approve_at: qc.created_at || null,
+        }));
+
+        console.log("[fetchM101Parts] Total M101 Part entries:", formattedParts.length);
+        setM101Parts(formattedParts);
+      } else {
+        console.log("[fetchM101Parts] No M101 Part entries found");
+        setM101Parts([]);
       }
-
-      // Extract parts with incomplete sample dates
-      const partsWithSamples = [];
-
-      vendors.forEach((vendor) => {
-        if (vendor.parts && vendor.parts.length > 0) {
-          vendor.parts.forEach((part) => {
-            const prodDates = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-
-            // Get incomplete dates (not yet approved in qc_checks)
-            const incompleteDates = prodDates.filter((date) => {
-              const normalizedDate = date.split("T")[0];
-              // CRITICAL FIX: Must check vendor_id to avoid false positives
-              return !qcChecks.some(
-                (qc) =>
-                  qc.part_code === part.part_code &&
-                  (qc.production_date || "").split("T")[0] === normalizedDate &&
-                  qc.status === "Complete" &&
-                  qc.source_vendor_id === vendor.id  // ADDED: Check vendor ID
-              );
-            });
-
-            // If has incomplete dates, add each date as separate entry
-            if (incompleteDates.length > 0) {
-              incompleteDates.forEach((date) => {
-                partsWithSamples.push({
-                  id: `${part.id}-${date}`,
-                  part_id: part.id,
-                  vendor_id: vendor.id,
-                  part_code: part.part_code,
-                  part_name: part.part_name,
-                  vendor_name: vendor.vendor_name,
-                  production_date: date,
-                  qty: part.qty,
-                  qty_box: part.qty_box,
-                  remark: part.remark,
-                  qc_status: part.status || "",
-                  source: "M101",
-                });
-              });
-            }
-          });
-        }
-      });
-
-      setM101Parts(partsWithSamples);
     } catch (error) {
-      console.error("Error fetching M101 parts:", error);
+      console.error("[fetchM101Parts] Error:", error);
       setM101Parts([]);
     } finally {
       setLoading(false);
@@ -406,6 +374,21 @@ const QCCheckPage = ({ sidebarVisible }) => {
           });
         }
 
+        // Untuk M101 Part: panggil check-iqc-to-pass agar LocalSchedulePage
+        // IQC Progress vendor otomatis pindah ke Pass jika semua sample_dates sudah Complete.
+        // (source_vendor_id = NULL karena FK hanya ke oversea_schedule_vendors,
+        //  sehingga auto-move di qcChecks tidak bisa pakai source_vendor_id)
+        if (sourceTab === "M101 Part") {
+          // Kirim approvedByName agar backend bisa set Pass By column
+          fetch(`${API_BASE}/api/local-schedules/check-iqc-to-pass`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              approvedByName: authUser?.emp_name || authUser?.name || null,
+            }),
+          }).catch(() => { }); // fire-and-forget, jangan hentikan flow
+        }
+
         // Check if vendor was auto-moved to Pass
         if (result.vendorMovedToPass) {
           setToastMessage("QC Check approved! Vendor moved to Pass tab.");
@@ -594,18 +577,13 @@ const QCCheckPage = ({ sidebarVisible }) => {
       const authUser = getAuthUserLocal();
       const selectedParts = parts.filter((p) => selectedIds.has(p.id));
 
-      // Create QC Check entries for each selected part
+      // PERBAIKAN: Gunakan PUT /:id/approve (bukan POST) agar auto-move ke Pass berjalan
+      // Backend akan query DB sendiri untuk cek sisa qc_checks — tidak perlu isLastQcCheck dari frontend
       const promises = selectedParts.map((part) =>
-        fetch(`${API_BASE}/api/qc-checks`, {
-          method: "POST",
+        fetch(`${API_BASE}/api/qc-checks/${part.id}/approve`, {
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            part_code: part.part_code,
-            part_name: part.part_name,
-            vendor_name: part.vendor_name,
-            production_date: part.production_date,
-            data_from: sourceTab === "M101 Part" ? "M101" : "M136",
-            status: "Complete",
             approved_by: authUser?.id,
             approved_by_name: authUser?.emp_name || authUser?.name || "Unknown",
           }),
@@ -1146,8 +1124,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
       fontWeight: "500",
     },
     dataFromCreate: {
-      backgroundColor: "#dbeafe",
-      color: "#1e40af",
+      backgroundColor: "#ccfbf1", 
+      color: "#134e4a",
     },
     dataFromSample: {
       backgroundColor: "#fef3c7",
@@ -1308,7 +1286,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 <th style={styles.thWithLeftBorder}>Part Name</th>
                 <th style={styles.thWithLeftBorder}>Vendor Name</th>
                 <th style={styles.thWithLeftBorder}>Status</th>
-                <th style={styles.thWithLeftBorder}>Qty</th>
+                <th style={styles.thWithLeftBorder}>Received By</th>
                 <th style={styles.thWithLeftBorder}>Action</th>
               </tr>
             </thead>
@@ -1398,9 +1376,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        title={item.qty || "-"}
+                        title={formatApprovedBy(item.approve_by_name, item.approve_at)}
                       >
-                        {item.qty || "-"}
+                        {formatApprovedBy(item.approve_by_name, item.approve_at)}
                       </td>
                       <td style={{ ...styles.tdWithLeftBorder }}>
                         <div

@@ -28,7 +28,7 @@ import MHLocalSchedulePage from "./pages/mhpage/MHLocalSchedulePage";
 // Halaman SCN-LOG (Inventory Control)
 import LocalSchedulePage from "./pages/logpage/LocalSchedulePage";
 import AddLocalSchedulePage from "./pages/logpage/AddLocalSchedulePage";
-import AnnexReceivePage from "./pages/logpage/AnnexReceivePage";
+import ReceiveReqPartPage from "./pages/logpage/ReceiveReqPartPage";
 import VendorDetailsPage from "./pages/logpage/VendorDetailsPage";
 import AddVendorPage from "./pages/logpage/AddVendorPage";
 import PartDetailsPage from "./pages/logpage/PartDetailsPage";
@@ -166,11 +166,12 @@ const LayoutHandler = () => {
       "/upload-kanban": { app: "production", dept: "SCN-MH" },
       "/return-parts": { app: "production", dept: "SCN-MH" },
       "/mh-local-schedule": { app: "production", dept: "SCN-MH" },
+      "/stock-overview-mh": { app: "production", dept: "SCN-MH" },
 
       // Inventory Control routes
       "/local-schedule": { app: "inventory", dept: "SCN-LOG" },
       "/oversea-schedule": { app: "inventory", dept: "SCN-LOG" },
-      "/annex-receive": { app: "inventory", dept: "SCN-LOG" },
+      "/receive-request": { app: "inventory", dept: "SCN-LOG" },
       "/vendor-details": { app: "inventory", dept: "SCN-LOG" },
       "/part-details": { app: "inventory", dept: "SCN-LOG" },
       "/vendor-placement": { app: "inventory", dept: "SCN-LOG" },
@@ -258,6 +259,7 @@ const LayoutHandler = () => {
       {location.pathname === "/vendor-details" && <VendorDetailsPage />}
       {location.pathname === "/vendor-details/add" && <AddVendorPage />}
       {location.pathname === "/stock-overview" && <StockOverviewPage />}
+      {location.pathname === "/stock-overview-mh" && <StockOverviewPage />}
       {location.pathname === "/part-details" && <PartDetailsPage />}
       {location.pathname === "/part-details/add" && <AddPartsPage />}
       {location.pathname === "/received-local" && <ReceivedLocalSchedulePage />}
@@ -279,7 +281,7 @@ const LayoutHandler = () => {
         <PartsEnquiryNonIdPage />
       )}
       {location.pathname === "/part-receive" && <PartsReceivePage />}
-      {location.pathname === "/annex-receive" && <AnnexReceivePage />}
+      {location.pathname === "/receive-request" && <ReceiveReqPartPage />}
       {location.pathname === "/return-parts" && <ReturnPartsPage />}
       {location.pathname === "/vendor-placement" && <VendorPartPlacementPage />}
       {location.pathname === "/vendor-placement/add" && (

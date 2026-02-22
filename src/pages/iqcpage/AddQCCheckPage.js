@@ -7,26 +7,13 @@ import { Plus, Trash2, Save, Search } from "lucide-react";
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const getAuthUserLocal = () => {
- try {
-    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
+  try {
+    return (
+      JSON.parse(sessionStorage.getItem("auth_user") || "null") ||
+      JSON.parse(localStorage.getItem("auth_user") || "null")
+    );
   } catch {
     return null;
-  }
-};
-
-const getCurrentUser = () => {
-  try {
-    const authUser = JSON.parse(localStorage.getItem("auth_user") || "null");
-    return authUser
-      ? authUser.emp_name ||
-          authUser.employeeName ||
-          authUser.fullname ||
-          authUser.name ||
-          authUser.username ||
-          "System"
-      : "System";
-  } catch {
-    return "System";
   }
 };
 
@@ -34,7 +21,6 @@ const AddQCCheckPage = () => {
   const navigate = useNavigate();
   const [selectAll, setSelectAll] = useState(false);
 
-  // Form data untuk input
   const [formData, setFormData] = useState({
     part_code: "",
     part_name: "",
@@ -48,18 +34,14 @@ const AddQCCheckPage = () => {
   const [currentEmpName, setCurrentEmpName] = useState("");
   const [showSaveButton, setShowSaveButton] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const u = getAuthUserLocal();
     if (u) {
-      const name =
-        u.emp_name ||
-        u.employeeName ||
-        u.fullname ||
-        u.name ||
-        u.username ||
-        "";
-      setCurrentEmpName(name);
+      setCurrentEmpName(
+        u.emp_name || u.employeeName || u.fullname || u.name || u.username || ""
+      );
     }
   }, []);
 
@@ -67,30 +49,29 @@ const AddQCCheckPage = () => {
     setShowSaveButton(tempQCChecks.length > 0);
   }, [tempQCChecks]);
 
+  useEffect(() => {
+    if (tempQCChecks.length > 0) {
+      setSelectAll(tempQCChecks.every((item) => item.isSelected));
+    } else {
+      setSelectAll(false);
+    }
+  }, [tempQCChecks]);
+
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Search Part Code - akan mengambil Part Name, Vendor Name, dan Type dari kanban_master
   const handleSearchPartCode = async () => {
     if (!formData.part_code.trim()) {
       alert("Please enter Part Code first");
       return;
     }
-
     setSearchLoading(true);
     try {
-      // Ambil data part dari kanban_master (sudah include vendor info)
       const response = await fetch(
         `${API_BASE}/api/kanban-master/by-part-code?part_code=${formData.part_code.trim()}`
       );
       const result = await response.json();
-
-      console.log("Search result:", result); // Debug log
-
       if (result.item) {
         setFormData((prev) => ({
           ...prev,
@@ -110,7 +91,6 @@ const AddQCCheckPage = () => {
         }));
       }
     } catch (error) {
-      console.error("Error searching part code:", error);
       alert("Failed to search part code: " + error.message);
     } finally {
       setSearchLoading(false);
@@ -122,19 +102,27 @@ const AddQCCheckPage = () => {
       alert("Please fill in Part Code");
       return;
     }
-
     if (!formData.part_name.trim()) {
       alert("Please search Part Code first to get Part Name");
       return;
     }
-
     if (!formData.production_date) {
       alert("Please select Production Date");
       return;
     }
 
+    const isDuplicate = tempQCChecks.some(
+      (item) =>
+        item.part_code === formData.part_code.trim() &&
+        item.production_date === formData.production_date
+    );
+    if (isDuplicate) {
+      alert("This Part Code + Production Date already added in the list");
+      return;
+    }
+
     const now = new Date();
-    const tempQCCheck = {
+    const tempItem = {
       id: Date.now(),
       part_code: formData.part_code.trim(),
       part_name: formData.part_name.trim(),
@@ -142,32 +130,21 @@ const AddQCCheckPage = () => {
       vendor_id: formData.vendor_id,
       vendor_type: formData.vendor_type || "Local",
       production_date: formData.production_date,
-      approved_by: currentEmpName,
+      approved_by_name: currentEmpName,
       approved_at: now.toISOString(),
       isSelected: false,
     };
 
-    setTempQCChecks((prev) => [...prev, tempQCCheck]);
+    setTempQCChecks((prev) => [...prev, tempItem]);
 
-    // Reset form
-    setFormData({
-      part_code: "",
-      part_name: "",
-      vendor_name: "",
-      vendor_id: null,
-      vendor_type: "",
-      production_date: "",
-    });
+    setFormData((prev) => ({ ...prev, production_date: "" }));
   };
 
   const handleSelectAllChange = () => {
     const newSelectAll = !selectAll;
     setSelectAll(newSelectAll);
     setTempQCChecks((prev) =>
-      prev.map((item) => ({
-        ...item,
-        isSelected: newSelectAll,
-      }))
+      prev.map((item) => ({ ...item, isSelected: newSelectAll }))
     );
   };
 
@@ -179,36 +156,22 @@ const AddQCCheckPage = () => {
     );
   };
 
-  useEffect(() => {
-    if (tempQCChecks.length > 0) {
-      const allSelected = tempQCChecks.every((item) => item.isSelected);
-      setSelectAll(allSelected);
-    } else {
-      setSelectAll(false);
-    }
-  }, [tempQCChecks]);
-
   const handleDeleteTempItem = (itemId) => {
     setTempQCChecks((prev) => prev.filter((item) => item.id !== itemId));
   };
 
   const handleSaveConfiguration = async () => {
-    console.log("=== SAVE QC CHECK STARTED ===");
-
     const selectedItems = tempQCChecks.filter((item) => item.isSelected);
-    console.log("Selected items:", selectedItems);
-
     if (selectedItems.length === 0) {
       alert("Please select at least one item to save!");
       return;
     }
 
+    setSaving(true);
     try {
-      const currentUser = getCurrentUser();
-      console.log("Current user:", currentUser);
-
-      // Save each selected item
       for (const item of selectedItems) {
+        // FIX 1: field → approved_by_name (bukan approved_by)
+        // FIX 2: status → "Complete" agar muncul di tab Complete QCCheckPage
         const qcCheckData = {
           part_code: item.part_code,
           part_name: item.part_name,
@@ -216,44 +179,33 @@ const AddQCCheckPage = () => {
           vendor_id: item.vendor_id,
           vendor_type: item.vendor_type,
           production_date: item.production_date,
-          approved_by: currentUser,
-          data_from: "Create", // Data dari AddQCCheckPage = "Create"
+          approved_by_name: item.approved_by_name,
+          created_by_name: item.approved_by_name,
+          data_from: "Create",
+          status: "Complete",
         };
-
-        console.log("Sending data to API:", qcCheckData);
 
         const response = await fetch(`${API_BASE}/api/qc-checks`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(qcCheckData),
         });
 
-        console.log("Response status:", response.status);
-
         const result = await response.json();
-        console.log("API Response:", result);
-
         if (!response.ok) {
-          throw new Error(
-            result.message || `HTTP error! status: ${response.status}`
-          );
+          throw new Error(result.message || `HTTP error! status: ${response.status}`);
         }
       }
 
       alert(`${selectedItems.length} QC Check(s) saved successfully!`);
-
-      // Hapus items yang berhasil disimpan
       setTempQCChecks((prev) =>
         prev.filter((item) => !selectedItems.find((s) => s.id === item.id))
       );
-
-      // Navigate ke QCCheckPage dengan tab Complete
       navigate("/qc-part");
     } catch (error) {
-      console.error("Save error:", error);
       alert(`Failed to save QC Check: ${error.message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -282,8 +234,10 @@ const AddQCCheckPage = () => {
     }
   };
 
+  // Styles identik dengan AddLocalSchedulePage / AddOverseaPartSchedulePage
   const styles = {
     pageContainer: {
+      transition: "margin-left 0.3s ease",
       fontFamily:
         "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'",
       paddingRight: "24px",
@@ -319,6 +273,52 @@ const AddQCCheckPage = () => {
       marginBottom: "3px",
       display: "block",
     },
+    input: {
+      display: "flex",
+      height: "1rem",
+      width: "8.5rem",
+      borderRadius: "6px",
+      border: "1px solid #d1d5db",
+      backgroundColor: "#ffffff",
+      padding: "8px 12px",
+      fontSize: "12px",
+      outline: "none",
+      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+      fontFamily: "inherit",
+      alignItems: "center",
+      gap: "8px",
+      maxWidth: "100%",
+    },
+    inputReadOnly: {
+      flex: "none",
+      height: "1rem",
+      width: "150px",
+      padding: "8px 12px",
+      border: "1px solid #d1d5db",
+      backgroundColor: "#e5e7eb",
+      borderRadius: "6px",
+      fontSize: "12px",
+      outline: "none",
+      fontFamily: "inherit",
+      fontWeight: "450",
+      color: "#374151",
+    },
+    inputPartCode: {
+      flex: "none",
+      height: "1rem",
+      width: "150px",
+      padding: "8px 12px",
+      border: "1px solid #d1d5db",
+      backgroundColor: "#f3f4f6",
+      borderRadius: "6px",
+      fontSize: "12px",
+      outline: "none",
+      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+      fontFamily: "inherit",
+      fontWeight: "450",
+    },
     button: {
       padding: "8px 16px",
       borderRadius: "4px",
@@ -335,6 +335,21 @@ const AddQCCheckPage = () => {
     primaryButton: {
       backgroundColor: "#2563eb",
       color: "white",
+    },
+    addPartButton: {
+      backgroundColor: "#3b82f6",
+      color: "white",
+      border: "none",
+      borderRadius: "6px",
+      padding: "8px 16px",
+      fontSize: "12px",
+      fontWeight: "500",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      transition: "background-color 0.2s ease",
+      whiteSpace: "nowrap",
     },
     actionButtonsGroup: {
       display: "flex",
@@ -355,50 +370,6 @@ const AddQCCheckPage = () => {
       display: "flex",
       gap: "8px",
       alignItems: "center",
-    },
-    inputPartCode: {
-      flex: "none",
-      height: "1rem",
-      width: "150px",
-      padding: "8px 12px",
-      border: "1px solid #d1d5db",
-      backgroundColor: "#f3f4f6",
-      borderRadius: "6px",
-      fontSize: "12px",
-      outline: "none",
-      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-      fontFamily: "inherit",
-      fontWeight: "450",
-    },
-    inputReadOnly: {
-      flex: "none",
-      height: "1rem",
-      width: "150px",
-      padding: "8px 12px",
-      border: "1px solid #d1d5db",
-      backgroundColor: "#e5e7eb",
-      borderRadius: "6px",
-      fontSize: "12px",
-      outline: "none",
-      fontFamily: "inherit",
-      fontWeight: "450",
-      color: "#374151",
-    },
-    addPartButton: {
-      backgroundColor: "#3b82f6",
-      color: "white",
-      border: "none",
-      borderRadius: "6px",
-      padding: "8px 16px",
-      fontSize: "12px",
-      fontWeight: "500",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-      transition: "background-color 0.2s ease",
-      whiteSpace: "nowrap",
     },
     deleteButton: {
       backgroundColor: "#e0e7ff",
@@ -459,9 +430,7 @@ const AddQCCheckPage = () => {
       height: "25px",
       lineHeight: "1",
       verticalAlign: "middle",
-      overflow: "hidden",
-      textAlign: "center",
-    },
+      overflow: "hidden",    },
     expandedTh: {
       padding: "2px 4px",
       borderTop: "1.5px solid #9fa8da",
@@ -509,30 +478,31 @@ const AddQCCheckPage = () => {
       border: "1.5px solid #9fa8da",
       borderTop: "none",
       borderRadius: "0 0 8px 8px",
+      fontSize: "12px",
+      color: "#374151",
+      height: "20px",
     },
     paginationControls: {
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      fontSize: "12px",
-      color: "#374151",
     },
     paginationButton: {
-      padding: "4px 8px",
-      border: "1px solid #d1d5db",
+      backgroundColor: "transparent",
+      border: "0.5px solid #a5b4fc",
       borderRadius: "4px",
-      backgroundColor: "white",
+      padding: "2px 6px",
       cursor: "pointer",
-      fontSize: "12px",
+      fontSize: "10px",
       fontFamily: "inherit",
     },
     paginationInput: {
       width: "30px",
-      height: "24px",
+      height: "20px",
       textAlign: "center",
-      border: "1px solid #d1d5db",
+      border: "0.5px solid #a5b4fc",
       borderRadius: "4px",
-      fontSize: "12px",
+      fontSize: "10px",
       fontFamily: "inherit",
     },
   };
@@ -541,13 +511,15 @@ const AddQCCheckPage = () => {
     <div style={styles.pageContainer}>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
+
+          {/* ── Form Card ── */}
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
               <h2 style={styles.h2}>Add Quality Part Check</h2>
             </div>
-            <div
-              style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}
-            >
+            <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
+
+              {/* Kolom kiri */}
               <div style={{ flex: "1", display: "grid", gap: "25px" }}>
                 <div style={styles.formGroupPartCode}>
                   <label style={styles.label}>Part Code</label>
@@ -561,9 +533,7 @@ const AddQCCheckPage = () => {
                         handleInputChange("part_code", e.target.value)
                       }
                       onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          handleSearchPartCode();
-                        }
+                        if (e.key === "Enter") handleSearchPartCode();
                       }}
                     />
                     <button
@@ -599,7 +569,6 @@ const AddQCCheckPage = () => {
                     readOnly
                     placeholder="Auto-filled from search"
                   />
-
                   <div style={styles.actionButtonsGroup}>
                     <button
                       style={{ ...styles.button, ...styles.primaryButton }}
@@ -612,6 +581,7 @@ const AddQCCheckPage = () => {
                 </div>
               </div>
 
+              {/* Kolom kanan */}
               <div style={{ flex: "2", display: "grid", gap: "30px" }}>
                 <div>
                   <label style={styles.label}>Production Date</label>
@@ -636,9 +606,11 @@ const AddQCCheckPage = () => {
                   />
                 </div>
               </div>
+
             </div>
           </div>
 
+          {/* ── Table ── */}
           <h2 style={styles.h2}>QC Check List</h2>
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
@@ -654,10 +626,10 @@ const AddQCCheckPage = () => {
                   <col style={{ width: "3%" }} />
                   <col style={{ width: "12%" }} />
                   <col style={{ width: "12%" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "8%" }} />
                   <col style={{ width: "20%" }} />
+                  <col style={{ width: "25%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "25%" }} />
                   <col style={{ width: "6%" }} />
                 </colgroup>
                 <thead>
@@ -698,29 +670,19 @@ const AddQCCheckPage = () => {
                 <tbody>
                   {tempQCChecks.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={9}
-                        style={{
-                          ...styles.tdWithLeftBorder,
-                          textAlign: "center",
-                          color: "#6b7280",
-                          padding: "20px",
-                        }}
-                      >
-                        No data - Please insert QC check items
-                      </td>
+
                     </tr>
                   ) : (
                     tempQCChecks.map((item, index) => (
                       <tr
                         key={item.id}
                         onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8")
                         }
                         onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "transparent")
                         }
                       >
                         <td
@@ -762,7 +724,7 @@ const AddQCCheckPage = () => {
                           {item.vendor_type || "-"}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
-                          {item.approved_by} |{" "}
+                          {item.approved_by_name} |{" "}
                           {formatDateForDisplay(item.approved_at)}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
@@ -779,6 +741,7 @@ const AddQCCheckPage = () => {
                 </tbody>
               </table>
             </div>
+
             <div style={styles.paginationBar}>
               <div style={styles.paginationControls}>
                 <button style={styles.paginationButton}>{"<<"}</button>
@@ -797,17 +760,31 @@ const AddQCCheckPage = () => {
             </div>
           </div>
 
+          {/* ── Save Button ── */}
           {showSaveButton && (
             <div style={styles.saveConfiguration}>
               <button
-                style={{ ...styles.button, ...styles.primaryButton }}
+                style={{
+                  ...styles.button,
+                  ...styles.primaryButton,
+                  opacity: saving ? 0.7 : 1,
+                  cursor: saving ? "not-allowed" : "pointer",
+                }}
                 onClick={handleSaveConfiguration}
+                disabled={saving}
               >
-                <Save size={16} />
-                Save Configuration
+                {saving ? (
+                  <span style={{ fontSize: "12px" }}>Saving...</span>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Save Configuration
+                  </>
+                )}
               </button>
             </div>
           )}
+
         </div>
       </div>
     </div>

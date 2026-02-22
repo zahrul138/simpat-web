@@ -142,7 +142,6 @@ const Sidebar = ({
     </svg>
   );
 
-  // Production icons
   const CalendarIcon = ({ size = 12 }) => (
     <svg
       width={size}
@@ -490,7 +489,6 @@ const Sidebar = ({
     </svg>
   );
 
-  // Helper function to check if path matches, including add sub-routes
   const isPathActive = (basePath) => {
     return (
       location.pathname === basePath ||
@@ -498,9 +496,7 @@ const Sidebar = ({
     );
   };
 
-  // Helper function untuk mengecek apakah path yang sedang aktif termasuk parent atau child (add) pages
   const isParentOrChildActive = (basePath) => {
-    // Mapping khusus untuk path add yang tidak mengikuti pola standard basePath/add
     const addPathMapping = {
       "/part-details": "/add-parts",
       "/vendor-details": "/add-vendor",
@@ -549,36 +545,36 @@ const Sidebar = ({
           ],
         },
         {
-          title: "Request Part",
+          title: "Part Enquiry",
           icon: SearchIcon,
           isActive:
-            location.pathname.startsWith("/part-enquiry-id") ||
-            location.pathname.startsWith("/part-enquiry-non-id"),
+            location.pathname.startsWith("/part-enquiry-non-id") ||
+            isPathActive("/stock-overview-mh"),
           subItems: [
-            {
-              title: "Part Enquiry ID",
-              href: "/part-enquiry-id",
-              icon: BadgeIcon,
-            },
-            {
-              title: "Part Enquiry Non- ID",
+             {
+              title: "Request Parts",
               href: "/part-enquiry-non-id",
               icon: QuestionIcon,
             },
-          ],
-        },
-        {
-          title: "Part Receiving",
-          icon: InboxIcon,
-          isActive: location.pathname.startsWith("/part-receive"),
-          subItems: [
             {
-              title: "Receive Picking List",
-              href: "/part-receive",
-              icon: PackageIcon,
+              title: "Stock Overview",
+              href: "/stock-overview-mh",
+              icon: EyeIcon,
             },
           ],
         },
+        // {
+        //   title: "Part Receiving",
+        //   icon: InboxIcon,
+        //   isActive: location.pathname.startsWith("/part-receive"),
+        //   subItems: [
+        //     {
+        //       title: "Receive Picking List",
+        //       href: "/part-receive",
+        //       icon: PackageIcon,
+        //     },
+        //   ],
+        // },
         {
           title: "Quality Control",
           icon: ShieldIcon,
@@ -599,9 +595,9 @@ const Sidebar = ({
             isParentOrChildActive("/part-details") ||
             isParentOrChildActive("/vendor-details") ||
             isParentOrChildActive("/vendor-placement") ||
-            isPathActive("/annex-receive") ||
             isPathActive("/stock-overview") ||
-            isPathActive("/storage-inventory"),
+            isPathActive("/storage-inventory") ||
+            isPathActive("/receive-request"),
 
           subItems: [
             {
@@ -641,7 +637,7 @@ const Sidebar = ({
             },
             {
               title: "Receive Request",
-              href: "/annex-receive",
+              href: "/receive-request",
               icon: InboxIcon,
             },
           ],

@@ -106,6 +106,14 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
     partCode: "",
   });
 
+  const [tooltip, setTooltip] = useState({
+    visible: false,
+    content: "",
+    x: 0,
+    y: 0,
+  });
+
+
   // Tambahkan state untuk pallet calculations (seperti di AddOverseaPartSchedulePage)
   const [palletConfig] = useState({
     large: { width: 110, length: 110, maxHeight: 170, maxWeight: 150 },
@@ -2615,7 +2623,13 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== STYLES ======
+  const optionStyle = {
+    backgroundColor: "#d1d5db",
+    color: "#374151",
+    fontSize: "12px",
+    padding: "4px 8px",
+  };
+
   const styles = {
     pageContainer: {
       fontFamily:
@@ -2713,10 +2727,6 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
     },
     primaryButton: {
       backgroundColor: "#2563eb",
-      color: "white",
-    },
-    secondaryButton: {
-      backgroundColor: "#10b981",
       color: "white",
     },
     tabsContainer: {
@@ -2855,44 +2865,6 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       verticalAlign: "middle",
       overflow: "hidden",
     },
-    thirdLevelTableContainer: {
-      marginLeft: "49px",
-      backgroundColor: "white",
-      boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
-      overflowX: "auto",
-      width: "calc(100% - 85px)",
-    },
-    thirdLevelTable: {
-      width: "100%",
-      borderCollapse: "collapse",
-      border: "1.5px solid #9fa8da",
-      tableLayout: "fixed",
-    },
-    thirdLevelTh: {
-      padding: "2px 4px",
-      borderTop: "1.5px solid #9fa8da",
-      borderBottom: "1.5px solid #9fa8da",
-      borderRight: "0.5px solid #9fa8da",
-      borderLeft: "0.5px solid #9fa8da",
-      fontSize: "12px",
-      color: "#374151",
-      whiteSpace: "nowrap",
-      height: "25px",
-      lineHeight: "1",
-      verticalAlign: "middle",
-      overflow: "hidden",
-    },
-    thirdLevelTd: {
-      padding: "2px 4px",
-      border: "0.5px solid #9fa8da",
-      fontSize: "12px",
-      color: "#374151",
-      whiteSpace: "nowrap",
-      height: "25px",
-      lineHeight: "1",
-      verticalAlign: "middle",
-      overflow: "hidden",
-    },
     paginationBar: {
       display: "flex",
       justifyContent: "space-between",
@@ -2948,6 +2920,30 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       fontSize: "25px",
       color: "#9fa8da",
     },
+    saveConfiguration: {
+      display: "flex",
+      gap: "8px",
+      marginTop: "10px",
+      marginLeft: "13px",
+    },
+    tooltip: {
+      position: "fixed",
+      top: tooltip.y,
+      left: tooltip.x,
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      color: "white",
+      padding: "6px 10px",
+      borderRadius: "4px",
+      fontSize: "12px",
+      fontWeight: "500",
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+      zIndex: 1000,
+      opacity: tooltip.visible ? 1 : 0,
+      transition: "opacity 0.2s ease",
+      maxWidth: "300px",
+      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+    },
     addButton: {
       backgroundColor: "#e0e7ff",
       color: "black",
@@ -2978,15 +2974,165 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       cursor: "pointer",
       marginLeft: "6px",
     },
-    saveButton: {
-      backgroundColor: "#d1fae5",
-      color: "#065f46",
+    completeButton: {
+      backgroundColor: "#10b981",
+      color: "white",
       padding: "4px 8px",
       fontSize: "12px",
       borderRadius: "4px",
       border: "none",
       cursor: "pointer",
       marginLeft: "4px",
+    },
+    successButton: {
+      backgroundColor: "#10b981",
+      color: "white",
+    },
+
+    inputFocus: {
+      border: "2px solid #9fa8da",
+    },
+    selectFocus: {
+      border: "2px solid #9fa8da",
+    },
+    primaryButtonHover: {
+      backgroundColor: "#1d4ed8",
+    },
+    searchButton: {
+      backgroundColor: "#2563eb",
+      color: "white",
+    },
+    searchButtonHover: {
+      backgroundColor: "#1d4ed8",
+    },
+    labelIdInput: {
+      width: "200px",
+    },
+    expandedTdWtihTopBorder: {
+      padding: "2px 4px",
+      border: "0.5px solid #9fa8da",
+      fontSize: "12px",
+      color: "#374151",
+      whiteSpace: "nowrap",
+      height: "25px",
+      lineHeight: "1",
+      verticalAlign: "middle",
+      overflow: "hidden",
+    },
+    thirdLevelTableContainer: {
+      marginLeft: "49px",
+      backgroundColor: "white",
+      boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+      overflowX: "auto",
+      width: "calc(100% - 85px)",
+    },
+    thirdLevelTable: {
+      width: "100%",
+      borderCollapse: "collapse",
+      border: "1.5px solid #9fa8da",
+      tableLayout: "fixed",
+    },
+    thirdLevelTableHeader: {
+      backgroundColor: "#e0e7ff",
+      color: "#374151",
+      fontWeight: "600",
+      fontSize: "12px",
+      textAlign: "center",
+    },
+    thirdLeveWithLeftBorder: {
+      border: "0.5px solid #9fa8da",
+      whiteSpace: "nowrap",
+      backgroundColor: "#e0e7ff",
+    },
+    thirdLevelTh: {
+      padding: "2px 4px",
+      borderTop: "1.5px solid #9fa8da",
+      borderBottom: "1.5px solid #9fa8da",
+      borderRight: "0.5px solid #9fa8da",
+      borderLeft: "0.5px solid #9fa8da",
+      fontSize: "12px",
+      color: "#374151",
+      whiteSpace: "nowrap",
+      height: "25px",
+      lineHeight: "1",
+      verticalAlign: "middle",
+      overflow: "hidden",
+    },
+    thirdLevelTd: {
+      padding: "2px 4px",
+      border: "0.5px solid #9fa8da",
+      fontSize: "12px",
+      color: "#374151",
+      whiteSpace: "nowrap",
+      height: "25px",
+      lineHeight: "1",
+      verticalAlign: "middle",
+      overflow: "hidden",
+    },
+    paginationButtonHover: {
+      backgroundColor: "#a5b4fc",
+      color: "#1f2937",
+    },
+    popupOverlay: {
+      position: "fixed",
+      top: 150,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 1000,
+    },
+    popupContainer: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      padding: "24px",
+      width: "500px",
+      maxWidth: "90vw",
+      maxHeight: "90vh",
+      overflow: "auto",
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+    },
+    popupHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "1px solid #e5e7eb",
+      paddingBottom: "12px",
+    },
+    popupTitle: {
+      fontSize: "18px",
+      fontWeight: "600",
+      color: "#374151",
+      margin: 0,
+    },
+    closeButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "4px",
+      borderRadius: "4px",
+      color: "#6b7280",
+    },
+    buttonGroup: {
+      display: "flex",
+      gap: "12px",
+      justifyContent: "flex-end",
+      marginTop: "24px",
+      paddingTop: "16px",
+      borderTop: "1px solid #e5e7eb",
+    },
+    submitButton: {
+      backgroundColor: "#1d4ed8",
+      color: "white",
+      padding: "8px 16px",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "14px",
+      fontWeight: "500",
+      cursor: "pointer",
     },
     cancelButton: {
       backgroundColor: "#fee2e2",
@@ -2998,6 +3144,250 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       cursor: "pointer",
       marginLeft: "4px",
     },
+    labelPopUp: {
+      fontSize: "12px",
+      fontWeight: "500",
+      color: "#4b5563",
+      marginTop: "5px",
+      display: "block",
+    },
+    inputPopUp: {
+      display: "flex",
+      height: "51px",
+      width: "70%",
+      borderRadius: "8px",
+      border: "2px solid #e5e7eb",
+      backgroundColor: "#ffffff",
+      padding: "16px 20px",
+      fontSize: "12px",
+      outline: "none",
+      boxShadow:
+        "0 1px 3px 0 rgba(0, 0, 0, 0.1), inset 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      transition: "all 0.3s ease",
+      fontFamily: "inherit",
+      fontWeight: "500",
+    },
+    inputPopUpDO: {
+      display: "flex",
+      height: "13px",
+      width: "62%",
+      borderRadius: "8px",
+      border: "2px solid #e5e7eb",
+      backgroundColor: "#ffffff",
+      padding: "16px 20px",
+      fontSize: "14px",
+      outline: "none",
+      boxShadow:
+        "0 1px 3px 0 rgba(0, 0, 0, 0.1), inset 0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      transition: "all 0.3s ease",
+      fontFamily: "inherit",
+      fontWeight: "500",
+    },
+    cellContent: {
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+
+    popupEditOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 2000,
+    },
+    popupEditContainer: {
+      backgroundColor: "white",
+      borderRadius: "12px",
+      padding: "30px",
+      width: "800px",
+      maxWidth: "90vw",
+      maxHeight: "90vh",
+      overflowY: "auto",
+      boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+    },
+    popupEditHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "2px solid #e5e7eb",
+      paddingBottom: "15px",
+      marginBottom: "25px",
+    },
+    popupEditTitle: {
+      fontSize: "22px",
+      fontWeight: "700",
+      color: "#1f2937",
+      margin: 0,
+    },
+    popupEditCloseButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "8px",
+      borderRadius: "6px",
+      color: "#6b7280",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all 0.2s ease",
+    },
+    popupEditCloseButtonHover: {
+      backgroundColor: "#f3f4f6",
+      color: "#374151",
+    },
+    popupEditForm: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "20px",
+    },
+    popupEditFormGroup: {
+      marginBottom: "15px",
+    },
+    popupEditLabel: {
+      display: "block",
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#4b5563",
+      marginBottom: "6px",
+    },
+    popupEditInput: {
+      width: "100%",
+      height: "38px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "6px",
+      padding: "0 12px",
+      fontSize: "13px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      boxSizing: "border-box",
+    },
+    popupEditInputFocus: {
+      borderColor: "#6366f1",
+    },
+    popupEditSelect: {
+      width: "100%",
+      height: "38px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "6px",
+      padding: "0 12px",
+      fontSize: "13px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      cursor: "pointer",
+      boxSizing: "border-box",
+    },
+    popupEditTextarea: {
+      width: "100%",
+      minHeight: "80px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "6px",
+      padding: "10px 12px",
+      fontSize: "13px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      outline: "none",
+      transition: "border-color 0.2s ease",
+      resize: "vertical",
+      boxSizing: "border-box",
+    },
+    popupEditError: {
+      color: "#dc2626",
+      fontSize: "12px",
+      marginTop: "5px",
+      fontWeight: "500",
+    },
+    popupEditButtonGroup: {
+      gridColumn: "1 / -1",
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "12px",
+      marginTop: "25px",
+      paddingTop: "20px",
+      borderTop: "2px solid #e5e7eb",
+    },
+    popupEditCancelButton: {
+      backgroundColor: "#f3f4f6",
+      color: "#374151",
+      padding: "10px 20px",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      transition: "all 0.2s ease",
+    },
+    popupEditCancelButtonHover: {
+      backgroundColor: "#e5e7eb",
+    },
+    popupEditSaveButton: {
+      backgroundColor: "#2563eb",
+      color: "white",
+      padding: "10px 24px",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      transition: "all 0.2s ease",
+    },
+    popupEditSaveButtonHover: {
+      backgroundColor: "#1d4ed8",
+    },
+    popupEditSaveButtonDisabled: {
+      backgroundColor: "#93c5fd",
+      color: "white",
+      padding: "10px 24px",
+      border: "none",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "not-allowed",
+      fontFamily: "inherit",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+    },
+    popupEditLoadingSpinner: {
+      width: "18px",
+      height: "18px",
+      border: "3px solid rgba(255, 255, 255, 0.3)",
+      borderRadius: "50%",
+      borderTopColor: "white",
+      animation: "spin 1s linear infinite",
+    },
+    editButtonHover: {
+      backgroundColor: "#c7d2fe",
+    },
+    deleteButtonHover: {
+      backgroundColor: "#c7d2fe",
+    },
+
+    saveButton: {
+      backgroundColor: "#d1fae5",
+      color: "#065f46",
+      padding: "4px 8px",
+      fontSize: "12px",
+      borderRadius: "4px",
+      border: "none",
+      cursor: "pointer",
+      marginLeft: "4px",
+    },
+
     checkButton: {
       backgroundColor: "#e0e7ff",
       color: "black",
@@ -3008,22 +3398,9 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       cursor: "pointer",
       marginLeft: "4px",
     },
-    moveButton: {
-      backgroundColor: "#dbeafe",
-      color: "#1d4ed8",
-      padding: "4px 8px",
-      fontSize: "12px",
-      borderRadius: "4px",
-      border: "none",
-      cursor: "pointer",
-      marginLeft: "4px",
-      display: "flex",
-      alignItems: "center",
-      gap: "2px",
-    },
-    approveButton: {
-      backgroundColor: "#d1fae5",
-      color: "#065f46",
+    returnButton: {
+      backgroundColor: "#e0e7ff",
+      color: "black",
       padding: "4px 8px",
       fontSize: "12px",
       borderRadius: "4px",
@@ -3031,6 +3408,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       cursor: "pointer",
       marginLeft: "4px",
     },
+
     inlineInput: {
       height: "22px",
       border: "1px solid #9fa8da",
@@ -3040,202 +3418,13 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       width: "90%",
       outline: "none",
     },
-    popupOverlay: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 2000,
-    },
-    popupContainer: {
-      backgroundColor: "white",
-      borderRadius: "8px",
-      padding: "24px",
-      width: "500px",
-      maxWidth: "90vw",
-      maxHeight: "80vh",
-      overflow: "auto",
-      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
-    },
-    popupHeader: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      borderBottom: "1px solid #e5e7eb",
-      paddingBottom: "12px",
-      marginBottom: "16px",
-    },
-    popupTitle: {
-      fontSize: "16px",
-      fontWeight: "600",
-      color: "#374151",
-      margin: 0,
-    },
-    formGroup: {
-      marginBottom: "16px",
-    },
-    formLabel: {
-      display: "block",
-      marginBottom: "4px",
-      fontWeight: "500",
-      fontSize: "14px",
-    },
-    formInput: {
-      width: "100%",
-      padding: "8px",
-      border: "1px solid #d1d5db",
-      borderRadius: "4px",
-      fontSize: "14px",
-    },
-    formSelect: {
-      width: "100%",
-      padding: "8px",
-      border: "1px solid #d1d5db",
-      borderRadius: "4px",
-      fontSize: "14px",
-    },
-    buttonGroup: {
-      display: "flex",
-      gap: "8px",
-      justifyContent: "flex-end",
-      marginTop: "16px",
-    },
-    popupOverlayDates: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 2000,
-    },
-    popupContainerDates: {
-      backgroundColor: "white",
-      borderRadius: "8px",
-      padding: "24px",
-      width: "450px",
-      maxWidth: "90vw",
-      maxHeight: "80vh",
-      overflow: "auto",
-      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
-    },
-    popupHeaderDates: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      borderBottom: "1px solid #e5e7eb",
-      paddingBottom: "12px",
-      marginBottom: "16px",
-    },
-    popupTitleDates: {
-      fontSize: "16px",
-      fontWeight: "600",
-      color: "#374151",
-      margin: 0,
-    },
-    dateInputRow: {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      marginBottom: "8px",
-    },
-    dateInput: {
-      flex: 1,
-      padding: "8px 12px",
-      border: "1px solid #d1d5db",
-      borderRadius: "4px",
-      fontSize: "14px",
-    },
-    removeDateButton: {
-      padding: "8px",
-      border: "1px solid #ef4444",
-      borderRadius: "4px",
-      background: "#fef2f2",
-      color: "#ef4444",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    addDateButton: {
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-      padding: "8px 12px",
-      border: "1px solid #3b82f6",
-      borderRadius: "4px",
-      background: "#eff6ff",
-      color: "#3b82f6",
-      cursor: "pointer",
-      fontSize: "12px",
-      marginTop: "8px",
-    },
-    buttonGroupDates: {
-      display: "flex",
-      gap: "8px",
-      justifyContent: "flex-end",
-      marginTop: "16px",
-      paddingTop: "16px",
-      borderTop: "1px solid #e5e7eb",
-    },
-    primaryButtonDates: {
-      padding: "8px 16px",
-      border: "none",
-      borderRadius: "4px",
-      background: "#3b82f6",
-      color: "white",
-      cursor: "pointer",
-      fontSize: "14px",
-      fontWeight: "500",
-    },
-    secondaryButtonDates: {
-      padding: "8px 16px",
-      border: "1px solid #d1d5db",
-      borderRadius: "4px",
-      background: "white",
-      cursor: "pointer",
-      fontSize: "14px",
-    },
-    sampleBadge: {
-      backgroundColor: "#fef3c7",
-      color: "#92400e",
-      padding: "2px 6px",
-      borderRadius: "4px",
+    prodDatesBadge: {
+      display: "inline",
       fontSize: "10px",
-      fontWeight: "600",
+      color: "#374151",
     },
-    passBadge: {
-      backgroundColor: "#d1fae5",
-      color: "#065f46",
-      padding: "2px 6px",
-      borderRadius: "4px",
-      fontSize: "10px",
-      fontWeight: "600",
-    },
-    saveConfiguration: {
-      display: "flex",
-      gap: "8px",
-      marginTop: "10px",
-      marginLeft: "13px",
-    },
-    returnButton: {
-      backgroundColor: "#fef3c7",
-      color: "#92400e",
-      padding: "4px 8px",
-      fontSize: "12px",
-      borderRadius: "4px",
-      border: "none",
-      cursor: "pointer",
-      marginLeft: "4px",
-    },
+
+    // Inline Prod Dates Editor (Today Tab)
     inlineProdDatesContainer: {
       display: "flex",
       flexWrap: "wrap",
@@ -3277,12 +3466,13 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       alignItems: "center",
       gap: "2px",
     },
-    prodDatesBadge: {
-      display: "inline-block",
-      padding: "2px 6px",
-      fontSize: "11px",
-      color: "#374151",
+
+    prodDatesList: {
+      display: "inline",
+      fontSize: "10px",
     },
+
+    // Status Badge - POLOS tanpa warna
     statusBadge: {
       padding: "2px 8px",
       borderRadius: "4px",
@@ -3290,6 +3480,143 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       fontWeight: "500",
       backgroundColor: "transparent",
       color: "#374151",
+    },
+
+    statusPass: {
+      // Polos tanpa warna
+      backgroundColor: "transparent",
+      color: "#374151",
+    },
+
+    statusSample: {
+      // Polos tanpa warna
+      backgroundColor: "transparent",
+      color: "#374151",
+    },
+
+    // Sample Dates
+    sampleDatesList: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      fontSize: "10px",
+    },
+
+    sampleDateItem: {
+      padding: "1px 4px",
+      backgroundColor: "transparent",
+      borderRadius: "2px",
+    },
+
+    // Popup Styles untuk Multiple Dates
+    popupOverlayDates: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 2000,
+    },
+
+    popupContainerDates: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      padding: "24px",
+      width: "450px",
+      maxWidth: "90vw",
+      maxHeight: "80vh",
+      overflow: "auto",
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+    },
+
+    popupHeaderDates: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      borderBottom: "1px solid #e5e7eb",
+      paddingBottom: "12px",
+      marginBottom: "16px",
+    },
+
+    popupTitleDates: {
+      fontSize: "16px",
+      fontWeight: "600",
+      color: "#374151",
+      margin: 0,
+    },
+
+    dateInputRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      marginBottom: "8px",
+    },
+
+    dateInput: {
+      flex: 1,
+      padding: "8px 12px",
+      border: "1px solid #d1d5db",
+      borderRadius: "4px",
+      fontSize: "14px",
+    },
+
+    removeDateButton: {
+      padding: "8px",
+      border: "1px solid #ef4444",
+      borderRadius: "4px",
+      background: "#fef2f2",
+      color: "#ef4444",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    addDateButton: {
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      padding: "8px 12px",
+      border: "1px solid #3b82f6",
+      borderRadius: "4px",
+      background: "#eff6ff",
+      color: "#3b82f6",
+      cursor: "pointer",
+      fontSize: "12px",
+      marginTop: "8px",
+    },
+
+    buttonGroupDates: {
+      display: "flex",
+      gap: "8px",
+      justifyContent: "flex-end",
+      marginTop: "16px",
+      paddingTop: "16px",
+      borderTop: "1px solid #e5e7eb",
+    },
+
+    primaryButtonDates: {
+      padding: "8px 16px",
+      border: "none",
+      borderRadius: "4px",
+      background: "#3b82f6",
+      color: "white",
+      cursor: "pointer",
+      fontSize: "14px",
+      fontWeight: "500",
+    },
+
+    secondaryButtonDates: {
+      padding: "8px 16px",
+      border: "1px solid #d1d5db",
+      borderRadius: "4px",
+      background: "white",
+      cursor: "pointer",
+      fontSize: "14px",
     },
   };
 
@@ -5739,57 +6066,46 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       </Helmet>
 
       <div style={styles.welcomeCard}>
-        {/* Header and Filter */}
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
             <h1 style={styles.title}>Oversea Part Schedule</h1>
           </div>
-
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
-              <span style={styles.label}>Date From</span>
+              <span style={styles.label}>Date Filter</span>
+              <select style={styles.select}>
+                <option style={optionStyle}>Search Date</option>
+              </select>
               <input
                 type="date"
                 style={styles.input}
-                value={filters.dateFrom}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, dateFrom: e.target.value }))
-                }
+                placeholder="Date From"
+
               />
-              <span style={styles.label}>Date To</span>
+              <span style={styles.label}>To</span>
               <input
                 type="date"
                 style={styles.input}
-                value={filters.dateTo}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, dateTo: e.target.value }))
-                }
+                placeholder="Date To"
+
               />
             </div>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
+              <select
+                style={styles.select}
+              >
+                <option style={optionStyle}>Customer</option>
+                <option style={optionStyle}>Product Code</option>
+                <option style={optionStyle}>Product Description</option>
+              </select>
               <input
                 type="text"
                 style={styles.input}
-                placeholder="Vendor Name"
-                value={filters.vendorName}
-                onChange={(e) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    vendorName: e.target.value,
-                  }))
-                }
+                placeholder="Input Keyword"
+
               />
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="Part Code"
-                value={filters.partCode}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, partCode: e.target.value }))
-                }
-              />
-              <button style={styles.button} onClick={handleSearch}>
+              <button style={styles.button}>
                 Search
               </button>
             </div>
