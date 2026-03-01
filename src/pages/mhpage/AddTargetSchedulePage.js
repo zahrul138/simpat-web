@@ -654,6 +654,9 @@ const AddTargetSchedulePage = () => {
       poNumber: "",
       description: "",
     });
+
+    // Auto-expand the detail table for this header
+    setExpandedRows((prev) => ({ ...prev, [activeHeaderId]: true }));
   };
 
   const handleInsertSchedule = async () => {

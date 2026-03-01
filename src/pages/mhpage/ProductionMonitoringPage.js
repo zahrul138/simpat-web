@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Trash2, Eye, Settings } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import {
+  Plus,
+  Trash2,
+  Eye,
+  Settings,
+  SlidersHorizontal,
+  AlertTriangle,
+} from "lucide-react";
 import timerService from "../../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
@@ -54,71 +61,13 @@ const useWarningSettings = () => {
   const loadWarningSettings = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
       const data = await http(API.warningSettings.list());
-
-      if (data && data.length > 0) {
+      if (Array.isArray(data)) {
         setWarningSettings(data);
         setOriginalSettings(data);
-        localStorage.setItem("warningSettings", JSON.stringify(data));
-        console.log("Settings loaded from API");
-      } else {
-        const cached = localStorage.getItem("warningSettings");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          setWarningSettings(parsed);
-          setOriginalSettings(parsed);
-          console.log("Settings loaded from localStorage (API empty)");
-        } else {
-          const defaultSettings = [
-            {
-              id: 1,
-              start: "06:00",
-              end: "07:00",
-              reason: "Meeting Time",
-              enabled: true,
-            },
-            {
-              id: 2,
-              start: "08:30",
-              end: "09:00",
-              reason: "Break Time",
-              enabled: true,
-            },
-            {
-              id: 3,
-              start: "11:30",
-              end: "13:00",
-              reason: "Lunch Time",
-              enabled: true,
-            },
-            {
-              id: 4,
-              start: "15:30",
-              end: "16:00",
-              reason: "Overtime Break",
-              enabled: true,
-            },
-          ];
-          setWarningSettings(defaultSettings);
-          setOriginalSettings(defaultSettings);
-          localStorage.setItem(
-            "warningSettings",
-            JSON.stringify(defaultSettings)
-          );
-          console.log("Default settings created");
-        }
       }
     } catch (err) {
-      console.warn("API failed, using cached settings:", err);
-      const cached = localStorage.getItem("warningSettings");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        setWarningSettings(parsed);
-        setOriginalSettings(parsed);
-        console.log("Settings loaded from localStorage (API error)");
-      }
       setError("Failed to load settings from server");
     } finally {
       setLoading(false);
@@ -128,8 +77,8 @@ const useWarningSettings = () => {
   const updateWarningSetting = useCallback((id, field, value) => {
     setWarningSettings((prev) =>
       prev.map((setting) =>
-        setting.id === id ? { ...setting, [field]: value } : setting
-      )
+        setting.id === id ? { ...setting, [field]: value } : setting,
+      ),
     );
   }, []);
 
@@ -162,7 +111,7 @@ const useWarningSettings = () => {
       }
 
       return prev.map((setting) =>
-        setting.id === id ? { ...setting, markedForDeletion: true } : setting
+        setting.id === id ? { ...setting, markedForDeletion: true } : setting,
       );
     });
   }, []);
@@ -170,8 +119,8 @@ const useWarningSettings = () => {
   const restoreWarningSetting = useCallback((id) => {
     setWarningSettings((prev) =>
       prev.map((setting) =>
-        setting.id === id ? { ...setting, markedForDeletion: false } : setting
-      )
+        setting.id === id ? { ...setting, markedForDeletion: false } : setting,
+      ),
     );
   }, []);
 
@@ -190,19 +139,12 @@ const useWarningSettings = () => {
       });
 
       if (result.settings) {
-        const cleanedSettings = result.settings.map((setting) => ({
-          ...setting,
-          isNew: undefined,
-          markedForDeletion: undefined,
-        }));
-        setWarningSettings(cleanedSettings);
-        localStorage.setItem(
-          "warningSettings",
-          JSON.stringify(cleanedSettings)
+        const cleanedSettings = result.settings.map(
+          ({ isNew, markedForDeletion, ...s }) => s,
         );
+        setWarningSettings(cleanedSettings);
+        setOriginalSettings(cleanedSettings);
       }
-
-      console.log("All settings saved to API");
       return { success: true, message: "Settings saved successfully!" };
     } catch (err) {
       console.warn("Failed to save settings to API:", err);
@@ -216,17 +158,10 @@ const useWarningSettings = () => {
 
   const resetToOriginalSettings = useCallback(() => {
     setWarningSettings(originalSettings);
-    localStorage.setItem("warningSettings", JSON.stringify(originalSettings));
-    console.log("Settings reset to original");
   }, [originalSettings]);
 
   const saveCurrentSettingsAsOriginal = useCallback(() => {
     setOriginalSettings([...warningSettings]);
-    console.log("Current settings saved as original");
-  }, [warningSettings]);
-
-  useEffect(() => {
-    localStorage.setItem("warningSettings", JSON.stringify(warningSettings));
   }, [warningSettings]);
 
   return {
@@ -260,6 +195,44 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const [lastDataUpdate, setLastDataUpdate] = useState(Date.now());
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
   const [manualRefreshCount, setManualRefreshCount] = useState(0);
+  const partsRefreshTimerRef = useRef(null);
+
+  // ── Shortage state ────────────────────────────────────────
+  const [targetUnits, setTargetUnits] = useState(() => {
+    const s = localStorage.getItem("pm_target_units");
+    return s ? parseInt(s) || 0 : 0;
+  });
+  const [targetUnitsInput, setTargetUnitsInput] = useState("");
+  const [showShortagePopup, setShowShortagePopup] = useState(false);
+  const [shortageThresholds, setShortageThresholds] = useState(() => {
+    const s = localStorage.getItem("pm_shortage_thresholds");
+    return s ? JSON.parse(s) : { green: 50, yellow: 30, red: 10 };
+  });
+  const [thresholdInput, setThresholdInput] = useState({
+    green: 50,
+    yellow: 30,
+    red: 10,
+  });
+  const currentScheduleRef = useRef(null);
+  const isBackgroundRefreshingRef = useRef(false);
+  const showDetailPopupRef = useRef(false);
+  const showSettingsPopupRef = useRef(false);
+  const shiftEndTriggeredRef = useRef(false);
+  const fetchPartsRef = useRef(null);
+
+  // Sync refs — agar interval tidak perlu di-recreate setiap render
+  useEffect(() => {
+    currentScheduleRef.current = currentSchedule;
+  }, [currentSchedule]);
+  useEffect(() => {
+    showDetailPopupRef.current = showDetailPopup;
+  }, [showDetailPopup]);
+  useEffect(() => {
+    showSettingsPopupRef.current = showSettingsPopup;
+  }, [showSettingsPopup]);
+  useEffect(() => {
+    isBackgroundRefreshingRef.current = isBackgroundRefreshing;
+  }, [isBackgroundRefreshing]);
 
   const {
     warningSettings,
@@ -276,7 +249,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   } = useWarningSettings();
 
   const activeWarningConfig = warningSettings.filter(
-    (setting) => setting.enabled
+    (setting) => setting.enabled,
   );
 
   const formatDuration = useCallback((ms) => {
@@ -337,43 +310,31 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
         .toString()
         .padStart(2, "0")}:${currentMinutes.toString().padStart(2, "0")}`;
 
-      // 1. Buat tanggal dalam format yang konsisten untuk perbandingan
-      const today = now.toISOString().split("T")[0]; // Format: 2025-12-07
+      const toLocalYMD = (d) => {
+        const y = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${mo}-${day}`;
+      };
+      const today = toLocalYMD(now);
 
-      // 2. Juga buat versi kemungkinan kemarin (untuk shift malam)
       const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split("T")[0];
+      const yesterdayStr = toLocalYMD(yesterday);
 
-      console.log(`[MONITORING] Checking at ${currentTimeStr}`);
-      console.log(
-        `[MONITORING] Today (client): ${today}, Yesterday: ${yesterdayStr}`
-      );
-
-      // Ambil semua schedule OnProgress
       const resp = await http(
         API.schedules.list({
           status: "OnProgress",
           limit: 100,
           page: 1,
-        })
+        }),
       );
 
       const items = resp?.items || [];
-      console.log(`[MONITORING] Found ${items.length} OnProgress schedules`);
 
       let activeSchedule = null;
 
       for (const schedule of items) {
-        console.log(`Checking schedule:`, {
-          id: schedule.id,
-          date: schedule.target_date,
-          date_display: schedule.target_date_display, // Debug: lihat field baru
-          today: today,
-          shiftTime: schedule.shift_time,
-          currentTime: currentTimeStr,
-        });
-
         // 3. Gunakan target_date_display jika ada, jika tidak gunakan target_date
         const scheduleDateToCheck =
           schedule.target_date_display || schedule.target_date;
@@ -382,13 +343,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
         let scheduleDateNormalized;
         if (scheduleDateToCheck) {
           // Jika target_date sudah dalam format string ISO (dengan timezone)
-          if (scheduleDateToCheck.includes("T")) {
-            const dateObj = new Date(scheduleDateToCheck);
-            scheduleDateNormalized = dateObj.toISOString().split("T")[0];
-          } else {
-            // Jika sudah dalam format YYYY-MM-DD
-            scheduleDateNormalized = scheduleDateToCheck.split("T")[0];
-          }
+          scheduleDateNormalized = toLocalYMD(new Date(scheduleDateToCheck));
         }
 
         // 5. Cek apakah schedule untuk hari ini atau kemarin
@@ -396,19 +351,16 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
         const isYesterday = scheduleDateNormalized === yesterdayStr;
 
         if (!isToday && !isYesterday) {
-          console.log(`  Skipped: date mismatch (${scheduleDateNormalized})`);
           continue;
         }
 
         // 6. Cek apakah shift time-nya sedang berjalan
         if (!schedule.shift_time) {
-          console.log(`  Skipped: no shift time`);
           continue;
         }
 
         const [startTime, endTime] = schedule.shift_time.split(" - ");
         if (!startTime || !endTime) {
-          console.log(`  Skipped: invalid shift format`);
           continue;
         }
 
@@ -433,15 +385,9 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
             currentMinutes >= startMinutes || currentMinutes <= endMinutes;
         }
 
-        console.log(
-          `  Time check: ${currentMinutes} between ${startMinutes}-${endMinutes} = ${isActive}`
-        );
-
         if (isActive) {
           activeSchedule = schedule;
-          console.log(
-            `  ✓ ACTIVE schedule found: ${schedule.id} (${scheduleDateNormalized})`
-          );
+
           break;
         }
       }
@@ -453,6 +399,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           line: activeSchedule.line_code,
           shiftTime: activeSchedule.shift_time,
           total_input: activeSchedule.total_input || 0,
+          actual_input: activeSchedule.actual_input || 0,
           total_customer: activeSchedule.total_customer || 0,
           total_model: activeSchedule.total_model || 0,
           total_pallet: activeSchedule.total_pallet || 0,
@@ -464,19 +411,18 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
         if (!backgroundRefresh) {
           try {
             const detailResp = await http(
-              API.schedules.detail(activeSchedule.id)
+              API.schedules.detail(activeSchedule.id),
             );
             setScheduleDetails(detailResp);
           } catch (detailErr) {
             console.warn(
               "[MONITORING] Failed to load schedule details:",
-              detailErr
+              detailErr,
             );
             setScheduleDetails(null);
           }
         }
       } else {
-        console.log("[MONITORING] No active schedule found");
         setCurrentSchedule(null);
         setScheduleDetails(null);
       }
@@ -495,80 +441,24 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       } else {
         setLoading(false);
       }
-      console.log("[MONITORING] loadCurrentSchedule completed");
     }
   }, []);
 
   const performBackgroundRefresh = useCallback(
     async (immediate = false) => {
-      if (isBackgroundRefreshing) return;
-
-      if (showDetailPopup || showSettingsPopup) {
-        console.log("[MONITORING] Skipping refresh - popup is open");
-        return;
-      }
-
+      if (isBackgroundRefreshingRef.current) return;
+      if (showDetailPopupRef.current || showSettingsPopupRef.current) return;
       try {
-        console.log("[MONITORING] Performing background refresh");
         await loadCurrentSchedule(true);
-
-        // Jika immediate refresh, juga panggil auto-complete
         if (immediate) {
-          try {
-            await http("/api/production-schedules/auto-complete", {
-              method: "PATCH",
-            });
-          } catch (err) {
-            console.log("[IMMEDIATE AUTO-COMPLETE] Error:", err.message);
-          }
+          await http("/api/production-schedules/auto-complete", {
+            method: "PATCH",
+          }).catch(() => {});
         }
-      } catch (err) {
-        console.log("[MONITORING] Background refresh failed:", err.message);
-      }
+      } catch (err) {}
     },
-    [
-      isBackgroundRefreshing,
-      loadCurrentSchedule,
-      showDetailPopup,
-      showSettingsPopup,
-    ]
+    [loadCurrentSchedule],
   );
-
-  const autoCheckAndRefresh = useCallback(async () => {
-    try {
-      const now = timerService.getCurrentTime();
-      const currentTimeStr = now.toLocaleTimeString();
-
-      try {
-        await http("/api/production-schedules/auto-complete", {
-          method: "PATCH",
-        });
-      } catch (completeErr) {}
-
-      const timeSinceLastUpdate = Date.now() - lastDataUpdate;
-      if (timeSinceLastUpdate > 5000) {
-        console.log(
-          `[MONITORING-REFRESH] Performing transparent refresh at ${currentTimeStr}`
-        );
-        performBackgroundRefresh();
-      }
-    } catch (err) {
-      console.log(
-        "[MONITORING-REFRESH] Error in background process:",
-        err.message
-      );
-    }
-  }, [performBackgroundRefresh, lastDataUpdate]);
-
-  useEffect(() => {
-    console.log("[MONITORING] Current schedule state:", {
-      loading,
-      hasSchedule: !!currentSchedule,
-      schedule: currentSchedule,
-      detailsCount: scheduleDetails?.details?.length,
-      currentTime: new Date().toLocaleTimeString(),
-    });
-  }, [currentSchedule, scheduleDetails, loading]);
 
   const calculateShiftTimes = useCallback(() => {
     if (!currentSchedule?.shiftTime) {
@@ -626,75 +516,136 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       totalShiftDuration: Math.max(0, totalShiftDuration),
       elapsedShiftTime: Math.max(
         0,
-        Math.min(elapsedShiftTime, totalShiftDuration)
+        Math.min(elapsedShiftTime, totalShiftDuration),
       ),
       remainingShiftTime: Math.max(0, remainingShiftTime),
     };
   }, [currentSchedule, currentTime]);
 
+  // ── Expected Output Calculation ─────────────────────────────
+  // Menghitung berapa unit seharusnya sudah diproduksi sampai saat ini,
+  // dengan memperhitungkan waktu istirahat (warning periods).
+  const calculateCurrentTarget = useCallback(() => {
+    if (!currentSchedule?.shiftTime || !currentSchedule?.total_input) return 0;
+
+    const [startStr, endStr] = currentSchedule.shiftTime.split(" - ");
+    if (!startStr || !endStr) return 0;
+
+    const [startH, startM] = startStr.split(":").map(Number);
+    const [endH, endM] = endStr.split(":").map(Number);
+
+    const shiftStartMins = startH * 60 + startM;
+    let shiftEndMins = endH * 60 + endM;
+    if (shiftEndMins <= shiftStartMins) shiftEndMins += 24 * 60; // overnight
+
+    const shiftDuration = shiftEndMins - shiftStartMins;
+
+    // Total break minutes within shift hours
+    let totalBreakMins = 0;
+    for (const ws of activeWarningConfig) {
+      const [wsH, wsM] = ws.start.split(":").map(Number);
+      const [weH, weM] = ws.end.split(":").map(Number);
+      const wsStart = wsH * 60 + wsM;
+      let wsEnd = weH * 60 + weM;
+      if (wsEnd <= wsStart) wsEnd += 24 * 60;
+      const overlapStart = Math.max(wsStart, shiftStartMins);
+      const overlapEnd = Math.min(wsEnd, shiftEndMins);
+      if (overlapEnd > overlapStart)
+        totalBreakMins += overlapEnd - overlapStart;
+    }
+
+    const effectiveWorkMins = Math.max(1, shiftDuration - totalBreakMins);
+
+    // Elapsed minutes since shift start (capped at shift duration)
+    const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+    let elapsed = nowMins - shiftStartMins;
+    if (elapsed < 0) elapsed += 24 * 60;
+    elapsed = Math.min(elapsed, shiftDuration);
+
+    // How many break minutes have already passed within elapsed time
+    let elapsedBreakMins = 0;
+    for (const ws of activeWarningConfig) {
+      const [wsH, wsM] = ws.start.split(":").map(Number);
+      const [weH, weM] = ws.end.split(":").map(Number);
+      const wsStart = wsH * 60 + wsM;
+      let wsEnd = weH * 60 + weM;
+      if (wsEnd <= wsStart) wsEnd += 24 * 60;
+      const overlapStart = Math.max(wsStart, shiftStartMins);
+      const overlapEnd = Math.min(wsEnd, shiftEndMins);
+      if (overlapEnd <= overlapStart) continue;
+      const relStart = overlapStart - shiftStartMins;
+      const relEnd = overlapEnd - shiftStartMins;
+      const passedEnd = Math.min(relEnd, elapsed);
+      if (passedEnd > relStart) elapsedBreakMins += passedEnd - relStart;
+    }
+
+    const elapsedProductiveMins = Math.max(0, elapsed - elapsedBreakMins);
+    const ratio = elapsedProductiveMins / effectiveWorkMins;
+    return Math.min(
+      Math.floor(ratio * currentSchedule.total_input),
+      currentSchedule.total_input,
+    );
+  }, [currentSchedule, currentTime, activeWarningConfig]);
+
+  const expectedOutput = calculateCurrentTarget();
+
   const { remainingShiftTime } = calculateShiftTimes();
   const currentWarningReason = getCurrentWarningPeriod();
   const isWarning = !!currentWarningReason;
-  const firstCustomer = scheduleDetails?.details?.[0];
+  // currentCustomer: berdasarkan unit BERIKUTNYA yang akan diapprove
+  // actual_input=21 (EHC 21 unit habis) → checkUnit=22 → langsung tampil EAL
+  const currentCustomer = useMemo(() => {
+    const details = scheduleDetails?.details;
+    if (!details || details.length === 0) return null;
+    const actualInput = currentSchedule?.actual_input || 0;
+    // Gunakan unit berikutnya — kalau sudah semua approve, tetap tunjukkan customer terakhir
+    const checkUnit = actualInput + 1;
+    let cumulative = 0;
+    for (const d of details) {
+      cumulative += Number(d.input || 0);
+      if (checkUnit <= cumulative) return d;
+    }
+    // Semua unit sudah approve → tunjukkan customer terakhir
+    return details[details.length - 1];
+  }, [scheduleDetails, currentSchedule]);
 
   // 1. useEffect untuk inisialisasi
   useEffect(() => {
-    console.log("[MONITORING] Initializing...");
-
     const unsubscribe = timerService.subscribe((newTime) => {
       setCurrentTime(newTime);
     });
 
     loadCurrentSchedule();
 
-    // Refresh setiap 5 detik UNTUK DATA SAJA (bukan auto-complete)
+    // Refresh setiap 30 detik — ringan, cukup untuk data real-time
     const refreshInterval = setInterval(() => {
-      console.log("[MONITORING] 5-second background refresh");
       performBackgroundRefresh();
-    }, 5000);
+    }, 30000);
 
-    // SETIAP DETIK, CEK APAKAH SHIFT SUDAH BERAKHIR
+    // Setiap detik, cek shift end — gunakan ref agar tidak perlu re-create
     const preciseCheckInterval = setInterval(() => {
+      const sched = currentScheduleRef.current;
+      if (!sched?.shiftTime) return;
       const now = new Date();
-
-      if (currentSchedule?.shiftTime) {
-        const [startTime, endTime] = currentSchedule.shiftTime.split(" - ");
-        const [endHours, endMinutes] = endTime.split(":").map(Number);
-
-        // Buat waktu end yang tepat
-        const endDateTime = new Date();
-        endDateTime.setHours(endHours, endMinutes, 0, 0);
-
-        // Jika sekarang >= end time, panggil auto-complete
-        if (now >= endDateTime) {
-          console.log(
-            `[PRECISE CHECK] Shift ended! Calling auto-complete at ${now.toLocaleTimeString()}`
-          );
-
-          http("/api/production-schedules/auto-complete", {
-            method: "PATCH",
+      const [, endTime] = sched.shiftTime.split(" - ");
+      if (!endTime) return;
+      const [endHours, endMinutes] = endTime.split(":").map(Number);
+      const endDateTime = new Date();
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
+      if (now >= endDateTime) {
+        http("/api/production-schedules/auto-complete", { method: "PATCH" })
+          .then((data) => {
+            if (data?.completed > 0) loadCurrentSchedule();
           })
-            .then((data) => {
-              if (data?.completed > 0) {
-                console.log(
-                  `[PRECISE CHECK] Completed ${data.completed} schedules`
-                );
-                // Refresh data
-                loadCurrentSchedule();
-              }
-            })
-            .catch((err) => {
-              console.log("[PRECISE CHECK] Error:", err.message);
-            });
-        }
+          .catch(() => {});
       }
-    }, 1000); // Check setiap detik
+    }, 1000);
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log("[MONITORING] Page became visible, refreshing...");
         setTimeout(() => {
           loadCurrentSchedule();
+          if (fetchPartsRef.current) fetchPartsRef.current(true);
         }, 500);
       }
     };
@@ -707,74 +658,30 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       clearInterval(preciseCheckInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [loadCurrentSchedule, performBackgroundRefresh, currentSchedule]);
+  }, [loadCurrentSchedule, performBackgroundRefresh]);
+  // currentSchedule tidak ada di deps — akses via currentScheduleRef di dalam interval
 
-  // 2. useEffect untuk immediate check saat remaining time <= 0
+  // 2. shift berakhir → trigger SEKALI (bukan tiap detik!)
   useEffect(() => {
-    if (currentSchedule && remainingShiftTime <= 0 && !isBackgroundRefreshing) {
-      console.log(
-        "[IMMEDIATE CHECK] Remaining time is 0, calling auto-complete"
-      );
-
-      // Tambahkan timeout kecil untuk memastikan waktunya tepat
-      setTimeout(() => {
-        http("/api/production-schedules/auto-complete", {
-          method: "PATCH",
-        })
-          .then((data) => {
-            if (data?.completed > 0) {
-              console.log(
-                `[IMMEDIATE CHECK] Completed ${data.completed} schedules`
-              );
-              loadCurrentSchedule();
-            }
-          })
-          .catch((err) => {
-            console.log("[IMMEDIATE CHECK] Error:", err.message);
-          });
-      }, 100); // 100ms delay untuk memastikan waktunya tepat
-    }
-  }, [
-    remainingShiftTime,
-    currentSchedule,
-    loadCurrentSchedule,
-    isBackgroundRefreshing,
-  ]);
-
-  // useEffect untuk auto-complete presisi
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}`;
-
-      if (currentSchedule?.shiftTime) {
-        const [_, endTime] = currentSchedule.shiftTime.split(" - ");
-
-        // Jika waktu saat ini >= end time, panggil auto-complete
-        if (currentTime >= endTime) {
-          console.log(
-            `[PRECISE AUTO-COMPLETE] ${currentTime} >= ${endTime}, calling API`
-          );
-
-          http("/api/production-schedules/auto-complete", {
-            method: "PATCH",
-          })
+    if (
+      currentSchedule &&
+      remainingShiftTime <= 0 &&
+      !isBackgroundRefreshingRef.current
+    ) {
+      if (!shiftEndTriggeredRef.current) {
+        shiftEndTriggeredRef.current = true;
+        setTimeout(() => {
+          http("/api/production-schedules/auto-complete", { method: "PATCH" })
             .then((data) => {
-              if (data?.completed > 0) {
-                console.log(`Completed ${data.completed} schedules`);
-                loadCurrentSchedule(); // Refresh data
-              }
+              if (data?.completed > 0) loadCurrentSchedule();
             })
-            .catch((err) => console.log("Auto-complete error:", err.message));
-        }
+            .catch(() => {});
+        }, 200);
       }
-    }, 100); // Check setiap detik
-
-    return () => clearInterval(interval);
-  }, [currentSchedule, loadCurrentSchedule]);
+    } else if (currentSchedule && remainingShiftTime > 0) {
+      shiftEndTriggeredRef.current = false;
+    }
+  }, [remainingShiftTime, currentSchedule, loadCurrentSchedule]);
 
   const formatDateDisplay = useCallback((dateString) => {
     if (!dateString) return "-";
@@ -812,14 +719,12 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const handleOpenSettingsPopup = () => {
     saveCurrentSettingsAsOriginal();
     setShowSettingsPopup(true);
-    console.log("[MONITORING] Settings popup opened, pausing auto-refresh");
   };
 
   const handleCancelSettings = () => {
     resetToOriginalSettings();
     setShowSettingsPopup(false);
     setSaveStatus(null);
-    console.log("[MONITORING] Settings popup closed, resuming auto-refresh");
   };
 
   useEffect(() => {
@@ -843,7 +748,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       const loadDetails = async () => {
         try {
           const detailResp = await http(
-            API.schedules.detail(currentSchedule.id)
+            API.schedules.detail(currentSchedule.id),
           );
           setScheduleDetails(detailResp);
         } catch (err) {
@@ -854,24 +759,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       loadDetails();
     }
   }, [currentSchedule, isBackgroundRefreshing]);
-
-  useEffect(() => {
-    console.log("[MONITORING] Current schedule state:", {
-      loading,
-      hasSchedule: !!currentSchedule,
-      schedule: currentSchedule,
-      detailsCount: scheduleDetails?.details?.length,
-      currentTime: new Date().toLocaleTimeString(),
-      lastUpdate: new Date(lastDataUpdate).toLocaleTimeString(),
-      isBackgroundRefreshing,
-    });
-  }, [
-    currentSchedule,
-    scheduleDetails,
-    loading,
-    lastDataUpdate,
-    isBackgroundRefreshing,
-  ]);
 
   const [tooltip, setTooltip] = useState({
     visible: false,
@@ -967,10 +854,8 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   };
 
   const handleManualRefresh = useCallback(() => {
-    console.log(
-      `[MANUAL REFRESH] Triggered at ${new Date().toLocaleTimeString()}`
-    );
     loadCurrentSchedule();
+    if (fetchPartsRef.current) fetchPartsRef.current(true);
     setManualRefreshCount((prev) => prev + 1);
   }, [loadCurrentSchedule]);
 
@@ -991,6 +876,12 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   };
 
   const [activeTab, setActiveTab] = useState("all");
+
+  // Reset page saat ganti tab
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
 
   const optionStyle = {
     backgroundColor: "#d1d5db",
@@ -1336,11 +1227,12 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       fontSize: "11px",
     },
     detailsTh: {
-      border: "1px solid #e5e7eb",
+      border: "1px solid #9fa8da",
       padding: "6px 8px",
-      backgroundColor: "#f8faff",
+      backgroundColor: "#e0e7ff",
       textAlign: "left",
       fontWeight: "600",
+      color: "#374151",
     },
     detailsTd: {
       border: "1px solid #e5e7eb",
@@ -1643,32 +1535,144 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       textAlign: "center",
     },
   };
-  const PAGE_SIZE = 20;
-  const [currentPage, setCurrentPage] = useState(1);
+  // ── Parts state ──────────────────────────────────────────────
+  const [parts, setParts] = useState([]);
+  const [partsLoading, setPartsLoading] = useState(false);
 
-  const parts = Array.from({ length: 30 }, (_, i) => {
-    const usageOptions = [1, 2, 4, 8];
-    const usagePerUnit = usageOptions[i % usageOptions.length];
-    const coverageOptions = [75, 110, 180, 60, 95, 140, 155, 200];
-    const coverage = coverageOptions[i % coverageOptions.length];
-    const m1a1 = coverage * usagePerUnit;
-    const m136 = Math.max(0, Math.floor(m1a1 * 0.3));
+  const fetchParts = useCallback(async (silent = false) => {
+    if (!silent) setPartsLoading(true);
+    try {
+      const data = await http(`/api/kanban-master/with-details`);
+      if (data?.success && Array.isArray(data.data)) {
+        const mapped = data.data.map((p) => ({
+          id: p.id,
+          code: p.part_code || "",
+          name: p.part_name || "",
+          type: p.part_types || "-",
+          vendorType: p.vendor_type || "-",
+          vendorName: p.vendor_name || "-",
+          assembly_station: p.assembly_station || null,
+          qty_per_assembly: p.qty_per_assembly || 1,
+          m101: p.stock_m101 ?? 0,
+          m136: p.stock_m136 ?? 0,
+          usagePerUnit: p.qty_per_assembly || 1,
+        }));
+        setParts(mapped);
+      }
+    } catch (err) {
+      // silent — halaman tetap bisa dipakai meski parts gagal fetch
+    } finally {
+      if (!silent) setPartsLoading(false);
+    }
+  }, []);
 
-    return {
-      code: `PART-${String(i + 1).padStart(3, "0")}`,
-      name: `Dummy Part ${i + 1}`,
-      type: i % 2 === 0 ? "REGULER" : "SPECIAL PART",
-      vendorType: i % 2 === 0 ? "LOCAL" : "OVERSEA",
-      vendorName: i % 2 === 0 ? "PT EXAMPLE SUPPLIER" : "ACME GLOBAL",
-      m1a1,
-      m136,
-      usagePerUnit,
-    };
+  // Sync fetchPartsRef + initial load + auto-refresh stock setiap 60 detik
+  useEffect(() => {
+    fetchPartsRef.current = fetchParts;
+  }, [fetchParts]);
+
+  useEffect(() => {
+    fetchParts();
+    partsRefreshTimerRef.current = setInterval(() => {
+      if (fetchPartsRef.current) fetchPartsRef.current(true);
+    }, 60000);
+    return () => clearInterval(partsRefreshTimerRef.current);
+  }, [fetchParts]);
+
+  // ── Search state ─────────────────────────────────────────────
+  const [searchBy, setSearchBy] = useState("Part Code");
+  const [keyword, setKeyword] = useState("");
+  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [appliedSearchBy, setAppliedSearchBy] = useState("Part Code");
+
+  const handleSearch = () => {
+    setAppliedKeyword(keyword.trim());
+    setAppliedSearchBy(searchBy);
+    setCurrentPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setKeyword("");
+    setAppliedKeyword("");
+    setCurrentPage(1);
+  };
+
+  // ── Shortage helpers ─────────────────────────────────────────
+  const getRequiredQty = (qtyPerAssembly) =>
+    targetUnits * (qtyPerAssembly || 1);
+
+  const getSurplus = (stock, qtyPerAssembly) => {
+    if (!targetUnits) return Infinity; // no target set → no shortage
+    return stock - getRequiredQty(qtyPerAssembly);
+  };
+
+  const getStockColor = (stock, qtyPerAssembly) => {
+    const surplus = getSurplus(stock, qtyPerAssembly);
+    if (surplus === Infinity) return "#16a34a";
+    if (surplus > shortageThresholds.green) return "#16a34a";
+    if (surplus > shortageThresholds.yellow) return "#ca8a04";
+    return "#dc2626";
+  };
+
+  const getShortageStatus = (m101, m136, qtyPerAssembly) => {
+    const s101 = getSurplus(m101, qtyPerAssembly);
+    const s136 = getSurplus(m136, qtyPerAssembly);
+    const worst = Math.min(s101, s136);
+    if (worst === Infinity) return null;
+    if (worst > shortageThresholds.green) return "OK";
+    if (worst > shortageThresholds.yellow) return "Warning";
+    return "Shortage";
+  };
+
+  const getSortScore = (p) => {
+    if (!targetUnits) return 0;
+    const s101 = getSurplus(p.m101, p.qty_per_assembly);
+    const s136 = getSurplus(p.m136, p.qty_per_assembly);
+    return Math.min(s101, s136); // lowest surplus first
+  };
+
+  // ── Filtered parts (tab + search) ────────────────────────────
+  const filteredParts = parts.filter((p) => {
+    // Tab filter
+    if (activeTab !== "all" && p.assembly_station !== activeTab) return false;
+    // Search filter
+    if (!appliedKeyword) return true;
+    const kw = appliedKeyword.toLowerCase();
+    switch (appliedSearchBy) {
+      case "Part Code":
+        return p.code.toLowerCase().includes(kw);
+      case "Part Name":
+        return p.name.toLowerCase().includes(kw);
+      case "Vendor":
+        return p.vendorName.toLowerCase().includes(kw);
+      case "Part Type":
+        return p.type.toLowerCase().includes(kw);
+      case "Vendor Type":
+        return p.vendorType.toLowerCase().includes(kw);
+      default:
+        return true;
+    }
   });
 
-  const totalPages = Math.max(1, Math.ceil(parts.length / PAGE_SIZE));
+  // Sort: parts with most critical shortage go to top
+  const sortedFilteredParts =
+    targetUnits > 0
+      ? [...filteredParts].sort((a, b) => getSortScore(a) - getSortScore(b))
+      : filteredParts;
+
+  // ── Pagination ───────────────────────────────────────────────
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedFilteredParts.length / PAGE_SIZE),
+  );
   const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const pagedParts = parts.slice(startIndex, startIndex + PAGE_SIZE);
+  const pagedParts = sortedFilteredParts.slice(
+    startIndex,
+    startIndex + PAGE_SIZE,
+  );
 
   const unitsCoverage = (stock, usagePerUnit) => {
     if (!usagePerUnit || usagePerUnit <= 0) return Number.POSITIVE_INFINITY;
@@ -1713,8 +1717,59 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
               </span>
             </div>
             <div style={styles.metricBox}>
-              <span style={styles.metricLabel}>Current Target</span>
-              <span style={styles.metricValueLarge}>0</span>
+              <span style={styles.metricLabel}>Actual Output</span>
+              <span
+                style={{
+                  ...styles.metricValueLarge,
+                  color: currentSchedule
+                    ? currentSchedule.actual_input >=
+                      (currentSchedule.total_input || 0)
+                      ? "#16a34a"
+                      : currentSchedule.actual_input > 0
+                        ? "#2563eb"
+                        : "#9ca3af"
+                    : "#2563eb",
+                }}
+              >
+                {currentSchedule ? currentSchedule.actual_input || 0 : 0}
+              </span>
+              {currentSchedule && (
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "#6b7280",
+                    marginTop: "4px",
+                  }}
+                >
+                  of {currentSchedule.total_input} units
+                </span>
+              )}
+            </div>
+            <div style={styles.metricBox}>
+              <span style={styles.metricLabel}>Expected Output</span>
+              <span
+                style={{
+                  ...styles.metricValueLarge,
+                  color: currentSchedule
+                    ? expectedOutput >= (currentSchedule?.total_input || 0)
+                      ? "#16a34a"
+                      : "#2563eb"
+                    : "#2563eb",
+                }}
+              >
+                {currentSchedule ? expectedOutput : 0}
+              </span>
+              {currentSchedule && (
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "#6b7280",
+                    marginTop: "4px",
+                  }}
+                >
+                  of {currentSchedule.total_input} units
+                </span>
+              )}
             </div>
             <div style={styles.metricBox}>
               <div style={styles.metricHeader}>
@@ -1808,28 +1863,28 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
               <span style={styles.infoLabel}>Current Customer</span>
               <span style={styles.infoColon}>:</span>
               <span style={styles.infoValue}>
-                {firstCustomer?.customer || "-"}
+                {currentCustomer?.customer || "-"}
               </span>
             </div>
             <div style={styles.infoRow}>
               <span style={styles.infoLabel}>Product Code</span>
               <span style={styles.infoColon}>:</span>
               <span style={styles.infoValue}>
-                {firstCustomer?.material_code || "-"}
+                {currentCustomer?.material_code || "-"}
               </span>
             </div>
             <div style={styles.infoRow}>
               <span style={styles.infoLabel}>Model</span>
               <span style={styles.infoColon}>:</span>
               <span style={styles.infoValue}>
-                {firstCustomer?.model || "-"}
+                {currentCustomer?.model || "-"}
               </span>
             </div>
             <div style={styles.infoRow}>
               <span style={styles.infoLabel}>Description</span>
               <span style={styles.infoColon}>:</span>
               <span style={styles.infoValue}>
-                {firstCustomer?.description || "-"}
+                {currentCustomer?.description || "-"}
               </span>
             </div>
             <div style={styles.infoRow}>
@@ -1855,18 +1910,18 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                 {currentSchedule?.createdBy || "-"}
               </span>
             </div>
-            {firstCustomer?.poNumber && (
+            {currentCustomer?.poNumber && (
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>PO Number</span>
                 <span style={styles.infoColon}>:</span>
-                <span style={styles.infoValue}>{firstCustomer.poNumber}</span>
+                <span style={styles.infoValue}>{currentCustomer.poNumber}</span>
               </div>
             )}
-            {firstCustomer?.palletType && (
+            {currentCustomer?.palletType && (
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>Pallet Type</span>
                 <span style={styles.infoColon}>:</span>
-                <span style={styles.infoValue}>{firstCustomer.palletType}</span>
+                <span style={styles.infoValue}>{currentCustomer.palletType}</span>
               </div>
             )}
           </div>
@@ -2109,7 +2164,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                                   updateWarningSetting(
                                     setting.id,
                                     "enabled",
-                                    e.target.checked
+                                    e.target.checked,
                                   )
                                 }
                                 style={styles.checkbox}
@@ -2124,7 +2179,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                                   updateWarningSetting(
                                     setting.id,
                                     "start",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 style={{
@@ -2144,7 +2199,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                                   updateWarningSetting(
                                     setting.id,
                                     "end",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 style={{
@@ -2164,7 +2219,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                                   updateWarningSetting(
                                     setting.id,
                                     "reason",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                                 placeholder="Enter reason"
@@ -2242,63 +2297,348 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
         {/* Search Bar */}
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Search Bar</h1>
+            <h1 style={styles.title}>Parts List</h1>
+            <span style={{ fontSize: "11px", color: "#6b7280" }}>
+              {partsLoading
+                ? "Loading..."
+                : `${sortedFilteredParts.length} parts`}
+              {appliedKeyword && (
+                <span style={{ marginLeft: "6px", color: "#2563eb" }}>
+                  — filtered by "{appliedKeyword}"
+                </span>
+              )}
+            </span>
           </div>
 
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
-              <span style={styles.label}>Date Filter</span>
-              <select
-                style={styles.select}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-              >
-                <option style={optionStyle}>Search Date</option>
-              </select>
-              <input
-                type="date"
-                style={styles.input}
-                placeholder="Date From"
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-              />
-              <span style={styles.label}>To</span>
-              <input
-                type="date"
-                style={styles.input}
-                placeholder="Date To"
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-              />
-            </div>
-            <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
               <select
                 style={styles.select}
+                value={searchBy}
+                onChange={(e) => setSearchBy(e.target.value)}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               >
-                <option style={optionStyle}>Customer</option>
-                <option style={optionStyle}>Product Code</option>
-                <option style={optionStyle}>Product Description</option>
+                <option value="Part Code" style={optionStyle}>
+                  Part Code
+                </option>
+                <option value="Part Name" style={optionStyle}>
+                  Part Name
+                </option>
+                <option value="Vendor" style={optionStyle}>
+                  Vendor
+                </option>
+                <option value="Part Type" style={optionStyle}>
+                  Part Type
+                </option>
+                <option value="Vendor Type" style={optionStyle}>
+                  Vendor Type
+                </option>
               </select>
               <input
                 type="text"
                 style={styles.input}
-                placeholder="Input Keyword"
+                placeholder={`Search ${searchBy}...`}
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               />
               <button
-                style={styles.button}
+                style={{ ...styles.button, ...styles.searchButton }}
+                onClick={handleSearch}
                 onMouseEnter={(e) => handleButtonHover(e, true, "search")}
                 onMouseLeave={(e) => handleButtonHover(e, false, "search")}
               >
                 Search
               </button>
+              {appliedKeyword && (
+                <button
+                  style={{
+                    ...styles.button,
+                    backgroundColor: "#f3f4f6",
+                    color: "#374151",
+                    border: "1px solid #d1d5db",
+                  }}
+                  onClick={handleClearSearch}
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Shortage Controls */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "12px",
+            padding: "10px 14px",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            border: "1px solid #e5e7eb",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <AlertTriangle
+              size={15}
+              color={targetUnits > 0 ? "#ca8a04" : "#9ca3af"}
+            />
+            <span
+              style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}
+            >
+              Shortage Monitor
+            </span>
+            <span style={{ fontSize: "11px", color: "#6b7280" }}>
+              Target Units:
+            </span>
+            <input
+              type="number"
+              min="0"
+              placeholder="e.g. 150"
+              value={targetUnitsInput}
+              onChange={(e) => setTargetUnitsInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const v = parseInt(targetUnitsInput);
+                  if (!isNaN(v) && v >= 0) {
+                    setTargetUnits(v);
+                    localStorage.setItem("pm_target_units", String(v));
+                    setCurrentPage(1);
+                  }
+                }
+              }}
+              style={{
+                width: "80px",
+                height: "28px",
+                border: "1px solid #9fa8da",
+                borderRadius: "4px",
+                padding: "0 8px",
+                fontSize: "12px",
+                fontFamily: "inherit",
+              }}
+            />
+            <button
+              onClick={() => {
+                const v = parseInt(targetUnitsInput);
+                if (!isNaN(v) && v >= 0) {
+                  setTargetUnits(v);
+                  localStorage.setItem("pm_target_units", String(v));
+                  setCurrentPage(1);
+                }
+              }}
+              style={{
+                height: "28px",
+                padding: "0 12px",
+                backgroundColor: "#2563eb",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                fontSize: "11px",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Set
+            </button>
+            {targetUnits > 0 && (
+              <>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    backgroundColor: "#e0e7ff",
+                    color: "#2563eb",
+                    padding: "2px 8px",
+                    borderRadius: "10px",
+                    fontWeight: "600",
+                  }}
+                >
+                  Active: {targetUnits} units
+                </span>
+                <button
+                  onClick={() => {
+                    setTargetUnits(0);
+                    setTargetUnitsInput("");
+                    localStorage.setItem("pm_target_units", "0");
+                  }}
+                  style={{
+                    height: "24px",
+                    padding: "0 8px",
+                    backgroundColor: "#f3f4f6",
+                    color: "#6b7280",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              setThresholdInput({ ...shortageThresholds });
+              setShowShortagePopup(true);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              height: "28px",
+              padding: "0 12px",
+              backgroundColor: "#f8faff",
+              color: "#374151",
+              border: "1px solid #9fa8da",
+              borderRadius: "4px",
+              fontSize: "11px",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <SlidersHorizontal size={12} />
+            Thresholds
+          </button>
+        </div>
+
+        {/* Shortage Thresholds Popup */}
+        {showShortagePopup && (
+          <div
+            style={styles.popupOverlay}
+            onClick={() => setShowShortagePopup(false)}
+          >
+            <div
+              style={{
+                ...styles.popupContainer,
+                width: "420px",
+                marginTop: "120px",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={styles.popupHeader}>
+                <h3 style={styles.popupTitle}>Shortage Thresholds</h3>
+                <button
+                  style={styles.closeButton}
+                  onClick={() => setShowShortagePopup(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ padding: "4px 0 16px" }}>
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    marginBottom: "16px",
+                  }}
+                >
+                  Surplus = Stock - (Target Units × QTY/Assembly). Tentukan
+                  batas selisih untuk warna status.
+                </p>
+                {[
+                  {
+                    key: "green",
+                    label: "🟢 Green — Aman",
+                    desc: "Surplus lebih dari nilai ini",
+                  },
+                  {
+                    key: "yellow",
+                    label: "🟡 Yellow — Warning",
+                    desc: "Surplus lebih dari nilai ini",
+                  },
+                  {
+                    key: "red",
+                    label: "🔴 Red — Shortage",
+                    desc: "Surplus sama/kurang dari Yellow",
+                  },
+                ].map(({ key, label, desc }) => (
+                  <div
+                    key={key}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 100px",
+                      alignItems: "center",
+                      gap: "12px",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#374151",
+                        }}
+                      >
+                        {label}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#6b7280" }}>
+                        {desc}
+                      </div>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      value={thresholdInput[key]}
+                      onChange={(e) =>
+                        setThresholdInput((prev) => ({
+                          ...prev,
+                          [key]: parseInt(e.target.value) || 0,
+                        }))
+                      }
+                      style={{
+                        height: "32px",
+                        border: "1px solid #9fa8da",
+                        borderRadius: "4px",
+                        padding: "0 10px",
+                        fontSize: "12px",
+                        fontFamily: "inherit",
+                        textAlign: "right",
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "8px",
+                  borderTop: "1px solid #e5e7eb",
+                  paddingTop: "12px",
+                }}
+              >
+                <button
+                  style={styles.cancelButton}
+                  onClick={() => setShowShortagePopup(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  style={styles.submitButton}
+                  onClick={() => {
+                    setShortageThresholds({ ...thresholdInput });
+                    localStorage.setItem(
+                      "pm_shortage_thresholds",
+                      JSON.stringify(thresholdInput),
+                    );
+                    setShowShortagePopup(false);
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={styles.tabsContainer}>
           {[
@@ -2321,7 +2661,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab && styles.tabButtonActive),
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
               onMouseEnter={(e) => handleTabHover(e, true, activeTab === tab)}
               onMouseLeave={(e) => handleTabHover(e, false, activeTab === tab)}
             >
@@ -2363,7 +2703,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                   <th style={styles.thWithLeftBorder}>Vendor Name</th>
                   <th style={styles.thWithLeftBorder}>Station</th>
                   <th style={styles.thWithLeftBorder}>Used</th>
-                  <th style={styles.thWithLeftBorder}>Stock M1A1</th>
+                  <th style={styles.thWithLeftBorder}>Stock M101</th>
                   <th style={styles.thWithLeftBorder}>Stock M136</th>
                   <th style={styles.thWithLeftBorder}>Status</th>
                 </tr>
@@ -2371,7 +2711,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
               <tbody>
                 {pagedParts.map((p, idx) => (
                   <tr
-                    key={p.code}
+                    key={p.id || p.code}
                     onMouseEnter={(e) =>
                       (e.target.closest("tr").style.backgroundColor = "#c7cde8")
                     }
@@ -2431,15 +2771,27 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
                     <td
                       style={styles.tdWithLeftBorder}
+                      title={
+                        p.assembly_station
+                          ? p.assembly_station.toUpperCase()
+                          : "-"
+                      }
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
-                    ></td>
+                    >
+                      {p.assembly_station
+                        ? p.assembly_station.toUpperCase()
+                        : "-"}
+                    </td>
 
                     <td
                       style={styles.tdWithLeftBorder}
+                      title={`${p.qty_per_assembly} pcs/unit`}
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
-                    ></td>
+                    >
+                      {p.qty_per_assembly}
+                    </td>
 
                     <td
                       style={styles.tdWithLeftBorder}
@@ -2448,15 +2800,34 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                     >
                       <span
                         style={{
-                          color: m1a1TextColor(p.m1a1, p.usagePerUnit),
-                          fontWeight: 700,
+                          color:
+                            targetUnits > 0
+                              ? getStockColor(p.m101, p.qty_per_assembly)
+                              : "#374151",
+                          fontWeight: 600,
                         }}
-                        title={`Coverage: ${unitsCoverage(
-                          p.m1a1,
-                          p.usagePerUnit
-                        )} units (usage: ${p.usagePerUnit}/unit)`}
+                        title={
+                          targetUnits > 0
+                            ? `Required: ${getRequiredQty(p.qty_per_assembly)} pcs | Surplus: ${getSurplus(p.m101, p.qty_per_assembly)}`
+                            : `${p.m101} pcs`
+                        }
                       >
-                        {p.m1a1} pcs
+                        {p.m101} pcs
+                        {targetUnits > 0 && (
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              marginLeft: "4px",
+                              opacity: 0.8,
+                            }}
+                          >
+                            (
+                            {getSurplus(p.m101, p.qty_per_assembly) >= 0
+                              ? "+"
+                              : ""}
+                            {getSurplus(p.m101, p.qty_per_assembly)})
+                          </span>
+                        )}
                       </span>
                     </td>
 
@@ -2465,10 +2836,102 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
-                      {p.m136} pcs
+                      <span
+                        style={{
+                          color:
+                            targetUnits > 0
+                              ? getStockColor(p.m136, p.qty_per_assembly)
+                              : "#374151",
+                          fontWeight: 600,
+                        }}
+                        title={
+                          targetUnits > 0
+                            ? `Required: ${getRequiredQty(p.qty_per_assembly)} pcs | Surplus: ${getSurplus(p.m136, p.qty_per_assembly)}`
+                            : `${p.m136} pcs`
+                        }
+                      >
+                        {p.m136} pcs
+                        {targetUnits > 0 && (
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              marginLeft: "4px",
+                              opacity: 0.8,
+                            }}
+                          >
+                            (
+                            {getSurplus(p.m136, p.qty_per_assembly) >= 0
+                              ? "+"
+                              : ""}
+                            {getSurplus(p.m136, p.qty_per_assembly)})
+                          </span>
+                        )}
+                      </span>
                     </td>
 
-                    <td style={styles.tdWithLeftBorder}></td>
+                    <td
+                      style={{
+                        ...styles.tdWithLeftBorder,
+                        textAlign: "center",
+                      }}
+                    >
+                      {(() => {
+                        const status = getShortageStatus(
+                          p.m101,
+                          p.m136,
+                          p.qty_per_assembly,
+                        );
+                        if (!status)
+                          return (
+                            <span
+                              style={{ color: "#9ca3af", fontSize: "11px" }}
+                            >
+                              -
+                            </span>
+                          );
+                        const cfg = {
+                          OK: {
+                            bg: "#dcfce7",
+                            color: "#166534",
+                            border: "#bbf7d0",
+                          },
+                          Warning: {
+                            bg: "#fef9c3",
+                            color: "#854d0e",
+                            border: "#fef08a",
+                          },
+                          Shortage: {
+                            bg: "#fef2f2",
+                            color: "#dc2626",
+                            border: "#fecaca",
+                          },
+                        }[status];
+                        return (
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: "700",
+                              padding: "2px 6px",
+                              borderRadius: "10px",
+                              backgroundColor: cfg.bg,
+                              color: cfg.color,
+                              border: `1px solid ${cfg.border}`,
+                            }}
+                          >
+                            {status === "Shortage" && (
+                              <AlertTriangle
+                                size={9}
+                                style={{
+                                  marginRight: "3px",
+                                  verticalAlign: "middle",
+                                }}
+                              />
+                            )}
+                            {status}
+                          </span>
+                        );
+                      })()}
+                    </td>
                   </tr>
                 ))}
               </tbody>

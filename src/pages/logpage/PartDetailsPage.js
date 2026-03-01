@@ -36,6 +36,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     vendor_type: "",
     stock_level_to: "",
     placement_id: "",
+    assembly_station: "",
+    qty_per_assembly: 1,
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState(null);
@@ -299,6 +301,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       vendor_type: part.vendor_type || "",
       stock_level_to: part.stock_level_to || "",
       placement_id: placementId,
+      assembly_station: part.assembly_station || "",
+      qty_per_assembly: part.qty_per_assembly || 1,
     });
 
     setEditError(null);
@@ -325,6 +329,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       vendor_type: "",
       stock_level_to: "",
       placement_id: "",
+      assembly_station: "",
+      qty_per_assembly: 1,
     });
     setEditError(null);
   };
@@ -464,6 +470,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
         vendor_type: editFormData.vendor_type,
         stock_level_to: editFormData.stock_level_to,
         placement_id: placementIdNum,
+        assembly_station: editFormData.assembly_station || null,
+        qty_per_assembly: parseInt(editFormData.qty_per_assembly) || 1,
       };
 
       const response = await fetch(
@@ -1216,7 +1224,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     },
     paginationButton: {
       backgroundColor: "transparent",
-      border: "0.5px solid #a5b4fc",
+      border: "0.5px solid #9fa8da",
       borderRadius: "4px",
       padding: "4px 8px",
       cursor: "pointer",
@@ -1227,7 +1235,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       fontFamily: "inherit",
     },
     paginationButtonHover: {
-      backgroundColor: "#a5b4fc",
+      backgroundColor: "#93c5fd",
       color: "#1f2937",
     },
     paginationInput: {
@@ -1433,7 +1441,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      backgroundColor: "rgba(55, 65, 81, 0.6)",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
@@ -1441,147 +1449,171 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     },
     popupEditContainer: {
       backgroundColor: "white",
-      borderRadius: "12px",
-      padding: "30px",
-      width: "800px",
-      maxWidth: "90vw",
-      maxHeight: "90vh",
+      borderRadius: "8px",
+      width: "960px",
+      maxWidth: "95vw",
+      maxHeight: "92vh",
       overflowY: "auto",
-      boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+      boxShadow: "0 8px 32px rgba(99, 102, 241, 0.18), 0 2px 8px rgba(0,0,0,0.12)",
+      border: "1.5px solid #9fa8da",
     },
     popupEditHeader: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      borderBottom: "2px solid #e5e7eb",
-      paddingBottom: "15px",
-      marginBottom: "25px",
+      backgroundColor: "#e0e7ff",
+      borderBottom: "1.5px solid #9fa8da",
+      padding: "12px 20px",
+      borderRadius: "6px 6px 0 0",
     },
     popupEditTitle: {
-      fontSize: "22px",
+      fontSize: "14px",
       fontWeight: "700",
-      color: "#1f2937",
+      color: "#374151",
       margin: 0,
+      letterSpacing: "0.01em",
     },
     popupEditCloseButton: {
       background: "none",
       border: "none",
       cursor: "pointer",
-      padding: "8px",
-      borderRadius: "6px",
-      color: "#6b7280",
+      padding: "4px",
+      borderRadius: "4px",
+      color: "#2563eb",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      transition: "all 0.2s ease",
     },
     popupEditCloseButtonHover: {
-      backgroundColor: "#f3f4f6",
+      backgroundColor: "#bfdbfe",
       color: "#374151",
     },
     popupEditForm: {
+      padding: "20px 24px 0 24px",
+    },
+    popupEditSection: {
+      marginBottom: "16px",
+    },
+    popupEditSectionTitle: {
+      fontSize: "11px",
+      fontWeight: "700",
+      color: "#2563eb",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "10px",
+      paddingBottom: "5px",
+      borderBottom: "1px solid #e0e7ff",
+    },
+    popupEditGrid3: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr",
+      gap: "12px 16px",
+    },
+    popupEditGrid2: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
-      gap: "20px",
+      gap: "12px 16px",
     },
     popupEditFormGroup: {
-      marginBottom: "15px",
+      marginBottom: "0",
     },
     popupEditLabel: {
       display: "block",
-      fontSize: "13px",
+      fontSize: "11px",
       fontWeight: "600",
       color: "#4b5563",
-      marginBottom: "6px",
+      marginBottom: "4px",
     },
     popupEditInput: {
       width: "100%",
-      height: "38px",
-      border: "2px solid #e5e7eb",
-      borderRadius: "6px",
-      padding: "0 12px",
-      fontSize: "13px",
+      height: "30px",
+      border: "1px solid #9fa8da",
+      borderRadius: "4px",
+      padding: "0 8px",
+      fontSize: "12px",
       backgroundColor: "white",
       fontFamily: "inherit",
       outline: "none",
-      transition: "border-color 0.2s ease",
+      color: "#374151",
       boxSizing: "border-box",
     },
     popupEditInputFocus: {
-      borderColor: "#6366f1",
+      borderColor: "#2563eb",
     },
     popupEditSelect: {
       width: "100%",
-      height: "38px",
-      border: "2px solid #e5e7eb",
-      borderRadius: "6px",
-      padding: "0 12px",
-      fontSize: "13px",
+      height: "30px",
+      border: "1px solid #9fa8da",
+      borderRadius: "4px",
+      padding: "0 8px",
+      fontSize: "12px",
       backgroundColor: "white",
       fontFamily: "inherit",
       outline: "none",
-      transition: "border-color 0.2s ease",
+      color: "#374151",
       cursor: "pointer",
       boxSizing: "border-box",
     },
     popupEditTextarea: {
       width: "100%",
-      minHeight: "80px",
-      border: "2px solid #e5e7eb",
-      borderRadius: "6px",
-      padding: "10px 12px",
-      fontSize: "13px",
+      minHeight: "60px",
+      border: "1px solid #9fa8da",
+      borderRadius: "4px",
+      padding: "6px 8px",
+      fontSize: "12px",
       backgroundColor: "white",
       fontFamily: "inherit",
       outline: "none",
-      transition: "border-color 0.2s ease",
       resize: "vertical",
       boxSizing: "border-box",
     },
     popupEditError: {
       color: "#dc2626",
-      fontSize: "12px",
-      marginTop: "5px",
+      fontSize: "11px",
+      marginTop: "4px",
       fontWeight: "500",
+      backgroundColor: "#fef2f2",
+      border: "1px solid #fecaca",
+      borderRadius: "4px",
+      padding: "6px 10px",
     },
     popupEditButtonGroup: {
-      gridColumn: "1 / -1",
       display: "flex",
       justifyContent: "flex-end",
-      gap: "12px",
-      marginTop: "25px",
-      paddingTop: "20px",
-      borderTop: "2px solid #e5e7eb",
+      gap: "8px",
+      padding: "12px 24px",
+      backgroundColor: "#e0e7ff",
+      borderTop: "1.5px solid #9fa8da",
+      borderRadius: "0 0 6px 6px",
+      marginTop: "16px",
     },
     popupEditCancelButton: {
-      backgroundColor: "#f3f4f6",
+      backgroundColor: "white",
       color: "#374151",
-      padding: "10px 20px",
-      border: "none",
-      borderRadius: "6px",
-      fontSize: "14px",
+      padding: "6px 16px",
+      border: "1px solid #9fa8da",
+      borderRadius: "4px",
+      fontSize: "12px",
       fontWeight: "600",
       cursor: "pointer",
       fontFamily: "inherit",
-      transition: "all 0.2s ease",
     },
     popupEditCancelButtonHover: {
-      backgroundColor: "#e5e7eb",
+      backgroundColor: "#f3f4f6",
     },
     popupEditSaveButton: {
       backgroundColor: "#2563eb",
       color: "white",
-      padding: "10px 24px",
+      padding: "6px 18px",
       border: "none",
-      borderRadius: "6px",
-      fontSize: "14px",
+      borderRadius: "4px",
+      fontSize: "12px",
       fontWeight: "600",
       cursor: "pointer",
       fontFamily: "inherit",
       display: "flex",
       alignItems: "center",
-      gap: "8px",
-      transition: "all 0.2s ease",
+      gap: "6px",
     },
     popupEditSaveButtonHover: {
       backgroundColor: "#1d4ed8",
@@ -1589,30 +1621,30 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     popupEditSaveButtonDisabled: {
       backgroundColor: "#93c5fd",
       color: "white",
-      padding: "10px 24px",
+      padding: "6px 18px",
       border: "none",
-      borderRadius: "6px",
-      fontSize: "14px",
+      borderRadius: "4px",
+      fontSize: "12px",
       fontWeight: "600",
       cursor: "not-allowed",
       fontFamily: "inherit",
       display: "flex",
       alignItems: "center",
-      gap: "8px",
+      gap: "6px",
     },
     popupEditLoadingSpinner: {
-      width: "18px",
-      height: "18px",
-      border: "3px solid rgba(255, 255, 255, 0.3)",
+      width: "14px",
+      height: "14px",
+      border: "2px solid rgba(255, 255, 255, 0.3)",
       borderRadius: "50%",
       borderTopColor: "white",
       animation: "spin 1s linear infinite",
     },
     editButtonHover: {
-      backgroundColor: "#c7d2fe",
+      backgroundColor: "#bfdbfe",
     },
     deleteButtonHover: {
-      backgroundColor: "#c7d2fe",
+      backgroundColor: "#bfdbfe",
     },
   };
 
@@ -1814,6 +1846,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                   <col style={{ width: "15%" }} />
                   <col style={{ width: "12%" }} />
                   <col style={{ width: "12%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "7%" }} />
                   <col style={{ width: "25%" }} />
                   <col style={{ width: "8%" }} />
                 </colgroup>
@@ -1833,6 +1867,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Vendor</th>
                     <th style={styles.thWithLeftBorder}>Vendor Types</th>
                     <th style={styles.thWithLeftBorder}>Stock Level To</th>
+                    <th style={styles.thWithLeftBorder}>Station</th>
+                    <th style={styles.thWithLeftBorder}>QTY/Assembly</th>
                     <th style={styles.thWithLeftBorder}>Created By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
@@ -1956,8 +1992,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                                   {getCustomerName(part.customer_special)
                                     .length > 25
                                     ? getCustomerName(
-                                        part.customer_special
-                                      ).substring(0, 25) + "..."
+                                      part.customer_special
+                                    ).substring(0, 25) + "..."
                                     : getCustomerName(part.customer_special)}
                                 </div>
                               </div>
@@ -1975,6 +2011,18 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           <td style={styles.tdWithLeftBorder}>
                             {part.stock_level_to}
                           </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.assembly_station ? part.assembly_station.toUpperCase() : "-"}
+                          >
+                            {part.assembly_station ? part.assembly_station.toUpperCase() : "-"}
+                          </td>
+                          <td
+                            style={styles.tdWithLeftBorder}
+                            title={part.qty_per_assembly || 1}
+                          >
+                            {part.qty_per_assembly || 1}
+                          </td>
                           <td style={styles.tdWithLeftBorder}>
                             {part.created_by_name || "System"} |{" "}
                             {formatDateForDisplay(part.created_at)}
@@ -1988,12 +2036,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                               }}
                               title="Edit"
                               onMouseEnter={(e) =>
-                                (e.target.style.backgroundColor =
-                                  styles.editButtonHover.backgroundColor)
+                              (e.target.style.backgroundColor =
+                                styles.editButtonHover.backgroundColor)
                               }
                               onMouseLeave={(e) =>
-                                (e.target.style.backgroundColor =
-                                  styles.editButton.backgroundColor)
+                              (e.target.style.backgroundColor =
+                                styles.editButton.backgroundColor)
                               }
                             >
                               <Pencil size={10} />
@@ -2006,12 +2054,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                               }}
                               title="Delete"
                               onMouseEnter={(e) =>
-                                (e.target.style.backgroundColor =
-                                  styles.deleteButtonHover.backgroundColor)
+                              (e.target.style.backgroundColor =
+                                styles.deleteButtonHover.backgroundColor)
                               }
                               onMouseLeave={(e) =>
-                                (e.target.style.backgroundColor =
-                                  styles.deleteButton.backgroundColor)
+                              (e.target.style.backgroundColor =
+                                styles.deleteButton.backgroundColor)
                               }
                             >
                               <Trash2 size={10} />
@@ -2061,7 +2109,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       setCurrentPage(page);
                     }
                   }}
-                  // disabled={filteredData.length === 0}
+                // disabled={filteredData.length === 0}
                 />
                 <span>of {totalPages}</span>
                 <button
@@ -2197,403 +2245,392 @@ const PartDetailsPage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        {/* Popup Edit Part (new) */}
+        {/* Popup Edit Part */}
         {showEditPopup && (
           <div style={styles.popupEditOverlay}>
             <div style={styles.popupEditContainer}>
+
+              {/* Header */}
               <div style={styles.popupEditHeader}>
-                <h2 style={styles.popupEditTitle}>
-                  Edit Part: {editingPart?.part_code}
-                </h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{
+                    width: "4px", height: "20px",
+                    backgroundColor: "#2563eb", borderRadius: "2px",
+                  }} />
+                  <h2 style={styles.popupEditTitle}>
+                    Edit Part &nbsp;
+                    <span style={{ color: "#2563eb", fontWeight: "800" }}>
+                      {editingPart?.part_code}
+                    </span>
+                    <span style={{
+                      marginLeft: "10px", fontSize: "11px", fontWeight: "500",
+                      color: "#6b7280", backgroundColor: "#f3f4f6",
+                      border: "1px solid #d1d5db", borderRadius: "4px",
+                      padding: "2px 8px",
+                    }}>
+                      {editingPart?.part_name}
+                    </span>
+                  </h2>
+                </div>
                 <button
                   style={styles.popupEditCloseButton}
                   onClick={handleCloseEditPopup}
                   title="Close"
                   onMouseEnter={(e) =>
-                    (e.target.style.backgroundColor =
-                      styles.popupEditCloseButtonHover.backgroundColor)
+                  (e.currentTarget.style.backgroundColor =
+                    styles.popupEditCloseButtonHover.backgroundColor)
                   }
                   onMouseLeave={(e) =>
-                    (e.target.style.backgroundColor = "transparent")
+                    (e.currentTarget.style.backgroundColor = "transparent")
                   }
                 >
-                  <X size={24} />
+                  <X size={16} />
                 </button>
               </div>
 
               <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSaveEdit();
-                }}
+                onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }}
               >
                 <div style={styles.popupEditForm}>
-                  <div>
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Part Code</label>
-                      <input
-                        type="text"
-                        name="part_code"
-                        value={editFormData.part_code}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditInput}
-                        placeholder="Enter part code"
-                        required
-                      />
-                    </div>
 
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Part Name *</label>
-                      <input
-                        type="text"
-                        name="part_name"
-                        value={editFormData.part_name}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditInput}
-                        placeholder="Enter part name"
-                        required
-                      />
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Part Size</label>
-                      <select
-                        name="part_size"
-                        value={editFormData.part_size}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditSelect}
-                        required
-                      >
-                        <option value="">Select Size</option>
-                        {partSizes.map((size) => (
-                          <option key={size.id} value={size.size_name}>
-                            {size.size_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Part Types</label>
-                      <select
-                        name="part_types"
-                        value={editFormData.part_types}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditSelect}
-                      >
-                        <option value="Regular">REGULAR</option>
-                        <option value="Special">SPECIAL</option>
-                      </select>
-                    </div>
-
-                    {editFormData.part_types === "Special" && (
+                  {/* ── Section 1: Part Information ── */}
+                  <div style={styles.popupEditSection}>
+                    <div style={styles.popupEditSectionTitle}>Part Information</div>
+                    <div style={styles.popupEditGrid3}>
                       <div style={styles.popupEditFormGroup}>
-                        <label style={styles.popupEditLabel}>Customer *</label>
+                        <label style={styles.popupEditLabel}>Part Code *</label>
+                        <input
+                          type="text"
+                          name="part_code"
+                          value={editFormData.part_code}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditInput}
+                          placeholder="Enter part code"
+                          required
+                        />
+                      </div>
+                      <div style={{ ...styles.popupEditFormGroup, gridColumn: "span 2" }}>
+                        <label style={styles.popupEditLabel}>Part Name *</label>
+                        <input
+                          type="text"
+                          name="part_name"
+                          value={editFormData.part_name}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditInput}
+                          placeholder="Enter part name"
+                          required
+                        />
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Part Size *</label>
                         <select
-                          name="customer_id"
-                          value={editFormData.customer_id}
+                          name="part_size"
+                          value={editFormData.part_size}
                           onChange={handleEditFormChange}
                           style={styles.popupEditSelect}
-                          required={editFormData.part_types === "Special"}
+                          required
                         >
-                          <option value="">Select Customer</option>
-                          {customers.map((customer) => (
-                            <option key={customer.id} value={customer.id}>
-                              {customer.mat_code} | {customer.cust_name}
+                          <option value="">Select Size</option>
+                          {partSizes.map((size) => (
+                            <option key={size.id} value={size.size_name}>
+                              {size.size_name}
                             </option>
                           ))}
                         </select>
                       </div>
-                    )}
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Part Material</label>
+                        <input
+                          type="text"
+                          name="part_material"
+                          value={editFormData.part_material}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditInput}
+                          placeholder="Enter material"
+                        />
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Part Types</label>
+                        <select
+                          name="part_types"
+                          value={editFormData.part_types}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditSelect}
+                        >
+                          <option value="Regular">REGULAR</option>
+                          <option value="Special">SPECIAL</option>
+                        </select>
+                      </div>
+                      {editFormData.part_types === "Special" && (
+                        <div style={{ ...styles.popupEditFormGroup, gridColumn: "span 3" }}>
+                          <label style={styles.popupEditLabel}>Customer *</label>
+                          <select
+                            name="customer_id"
+                            value={editFormData.customer_id}
+                            onChange={handleEditFormChange}
+                            style={styles.popupEditSelect}
+                            required={editFormData.part_types === "Special"}
+                          >
+                            <option value="">Select Customer</option>
+                            {customers.map((customer) => (
+                              <option key={customer.id} value={customer.id}>
+                                {customer.mat_code} | {customer.cust_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Kolom 2 */}
-                  <div>
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Part Material</label>
-                      <input
-                        type="text"
-                        name="part_material"
-                        value={editFormData.part_material}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditInput}
-                        placeholder="Enter part material"
-                      />
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>
-                        Part Price (USD)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        name="part_price"
-                        value={editFormData.part_price}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditInput}
-                        placeholder="0.00"
-                      />
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Part Weight</label>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          alignItems: "center",
-                        }}
-                      >
+                  {/* ── Section 2: Specs & Vendor ── */}
+                  <div style={styles.popupEditSection}>
+                    <div style={styles.popupEditSectionTitle}>Specs & Vendor</div>
+                    <div style={styles.popupEditGrid3}>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>QTY Per Box</label>
                         <input
                           type="number"
-                          step="0.001"
-                          min="0"
-                          name="part_weight"
-                          value={editFormData.part_weight}
+                          name="qty_per_box"
+                          value={editFormData.qty_per_box}
                           onChange={handleEditFormChange}
-                          style={{
-                            ...styles.popupEditInput,
-                            flex: "3",
-                            textAlign: "right",
-                          }}
-                          placeholder="Enter weight"
+                          style={styles.popupEditInput}
+                          placeholder="1"
+                          min="1"
                         />
-                        <select
-                          name="weight_unit"
-                          value={editFormData.weight_unit}
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Part Price (USD)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          name="part_price"
+                          value={editFormData.part_price}
                           onChange={handleEditFormChange}
-                          style={{
-                            ...styles.popupEditSelect,
-                            flex: "1",
-                            minWidth: "80px",
-                            padding: "0 8px",
-                          }}
+                          style={styles.popupEditInput}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Part Weight</label>
+                        <div style={{ display: "flex", gap: "4px" }}>
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            name="part_weight"
+                            value={editFormData.part_weight}
+                            onChange={handleEditFormChange}
+                            style={{ ...styles.popupEditInput, flex: 1 }}
+                            placeholder="0"
+                          />
+                          <select
+                            name="weight_unit"
+                            value={editFormData.weight_unit}
+                            onChange={handleEditFormChange}
+                            style={{ ...styles.popupEditSelect, width: "60px", flex: "none" }}
+                          >
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="lbs">lbs</option>
+                            <option value="oz">oz</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Model *</label>
+                        <select
+                          name="model"
+                          value={editFormData.model}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditSelect}
+                          required
                         >
-                          <option value="kg">kg</option>
-                          <option value="g">g</option>
-                          <option value="lbs">lbs</option>
-                          <option value="oz">oz</option>
+                          <option value="">Select Model</option>
+                          {models.map((model, idx) => (
+                            <option key={idx} value={model}>{model}</option>
+                          ))}
                         </select>
                       </div>
-
-                      <div
-                        style={{
-                          fontSize: "10px",
-                          color: "#6b7280",
-                          marginTop: "4px",
-                          padding: "4px",
-                          backgroundColor: "#f9fafb",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        {editFormData.weight_unit === "g" && "1 kg = 1000 g"}
-                        {editFormData.weight_unit === "lbs" &&
-                          "1 kg = 2.20462 lbs"}
-                        {editFormData.weight_unit === "oz" &&
-                          "1 kg = 35.274 oz"}
-                        {editFormData.weight_unit === "kg" && "1 g = 0.001 kg"}
-                      </div>
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>QTY Per Box</label>
-                      <input
-                        type="number"
-                        name="qty_per_box"
-                        value={editFormData.qty_per_box}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditInput}
-                        placeholder="Enter quantity"
-                        min="1"
-                      />
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Model *</label>
-                      <select
-                        name="model"
-                        value={editFormData.model}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditSelect}
-                        required
-                      >
-                        <option value="">Select Model</option>
-                        {models.map((model, idx) => (
-                          <option key={idx} value={model}>
-                            {model}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Vendor *</label>
-                      <select
-                        name="vendor_id"
-                        value={editFormData.vendor_id}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditSelect}
-                        required
-                      >
-                        <option value="">Select Vendor</option>
-                        {vendors.map((vendor) => (
-                          <option key={vendor.id} value={vendor.id}>
-                            {vendor.vendor_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Vendor Types</label>
-                      <input
-                        type="text"
-                        style={styles.popupEditInput}
-                        value={editFormData.vendor_type}
-                        readOnly
-                        placeholder="Auto from vendor"
-                      />
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>
-                        Stock Level To *
-                      </label>
-                      <select
-                        name="stock_level_to"
-                        value={editFormData.stock_level_to}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditSelect}
-                        required
-                      >
-                        <option value="">Select Stock Level</option>
-                        {stockLevels.map((level, idx) => (
-                          <option key={idx} value={level.value}>
-                            {level.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>Placement</label>
-                      <select
-                        name="placement_id"
-                        value={editFormData.placement_id || ""}
-                        onChange={handleEditFormChange}
-                        style={styles.popupEditSelect}
-                      >
-                        <option value="">Select Placement</option>
-                        <option value="no-placement">No Placement</option>
-                        {placements
-                          .filter((p) => p.is_active)
-                          .map((placement) => (
-                            <option key={placement.id} value={placement.id}>
-                              {placement.placement_name}
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Vendor *</label>
+                        <select
+                          name="vendor_id"
+                          value={editFormData.vendor_id}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditSelect}
+                          required
+                        >
+                          <option value="">Select Vendor</option>
+                          {vendors.map((vendor) => (
+                            <option key={vendor.id} value={vendor.id}>
+                              {vendor.vendor_name}
                             </option>
                           ))}
-                      </select>
+                        </select>
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Vendor Types</label>
+                        <input
+                          type="text"
+                          style={{
+                            ...styles.popupEditInput,
+                            backgroundColor: "#f3f4f6",
+                            cursor: "not-allowed",
+                            color: "#6b7280",
+                          }}
+                          value={editFormData.vendor_type}
+                          readOnly
+                          placeholder="Auto from vendor"
+                        />
+                      </div>
+                      <div style={{ ...styles.popupEditFormGroup, gridColumn: "span 3" }}>
+                        <label style={styles.popupEditLabel}>Stock Level To *</label>
+                        <select
+                          name="stock_level_to"
+                          value={editFormData.stock_level_to}
+                          onChange={handleEditFormChange}
+                          style={{ ...styles.popupEditSelect, width: "calc(33.33% - 6px)" }}
+                          required
+                        >
+                          <option value="">Select Stock Level</option>
+                          {stockLevels.map((level, idx) => (
+                            <option key={idx} value={level.value}>{level.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>
-                        Placement Length
-                      </label>
-                      <input
-                        type="text"
-                        style={{
-                          ...styles.popupEditInput,
-                          backgroundColor: "#f9fafb",
-                          cursor: "not-allowed",
-                        }}
-                        value={
-                          editFormData.placement_id === "no-placement" ||
-                          !editFormData.placement_id
-                            ? "No Placement"
-                            : getSelectedPlacement
-                            ? `${getSelectedPlacement.length_cm} cm`
-                            : ""
-                        }
-                        readOnly
-                        placeholder={
-                          editFormData.placement_id === "no-placement" ||
-                          !editFormData.placement_id
-                            ? "No Placement"
-                            : "Auto from placement"
-                        }
-                      />
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>
-                        Placement Width
-                      </label>
-                      <input
-                        type="text"
-                        style={{
-                          ...styles.popupEditInput,
-                          backgroundColor: "#f9fafb",
-                          cursor: "not-allowed",
-                        }}
-                        value={
-                          editFormData.placement_id === "no-placement" ||
-                          !editFormData.placement_id
-                            ? "No Placement"
-                            : getSelectedPlacement
-                            ? `${getSelectedPlacement.width_cm} cm`
-                            : ""
-                        }
-                        readOnly
-                        placeholder={
-                          editFormData.placement_id === "no-placement" ||
-                          !editFormData.placement_id
-                            ? "No Placement"
-                            : "Auto from placement"
-                        }
-                      />
-                    </div>
-
-                    <div style={styles.popupEditFormGroup}>
-                      <label style={styles.popupEditLabel}>
-                        Placement Height
-                      </label>
-                      <input
-                        type="text"
-                        style={{
-                          ...styles.popupEditInput,
-                          backgroundColor: "#f9fafb",
-                          cursor: "not-allowed",
-                        }}
-                        value={
-                          editFormData.placement_id === "no-placement" ||
-                          !editFormData.placement_id
-                            ? "No Placement"
-                            : getSelectedPlacement
-                            ? `${getSelectedPlacement.height_cm} cm`
-                            : ""
-                        }
-                        readOnly
-                        placeholder={
-                          editFormData.placement_id === "no-placement" ||
-                          !editFormData.placement_id
-                            ? "No Placement"
-                            : "Auto from placement"
-                        }
-                      />
+                  {/* ── Section 3: Placement & Assembly ── */}
+                  <div style={styles.popupEditSection}>
+                    <div style={styles.popupEditSectionTitle}>Placement & Assembly</div>
+                    <div style={styles.popupEditGrid3}>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Placement</label>
+                        <select
+                          name="placement_id"
+                          value={editFormData.placement_id || ""}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditSelect}
+                        >
+                          <option value="">Select Placement</option>
+                          <option value="no-placement">No Placement</option>
+                          {placements
+                            .filter((p) => p.is_active)
+                            .map((placement) => (
+                              <option key={placement.id} value={placement.id}>
+                                {placement.placement_name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Assembly Station</label>
+                        <select
+                          name="assembly_station"
+                          value={editFormData.assembly_station}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditSelect}
+                        >
+                          <option value="">Select Station</option>
+                          <option value="subCr">SUBCR</option>
+                          <option value="tpu1">TPU1</option>
+                          <option value="tpu2">TPU2</option>
+                          <option value="cr1">CR1</option>
+                          <option value="cr2">CR2</option>
+                          <option value="cradj">CRADJ</option>
+                          <option value="m1">M1</option>
+                          <option value="m2">M2</option>
+                          <option value="ft">FT</option>
+                          <option value="acc">ACC</option>
+                          <option value="packing">PACKING</option>
+                        </select>
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>QTY Per Assembly</label>
+                        <input
+                          type="number"
+                          name="qty_per_assembly"
+                          value={editFormData.qty_per_assembly}
+                          onChange={handleEditFormChange}
+                          style={styles.popupEditInput}
+                          placeholder="1"
+                          min="1"
+                        />
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Length (cm)</label>
+                        <input
+                          type="text"
+                          style={{
+                            ...styles.popupEditInput,
+                            backgroundColor: "#f3f4f6",
+                            cursor: "not-allowed",
+                            color: "#6b7280",
+                          }}
+                          value={
+                            editFormData.placement_id === "no-placement" || !editFormData.placement_id
+                              ? "-"
+                              : getSelectedPlacement
+                                ? `${getSelectedPlacement.length_cm} cm`
+                                : ""
+                          }
+                          readOnly
+                        />
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Width (cm)</label>
+                        <input
+                          type="text"
+                          style={{
+                            ...styles.popupEditInput,
+                            backgroundColor: "#f3f4f6",
+                            cursor: "not-allowed",
+                            color: "#6b7280",
+                          }}
+                          value={
+                            editFormData.placement_id === "no-placement" || !editFormData.placement_id
+                              ? "-"
+                              : getSelectedPlacement
+                                ? `${getSelectedPlacement.width_cm} cm`
+                                : ""
+                          }
+                          readOnly
+                        />
+                      </div>
+                      <div style={styles.popupEditFormGroup}>
+                        <label style={styles.popupEditLabel}>Height (cm)</label>
+                        <input
+                          type="text"
+                          style={{
+                            ...styles.popupEditInput,
+                            backgroundColor: "#f3f4f6",
+                            cursor: "not-allowed",
+                            color: "#6b7280",
+                          }}
+                          value={
+                            editFormData.placement_id === "no-placement" || !editFormData.placement_id
+                              ? "-"
+                              : getSelectedPlacement
+                                ? `${getSelectedPlacement.height_cm} cm`
+                                : ""
+                          }
+                          readOnly
+                        />
+                      </div>
                     </div>
                   </div>
+
+                  {/* Error */}
+                  {editError && (
+                    <div style={styles.popupEditError}>⚠ {editError}</div>
+                  )}
+
                 </div>
 
-                {editError && (
-                  <div style={styles.popupEditError}>Error: {editError}</div>
-                )}
-
+                {/* Footer Buttons */}
                 <div style={styles.popupEditButtonGroup}>
                   <button
                     type="button"
@@ -2601,12 +2638,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     onClick={handleCloseEditPopup}
                     disabled={editLoading}
                     onMouseEnter={(e) =>
-                      (e.target.style.backgroundColor =
-                        styles.popupEditCancelButtonHover.backgroundColor)
+                    (e.currentTarget.style.backgroundColor =
+                      styles.popupEditCancelButtonHover.backgroundColor)
                     }
                     onMouseLeave={(e) =>
-                      (e.target.style.backgroundColor =
-                        styles.popupEditCancelButton.backgroundColor)
+                    (e.currentTarget.style.backgroundColor =
+                      styles.popupEditCancelButton.backgroundColor)
                     }
                   >
                     Cancel
@@ -2620,16 +2657,14 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     }
                     disabled={editLoading}
                     onMouseEnter={(e) => {
-                      if (!editLoading) {
-                        e.target.style.backgroundColor =
+                      if (!editLoading)
+                        e.currentTarget.style.backgroundColor =
                           styles.popupEditSaveButtonHover.backgroundColor;
-                      }
                     }}
                     onMouseLeave={(e) => {
-                      if (!editLoading) {
-                        e.target.style.backgroundColor =
+                      if (!editLoading)
+                        e.currentTarget.style.backgroundColor =
                           styles.popupEditSaveButton.backgroundColor;
-                      }
                     }}
                   >
                     {editLoading ? (
@@ -2639,8 +2674,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       </>
                     ) : (
                       <>
-                        <Save size={16} />
-                        Save 
+                        <Save size={14} />
+                        Save Changes
                       </>
                     )}
                   </button>

@@ -83,41 +83,38 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     },
     "M136 System": {
       cols: [
-        "25px", // No
-        "25px", // Checkbox
-        "15%",  // Label ID
-        "10%",  // Part Code
-        "25%",  // Part Name
-        "8%",   // Model
-        "8%",   // Qty
-        "25%",  // Vendor Name
-        "10%",   // Stock Level
-        "10%",   // Stock Level
-        "12%",   // Schedule Date
-        "25%",  // Received By
-        "9%",   // Action
+        "25px", 
+        "25px", 
+        "15%", 
+        "10%",  
+        "25%", 
+        "8%",   
+        "8%",   
+        "25%", 
+        "10%",   
+        "10%", 
+        "12%",   
+        "25%",  
+        "9%",  
       ],
     },
     "Out System": {
       cols: [
-        "25px", // No
-        "25px", // Checkbox
-        // "25px", // Arrow
-        "12%",  // Label ID
-        "10%",  // Part Code
-        "25%",  // Part Name
-        "8%",   // Model
-        "5%",   // Qty
-        "25%",  // Vendor Name
-        "8%",   // Stock Level
-        "12%",   // Schedule Date
-        "25%",  // Moved By
-        // No Action column
+        "25px", 
+        "25px", 
+        // "25px", 
+        "12%",
+        "10%",  
+        "25%", 
+        "8%",  
+        "5%",   
+        "25%", 
+        "8%",   
+        "25%",  
       ],
     },
   };
 
-  // ========== HELPER FUNCTIONS ==========
   const toDDMMYYYY = (iso) => {
     if (!iso) return "-";
     try {
@@ -278,7 +275,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       if (result.success) {
         setToastMessage("Item updated successfully");
         setToastType("success");
-        await fetchInventory();
+        await fetchInventory(false);
         setEditingM136Id(null);
         setEditM136Data({ qty: '', status_part: 'OK' });
       } else {
@@ -293,8 +290,8 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     }
   };
 
-  // ========== FETCH DATA ==========
-  const fetchInventory = useCallback(async () => {
+  const fetchInventory = useCallback(async (resetPage = true) => {
+    const scrollY = window.scrollY;
     setLoadingInventory(true);
     setError(null);
     try {
@@ -316,7 +313,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       const result = await response.json();
       if (result.success) {
         setInventoryItems(result.data);
-        setCurrentPage(1);
+        if (resetPage) setCurrentPage(1);
       } else {
         setError(result.message);
       }
@@ -324,6 +321,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       setError(err.message);
     } finally {
       setLoadingInventory(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, scrollY)));
     }
   }, [activeTab, dateFrom, dateTo, searchBy, keyword]);
 
@@ -333,18 +331,15 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
 
   const getColSpanCount = () => {
     if (activeTab === "Off System") {
-      return 12; // No, checkbox, label_id, part_code, part_name, model, qty, vendor, stock_level, schedule_date, received_by, action
+      return 12;
     } else if (activeTab === "M136 System") {
-      return 13; // termasuk arrow
+      return 13;
     } else if (activeTab === "Out System") {
-      return 12; // tanpa action
+      return 12;
     }
     return 12;
   };
 
-
-
-  // Option style
   const optionStyle = {
     backgroundColor: "#d1d5db",
     color: "#374151",
@@ -352,7 +347,6 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     padding: "4px 8px",
   };
 
-  // Main styles (sama seperti sebelumnya, tidak diubah)
   const styles = {
     pageContainer: {
       fontFamily:
@@ -713,7 +707,6 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     },
   };
 
-  // Customer detail popup styles (tidak digunakan)
   const customerDetailStyles = {
     popupOverlay: {
       position: "fixed",
@@ -806,7 +799,6 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     },
   };
 
-  // ========== RENDER FUNCTIONS FOR EACH TAB ==========
   const renderOffSystemTab = () => {
     if (loadingInventory) {
       return (
@@ -942,9 +934,8 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       const isEditing = editingM136Id === item.id;
       const isHold = item.status_part === 'HOLD';
 
-      // Row style with red background for HOLD status
       const rowStyle = isHold ? {
-        backgroundColor: '#fee2e2', // Very light red
+        backgroundColor: '#fee2e2',
       } : {};
 
       return (
@@ -982,7 +973,6 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               {item.model || "-"}
             </td>
 
-            {/* QTY - Editable saat mode edit */}
             <td style={styles.tdWithLeftBorder}>
               {isEditing ? (
                 <input

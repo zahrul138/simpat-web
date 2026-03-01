@@ -88,9 +88,16 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   const [lastDataUpdate, setLastDataUpdate] = useState(Date.now());
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
 
-  const filteredSchedules = productionSchedules.filter(
-    (schedule) => activeTab === "All" || schedule.status === activeTab
-  );
+  const filteredSchedules = (() => {
+    const list = productionSchedules.filter(
+      (schedule) => activeTab === "All" || schedule.status === activeTab
+    );
+    // Tab Complete: terbaru (id terbesar) tampil di atas
+    if (activeTab === "Complete") {
+      return [...list].sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+    return list;
+  })();
   const [loading, setLoading] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState({});
   const [error, setError] = useState(null);
@@ -264,46 +271,39 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     isBackgroundRefreshing,
   ]);
 
-  const autoCheckAndRefresh = useCallback(async () => {
+  const runAutoStatusPatches = useCallback(async () => {
     try {
-      const now = timerService.getCurrentTime();
-      const currentTimeStr = now.toLocaleTimeString();
-      try {
-        await http("/api/production-schedules/auto-progress", {
-          method: "PATCH",
-        });
-      } catch (progressErr) {}
-
-      try {
-        await http("/api/production-schedules/auto-complete", {
-          method: "PATCH",
-        });
-      } catch (completeErr) {}
-      const timeSinceLastUpdate = Date.now() - lastDataUpdate;
-      if (timeSinceLastUpdate > 2000) {
-        console.log(
-          `[SILENT-REFRESH] Performing transparent refresh for tab: ${activeTab} at ${currentTimeStr}`
-        );
-        performBackgroundRefresh();
-      }
-    } catch (err) {
-      console.log("[SILENT-REFRESH] Error in background process:", err.message);
-    }
-  }, [performBackgroundRefresh, lastDataUpdate, activeTab]);
+      await http("/api/production-schedules/auto-progress", {
+        method: "PATCH",
+      });
+    } catch (_) {}
+    try {
+      await http("/api/production-schedules/auto-complete", {
+        method: "PATCH",
+      });
+    } catch (_) {}
+  }, []);
 
   useEffect(() => {
     loadSchedulesFromServer();
   }, [loadSchedulesFromServer]);
 
   useEffect(() => {
+    // PATCH auto-progress / auto-complete setiap 60 detik
+    const patchInterval = setInterval(() => {
+      runAutoStatusPatches();
+    }, 60000);
+
+    // Background data refresh (GET) setiap 30 detik
     const refreshInterval = setInterval(() => {
-      autoCheckAndRefresh();
-    }, 1000);
+      performBackgroundRefresh();
+    }, 30000);
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         setTimeout(() => {
-          autoCheckAndRefresh();
+          runAutoStatusPatches();
+          performBackgroundRefresh();
         }, 1000);
       }
     };
@@ -311,10 +311,11 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      clearInterval(patchInterval);
       clearInterval(refreshInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [autoCheckAndRefresh]);
+  }, [runAutoStatusPatches, performBackgroundRefresh]);
 
   const toggleHeaderCheckbox = (headerId, checked) => {
     if (activeTab === "New") {
@@ -804,7 +805,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       return (
         <colgroup>
           <col style={{ width: "25px" }} />
-          {/* KOLOM CHECKBOX SELALU ADA UNTUK TAB NEW */}
           <col style={{ width: "3.3%" }} />
           <col style={{ width: "23px" }} />
           <col style={{ width: "15%" }} />
@@ -822,7 +822,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       return (
         <colgroup>
           <col style={{ width: "25px" }} />
-          {/* TIDAK ADA KOLOM CHECKBOX untuk OnProgress */}
           <col style={{ width: "23px" }} />
           <col style={{ width: "16%" }} />
           <col style={{ width: "16%" }} />

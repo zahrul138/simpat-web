@@ -49,6 +49,8 @@ const AddPartsPage = () => {
     stock_level_to: "",
     part_weight: "",
     weight_unit: "kg",
+    assembly_station: "",
+    qty_per_assembly: 1,
   });
 
   const [customers, setCustomers] = useState([]);
@@ -370,6 +372,8 @@ const AddPartsPage = () => {
       vendor_name: selectedVendor?.vendor_name,
       vendor_type: selectedVendor?.types,
       stock_level_to: partFormData.stock_level_to,
+      assembly_station: partFormData.assembly_station || null,
+      qty_per_assembly: parseInt(partFormData.qty_per_assembly) || 1,
       unit: "PCS",
       is_active: true,
       created_at: new Date().toISOString(),
@@ -430,6 +434,8 @@ const AddPartsPage = () => {
       vendor_id: "",
       stock_level_to: "",
       placement_id: "",
+      assembly_station: "",
+      qty_per_assembly: 1,
     });
     setSelectedCustomers([]);
     setSelectedPlacement(null);
@@ -508,6 +514,8 @@ const AddPartsPage = () => {
             placement_id: part.placement_id
               ? parseInt(part.placement_id)
               : null,
+            assembly_station: part.assembly_station || null,
+            qty_per_assembly: parseInt(part.qty_per_assembly) || 1,
           };
 
           console.log("Saving part:", partData);
@@ -1671,6 +1679,42 @@ const AddPartsPage = () => {
                     }
                   />
                 </div>
+                <div>
+                  <label style={styles.label}>Assembly Station</label>
+                  <select
+                    style={styles.select}
+                    value={partFormData.assembly_station}
+                    onChange={(e) =>
+                      handlePartInputChange("assembly_station", e.target.value)
+                    }
+                  >
+                    <option value="">Select Station</option>
+                    <option value="subCr">SUBCR</option>
+                    <option value="tpu1">TPU1</option>
+                    <option value="tpu2">TPU2</option>
+                    <option value="cr1">CR1</option>
+                    <option value="cr2">CR2</option>
+                    <option value="cradj">CRADJ</option>
+                    <option value="m1">M1</option>
+                    <option value="m2">M2</option>
+                    <option value="ft">FT</option>
+                    <option value="acc">ACC</option>
+                    <option value="packing">PACKING</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={styles.label}>QTY Per Assembly</label>
+                  <input
+                    type="number"
+                    style={styles.inputPartCode}
+                    placeholder="1"
+                    value={partFormData.qty_per_assembly}
+                    onChange={(e) =>
+                      handlePartInputChange("qty_per_assembly", e.target.value)
+                    }
+                    min="1"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1702,6 +1746,8 @@ const AddPartsPage = () => {
                   <col style={{ width: "20%" }} />
                   <col style={{ width: "15%" }} />
                   <col style={{ width: "15%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "25%" }} />
                   <col style={{ width: "9%" }} />
                 </colgroup>
@@ -1745,6 +1791,8 @@ const AddPartsPage = () => {
                     <th style={styles.thWithLeftBorder}>Vendor</th>
                     <th style={styles.thWithLeftBorder}>Vendor Types</th>
                     <th style={styles.thWithLeftBorder}>Stock Level To</th>
+                    <th style={styles.thWithLeftBorder}>Station</th>
+                    <th style={styles.thWithLeftBorder}>QTY/Assembly</th>
                     <th style={styles.thWithLeftBorder}>Created By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
@@ -1872,6 +1920,18 @@ const AddPartsPage = () => {
                           title={part.stock_level_to}
                         >
                           {part.stock_level_to}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.assembly_station ? part.assembly_station.toUpperCase() : "-"}
+                        >
+                          {part.assembly_station ? part.assembly_station.toUpperCase() : "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.qty_per_assembly || 1}
+                        >
+                          {part.qty_per_assembly || 1}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
                           {currentEmpName} |{" "}

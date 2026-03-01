@@ -24,6 +24,7 @@ import AddTargetSchedulePage from "./pages/mhpage/AddTargetSchedulePage";
 import ReceivedLocalSchedulePage from "./pages/mhpage/ReceivedLocalSchedulePage";
 import ReturnPartsPage from "./pages/mhpage/ReturnPartsPage";
 import MHLocalSchedulePage from "./pages/mhpage/MHLocalSchedulePage";
+import TargetScanningPage from "./pages/mhpage/TargetScanningPage";
 
 // Halaman SCN-LOG (Inventory Control)
 import LocalSchedulePage from "./pages/logpage/LocalSchedulePage";
@@ -167,6 +168,7 @@ const LayoutHandler = () => {
       "/return-parts": { app: "production", dept: "SCN-MH" },
       "/mh-local-schedule": { app: "production", dept: "SCN-MH" },
       "/stock-overview-mh": { app: "production", dept: "SCN-MH" },
+      "/target-scanning": { app: "production", dept: "SCN-MH" },
 
       // Inventory Control routes
       "/local-schedule": { app: "inventory", dept: "SCN-LOG" },
@@ -255,6 +257,7 @@ const LayoutHandler = () => {
       {location.pathname === "/oversea-schedule" && <OverseaPartSchedulePage />}
       {location.pathname === "/oversea-schedule/add" && <AddOverseaPartSchedulePage />}
       {location.pathname === "/storage-inventory" && <StorageInventoryPage />}
+      {location.pathname === "/target-scanning" && <TargetScanningPage />}
 
       {location.pathname === "/vendor-details" && <VendorDetailsPage />}
       {location.pathname === "/vendor-details/add" && <AddVendorPage />}

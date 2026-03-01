@@ -489,6 +489,31 @@ const Sidebar = ({
     </svg>
   );
 
+  const IdCardIcon = ({ size = 12 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <circle cx="8" cy="12" r="2" />
+      <path d="M14 9h4M14 12h4M14 15h2" />
+    </svg>
+  );
+
+  const LayoutDashboardIcon = ({ size = 12 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
+    </svg>
+  );
+
+  const PackageCheckIcon = ({ size = 12 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14" />
+      <path d="M16.5 9.4 7.55 4.24M3.29 7 12 12l8.71-5M12 22V12" />
+      <polyline points="16 20 18 22 22 18" />
+    </svg>
+  );
+
   const isPathActive = (basePath) => {
     return (
       location.pathname === basePath ||
@@ -518,12 +543,18 @@ const Sidebar = ({
           icon: FactoryIcon,
           isActive:
             isPathActive("/target-schedule") ||
+             isPathActive("/target-scanning") ||
             isPathActive("/production-monitoring"),
           subItems: [
             {
               title: "Target Schedule",
               href: "/target-schedule",
               icon: CalendarIcon,
+            },
+             {
+              title: "Target Scanning",
+              href: "/target-scanning",
+              icon: MonitorIcon,
             },
             {
               title: "Production Monitoring",
@@ -587,59 +618,46 @@ const Sidebar = ({
 
       inventory: [
         {
-          title: "Local Parts",
-          icon: WarehouseIcon,
+          title: "Procurement Schedule",
+          icon: CalendarIcon,
           isActive:
             isParentOrChildActive("/local-schedule") ||
-            isParentOrChildActive("/oversea-schedule") ||
-            isParentOrChildActive("/part-details") ||
-            isParentOrChildActive("/vendor-details") ||
-            isParentOrChildActive("/vendor-placement") ||
-            isPathActive("/stock-overview") ||
-            isPathActive("/storage-inventory") ||
-            isPathActive("/receive-request"),
-
+            isParentOrChildActive("/oversea-schedule"),
           subItems: [
-            {
-              title: "Local Schedule",
-              href: "/local-schedule",
-              icon: ClockIcon,
-            },
-            {
-              title: "Oversea Schedule",
-              href: "/oversea-schedule",
-              icon: ShipIcon,
-            },
-            {
-              title: "Storage Inventory",
-              href: "/storage-inventory",
-              icon: DatabaseIcon,
-            },
-            {
-              title: "Part Details",
-              href: "/part-details",
-              icon: InfoIcon,
-            },
-            {
-              title: "Vendor Details",
-              href: "/vendor-details",
-              icon: BuildingIcon,
-            },
-            {
-              title: "Vendor Placement",
-              href: "/vendor-placement",
-              icon: MapPinIcon,
-            },
-            {
-              title: "Stock Overview",
-              href: "/stock-overview",
-              icon: EyeIcon,
-            },
-            {
-              title: "Receive Request",
-              href: "/receive-request",
-              icon: InboxIcon,
-            },
+            { title: "Local Schedule",   href: "/local-schedule",   icon: ClockIcon },
+            { title: "Oversea Schedule", href: "/oversea-schedule", icon: ShipIcon },
+          ],
+        },
+        {
+          title: "Inventory Control",
+          icon: WarehouseIcon,
+          isActive:
+            isPathActive("/storage-inventory") ||
+            isPathActive("/stock-overview") ||
+            isParentOrChildActive("/part-details"),
+          subItems: [
+            { title: "Storage Inventory", href: "/storage-inventory", icon: DatabaseIcon },
+            { title: "Stock Overview",    href: "/stock-overview",    icon: LayoutDashboardIcon },
+            { title: "Part Details",      href: "/part-details",      icon: PackageIcon },
+          ],
+        },
+        {
+          title: "Vendor Management",
+          icon: BuildingIcon,
+          isActive:
+            isParentOrChildActive("/vendor-details") ||
+            isParentOrChildActive("/vendor-placement"),
+          subItems: [
+            { title: "Vendor Details",   href: "/vendor-details",   icon: IdCardIcon },
+            { title: "Vendor Placement", href: "/vendor-placement", icon: MapPinIcon },
+          ],
+        },
+        {
+          title: "Receive Control",
+          icon: PackageCheckIcon,
+          isActive: isPathActive("/receive-request"),
+          subItems: [
+            { title: "Receive Request", href: "/receive-request", icon: PackageCheckIcon },
           ],
         },
       ],
