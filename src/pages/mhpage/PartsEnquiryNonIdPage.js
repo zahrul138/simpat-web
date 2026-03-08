@@ -57,7 +57,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "25%",
         "6%",
       ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By", "Action"],
+      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Request By", "Action"],
       showCheckbox: true,
       showAction: true,
     },
@@ -74,7 +74,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "14%",
         "20%",
         ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By",],
+      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Request By",],
       showCheckbox: true,
       showAction: true,
     },
@@ -91,7 +91,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "15%",
         "35%",
       ],
-      headers: ["No", "", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Received By"],
+      headers: ["No", "", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Received By"],
       showCheckbox: true,
       showAction: false,
     },
@@ -107,7 +107,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "17%",
         "25%",
       ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Moved By"],
+      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Moved By"],
       showCheckbox: false,
       showAction: false,
     },
@@ -124,7 +124,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "15%",
         "35%",
       ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Moved By"],
+      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Moved By"],
       showCheckbox: true,
       showAction: false,
     },
@@ -140,7 +140,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "17%",
         "25%",
       ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Completed By"],
+      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Completed By"],
       showCheckbox: false,
       showAction: false,
     },
@@ -156,7 +156,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "17%",
         "25%",
       ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By"],
+      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Request By"],
       showCheckbox: false,
       showAction: false,
     },
@@ -173,7 +173,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         "20%",
         "8%",
       ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By", "Action"],
+      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Request By", "Action"],
       showCheckbox: false,
       showAction: true,
     },
@@ -1030,6 +1030,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             style={styles.remarkInput}
           />
         </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        </td>
         <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
           {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
@@ -1078,6 +1081,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
         <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        </td>
         <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
           {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
@@ -1135,6 +1141,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
         <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        </td>
         <td style={styles.tdWithLeftBorder} title={`${part.approved_by_name || "-"} | ${part.approved_at || "-"}`}>
           {part.approved_by_name || "-"} | {part.approved_at || "-"}
         </td>
@@ -1191,6 +1200,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
         <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        </td>
         <td style={styles.tdWithLeftBorder} title={`${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`}>
           {part.intransit_by_name || "-"} | {part.intransit_at || "-"}
         </td>
@@ -1229,6 +1241,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
         <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        </td>
         <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
           {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
@@ -1283,6 +1298,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
         <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
         <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        </td>
         <td style={styles.tdWithLeftBorder} title={
           activeTab === "InTransit" ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}` :
           activeTab === "Complete"  ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}` :

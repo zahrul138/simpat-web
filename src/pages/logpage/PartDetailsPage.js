@@ -3,7 +3,16 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
-import { Plus, Trash2, Pencil, Save, X, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  Save,
+  X,
+  RefreshCw,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -73,6 +82,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   const [keyword, setKeyword] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [showInactive, setShowInactive] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const fetchAllData = async () => {
     try {
@@ -145,7 +156,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             data.data.map((item) => ({
               id: item.id,
               size_name: item.size_name || item,
-            }))
+            })),
           );
         } else {
           setPartSizes([
@@ -199,7 +210,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
 
         const customerNames = customerIds.map((id) => {
           const customer = customers.find(
-            (c) => c.id.toString() === id.toString()
+            (c) => c.id.toString() === id.toString(),
           );
           return customer
             ? `${customer.mat_code} | ${customer.cust_name}`
@@ -212,7 +223,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
         return "Special Customer(s)";
       }
     },
-    [customers]
+    [customers],
   );
 
   const fetchPartsData = async () => {
@@ -221,7 +232,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       setError(null);
 
       const response = await fetch(
-        `${API_BASE}/api/kanban-master/with-details`
+        `${API_BASE}/api/kanban-master/with-details?include_inactive=true`,
       );
 
       if (!response.ok) {
@@ -441,7 +452,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       }
 
       const selectedSize = partSizes.find(
-        (size) => size.size_name === editFormData.part_size
+        (size) => size.size_name === editFormData.part_size,
       );
 
       const vendorIdNum = editFormData.vendor_id
@@ -482,14 +493,14 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(updateData),
-        }
+        },
       );
 
       const result = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          result.message || `HTTP error! status: ${response.status}`
+          result.message || `HTTP error! status: ${response.status}`,
         );
       }
 
@@ -515,6 +526,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
 
       let url = `${API_BASE}/api/kanban-master/with-details?`;
       const params = [];
+
+      params.push(`include_inactive=true`);
 
       if (dateFrom) params.push(`date_from=${dateFrom}`);
       if (dateTo) params.push(`date_to=${dateTo}`);
@@ -570,7 +583,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
 
       if (!response.ok) {
         throw new Error(
-          result.message || `HTTP error! status: ${response.status}`
+          result.message || `HTTP error! status: ${response.status}`,
         );
       }
 
@@ -586,27 +599,55 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Filter data berdasarkan search
+  const handleToggleActive = async (partId, partCode, isActive) => {
+    const action = isActive ? "deactivate" : "activate";
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/kanban-master/${partId}/toggle-active`,
+        { method: "PATCH" },
+      );
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(
+          result.message || `HTTP error! status: ${response.status}`,
+        );
+      if (result.success) {
+        setPartsData((prev) =>
+          prev.map((p) =>
+            p.id === partId ? { ...p, is_active: result.is_active } : p
+          )
+        );
+      } else {
+        throw new Error(result.message || `Failed to ${action} part`);
+      }
+    } catch (err) {
+      console.error("Error toggling part active status:", err);
+      alert(`Failed to ${action} part: ${err.message}`);
+    }
+  };
+
   const filteredData = useMemo(() => {
-    if (!keyword) return partsData;
+    let data = showInactive ? partsData : partsData.filter((p) => p.is_active);
+
+    if (!keyword) return data;
 
     const searchTerm = keyword.toLowerCase();
 
     switch (searchBy) {
       case "Vendor":
-        return partsData.filter((part) =>
-          part.vendor_name?.toLowerCase().includes(searchTerm)
+        return data.filter((part) =>
+          part.vendor_name?.toLowerCase().includes(searchTerm),
         );
       case "Product Code":
-        return partsData.filter((part) =>
-          part.part_code?.toLowerCase().includes(searchTerm)
+        return data.filter((part) =>
+          part.part_code?.toLowerCase().includes(searchTerm),
         );
       case "Product Description":
-        return partsData.filter((part) =>
-          part.part_name?.toLowerCase().includes(searchTerm)
+        return data.filter((part) =>
+          part.part_name?.toLowerCase().includes(searchTerm),
         );
       case "Customers":
-        return partsData.filter((part) => {
+        return data.filter((part) => {
           if (part.part_types === "Special") {
             const customerName = getCustomerName(part.customer_special);
             return customerName?.toLowerCase().includes(searchTerm);
@@ -614,9 +655,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
           return "all customers".includes(searchTerm);
         });
       default:
-        return partsData;
+        return data;
     }
-  }, [partsData, keyword, searchBy, getCustomerName]);
+  }, [partsData, keyword, searchBy, showInactive, getCustomerName]);
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -648,7 +689,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     )
       return null;
     return placements.find(
-      (p) => p.id.toString() === editFormData.placement_id.toString()
+      (p) => p.id.toString() === editFormData.placement_id.toString(),
     );
   }, [editFormData.placement_id, placements]);
 
@@ -1454,7 +1495,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       maxWidth: "95vw",
       maxHeight: "92vh",
       overflowY: "auto",
-      boxShadow: "0 8px 32px rgba(99, 102, 241, 0.18), 0 2px 8px rgba(0,0,0,0.12)",
+      boxShadow:
+        "0 8px 32px rgba(99, 102, 241, 0.18), 0 2px 8px rgba(0,0,0,0.12)",
       border: "1.5px solid #9fa8da",
     },
     popupEditHeader: {
@@ -1646,6 +1688,32 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     deleteButtonHover: {
       backgroundColor: "#bfdbfe",
     },
+    deactivateButton: {
+      backgroundColor: "#fef9c3",
+      color: "#854d0e",
+      padding: "4px 8px",
+      fontSize: "12px",
+      borderRadius: "4px",
+      border: "none",
+      cursor: "pointer",
+      marginLeft: "6px",
+    },
+    deactivateButtonHover: {
+      backgroundColor: "#fde68a",
+    },
+    activateButton: {
+      backgroundColor: "#dcfce7",
+      color: "#166534",
+      padding: "4px 8px",
+      fontSize: "12px",
+      borderRadius: "4px",
+      border: "none",
+      cursor: "pointer",
+      marginLeft: "6px",
+    },
+    activateButtonHover: {
+      backgroundColor: "#bbf7d0",
+    },
   };
 
   return (
@@ -1725,7 +1793,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                   <option value="">Select Vendor</option>
                   {[
                     ...new Set(
-                      partsData.map((part) => part.vendor_name).filter(Boolean)
+                      partsData.map((part) => part.vendor_name).filter(Boolean),
                     ),
                   ].map((vendor) => (
                     <option key={vendor} value={vendor}>
@@ -1750,7 +1818,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       partsData
                         .filter((part) => part.part_types === "Special")
                         .map((part) => getCustomerName(part.customer_special))
-                        .filter(Boolean)
+                        .filter(Boolean),
                     ),
                   ].map((customer) => (
                     <option key={customer} value={customer}>
@@ -1780,6 +1848,37 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 {loading ? "Searching..." : "Search"}
               </button>
             </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto" }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: showInactive ? "#854d0e" : "#6b7280",
+                  fontWeight: showInactive ? "600" : "400",
+                  padding: "4px 10px",
+                  borderRadius: "4px",
+                  border: `1px solid ${showInactive ? "#fde68a" : "#d1d5db"}`,
+                  backgroundColor: showInactive ? "#fef9c3" : "white",
+                  transition: "all 0.2s ease",
+                  userSelect: "none",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showInactive}
+                  onChange={(e) => {
+                    setShowInactive(e.target.checked);
+                    setCurrentPage(1);
+                    setSelectedIds([]);
+                  }}
+                  style={{ width: "14px", height: "14px", cursor: "pointer" }}
+                />
+                Show Inactive
+              </label>
+            </div>
           </div>
         </div>
         {error && (
@@ -1807,6 +1906,33 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             <Plus size={16} />
             Create
           </button>
+          {selectedIds.length > 0 && (
+            <button
+              style={{
+                ...styles.button,
+                backgroundColor: "#fef9c3",
+                color: "#854d0e",
+                border: "1px solid #fde68a",
+              }}
+              onClick={async () => {
+                const allActive = selectedIds.every(
+                  (id) => partsData.find((p) => p.id === id)?.is_active
+                );
+                await Promise.all(
+                  selectedIds.map((id) => {
+                    const part = partsData.find((p) => p.id === id);
+                    return handleToggleActive(id, part?.part_code, part?.is_active);
+                  })
+                );
+                setSelectedIds([]);
+              }}
+            >
+              <EyeOff size={14} />
+              {selectedIds.every((id) => partsData.find((p) => p.id === id)?.is_active)
+                ? `Deactivate (${selectedIds.length})`
+                : `Activate (${selectedIds.length})`}
+            </button>
+          )}
         </div>
         {loading && (
           <div
@@ -1832,7 +1958,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 }}
               >
                 <colgroup>
-                  <col style={{ width: "3%" }} />
+                  <col style={{ width: "3.5%" }} />
+                  <col style={{ width: "3.5%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "20%" }} />
                   <col style={{ width: "10%" }} />
@@ -1849,11 +1976,31 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "7%" }} />
                   <col style={{ width: "25%" }} />
-                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "12%" }} />
                 </colgroup>
                 <thead>
                   <tr style={styles.tableHeader}>
+
                     <th style={styles.expandedTh}>No</th>
+                    <th style={{ ...styles.expandedTh, width: "3%", textAlign: "center" }}>
+                      <input
+                        type="checkbox"
+                        title="Select All"
+                        checked={currentData.length > 0 && currentData.every((p) => selectedIds.includes(p.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds((prev) => [
+                              ...new Set([...prev, ...currentData.map((p) => p.id)]),
+                            ]);
+                          } else {
+                            setSelectedIds((prev) =>
+                              prev.filter((id) => !currentData.map((p) => p.id).includes(id))
+                            );
+                          }
+                        }}
+                        style={{ cursor: "pointer" }}
+                      />
+                    </th>
                     <th style={styles.thWithLeftBorder}>Part Code</th>
                     <th style={styles.thWithLeftBorder}>Part Name</th>
                     <th style={styles.thWithLeftBorder}>Part Size</th>
@@ -1881,32 +2028,33 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       // Cek apakah row ini sedang dipilih
                       const isSelected = selectedRowId === part.id;
 
+                      const isChecked = selectedIds.includes(part.id);
                       return (
                         <tr
                           key={part.id}
-                          // Tambahkan onClick handler
                           onClick={() => handleRowClick(part.id)}
-                          // Style untuk row yang dipilih
                           style={{
                             cursor: "pointer",
                             backgroundColor: isSelected
                               ? "#c7cde8"
-                              : "transparent",
+                              : !part.is_active
+                                ? "#f3f4f6"
+                                : "transparent",
+                            opacity: part.is_active ? 1 : 0.55,
                             transition: "background-color 0.2s ease",
                           }}
-                          // Hover effect hanya jika tidak dipilih
                           onMouseEnter={(e) => {
                             if (!isSelected) {
-                              e.currentTarget.style.backgroundColor = "#c7cde8";
+                              e.currentTarget.style.backgroundColor = part.is_active ? "#c7cde8" : "#e5e7eb";
                             }
                           }}
                           onMouseLeave={(e) => {
                             if (!isSelected) {
-                              e.currentTarget.style.backgroundColor =
-                                "transparent";
+                              e.currentTarget.style.backgroundColor = part.is_active ? "transparent" : "#f3f4f6";
                             }
                           }}
                         >
+
                           <td
                             style={{
                               ...styles.expandedTd,
@@ -1915,6 +2063,23 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             }}
                           >
                             {(currentPage - 1) * itemsPerPage + index + 1}
+                          </td>
+                          <td
+                            style={{ ...styles.expandedTd, textAlign: "center", width: "3%" }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                setSelectedIds((prev) =>
+                                  e.target.checked
+                                    ? [...prev, part.id]
+                                    : prev.filter((id) => id !== part.id)
+                                );
+                              }}
+                              style={{ cursor: "pointer" }}
+                            />
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
@@ -1992,7 +2157,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                                   {getCustomerName(part.customer_special)
                                     .length > 25
                                     ? getCustomerName(
-                                      part.customer_special
+                                      part.customer_special,
                                     ).substring(0, 25) + "..."
                                     : getCustomerName(part.customer_special)}
                                 </div>
@@ -2013,9 +2178,15 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            title={part.assembly_station ? part.assembly_station.toUpperCase() : "-"}
+                            title={
+                              part.assembly_station
+                                ? part.assembly_station.toUpperCase()
+                                : "-"
+                            }
                           >
-                            {part.assembly_station ? part.assembly_station.toUpperCase() : "-"}
+                            {part.assembly_station
+                              ? part.assembly_station.toUpperCase()
+                              : "-"}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
@@ -2063,6 +2234,38 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                               }
                             >
                               <Trash2 size={10} />
+                            </button>
+                            <button
+                              style={
+                                part.is_active
+                                  ? styles.deactivateButton
+                                  : styles.activateButton
+                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleActive(
+                                  part.id,
+                                  part.part_code,
+                                  part.is_active,
+                                );
+                              }}
+                              title={part.is_active ? "Deactivate" : "Activate"}
+                              onMouseEnter={(e) =>
+                              (e.target.style.backgroundColor = part.is_active
+                                ? styles.deactivateButtonHover.backgroundColor
+                                : styles.activateButtonHover.backgroundColor)
+                              }
+                              onMouseLeave={(e) =>
+                              (e.target.style.backgroundColor = part.is_active
+                                ? styles.deactivateButton.backgroundColor
+                                : styles.activateButton.backgroundColor)
+                              }
+                            >
+                              {part.is_active ? (
+                                <EyeOff size={10} />
+                              ) : (
+                                <Eye size={10} />
+                              )}
                             </button>
                           </td>
                         </tr>
@@ -2249,25 +2452,36 @@ const PartDetailsPage = ({ sidebarVisible }) => {
         {showEditPopup && (
           <div style={styles.popupEditOverlay}>
             <div style={styles.popupEditContainer}>
-
               {/* Header */}
               <div style={styles.popupEditHeader}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{
-                    width: "4px", height: "20px",
-                    backgroundColor: "#2563eb", borderRadius: "2px",
-                  }} />
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "10px" }}
+                >
+                  <div
+                    style={{
+                      width: "4px",
+                      height: "20px",
+                      backgroundColor: "#2563eb",
+                      borderRadius: "2px",
+                    }}
+                  />
                   <h2 style={styles.popupEditTitle}>
                     Edit Part &nbsp;
                     <span style={{ color: "#2563eb", fontWeight: "800" }}>
                       {editingPart?.part_code}
                     </span>
-                    <span style={{
-                      marginLeft: "10px", fontSize: "11px", fontWeight: "500",
-                      color: "#6b7280", backgroundColor: "#f3f4f6",
-                      border: "1px solid #d1d5db", borderRadius: "4px",
-                      padding: "2px 8px",
-                    }}>
+                    <span
+                      style={{
+                        marginLeft: "10px",
+                        fontSize: "11px",
+                        fontWeight: "500",
+                        color: "#6b7280",
+                        backgroundColor: "#f3f4f6",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "4px",
+                        padding: "2px 8px",
+                      }}
+                    >
                       {editingPart?.part_name}
                     </span>
                   </h2>
@@ -2289,13 +2503,17 @@ const PartDetailsPage = ({ sidebarVisible }) => {
               </div>
 
               <form
-                onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveEdit();
+                }}
               >
                 <div style={styles.popupEditForm}>
-
                   {/* ── Section 1: Part Information ── */}
                   <div style={styles.popupEditSection}>
-                    <div style={styles.popupEditSectionTitle}>Part Information</div>
+                    <div style={styles.popupEditSectionTitle}>
+                      Part Information
+                    </div>
                     <div style={styles.popupEditGrid3}>
                       <div style={styles.popupEditFormGroup}>
                         <label style={styles.popupEditLabel}>Part Code *</label>
@@ -2309,7 +2527,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           required
                         />
                       </div>
-                      <div style={{ ...styles.popupEditFormGroup, gridColumn: "span 2" }}>
+                      <div
+                        style={{
+                          ...styles.popupEditFormGroup,
+                          gridColumn: "span 2",
+                        }}
+                      >
                         <label style={styles.popupEditLabel}>Part Name *</label>
                         <input
                           type="text"
@@ -2339,7 +2562,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         </select>
                       </div>
                       <div style={styles.popupEditFormGroup}>
-                        <label style={styles.popupEditLabel}>Part Material</label>
+                        <label style={styles.popupEditLabel}>
+                          Part Material
+                        </label>
                         <input
                           type="text"
                           name="part_material"
@@ -2362,8 +2587,15 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         </select>
                       </div>
                       {editFormData.part_types === "Special" && (
-                        <div style={{ ...styles.popupEditFormGroup, gridColumn: "span 3" }}>
-                          <label style={styles.popupEditLabel}>Customer *</label>
+                        <div
+                          style={{
+                            ...styles.popupEditFormGroup,
+                            gridColumn: "span 3",
+                          }}
+                        >
+                          <label style={styles.popupEditLabel}>
+                            Customer *
+                          </label>
                           <select
                             name="customer_id"
                             value={editFormData.customer_id}
@@ -2385,7 +2617,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
 
                   {/* ── Section 2: Specs & Vendor ── */}
                   <div style={styles.popupEditSection}>
-                    <div style={styles.popupEditSectionTitle}>Specs & Vendor</div>
+                    <div style={styles.popupEditSectionTitle}>
+                      Specs & Vendor
+                    </div>
                     <div style={styles.popupEditGrid3}>
                       <div style={styles.popupEditFormGroup}>
                         <label style={styles.popupEditLabel}>QTY Per Box</label>
@@ -2400,7 +2634,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         />
                       </div>
                       <div style={styles.popupEditFormGroup}>
-                        <label style={styles.popupEditLabel}>Part Price (USD)</label>
+                        <label style={styles.popupEditLabel}>
+                          Part Price (USD)
+                        </label>
                         <input
                           type="number"
                           step="0.01"
@@ -2429,7 +2665,11 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             name="weight_unit"
                             value={editFormData.weight_unit}
                             onChange={handleEditFormChange}
-                            style={{ ...styles.popupEditSelect, width: "60px", flex: "none" }}
+                            style={{
+                              ...styles.popupEditSelect,
+                              width: "60px",
+                              flex: "none",
+                            }}
                           >
                             <option value="kg">kg</option>
                             <option value="g">g</option>
@@ -2449,7 +2689,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         >
                           <option value="">Select Model</option>
                           {models.map((model, idx) => (
-                            <option key={idx} value={model}>{model}</option>
+                            <option key={idx} value={model}>
+                              {model}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -2471,7 +2713,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         </select>
                       </div>
                       <div style={styles.popupEditFormGroup}>
-                        <label style={styles.popupEditLabel}>Vendor Types</label>
+                        <label style={styles.popupEditLabel}>
+                          Vendor Types
+                        </label>
                         <input
                           type="text"
                           style={{
@@ -2485,18 +2729,30 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           placeholder="Auto from vendor"
                         />
                       </div>
-                      <div style={{ ...styles.popupEditFormGroup, gridColumn: "span 3" }}>
-                        <label style={styles.popupEditLabel}>Stock Level To *</label>
+                      <div
+                        style={{
+                          ...styles.popupEditFormGroup,
+                          gridColumn: "span 3",
+                        }}
+                      >
+                        <label style={styles.popupEditLabel}>
+                          Stock Level To *
+                        </label>
                         <select
                           name="stock_level_to"
                           value={editFormData.stock_level_to}
                           onChange={handleEditFormChange}
-                          style={{ ...styles.popupEditSelect, width: "calc(33.33% - 6px)" }}
+                          style={{
+                            ...styles.popupEditSelect,
+                            width: "calc(33.33% - 6px)",
+                          }}
                           required
                         >
                           <option value="">Select Stock Level</option>
                           {stockLevels.map((level, idx) => (
-                            <option key={idx} value={level.value}>{level.label}</option>
+                            <option key={idx} value={level.value}>
+                              {level.label}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -2505,7 +2761,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
 
                   {/* ── Section 3: Placement & Assembly ── */}
                   <div style={styles.popupEditSection}>
-                    <div style={styles.popupEditSectionTitle}>Placement & Assembly</div>
+                    <div style={styles.popupEditSectionTitle}>
+                      Placement & Assembly
+                    </div>
                     <div style={styles.popupEditGrid3}>
                       <div style={styles.popupEditFormGroup}>
                         <label style={styles.popupEditLabel}>Placement</label>
@@ -2527,7 +2785,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         </select>
                       </div>
                       <div style={styles.popupEditFormGroup}>
-                        <label style={styles.popupEditLabel}>Assembly Station</label>
+                        <label style={styles.popupEditLabel}>
+                          Assembly Station
+                        </label>
                         <select
                           name="assembly_station"
                           value={editFormData.assembly_station}
@@ -2549,7 +2809,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                         </select>
                       </div>
                       <div style={styles.popupEditFormGroup}>
-                        <label style={styles.popupEditLabel}>QTY Per Assembly</label>
+                        <label style={styles.popupEditLabel}>
+                          QTY Per Assembly
+                        </label>
                         <input
                           type="number"
                           name="qty_per_assembly"
@@ -2571,7 +2833,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             color: "#6b7280",
                           }}
                           value={
-                            editFormData.placement_id === "no-placement" || !editFormData.placement_id
+                            editFormData.placement_id === "no-placement" ||
+                              !editFormData.placement_id
                               ? "-"
                               : getSelectedPlacement
                                 ? `${getSelectedPlacement.length_cm} cm`
@@ -2591,7 +2854,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             color: "#6b7280",
                           }}
                           value={
-                            editFormData.placement_id === "no-placement" || !editFormData.placement_id
+                            editFormData.placement_id === "no-placement" ||
+                              !editFormData.placement_id
                               ? "-"
                               : getSelectedPlacement
                                 ? `${getSelectedPlacement.width_cm} cm`
@@ -2611,7 +2875,8 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             color: "#6b7280",
                           }}
                           value={
-                            editFormData.placement_id === "no-placement" || !editFormData.placement_id
+                            editFormData.placement_id === "no-placement" ||
+                              !editFormData.placement_id
                               ? "-"
                               : getSelectedPlacement
                                 ? `${getSelectedPlacement.height_cm} cm`
@@ -2627,7 +2892,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                   {editError && (
                     <div style={styles.popupEditError}>⚠ {editError}</div>
                   )}
-
                 </div>
 
                 {/* Footer Buttons */}
@@ -2685,6 +2949,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
           </div>
         )}
       </div>
+
       <style>
         {`
           @keyframes spin {
@@ -2693,7 +2958,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
           }
         `}
       </style>
-    </div>
+      </div>
   );
 };
 

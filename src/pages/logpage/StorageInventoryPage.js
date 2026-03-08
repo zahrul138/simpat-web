@@ -19,7 +19,6 @@ const getAuthUserLocal = () => {
 const StorageInventoryPage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
 
-  // ========== STATE ==========
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [error, setError] = useState(null);
@@ -29,6 +28,11 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
   const [dateTo, setDateTo] = useState("");
   const [searchBy, setSearchBy] = useState("Customer");
   const [keyword, setKeyword] = useState("");
+  const [labelId, setLabelId] = useState("");
+  const [appliedDateFrom, setAppliedDateFrom] = useState("");
+  const [appliedDateTo, setAppliedDateTo] = useState("");
+  const [appliedSearchBy, setAppliedSearchBy] = useState("Customer");
+  const [appliedKeyword, setAppliedKeyword] = useState("");
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
   const [tooltip, setTooltip] = useState({
@@ -40,17 +44,18 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // State untuk checkbox
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [moveLoading, setMoveLoading] = useState(false);
 
-  // State untuk edit M136 System
   const [editingM136Id, setEditingM136Id] = useState(null);
-  const [editM136Data, setEditM136Data] = useState({ qty: '', status_part: 'OK' });
+  const [editM136Data, setEditM136Data] = useState({
+    qty: "",
+    status_part: "OK",
+    remark: "",
+  });
   const [updateM136Loading, setUpdateM136Loading] = useState(false);
 
-  // ========== PAGINATION (dihitung dari state) ==========
   const totalItems = inventoryItems.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -63,54 +68,53 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     }
   };
 
-  // ========== TABLE CONFIGURATION PER TAB ==========
   const tableConfig = {
     "Off System": {
       cols: [
-        "25px", // No
-        "25px", // Checkbox
-        "15%",  // Label ID
-        "10%",  // Part Code
-        "25%",  // Part Name
-        "8%",   // Model
-        "8%",   // Qty
-        "25%",  // Vendor Name
-        "10%",   // Stock Level
-        "12%",   // Schedule Date
-        "25%",  // Received By
-        "9%",   // Action
+        "25px",
+        "25px",
+        "13%",
+        "9%",
+        "20%",
+        "7%",
+        "6%",
+        "18%",
+        "8%",
+        "10%",
+        "12%",
+        "18%",
       ],
     },
     "M136 System": {
       cols: [
-        "25px", 
-        "25px", 
-        "15%", 
-        "10%",  
-        "25%", 
-        "8%",   
-        "8%",   
-        "25%", 
-        "10%",   
-        "10%", 
-        "12%",   
-        "25%",  
-        "9%",  
+        "25px",
+        "25px",
+        "15%",
+        "9%",
+        "20%",
+        "7%",
+        "6%",
+        "18%",
+        "8%",
+        "7%",
+        "10%",
+        "12%",
+        "18%",
+        "8%",
       ],
     },
     "Out System": {
       cols: [
-        "25px", 
-        "25px", 
-        // "25px", 
+        "25px",
+        "25px",
         "12%",
-        "10%",  
-        "25%", 
-        "8%",  
-        "5%",   
-        "25%", 
-        "8%",   
-        "25%",  
+        "10%",
+        "25%",
+        "8%",
+        "5%",
+        "25%",
+        "8%",
+        "25%",
       ],
     },
   };
@@ -164,7 +168,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
   };
 
   const handleSelectItem = (id) => {
-    console.log('Checkbox clicked, id:', id, 'typeof id:', typeof id);
+    console.log("Checkbox clicked, id:", id, "typeof id:", typeof id);
     const newSelected = new Set(selectedItemIds);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -172,14 +176,16 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       newSelected.add(id);
     }
     setSelectedItemIds(newSelected);
-    setSelectAll(newSelected.size === currentItems.length && currentItems.length > 0);
+    setSelectAll(
+      newSelected.size === currentItems.length && currentItems.length > 0,
+    );
   };
 
   const handleSelectAll = () => {
     if (selectAll) {
       setSelectedItemIds(new Set());
     } else {
-      const allIds = new Set(currentItems.map(item => item.id));
+      const allIds = new Set(currentItems.map((item) => item.id));
       setSelectedItemIds(allIds);
     }
     setSelectAll(!selectAll);
@@ -198,7 +204,9 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       return;
     }
 
-    if (!window.confirm(`Move ${selectedItemIds.size} item(s) to M136 System?`)) {
+    if (
+      !window.confirm(`Move ${selectedItemIds.size} item(s) to M136 System?`)
+    ) {
       return;
     }
 
@@ -207,14 +215,17 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       const user = getAuthUserLocal();
       const movedByName = user?.emp_name || user?.name || "Unknown";
 
-      const response = await fetch(`${API_BASE}/api/storage-inventory/move-to-m136`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ids: Array.from(selectedItemIds),
-          moved_by_name: movedByName
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/storage-inventory/move-to-m136`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ids: Array.from(selectedItemIds),
+            moved_by_name: movedByName,
+          }),
+        },
+      );
       const result = await response.json();
       if (result.success) {
         setToastMessage(result.message);
@@ -234,18 +245,18 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     }
   };
 
-  // ========== FUNCTIONS FOR M136 SYSTEM EDIT ==========
   const handleEditM136Item = (item) => {
     setEditingM136Id(item.id);
     setEditM136Data({
       qty: item.qty || 0,
-      status_part: item.status_part || 'OK'
+      status_part: item.status_part || "OK",
+      remark: item.remark || "",
     });
   };
 
   const handleCancelEditM136 = () => {
     setEditingM136Id(null);
-    setEditM136Data({ qty: '', status_part: 'OK' });
+    setEditM136Data({ qty: "", status_part: "OK", remark: "" });
   };
 
   const handleSaveM136Item = async (id) => {
@@ -261,15 +272,19 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       const user = getAuthUserLocal();
       const movedByName = user?.emp_name || user?.name || "Unknown";
 
-      const response = await fetch(`${API_BASE}/api/storage-inventory/${id}/update-m136`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          qty: parseInt(editM136Data.qty),
-          status_part: editM136Data.status_part,
-          moved_by_name: movedByName
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/storage-inventory/${id}/update-m136`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            qty: parseInt(editM136Data.qty),
+            status_part: editM136Data.status_part,
+            remark: editM136Data.remark,
+            moved_by_name: movedByName,
+          }),
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -277,7 +292,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
         setToastType("success");
         await fetchInventory(false);
         setEditingM136Id(null);
-        setEditM136Data({ qty: '', status_part: 'OK' });
+        setEditM136Data({ qty: "", status_part: "OK", remark: "" });
       } else {
         throw new Error(result.message);
       }
@@ -290,44 +305,60 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     }
   };
 
-  const fetchInventory = useCallback(async (resetPage = true) => {
-    const scrollY = window.scrollY;
-    setLoadingInventory(true);
-    setError(null);
-    try {
-      let statusParam = activeTab;
+  const fetchInventory = useCallback(
+    async (resetPage = true) => {
+      const scrollY = window.scrollY;
+      setLoadingInventory(true);
+      setError(null);
+      try {
+        let statusParam = activeTab;
 
-      let url = `${API_BASE}/api/storage-inventory?status_tab=${encodeURIComponent(statusParam)}`;
-      if (dateFrom) url += `&date_from=${dateFrom}`;
-      if (dateTo) url += `&date_to=${dateTo}`;
-      if (keyword) {
-        if (searchBy === "Customer")
-          url += `&vendor_name=${encodeURIComponent(keyword)}`;
-        else if (searchBy === "Product Code")
-          url += `&part_code=${encodeURIComponent(keyword)}`;
-        else if (searchBy === "Product Description")
-          url += `&part_name=${encodeURIComponent(keyword)}`;
-      }
+        let url = `${API_BASE}/api/storage-inventory?status_tab=${encodeURIComponent(statusParam)}`;
+        if (dateFrom) url += `&date_from=${dateFrom}`;
+        if (dateTo) url += `&date_to=${dateTo}`;
+        if (keyword) {
+          if (searchBy === "Customer")
+            url += `&vendor_name=${encodeURIComponent(keyword)}`;
+          else if (searchBy === "Product Code")
+            url += `&part_code=${encodeURIComponent(keyword)}`;
+          else if (searchBy === "Product Description")
+            url += `&part_name=${encodeURIComponent(keyword)}`;
+          else if (searchBy === "Label ID")
+            url += `&label_id=${encodeURIComponent(keyword)}`;
+        }
 
-      const response = await fetch(url);
-      const result = await response.json();
-      if (result.success) {
-        setInventoryItems(result.data);
-        if (resetPage) setCurrentPage(1);
-      } else {
-        setError(result.message);
+        const response = await fetch(url);
+        const result = await response.json();
+        if (result.success) {
+          setInventoryItems(result.data);
+          if (resetPage) setCurrentPage(1);
+        } else {
+          setError(result.message);
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoadingInventory(false);
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => window.scrollTo(0, scrollY)),
+        );
       }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoadingInventory(false);
-      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, scrollY)));
-    }
-  }, [activeTab, dateFrom, dateTo, searchBy, keyword]);
+    },
+    [activeTab, appliedDateFrom, appliedDateTo, appliedSearchBy, appliedKeyword],
+  );
 
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
+
+  useEffect(() => {
+    if (keyword === "") {
+      setAppliedKeyword("");
+      setAppliedDateFrom(dateFrom);
+      setAppliedDateTo(dateTo);
+      setAppliedSearchBy(searchBy);
+    }
+  }, [keyword]);
 
   const getColSpanCount = () => {
     if (activeTab === "Off System") {
@@ -803,7 +834,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     if (loadingInventory) {
       return (
         <tr>
-          <td colSpan="13" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+          <td
+            colSpan="13"
+            style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          >
             Loading...
           </td>
         </tr>
@@ -812,7 +846,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     if (error) {
       return (
         <tr>
-          <td colSpan="13" style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}>
+          <td
+            colSpan="13"
+            style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}
+          >
             {error}
           </td>
         </tr>
@@ -822,11 +859,15 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     return currentItems.map((item, idx) => (
       <React.Fragment key={item.id}>
         <tr>
-          <td style={{
-            ...styles.expandedTd,
-            ...styles.expandedWithLeftBorder,
-            ...styles.emptyColumn,
-          }}>{startIndex + idx + 1}</td>
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+          >
+            {startIndex + idx + 1}
+          </td>
           <td style={styles.tdWithLeftBorder}>
             <input
               type="checkbox"
@@ -865,33 +906,40 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={item.model || "-"}>
             {item.model || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={item.qty}>{item.qty}</td>
+          <td style={styles.tdWithLeftBorder} title={item.qty}>
+            {item.qty}
+          </td>
           <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
             {item.vendor_name || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={item.stock_level || "-"}>{item.stock_level || "-"}</td>
-          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(item.schedule_date)}>
+          <td style={styles.tdWithLeftBorder} title={item.stock_level || "-"}>
+            {item.stock_level || "-"}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={toDDMMYYYY(item.schedule_date)}
+          >
             {toDDMMYYYY(item.schedule_date)}
           </td>
-          <td style={styles.tdWithLeftBorder} title={item.received_by_name
-            ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
-            : "-"}>
+          <td style={styles.tdWithLeftBorder} title={item.remark || "-"}>
+            {item.remark || "-"}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              item.received_by_name
+                ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
+                : "-"
+            }
+          >
             {item.received_by_name
               ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
               : "-"}
           </td>
-          <td style={styles.tdWithLeftBorder}>
-            <button style={styles.editButton} title="Edit">
-              <Pencil size={10} />
-            </button>
-            <button style={styles.deleteButton} title="Delete">
-              <Trash2 size={10} />
-            </button>
-          </td>
         </tr>
         {expandedRows[item.id] && (
           <tr>
-            <td colSpan="13" style={{ padding: 0, border: "none" }}>
+            <td colSpan="12" style={{ padding: 0, border: "none" }}>
               <div style={styles.expandedTableContainer}>
                 <div
                   style={{
@@ -914,7 +962,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     if (loadingInventory) {
       return (
         <tr>
-          <td colSpan="13" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+          <td
+            colSpan="13"
+            style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          >
             Loading...
           </td>
         </tr>
@@ -923,7 +974,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     if (error) {
       return (
         <tr>
-          <td colSpan="13" style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}>
+          <td
+            colSpan="13"
+            style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}
+          >
             {error}
           </td>
         </tr>
@@ -932,20 +986,26 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
 
     return currentItems.map((item, idx) => {
       const isEditing = editingM136Id === item.id;
-      const isHold = item.status_part === 'HOLD';
+      const isHold = item.status_part === "HOLD";
 
-      const rowStyle = isHold ? {
-        backgroundColor: '#fee2e2',
-      } : {};
+      const rowStyle = isHold
+        ? {
+            backgroundColor: "#fee2e2",
+          }
+        : {};
 
       return (
         <React.Fragment key={item.id}>
           <tr style={rowStyle}>
-            <td style={{
-              ...styles.expandedTd,
-              ...styles.expandedWithLeftBorder,
-              ...styles.emptyColumn,
-            }}>{startIndex + idx + 1}</td>
+            <td
+              style={{
+                ...styles.expandedTd,
+                ...styles.expandedWithLeftBorder,
+                ...styles.emptyColumn,
+              }}
+            >
+              {startIndex + idx + 1}
+            </td>
             <td style={styles.tdWithLeftBorder}>
               <input
                 type="checkbox"
@@ -978,14 +1038,16 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 <input
                   type="number"
                   value={editM136Data.qty}
-                  onChange={(e) => setEditM136Data({ ...editM136Data, qty: e.target.value })}
+                  onChange={(e) =>
+                    setEditM136Data({ ...editM136Data, qty: e.target.value })
+                  }
                   style={{
                     width: "60px",
                     padding: "2px 4px",
                     fontSize: "12px",
                     border: "1px solid #d1d5db",
                     borderRadius: "3px",
-                    textAlign: "center"
+                    textAlign: "center",
                   }}
                   min="1"
                 />
@@ -1004,7 +1066,12 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               {isEditing ? (
                 <select
                   value={editM136Data.status_part}
-                  onChange={(e) => setEditM136Data({ ...editM136Data, status_part: e.target.value })}
+                  onChange={(e) =>
+                    setEditM136Data({
+                      ...editM136Data,
+                      status_part: e.target.value,
+                    })
+                  }
                   style={{
                     width: "70px",
                     padding: "2px",
@@ -1012,24 +1079,47 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                     border: "1px solid #d1d5db",
                     borderRadius: "3px",
                     backgroundColor: "white",
-                    cursor: "pointer"
+                    cursor: "pointer",
                   }}
                 >
                   <option value="OK">OK</option>
                   <option value="HOLD">HOLD</option>
                 </select>
               ) : (
-                <span style={{
-                  color: item.status_part === 'HOLD' ? '#dc2626' : '#16a34a',
-                  fontWeight: '500'
-                }}>
-                  {item.status_part || 'OK'}
+                <span
+                  style={{
+                    color: item.status_part === "HOLD" ? "#dc2626" : "#16a34a",
+                    fontWeight: "500",
+                  }}
+                >
+                  {item.status_part || "OK"}
                 </span>
               )}
             </td>
 
             <td style={styles.tdWithLeftBorder}>
               {toDDMMYYYY(item.schedule_date)}
+            </td>
+            <td style={styles.tdWithLeftBorder}>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editM136Data.remark}
+                  onChange={(e) =>
+                    setEditM136Data({ ...editM136Data, remark: e.target.value })
+                  }
+                  style={{
+                    width: "90%",
+                    padding: "2px 4px",
+                    fontSize: "12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "3px",
+                  }}
+                  placeholder="-"
+                />
+              ) : (
+                <span title={item.remark || "-"}>{item.remark || "-"}</span>
+              )}
             </td>
             <td style={styles.tdWithLeftBorder}>
               {item.received_by_name
@@ -1040,14 +1130,20 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
             {/* ACTION BUTTONS */}
             <td style={styles.tdWithLeftBorder}>
               {isEditing ? (
-                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "4px",
+                    justifyContent: "center",
+                  }}
+                >
                   <button
                     onClick={() => handleSaveM136Item(item.id)}
                     disabled={updateM136Loading}
                     style={{
                       ...styles.editButton,
-                      backgroundColor: '#16a34a',
-                      color: 'white'
+                      backgroundColor: "#16a34a",
+                      color: "white",
                     }}
                     title="Save"
                   >
@@ -1058,8 +1154,8 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                     disabled={updateM136Loading}
                     style={{
                       ...styles.deleteButton,
-                      backgroundColor: '#6b7280',
-                      color: 'white'
+                      backgroundColor: "#6b7280",
+                      color: "white",
                     }}
                     title="Cancel"
                   >
@@ -1086,7 +1182,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     if (loadingInventory) {
       return (
         <tr>
-          <td colSpan="12" style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}>
+          <td
+            colSpan="12"
+            style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1095,7 +1194,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     if (error) {
       return (
         <tr>
-          <td colSpan="12" style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}>
+          <td
+            colSpan="12"
+            style={{ textAlign: "center", padding: "20px", color: "#ef4444" }}
+          >
             {error}
           </td>
         </tr>
@@ -1105,11 +1207,15 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     return currentItems.map((item, idx) => (
       <React.Fragment key={item.id}>
         <tr>
-          <td style={{
-            ...styles.expandedTd,
-            ...styles.expandedWithLeftBorder,
-            ...styles.emptyColumn,
-          }}>{startIndex + idx + 1}</td>
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+          >
+            {startIndex + idx + 1}
+          </td>
           <td style={styles.tdWithLeftBorder}>
             <input
               type="checkbox"
@@ -1183,7 +1289,6 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     ));
   };
 
-  // ========== RENDER ==========
   return (
     <div style={styles.pageContainer}>
       <Helmet>
@@ -1245,6 +1350,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 <option style={optionStyle}>Customer</option>
                 <option style={optionStyle}>Product Code</option>
                 <option style={optionStyle}>Product Description</option>
+                <option style={optionStyle}>Label ID</option>
               </select>
               <input
                 type="text"
@@ -1253,7 +1359,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
               />
-              <button style={styles.button} onClick={fetchInventory}>
+              <button style={styles.button} onClick={() => { setAppliedDateFrom(dateFrom); setAppliedDateTo(dateTo); setAppliedSearchBy(searchBy); setAppliedKeyword(keyword); }}>
                 Search
               </button>
             </div>
@@ -1329,8 +1435,8 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Vendor Name</th>
                     <th style={styles.thWithLeftBorder}>Stock Level</th>
                     <th style={styles.thWithLeftBorder}>Schedule Date</th>
+                    <th style={styles.thWithLeftBorder}>Remark</th>
                     <th style={styles.thWithLeftBorder}>Received By</th>
-                    <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
                 </thead>
                 <tbody>{renderOffSystemTab()}</tbody>
@@ -1374,6 +1480,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Stock Level</th>
                     <th style={styles.thWithLeftBorder}>Status</th>
                     <th style={styles.thWithLeftBorder}>Schedule Date</th>
+                    <th style={styles.thWithLeftBorder}>Remark</th>
                     <th style={styles.thWithLeftBorder}>Received By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
@@ -1469,13 +1576,21 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
           </div>
         </div>
         {activeTab === "Off System" && selectedItemIds.size > 0 && (
-          <div style={{ marginTop: "10px", marginBottom: "10px", marginLeft: "12px", display: "flex", justifyContent: "flex-start" }}>
+          <div
+            style={{
+              marginTop: "10px",
+              marginBottom: "10px",
+              marginLeft: "12px",
+              display: "flex",
+              justifyContent: "flex-start",
+            }}
+          >
             <button
               style={{
                 ...styles.button,
                 ...styles.primaryButton,
                 opacity: moveLoading ? 0.6 : 1,
-                cursor: moveLoading ? "not-allowed" : "pointer"
+                cursor: moveLoading ? "not-allowed" : "pointer",
               }}
               onClick={handleMoveToM136}
               disabled={moveLoading}

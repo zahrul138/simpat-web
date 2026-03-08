@@ -10,7 +10,10 @@ const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const getAuthUserLocal = () => {
   try {
-    return JSON.parse(sessionStorage.getItem("auth_user") || "null");
+    return (
+      JSON.parse(sessionStorage.getItem("auth_user") || "null") ||
+      JSON.parse(localStorage.getItem("auth_user") || "null")
+    );
   } catch {
     return null;
   }
@@ -20,8 +23,17 @@ const AddPartsEnquiryNonIdPage = () => {
   const navigate = useNavigate();
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
-  const [selectedAnnexUpdate, setSelectedAnnexUpdate] =
-    useState("ZAHRUL ROMADHON");
+  const [selectedAnnexUpdate] = useState(() => {
+    const u = getAuthUserLocal();
+    return (
+      u?.emp_name ||
+      u?.employeeName ||
+      u?.fullname ||
+      u?.name ||
+      u?.username ||
+      "—"
+    );
+  });
   const [scheduleDate, setScheduleDate] = useState("");
   const [expandedRows, setExpandedRows] = useState({});
 
@@ -82,11 +94,6 @@ const AddPartsEnquiryNonIdPage = () => {
       .catch((err) => console.error("[Trips] Fetch error:", err));
   }, []);
 
-  /**
-   * Hitung trip aktif berdasarkan currentTime dan data dari DB.
-   * Menggunakan kolom depart_start–depart_end sebagai window request.
-   * Returns: { label: "Trip-04", timeRange: "09:30-10:15" } atau null jika di luar jadwal.
-   */
   const getActiveTripInfo = (now) => {
     const totalMinutes = (h, m) => h * 60 + m;
     const parseTime = (str) => {
@@ -97,7 +104,7 @@ const AddPartsEnquiryNonIdPage = () => {
 
     for (const t of tripsData) {
       const startMin = parseTime(t.req_from);
-      const endMin   = parseTime(t.req_to);
+      const endMin = parseTime(t.req_to);
       const isActive = startMin > endMin
         ? nowMin >= startMin || nowMin < endMin
         : nowMin >= startMin && nowMin < endMin;
@@ -1525,9 +1532,8 @@ const AddPartsEnquiryNonIdPage = () => {
                     id="requestBy"
                     style={styles.select}
                     value={selectedAnnexUpdate}
-                    onChange={(e) => setSelectedAnnexUpdate(e.target.value)}
                   >
-                    <option value="ZAHRUL ROMADHON">ZAHRUL ROMADHON</option>
+                    <option><p style={styles.dateDisplay}>{selectedAnnexUpdate}</p></option>
                   </select>
                 </div>
                 <div>
@@ -1804,12 +1810,12 @@ const AddPartsEnquiryNonIdPage = () => {
                         <col style={{ width: "2.5%" }} />
                         <col style={{ width: "12%" }} />
                         <col style={{ width: "10%" }} />
-                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "25%" }} />
+                        <col style={{ width: "8%" }} />
+                        <col style={{ width: "8%" }} />
                         <col style={{ width: "8%" }} />
                         <col style={{ width: "6%" }} />
-                        <col style={{ width: "8%" }} />
-                        <col style={{ width: "6%" }} />
-                        <col style={{ width: "5%" }} />
+                        <col style={{ width: "12%" }} />
                       </colgroup>
                       <thead>
                         <tr style={vendorPartStyles.tableHeader}>
@@ -1857,6 +1863,7 @@ const AddPartsEnquiryNonIdPage = () => {
                           <th style={styles.thWithLeftBorder}>Qty</th>
                           <th style={styles.thWithLeftBorder}>Stock Level</th>
                           <th style={styles.thWithLeftBorder}>Status</th>
+                          <th style={styles.thWithLeftBorder}>M136 Remark</th>
                           <th style={styles.thWithLeftBorder}>Action</th>
                         </tr>
                       </thead>
@@ -1881,7 +1888,7 @@ const AddPartsEnquiryNonIdPage = () => {
 
                             let backgroundColor = "transparent";
                             if (addedStorageIds.has(item.id) || serverRequestedIds.has(item.id)) {
-                              backgroundColor = "#a5b4fc"; // biru untuk yang sudah ada
+                              backgroundColor = "#a5b4fc";  
                             } else if (isSelected) {
                               backgroundColor = "#c7cde8";
                             } else if (item.status_part === "HOLD") {
@@ -1932,6 +1939,9 @@ const AddPartsEnquiryNonIdPage = () => {
                                   }}
                                 >
                                   {item.status_part}
+                                </td>
+                                <td style={{ ...vendorPartStyles.td,  fontWeight: 500 }}>
+                                  {item.remark || "-"}
                                 </td>
                                 <td style={vendorPartStyles.td}>-</td>
                               </tr>

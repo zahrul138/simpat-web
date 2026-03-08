@@ -6,7 +6,6 @@ import {
   Trash2,
   Eye,
   Settings,
-  SlidersHorizontal,
   AlertTriangle,
 } from "lucide-react";
 import timerService from "../../utils/TimerService";
@@ -198,21 +197,11 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const partsRefreshTimerRef = useRef(null);
 
   // ── Shortage state ────────────────────────────────────────
-  const [targetUnits, setTargetUnits] = useState(() => {
-    const s = localStorage.getItem("pm_target_units");
+  const [planningUnits, setPlanningUnits] = useState(() => {
+    const s = localStorage.getItem("pm_planning_units");
     return s ? parseInt(s) || 0 : 0;
   });
-  const [targetUnitsInput, setTargetUnitsInput] = useState("");
-  const [showShortagePopup, setShowShortagePopup] = useState(false);
-  const [shortageThresholds, setShortageThresholds] = useState(() => {
-    const s = localStorage.getItem("pm_shortage_thresholds");
-    return s ? JSON.parse(s) : { green: 50, yellow: 30, red: 10 };
-  });
-  const [thresholdInput, setThresholdInput] = useState({
-    green: 50,
-    yellow: 30,
-    red: 10,
-  });
+  const [planningUnitsInput, setPlanningUnitsInput] = useState("");
   const currentScheduleRef = useRef(null);
   const isBackgroundRefreshingRef = useRef(false);
   const showDetailPopupRef = useRef(false);
@@ -1534,6 +1523,22 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       padding: "0",
       textAlign: "center",
     },
+     expandedTd: {
+      padding: "2px 4px",
+      border: "0.5px solid #9fa8da",
+      fontSize: "12px",
+      color: "#374151",
+      whiteSpace: "nowrap",
+      height: "25px",
+      lineHeight: "1",
+      verticalAlign: "middle",
+      overflow: "hidden",
+    },
+     expandedWithLeftBorder: {
+      border: "0.5px solid #9fa8da",
+      whiteSpace: "nowrap",
+      backgroundColor: "#e0e7ff",
+    },
   };
   // ── Parts state ──────────────────────────────────────────────
   const [parts, setParts] = useState([]);
@@ -1542,7 +1547,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const fetchParts = useCallback(async (silent = false) => {
     if (!silent) setPartsLoading(true);
     try {
-      const data = await http(`/api/kanban-master/with-details`);
+      const data = await http(`/api/kanban-master/with-details?include_inactive=false`);
       if (data?.success && Array.isArray(data.data)) {
         const mapped = data.data.map((p) => ({
           id: p.id,
@@ -1598,37 +1603,46 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   };
 
   // ── Shortage helpers ─────────────────────────────────────────
-  const getRequiredQty = (qtyPerAssembly) =>
-    targetUnits * (qtyPerAssembly || 1);
+  // Sisa unit yang belum diproduksi (target - actual)
+  const remainingToday = currentSchedule
+    ? Math.max(0, (currentSchedule.total_input || 0) - (currentSchedule.actual_input || 0))
+    : 0;
 
+  // Stock Target = kebutuhan pcs untuk sisa unit yang akan dijalankan
+  const getStockTarget = (qtyPerAssembly) =>
+    remainingToday * (qtyPerAssembly || 1);
+
+  // Kebutuhan pcs untuk planning units
+  const getPlanningNeed = (qtyPerAssembly) =>
+    planningUnits * (qtyPerAssembly || 1);
+
+  // Surplus = stock - kebutuhan planning
   const getSurplus = (stock, qtyPerAssembly) => {
-    if (!targetUnits) return Infinity; // no target set → no shortage
-    return stock - getRequiredQty(qtyPerAssembly);
+    if (!planningUnits) return Infinity;
+    return stock - getPlanningNeed(qtyPerAssembly);
   };
 
+  // Warna angka stock M101: hijau = cukup, kuning = pas, merah = kurang
   const getStockColor = (stock, qtyPerAssembly) => {
     const surplus = getSurplus(stock, qtyPerAssembly);
-    if (surplus === Infinity) return "#16a34a";
-    if (surplus > shortageThresholds.green) return "#16a34a";
-    if (surplus > shortageThresholds.yellow) return "#ca8a04";
+    if (surplus === Infinity) return "#374151";
+    if (surplus > 0) return "#16a34a";
+    if (surplus === 0) return "#ca8a04";
     return "#dc2626";
   };
 
-  const getShortageStatus = (m101, m136, qtyPerAssembly) => {
-    const s101 = getSurplus(m101, qtyPerAssembly);
-    const s136 = getSurplus(m136, qtyPerAssembly);
-    const worst = Math.min(s101, s136);
-    if (worst === Infinity) return null;
-    if (worst > shortageThresholds.green) return "OK";
-    if (worst > shortageThresholds.yellow) return "Warning";
+  // Status badge
+  const getShortageStatus = (m101, qtyPerAssembly) => {
+    const surplus = getSurplus(m101, qtyPerAssembly);
+    if (surplus === Infinity) return null;
+    if (surplus > 0) return "OK";
+    if (surplus === 0) return "Warning";
     return "Shortage";
   };
 
   const getSortScore = (p) => {
-    if (!targetUnits) return 0;
-    const s101 = getSurplus(p.m101, p.qty_per_assembly);
-    const s136 = getSurplus(p.m136, p.qty_per_assembly);
-    return Math.min(s101, s136); // lowest surplus first
+    if (!planningUnits) return 0;
+    return getSurplus(p.m101, p.qty_per_assembly);
   };
 
   // ── Filtered parts (tab + search) ────────────────────────────
@@ -1656,7 +1670,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
   // Sort: parts with most critical shortage go to top
   const sortedFilteredParts =
-    targetUnits > 0
+    planningUnits > 0
       ? [...filteredParts].sort((a, b) => getSortScore(a) - getSortScore(b))
       : filteredParts;
 
@@ -2388,28 +2402,26 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <AlertTriangle
               size={15}
-              color={targetUnits > 0 ? "#ca8a04" : "#9ca3af"}
+              color={planningUnits > 0 ? "#ca8a04" : "#9ca3af"}
             />
-            <span
-              style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}
-            >
-              Shortage Monitor
+            <span style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}>
+              Planning Monitor
             </span>
             <span style={{ fontSize: "11px", color: "#6b7280" }}>
-              Target Units:
+              Planning Units:
             </span>
             <input
               type="number"
               min="0"
-              placeholder="e.g. 150"
-              value={targetUnitsInput}
-              onChange={(e) => setTargetUnitsInput(e.target.value)}
+              placeholder="e.g. 123"
+              value={planningUnitsInput}
+              onChange={(e) => setPlanningUnitsInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  const v = parseInt(targetUnitsInput);
+                  const v = parseInt(planningUnitsInput);
                   if (!isNaN(v) && v >= 0) {
-                    setTargetUnits(v);
-                    localStorage.setItem("pm_target_units", String(v));
+                    setPlanningUnits(v);
+                    localStorage.setItem("pm_planning_units", String(v));
                     setCurrentPage(1);
                   }
                 }
@@ -2426,10 +2438,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
             />
             <button
               onClick={() => {
-                const v = parseInt(targetUnitsInput);
+                const v = parseInt(planningUnitsInput);
                 if (!isNaN(v) && v >= 0) {
-                  setTargetUnits(v);
-                  localStorage.setItem("pm_target_units", String(v));
+                  setPlanningUnits(v);
+                  localStorage.setItem("pm_planning_units", String(v));
                   setCurrentPage(1);
                 }
               }}
@@ -2447,198 +2459,21 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
             >
               Set
             </button>
-            {targetUnits > 0 && (
+            {planningUnits > 0 && (
               <>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    backgroundColor: "#e0e7ff",
-                    color: "#2563eb",
-                    padding: "2px 8px",
-                    borderRadius: "10px",
-                    fontWeight: "600",
-                  }}
-                >
-                  Active: {targetUnits} units
+                <span style={{ fontSize: "11px", backgroundColor: "#e0e7ff", color: "#2563eb", padding: "2px 8px", borderRadius: "10px", fontWeight: "600" }}>
+                  {planningUnits} units
                 </span>
                 <button
-                  onClick={() => {
-                    setTargetUnits(0);
-                    setTargetUnitsInput("");
-                    localStorage.setItem("pm_target_units", "0");
-                  }}
-                  style={{
-                    height: "24px",
-                    padding: "0 8px",
-                    backgroundColor: "#f3f4f6",
-                    color: "#6b7280",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "4px",
-                    fontSize: "11px",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
+                  onClick={() => { setPlanningUnits(0); setPlanningUnitsInput(""); localStorage.setItem("pm_planning_units", "0"); }}
+                  style={{ height: "24px", padding: "0 8px", backgroundColor: "#f3f4f6", color: "#6b7280", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "11px", cursor: "pointer", fontFamily: "inherit" }}
                 >
                   Clear
                 </button>
               </>
             )}
           </div>
-          <button
-            onClick={() => {
-              setThresholdInput({ ...shortageThresholds });
-              setShowShortagePopup(true);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              height: "28px",
-              padding: "0 12px",
-              backgroundColor: "#f8faff",
-              color: "#374151",
-              border: "1px solid #9fa8da",
-              borderRadius: "4px",
-              fontSize: "11px",
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            <SlidersHorizontal size={12} />
-            Thresholds
-          </button>
         </div>
-
-        {/* Shortage Thresholds Popup */}
-        {showShortagePopup && (
-          <div
-            style={styles.popupOverlay}
-            onClick={() => setShowShortagePopup(false)}
-          >
-            <div
-              style={{
-                ...styles.popupContainer,
-                width: "420px",
-                marginTop: "120px",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={styles.popupHeader}>
-                <h3 style={styles.popupTitle}>Shortage Thresholds</h3>
-                <button
-                  style={styles.closeButton}
-                  onClick={() => setShowShortagePopup(false)}
-                >
-                  ×
-                </button>
-              </div>
-              <div style={{ padding: "4px 0 16px" }}>
-                <p
-                  style={{
-                    fontSize: "12px",
-                    color: "#6b7280",
-                    marginBottom: "16px",
-                  }}
-                >
-                  Surplus = Stock - (Target Units × QTY/Assembly). Tentukan
-                  batas selisih untuk warna status.
-                </p>
-                {[
-                  {
-                    key: "green",
-                    label: "🟢 Green — Aman",
-                    desc: "Surplus lebih dari nilai ini",
-                  },
-                  {
-                    key: "yellow",
-                    label: "🟡 Yellow — Warning",
-                    desc: "Surplus lebih dari nilai ini",
-                  },
-                  {
-                    key: "red",
-                    label: "🔴 Red — Shortage",
-                    desc: "Surplus sama/kurang dari Yellow",
-                  },
-                ].map(({ key, label, desc }) => (
-                  <div
-                    key={key}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 100px",
-                      alignItems: "center",
-                      gap: "12px",
-                      marginBottom: "14px",
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          color: "#374151",
-                        }}
-                      >
-                        {label}
-                      </div>
-                      <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                        {desc}
-                      </div>
-                    </div>
-                    <input
-                      type="number"
-                      min="0"
-                      value={thresholdInput[key]}
-                      onChange={(e) =>
-                        setThresholdInput((prev) => ({
-                          ...prev,
-                          [key]: parseInt(e.target.value) || 0,
-                        }))
-                      }
-                      style={{
-                        height: "32px",
-                        border: "1px solid #9fa8da",
-                        borderRadius: "4px",
-                        padding: "0 10px",
-                        fontSize: "12px",
-                        fontFamily: "inherit",
-                        textAlign: "right",
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "8px",
-                  borderTop: "1px solid #e5e7eb",
-                  paddingTop: "12px",
-                }}
-              >
-                <button
-                  style={styles.cancelButton}
-                  onClick={() => setShowShortagePopup(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  style={styles.submitButton}
-                  onClick={() => {
-                    setShortageThresholds({ ...thresholdInput });
-                    localStorage.setItem(
-                      "pm_shortage_thresholds",
-                      JSON.stringify(thresholdInput),
-                    );
-                    setShowShortagePopup(false);
-                  }}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div style={styles.tabsContainer}>
           {[
@@ -2676,22 +2511,24 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
             <table
               style={{
                 ...styles.table,
-                minWidth: "1200px",
+                minWidth: "1600px",
                 tableLayout: "fixed",
               }}
             >
               <colgroup>
                 <col style={{ width: "28px" }} />
-                <col style={{ width: "25%" }} />
-                <col style={{ width: "25%" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "25%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "15%" }} />
-                <col style={{ width: "15%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "7%" }} />
               </colgroup>
               <thead>
                 <tr style={styles.tableHeader}>
@@ -2702,7 +2539,9 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                   <th style={styles.thWithLeftBorder}>Vendor Type</th>
                   <th style={styles.thWithLeftBorder}>Vendor Name</th>
                   <th style={styles.thWithLeftBorder}>Station</th>
-                  <th style={styles.thWithLeftBorder}>Used</th>
+                  <th style={styles.thWithLeftBorder}>QTY/Assy</th>
+                  <th style={styles.thWithLeftBorder}>Stock Target</th>
+                  <th style={styles.thWithLeftBorder}>Stock Expected</th>
                   <th style={styles.thWithLeftBorder}>Stock M101</th>
                   <th style={styles.thWithLeftBorder}>Stock M136</th>
                   <th style={styles.thWithLeftBorder}>Status</th>
@@ -2721,10 +2560,11 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                     }
                   >
                     <td
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        ...styles.emptyColumn,
-                      }}
+                     style={{
+                          ...styles.expandedTd,
+                          ...styles.expandedWithLeftBorder,
+                          ...styles.emptyColumn,
+                        }}
                     >
                       {startIndex + idx + 1}
                     </td>
@@ -2793,6 +2633,41 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       {p.qty_per_assembly}
                     </td>
 
+                    {/* Stock Target */}
+                    <td
+                      style={{
+                        ...styles.tdWithLeftBorder,
+                        fontWeight: 600,
+                        color: (() => {
+                          if (!currentSchedule) return "#9ca3af";
+                          const target = getStockTarget(p.qty_per_assembly);
+                          return p.m101 >= target ? "#2563eb" : "#dc2626";
+                        })(),
+                      }}
+                      title={currentSchedule
+                        ? `Sisa ${remainingToday} unit × ${p.qty_per_assembly} pcs/unit = ${getStockTarget(p.qty_per_assembly)} pcs`
+                        : "Tidak ada schedule aktif"}
+                    >
+                      {currentSchedule ? `${getStockTarget(p.qty_per_assembly)} pcs` : "-"}
+                    </td>
+
+                    {/* Stock Expected */}
+                    <td
+                      style={{
+                        ...styles.tdWithLeftBorder,
+                        fontWeight: 600,
+                        color: (() => {
+                          if (!currentSchedule) return "#ca8a04";
+                          const stockExp = p.m101 - expectedOutput * p.qty_per_assembly;
+                          return stockExp < 0 ? "#dc2626" : stockExp === 0 ? "#ca8a04" : "#16a34a";
+                        })(),
+                      }}
+                      title={currentSchedule ? `Stock M101: ${p.m101} - (${expectedOutput} expected × ${p.qty_per_assembly}) = ${p.m101 - expectedOutput * p.qty_per_assembly} pcs` : ""}
+                    >
+                      {currentSchedule
+                        ? `${p.m101 - expectedOutput * p.qty_per_assembly} pcs`
+                        : "-"}
+                    </td>
                     <td
                       style={styles.tdWithLeftBorder}
                       onMouseEnter={showTooltip}
@@ -2800,73 +2675,31 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                     >
                       <span
                         style={{
-                          color:
-                            targetUnits > 0
-                              ? getStockColor(p.m101, p.qty_per_assembly)
-                              : "#374151",
+                          color: getStockColor(p.m101, p.qty_per_assembly),
                           fontWeight: 600,
                         }}
                         title={
-                          targetUnits > 0
-                            ? `Required: ${getRequiredQty(p.qty_per_assembly)} pcs | Surplus: ${getSurplus(p.m101, p.qty_per_assembly)}`
+                          planningUnits > 0
+                            ? `Planning: ${getPlanningNeed(p.qty_per_assembly)} pcs | Surplus: ${getSurplus(p.m101, p.qty_per_assembly)}`
                             : `${p.m101} pcs`
                         }
                       >
                         {p.m101} pcs
-                        {targetUnits > 0 && (
-                          <span
-                            style={{
-                              fontSize: "10px",
-                              marginLeft: "4px",
-                              opacity: 0.8,
-                            }}
-                          >
-                            (
-                            {getSurplus(p.m101, p.qty_per_assembly) >= 0
-                              ? "+"
-                              : ""}
-                            {getSurplus(p.m101, p.qty_per_assembly)})
+                        {planningUnits > 0 && (
+                          <span style={{ fontSize: "10px", marginLeft: "4px", opacity: 0.8 }}>
+                            ({getSurplus(p.m101, p.qty_per_assembly) >= 0 ? "+" : ""}{getSurplus(p.m101, p.qty_per_assembly)})
                           </span>
                         )}
                       </span>
                     </td>
 
+                    {/* Stock M136 — plain, no shortage coloring */}
                     <td
-                      style={styles.tdWithLeftBorder}
+                      style={{ ...styles.tdWithLeftBorder, color: "#374151", fontWeight: 600 }}
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
-                      <span
-                        style={{
-                          color:
-                            targetUnits > 0
-                              ? getStockColor(p.m136, p.qty_per_assembly)
-                              : "#374151",
-                          fontWeight: 600,
-                        }}
-                        title={
-                          targetUnits > 0
-                            ? `Required: ${getRequiredQty(p.qty_per_assembly)} pcs | Surplus: ${getSurplus(p.m136, p.qty_per_assembly)}`
-                            : `${p.m136} pcs`
-                        }
-                      >
-                        {p.m136} pcs
-                        {targetUnits > 0 && (
-                          <span
-                            style={{
-                              fontSize: "10px",
-                              marginLeft: "4px",
-                              opacity: 0.8,
-                            }}
-                          >
-                            (
-                            {getSurplus(p.m136, p.qty_per_assembly) >= 0
-                              ? "+"
-                              : ""}
-                            {getSurplus(p.m136, p.qty_per_assembly)})
-                          </span>
-                        )}
-                      </span>
+                      {p.m136} pcs
                     </td>
 
                     <td
@@ -2878,7 +2711,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       {(() => {
                         const status = getShortageStatus(
                           p.m101,
-                          p.m136,
                           p.qty_per_assembly,
                         );
                         if (!status)

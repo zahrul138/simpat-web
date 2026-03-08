@@ -655,9 +655,12 @@ const Sidebar = ({
         {
           title: "Receive Control",
           icon: PackageCheckIcon,
-          isActive: isPathActive("/receive-request"),
+          isActive: 
+            isPathActive("/receive-request") ||
+            isParentOrChildActive("/rtv-part"),
           subItems: [
             { title: "Receive Request", href: "/receive-request", icon: PackageCheckIcon },
+            { title: "RTV Control", href: "/rtv-part", icon: PackageCheckIcon },
           ],
         },
       ],
@@ -669,7 +672,8 @@ const Sidebar = ({
           isActive:
             isPathActive("/qc-local-schedule") ||
             isPathActive("/qc-oversea-schedule") ||
-            isPathActive("/qc-part"),
+            isPathActive("/qc-part") ||
+             isPathActive("/qc-return-parts"),
 
           subItems: [
             {
@@ -686,6 +690,11 @@ const Sidebar = ({
               title: "Quality Parts",
               href: "/qc-part",
               icon: CheckIcon,
+            },
+            {
+              title: "Return Parts",
+              href: "/qc-return-parts",
+              icon: UndoIcon,
             },
           ],
         },

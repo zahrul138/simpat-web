@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
-  Plus,
   Trash2,
   Save,
   Check,
@@ -24,7 +23,6 @@ const getAuthUserLocal = () => {
 };
 
 const TABS = [
-  "New",
   "Waiting IQC",
   "Received IQC",
   "IQC Inspect",
@@ -34,7 +32,6 @@ const TABS = [
 ];
 const STOCK_LEVEL = "M101";
 const TAB_LABELS = {
-  New: "New",
   "Waiting IQC": "Waiting IQC",
   "Received IQC": "Received IQC",
   "IQC Inspect": "IQC Inspect",
@@ -43,15 +40,14 @@ const TAB_LABELS = {
   Complete: "Complete",
 };
 
-const ReturnPartsPage = ({ sidebarVisible }) => {
-  const navigate = useNavigate();
+const QCReturnPartsPage = ({ sidebarVisible }) => {
   const location = useLocation();
   const empName =
     getAuthUserLocal()?.emp_name || getAuthUserLocal()?.name || null;
 
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("tab") || "New";
+    return params.get("tab") || "Waiting IQC";
   });
 
   const [tableData, setTableData] = useState([]);
@@ -63,37 +59,19 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [remarks, setRemarks] = useState({});
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [selectAll, setSelectAll] = useState(false);
   const [moveModal, setMoveModal] = useState(null);
 
   const tableConfig = {
-    New: {
-      cols: [
-        "3%",
-        "3%",
-        "8%",
-        "12%",
-        "7%",
-        "11%",
-        "8%",
-        "8%",
-        "11%",
-        "27%",
-        "8%",
-      ],
-      minWidth: "1060px",
-    },
     "Waiting IQC": {
-     cols: ["3%", "9%", "20%", "7%", "20%", "8%", "8%", "12%", "25%"],
+      cols: ["3%", "9%", "20%", "7%", "20%", "8%", "8%", "12%", "25%", "8%"],
       minWidth: "1200px",
     },
     "Received IQC": {
-      cols: ["3%", "9%", "13%", "7%", "12%", "6%", "6%", "12%", "25%"],
-      minWidth: "1000px",
+      cols: ["3%", "9%", "20%", "7%", "20%", "8%", "8%", "12%", "25%", "8%"],
+      minWidth: "1200px",
     },
     "IQC Inspect": {
-      cols: ["3%", "8%", "12%", "7%", "10%", "5%", "5%", "11%", "23%"],
+      cols: ["3%", "8%", "20%", "8%", "20%", "8%", "8%", "11%", "23%", "10%"],
       minWidth: "1060px",
     },
     Scrap: {
@@ -161,8 +139,6 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
 
   useEffect(() => {
     fetchData(activeTab);
-    setSelectedIds(new Set());
-    setSelectAll(false);
   }, [activeTab]);
 
   const fetchData = async (tab) => {
@@ -256,67 +232,9 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
       const result = await hardDelete(id);
       if (result.success) {
         setTableData((prev) => prev.filter((row) => row.id !== id));
-        setSelectedIds((prev) => {
-          const n = new Set(prev);
-          n.delete(id);
-          return n;
-        });
       } else alert("Failed to delete: " + result.message);
     } catch {
       alert("Server error. Failed to delete.");
-    }
-  };
-
-  const handleSelectAll = () => {
-    if (selectAll) setSelectedIds(new Set());
-    else setSelectedIds(new Set(tableData.map((r) => r.id)));
-    setSelectAll(!selectAll);
-  };
-
-  const handleSelectRow = (id) => {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedIds(next);
-    setSelectAll(next.size === tableData.length && tableData.length > 0);
-  };
-
-  const handleSendReturn = async () => {
-    if (selectedIds.size === 0) {
-      alert("Select at least one row before sending.");
-      return;
-    }
-    if (
-      !window.confirm(
-        `Send ${selectedIds.size} selected row(s) to Waiting IQC?`,
-      )
-    )
-      return;
-    try {
-      await Promise.all(
-        Array.from(selectedIds)
-          .filter((id) => remarks[id] !== undefined)
-          .map((id) =>
-            fetch(`${API_BASE}/api/return-parts/${id}/remark`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ remark: remarks[id] }),
-            })
-          )
-      );
-      const results = await Promise.all(
-        Array.from(selectedIds).map((id) => patchStatus(id, "Waiting IQC")),
-      );
-      const failed = results.filter((r) => !r.success);
-      if (failed.length > 0) alert(`${failed.length} row(s) failed to update.`);
-      else {
-        setTableData((prev) => prev.filter((row) => !selectedIds.has(row.id)));
-        setSelectedIds(new Set());
-        setSelectAll(false);
-        setActiveTab("Waiting IQC");
-      }
-    } catch {
-      alert("Server error. Failed to send return.");
     }
   };
 
@@ -841,237 +759,6 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
     },
   };
 
-  const renderNewTab = () => {
-    const pageData = getCurrentPageData();
-    return (
-      <div style={styles.tableContainer}>
-        <div style={styles.tableBodyWrapper}>
-          <table
-            style={{
-              ...styles.table,
-              minWidth: tableConfig["New"].minWidth,
-              tableLayout: "fixed",
-            }}
-          >
-            <colgroup>
-              {tableConfig["New"].cols.map((w, i) => (
-                <col key={i} style={{ width: w }} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr style={styles.tableHeader}>
-                <th style={styles.expandedTh}>No</th>
-                <th style={styles.thWithLeftBorder}>
-                  {tableData.length > 1 && (
-                    <input
-                      type="checkbox"
-                      checked={selectAll}
-                      onChange={handleSelectAll}
-                      style={{
-                        cursor: "pointer",
-                        width: "12px",
-                        height: "12px",
-                        margin: "0 auto",
-                        display: "block",
-                      }}
-                    />
-                  )}
-                </th>
-                <th style={styles.thWithLeftBorder}>Part Code</th>
-                <th style={styles.thWithLeftBorder}>Part Name</th>
-                <th style={styles.thWithLeftBorder}>Model</th>
-                <th style={styles.thWithLeftBorder}>Vendor</th>
-                <th style={styles.thWithLeftBorder}>Types</th>
-                <th style={styles.thWithLeftBorder}>Qty Return</th>
-                <th style={styles.thWithLeftBorder}>Remark</th>
-                <th style={styles.thWithLeftBorder}>Return By</th>
-                <th style={styles.thWithLeftBorder}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan="11"
-                    style={{
-                      ...styles.tdWithLeftBorder,
-                      textAlign: "center",
-                      padding: "20px",
-                    }}
-                  >
-                    Loading...
-                  </td>
-                </tr>
-              ) : pageData.length === 0 ? (
-                <tr>
-                  <td colSpan="11" />
-                </tr>
-              ) : (
-                pageData.map((row, index) => {
-                  const globalIndex =
-                    (currentPage - 1) * itemsPerPage + index + 1;
-                  return (
-                    <tr
-                      key={row.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
-                    >
-                      <td
-                        style={{
-                          ...styles.expandedTd,
-                          ...styles.expandedWithLeftBorder,
-                          ...styles.emptyColumn,
-                        }}
-                      >
-                        {globalIndex}
-                      </td>
-                      <td
-                        style={{
-                          ...styles.tdWithLeftBorder,
-                          textAlign: "center",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(row.id)}
-                          onChange={() => handleSelectRow(row.id)}
-                          style={{
-                            cursor: "pointer",
-                            width: "12px",
-                            height: "12px",
-                            margin: "0 auto",
-                            display: "block",
-                          }}
-                        />
-                      </td>
-                      <td style={styles.tdWithLeftBorder} title={row.part_code}>
-                        {row.part_code}
-                      </td>
-                      <td style={styles.tdWithLeftBorder} title={row.part_name}>
-                        {row.part_name}
-                      </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                        title={row.model || "-"}
-                      >
-                        {row.model || "-"}
-                      </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                        title={row.vendor_name || "-"}
-                      >
-                        {row.vendor_name || "-"}
-                      </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                        title={row.vendor_type || "-"}
-                      >
-                        {row.vendor_type || "-"}
-                      </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                        title={String(row.qty_return)}
-                      >
-                        {row.qty_return}
-                      </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                        title={remarks[row.id] ?? row.remark ?? ""}
-                      >
-                        <input
-                          type="text"
-                          value={remarks[row.id] ?? row.remark ?? ""}
-                          onChange={(e) =>
-                            handleRemarkChange(row.id, e.target.value)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRemarkSave(row.id);
-                          }}
-                          placeholder="-"
-                          style={styles.remarkInput}
-                        />
-                      </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                        title={formatReturnBy(
-                          row.return_by_name,
-                          row.return_at,
-                        )}
-                      >
-                        {formatReturnBy(row.return_by_name, row.return_at)}
-                      </td>
-                      <td style={styles.tdWithLeftBorder}>
-                        <button
-                          style={styles.deleteButton}
-                          title="Delete"
-                          onClick={() => handleDelete(row.id)}
-                        >
-                          <Trash2 size={10} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div style={styles.paginationBar}>
-          <div style={styles.paginationControls}>
-            <button
-              style={styles.paginationButton}
-              onClick={() => handlePageChange(1)}
-              disabled={currentPage === 1}
-            >
-              {"<<"}
-            </button>
-            <button
-              style={styles.paginationButton}
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              {"<"}
-            </button>
-            <span>Page</span>
-            <input
-              type="text"
-              value={currentPage}
-              style={styles.paginationInput}
-              onChange={(e) => {
-                const p = parseInt(e.target.value);
-                if (!isNaN(p)) handlePageChange(p);
-              }}
-            />
-            <span>of {totalPages}</span>
-            <button
-              style={styles.paginationButton}
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              {">"}
-            </button>
-            <button
-              style={styles.paginationButton}
-              onClick={() => handlePageChange(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              {">>"}
-            </button>
-          </div>
-          <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
-          </span>
-        </div>
-      </div>
-    );
-  };
-
   const renderWaitingTab = () => {
     const pageData = getCurrentPageData();
     return (
@@ -1080,7 +767,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
           <table
             style={{
               ...styles.table,
-              minWidth: tableConfig["Waiting IQC"].minWidth,
+              minWidth: "1000px",
               tableLayout: "fixed",
             }}
           >
@@ -1100,6 +787,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                 <th style={styles.thWithLeftBorder}>Qty Return</th>
                 <th style={styles.thWithLeftBorder}>Remark</th>
                 <th style={styles.thWithLeftBorder}>Return By</th>
+                <th style={styles.thWithLeftBorder}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1118,7 +806,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                 </tr>
               ) : pageData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" />
+                  <td colSpan="10" />
                 </tr>
               ) : (
                 pageData.map((row, index) => {
@@ -1175,7 +863,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                       >
                         {row.qty_return}
                       </td>
-                     <td
+                      <td
                         style={styles.tdWithLeftBorder}
                         title={row.remark || "-"}
                       >
@@ -1191,6 +879,22 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                         )}
                       >
                         {formatReturnBy(row.return_by_name, row.return_at)}
+                      </td>
+                      <td style={styles.tdWithLeftBorder}>
+                        <button
+                          style={styles.receivedButton}
+                          title="Move to Received IQC"
+                          onClick={() => handleReceived(row.id)}
+                        >
+                          <Check size={10} />
+                        </button>
+                        <button
+                          style={styles.deleteButton}
+                          title="Delete"
+                          onClick={() => handleDelete(row.id)}
+                        >
+                          <Trash2 size={10} />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -1257,7 +961,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
           <table
             style={{
               ...styles.table,
-              minWidth: tableConfig["Received IQC"].minWidth,
+              minWidth: "1000px",
               tableLayout: "fixed",
             }}
           >
@@ -1277,6 +981,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                 <th style={styles.thWithLeftBorder}>Qty Return</th>
                 <th style={styles.thWithLeftBorder}>Remark</th>
                 <th style={styles.thWithLeftBorder}>Received By</th>
+                <th style={styles.thWithLeftBorder}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1295,7 +1000,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                 </tr>
               ) : pageData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" />
+                  <td colSpan="10" />
                 </tr>
               ) : (
                 pageData.map((row, index) => {
@@ -1369,6 +1074,22 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                       >
                         {formatReturnBy(row.received_by_name, row.received_at)}
                       </td>
+                      <td style={styles.tdWithLeftBorder}>
+                        <button
+                          style={styles.receivedButton}
+                          title="Inspect"
+                          onClick={() => handleMoveToInspect(row.id)}
+                        >
+                          <ClipboardCheck size={10} />
+                        </button>
+                        <button
+                          style={styles.deleteButton}
+                          title="Delete"
+                          onClick={() => handleDelete(row.id)}
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -1434,7 +1155,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
           <table
             style={{
               ...styles.table,
-              minWidth: tableConfig["IQC Inspect"].minWidth,
+              minWidth: "1060px",
               tableLayout: "fixed",
             }}
           >
@@ -1454,6 +1175,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                 <th style={styles.thWithLeftBorder}>Qty Return</th>
                 <th style={styles.thWithLeftBorder}>Remark</th>
                 <th style={styles.thWithLeftBorder}>Inspected By</th>
+                <th style={styles.thWithLeftBorder}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1472,7 +1194,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                 </tr>
               ) : pageData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" />
+                  <td colSpan="10" />
                 </tr>
               ) : (
                 pageData.map((row, index) => {
@@ -1531,11 +1253,18 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        title={row.remark || "-"}
+                        title={remarks[row.id] ?? row.remark ?? ""}
                       >
-                        <span style={styles.remarkReadonly}>
-                          {row.remark || "-"}
-                        </span>
+                        <input
+                          type="text"
+                          value={remarks[row.id] ?? row.remark ?? ""}
+                          onChange={(e) =>
+                            handleRemarkChange(row.id, e.target.value)
+                          }
+                          onBlur={() => handleRemarkSave(row.id)}
+                          placeholder="-"
+                          style={styles.remarkInput}
+                        />
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
@@ -1548,6 +1277,36 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                           row.inspected_by_name,
                           row.inspected_at,
                         )}
+                      </td>
+                      <td
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          display: "flex",
+                          gap: "3px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <button
+                          style={styles.scrapButton}
+                          title="Scrap"
+                          onClick={() => handleMoveFromInspect(row, "Scrap")}
+                        >
+                          <Flame size={10} />
+                        </button>
+                        <button
+                          style={styles.rtvButton}
+                          title="RTV"
+                          onClick={() => handleMoveFromInspect(row, "RTV")}
+                        >
+                          <RotateCcw size={10} />
+                        </button>
+                        <button
+                          style={styles.completeButton}
+                          title="Complete"
+                          onClick={() => handleMoveFromInspect(row, "Complete")}
+                        >
+                          <BadgeCheck size={10} />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -1620,7 +1379,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
           <table
             style={{
               ...styles.table,
-              minWidth: tableConfig["Scrap"].minWidth,
+              minWidth: "1060px",
               tableLayout: "fixed",
             }}
           >
@@ -1835,7 +1594,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
           <table
             style={{
               ...styles.table,
-              minWidth: tableConfig["RTV"].minWidth,
+              minWidth: "1060px",
               tableLayout: "fixed",
             }}
           >
@@ -2044,7 +1803,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
           <table
             style={{
               ...styles.table,
-              minWidth: tableConfig["Complete"].minWidth,
+              minWidth: "1060px",
               tableLayout: "fixed",
             }}
           >
@@ -2477,7 +2236,6 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
   };
 
   const renderActiveTab = () => {
-    if (activeTab === "New") return renderNewTab();
     if (activeTab === "Waiting IQC") return renderWaitingTab();
     if (activeTab === "Received IQC") return renderReceivedTab();
     if (activeTab === "IQC Inspect") return renderIQCInspectTab();
@@ -2596,18 +2354,6 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
           </div>
         </div>
 
-        <div style={styles.actionButtonsGroup}>
-          <button
-            style={styles.button}
-            onMouseEnter={(e) => handleButtonHover(e, true)}
-            onMouseLeave={(e) => handleButtonHover(e, false)}
-            onClick={() => navigate("/return-parts/add")}
-          >
-            <Plus size={16} />
-            Create
-          </button>
-        </div>
-
         <div style={styles.tabsContainer}>
           {TABS.map((tab) => (
             <button
@@ -2626,26 +2372,9 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
         </div>
 
         {renderActiveTab()}
-
-        {activeTab === "New" && tableData.length > 0 && (
-          <div style={styles.saveConfiguration}>
-            <button
-              style={{
-                ...styles.button,
-                cursor: selectedIds.size === 0 ? "not-allowed" : "pointer",
-                opacity: selectedIds.size === 0 ? 0.6 : 1,
-              }}
-              disabled={selectedIds.size === 0}
-              onClick={handleSendReturn}
-            >
-              <Save size={16} />
-              Send Return
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
-export default ReturnPartsPage;
+export default QCReturnPartsPage;

@@ -74,6 +74,12 @@ const StockOverviewPage = () => {
         return "Transfer";
       case "production":
         return "Production";
+      case "return_scrap":
+        // M101 tab: OUT → TO = SCRAP | SCRAP tab: IN → FROM = M101
+        return movement.movement_type === "OUT" ? "SCRAP" : "M101";
+      case "return_to_inspect":
+        // SCRAP tab: OUT → TO = M101 | M101 tab: IN → FROM = SCRAP
+        return movement.movement_type === "OUT" ? "M101" : "SCRAP";
       default:
         return movement.source_type;
     }
@@ -783,7 +789,7 @@ const StockOverviewPage = () => {
                     <th style={styles.expandedTh}>No</th>
                     <th style={styles.thWithLeftBorder}></th>
                     <th style={styles.thWithLeftBorder}>Model</th>
-                    <th style={styles.thWithLeftBorder}>From</th>
+                    <th style={styles.thWithLeftBorder}>From/To</th>
                     <th style={styles.thWithLeftBorder}>Total Qty</th>
                     <th style={styles.thWithLeftBorder}>Production Date</th>
                     <th style={styles.thWithLeftBorder}>Remark</th>
@@ -878,7 +884,7 @@ const StockOverviewPage = () => {
                             : "-"}
                         </td>
                         <td style={styles.tdWithLeftBorder}>
-                          {movement.moved_by_display || formatDateTime(movement.moved_at)}
+                          {movement.moved_by_name || movement.emp_name ? `${movement.moved_by_name || movement.emp_name} | ${formatDateTime(movement.moved_at)}` : formatDateTime(movement.moved_at)}
                         </td>
                       </tr>
                     ))

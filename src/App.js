@@ -25,6 +25,7 @@ import ReceivedLocalSchedulePage from "./pages/mhpage/ReceivedLocalSchedulePage"
 import ReturnPartsPage from "./pages/mhpage/ReturnPartsPage";
 import MHLocalSchedulePage from "./pages/mhpage/MHLocalSchedulePage";
 import TargetScanningPage from "./pages/mhpage/TargetScanningPage";
+import AddReturnPartsPage from "./pages/mhpage/AddReturnPartsPage";
 
 // Halaman SCN-LOG (Inventory Control)
 import LocalSchedulePage from "./pages/logpage/LocalSchedulePage";
@@ -40,6 +41,7 @@ import StockOverviewPage from "./pages/logpage/StockOverviewPage";
 import OverseaPartSchedulePage from "./pages/logpage/OverseaPartSchedulePage";
 import AddOverseaPartSchedulePage from "./pages/logpage/AddOverseaPartSchedulePage";
 import StorageInventoryPage from "./pages/logpage/StorageInventoryPage";
+import RTVPartPage from "./pages/logpage/RTVPartPage";
 
 // Halaman SCN-IQC (Quality Control)
 import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
@@ -47,6 +49,7 @@ import QCLocalSchedulePage from "./pages/iqcpage/QCLocalSchedulePage";
 import QCCheckPage from "./pages/iqcpage/QCCheckPage";
 import AddQCCheckPage from "./pages/iqcpage/AddQCCheckPage";
 import QCOverseaPartSchedulePage from "./pages/iqcpage/QCOverseaPartSchedulePage";
+import QCReturnPartsPage from "./pages/iqcpage/QCReturnPartsPage";
 
 import PartsEnquiryIdPage from "./pages/mhpage/PartsEnquiryIdPage";
 import AddPartsEnquiryIdPage from "./pages/mhpage/AddPartsEnquiryIdPage";
@@ -179,6 +182,8 @@ const LayoutHandler = () => {
       "/vendor-placement": { app: "inventory", dept: "SCN-LOG" },
       "/stock-overview": { app: "inventory", dept: "SCN-LOG" },
       "/storage-inventory": { app: "inventory", dept: "SCN-LOG" },
+      "/rtv-part": { app: "inventory", dept: "SCN-LOG" },
+
 
       // Quality Assurance routes
       "/iqc-local": { app: "quality", dept: "SCN-IQC" },
@@ -186,6 +191,8 @@ const LayoutHandler = () => {
       "/qc-local-schedule": { app: "quality", dept: "SCN-IQC" },
       "/qc-part": { app: "quality", dept: "SCN-IQC" },
       "/qc-oversea-schedule": { app: "quality", dept: "SCN-IQC" },
+      "/qc-return-parts": { app: "quality", dept: "SCN-IQC" },
+
 
       // System Management routes
       "/user-control": { app: "system", dept: "ADMIN" },
@@ -269,6 +276,8 @@ const LayoutHandler = () => {
       {location.pathname === "/iqc-local" && <IQCLocalPage />}
       {location.pathname === "/qc-part" && <QCCheckPage />}
       {location.pathname === "/qc-part/add" && <AddQCCheckPage />}
+      {location.pathname ===  "/qc-return-parts" && <QCReturnPartsPage />}
+      {location.pathname ===  "/rtv-part" && <RTVPartPage />}
 
       {location.pathname === "/part-enquiry-id" && <PartsEnquiryIdPage />}
       {location.pathname === "/part-enquiry-id/add" && (
@@ -286,6 +295,7 @@ const LayoutHandler = () => {
       {location.pathname === "/part-receive" && <PartsReceivePage />}
       {location.pathname === "/receive-request" && <ReceiveReqPartPage />}
       {location.pathname === "/return-parts" && <ReturnPartsPage />}
+      {location.pathname === "/return-parts/add" && <AddReturnPartsPage />}
       {location.pathname === "/vendor-placement" && <VendorPartPlacementPage />}
       {location.pathname === "/vendor-placement/add" && (
         <AddVendorPartPlacementPage />
