@@ -60,6 +60,7 @@ import PartsReceivePage from "./pages/mhpage/PartsReceivePage";
 
 import UserControlPage from "./pages/admin/UserControlPage";
 import CreateUserPage from "./pages/admin/CreateUserPage";
+import UserFeedback from "./pages/admin/UserFeedback";
 import timerService from "./utils/TimerService";
 
 import { getUser as getAuthUser } from "./utils/auth";
@@ -198,6 +199,8 @@ const LayoutHandler = () => {
       "/user-control": { app: "system", dept: "ADMIN" },
       "/user-management": { app: "system", dept: "ADMIN" },
       "/system-config": { app: "system", dept: "ADMIN" },
+      "/user-feedback": { app: "system", dept: "ADMIN" },
+
 
       // Default fallback
       "/dashboard": { app: "production", dept: "SCN-MH" },
@@ -303,6 +306,7 @@ const LayoutHandler = () => {
 
       {location.pathname === "/user-control" && <UserControlPage />}
       {location.pathname === "/create-user" && <CreateUserPage />}
+      {location.pathname === "/user-feedback" && <UserFeedback />}
     </MainLayout>
   );
 };

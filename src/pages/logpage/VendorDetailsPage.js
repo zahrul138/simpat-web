@@ -431,7 +431,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     });
   }, [filteredVendors, dateFrom, dateTo]);
 
-  // ==================== EVENT HANDLERS ====================
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
       const newExpandedRows = {

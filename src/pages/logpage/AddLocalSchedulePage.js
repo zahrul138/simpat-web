@@ -1355,33 +1355,6 @@ const AddLocalSchedulePage = () => {
       //   return;
       // }
 
-      // Cek apakah schedule date sudah ada di database
-      const resp = await fetch(
-        `${API_BASE}/api/local-schedules/check-date?scheduleDate=${scheduleDate}`
-      );
-      const data = await resp.json();
-
-      if (!resp.ok) {
-        throw new Error(data.message || "Failed to check schedule date");
-      }
-
-      if (data.exists) {
-        alert(
-          "Schedule Date has been created in database. Try creating another Schedule Date."
-        );
-        return;
-      }
-
-      // Cek apakah schedule date sudah ada di draft lokal
-      const isDuplicateDate = headerDrafts.some(
-        (hdr) => hdr.scheduleDate === scheduleDate
-      );
-
-      if (isDuplicateDate) {
-        alert("Schedule Date has been created in draft, try make another");
-        return;
-      }
-
       const createdAt = new Date().toISOString();
       const newId = `draft-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -3909,8 +3882,7 @@ const AddLocalSchedulePage = () => {
 
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={hdr.scheduleDate}
                           >
                             {(() => {
                               try {
@@ -3930,39 +3902,31 @@ const AddLocalSchedulePage = () => {
 
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
                             title={hdr.stockLevel}
                           >
                             {hdr.stockLevel}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
                             title={hdr.modelName}
                           >
                             {hdr.modelName}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={String(headerVendors.length)}
                           >
                             {headerVendors.length}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
                             title={getPalletTooltipDetailsForHeader(hdr.id)}
                           >
                             {headerPalletTotal.total}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={String(calculateTotalPartsForHeader(hdr.id))}
                           >
                             {calculateTotalPartsForHeader(hdr.id)}
                           </td>
@@ -4127,41 +4091,31 @@ const AddLocalSchedulePage = () => {
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={tripLabel}
                                           >
                                             {tripLabel}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={vendorLabel}
                                           >
                                             {vendorLabel}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={doJoined}
                                           >
                                             {doJoined}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={arrival}
                                           >
                                             {arrival}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
                                             title={getPalletTooltipDetails(
-                                              hdr.id,
-                                              idx
-                                            )}
-                                            data-tooltip={getPalletTooltipDetails(
                                               hdr.id,
                                               idx
                                             )}
@@ -4173,8 +4127,7 @@ const AddLocalSchedulePage = () => {
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={String(calculateTotalPartsForVendor(vd))}
                                           >
                                             {calculateTotalPartsForVendor(vd)}
                                           </td>
@@ -4189,9 +4142,7 @@ const AddLocalSchedulePage = () => {
                                                   vendorLabel
                                                 )
                                               }
-                                              onMouseEnter={showTooltip}
-                                              onMouseLeave={hideTooltip}
-                                              data-tooltip="Add Part Detail"
+                                              title="Add Part Detail"
                                             >
                                               <Plus size={10} />
                                             </button>
@@ -4201,9 +4152,7 @@ const AddLocalSchedulePage = () => {
                                               onClick={() =>
                                                 handleDeleteVendor(hdr.id, idx)
                                               }
-                                              onMouseEnter={showTooltip}
-                                              onMouseLeave={hideTooltip}
-                                              data-tooltip="Delete Vendor"
+                                              title="Delete Vendor"
                                             >
                                               <Trash2 size={10} />
                                             </button>
@@ -4342,24 +4291,13 @@ const AddLocalSchedulePage = () => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
-                                                            onMouseEnter={
-                                                              showTooltip
-                                                            }
-                                                            onMouseLeave={
-                                                              hideTooltip
-                                                            }
+                                                            title={part.partCode}
                                                           >
                                                             {part.partCode}
                                                           </td>
                                                           <td
                                                             style={
                                                               styles.thirdLevelTd
-                                                            }
-                                                            onMouseEnter={
-                                                              showTooltip
-                                                            }
-                                                            onMouseLeave={
-                                                              hideTooltip
                                                             }
                                                             title={`Part Name: ${part.partName ||
                                                               "—"
@@ -4478,12 +4416,6 @@ const AddLocalSchedulePage = () => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
-                                                            onMouseEnter={
-                                                              showTooltip
-                                                            }
-                                                            onMouseLeave={
-                                                              hideTooltip
-                                                            }
                                                             title={`Quantity Box: ${part.qtyBox ?? 0
                                                               }`}
                                                           >
@@ -4492,12 +4424,6 @@ const AddLocalSchedulePage = () => {
                                                           <td
                                                             style={
                                                               styles.thirdLevelTd
-                                                            }
-                                                            onMouseEnter={
-                                                              showTooltip
-                                                            }
-                                                            onMouseLeave={
-                                                              hideTooltip
                                                             }
                                                             title={`Unit: ${part.unit || "PCS"
                                                               }`}
@@ -4521,12 +4447,6 @@ const AddLocalSchedulePage = () => {
                                                                   part.id,
                                                                   part.qty || 0
                                                                 )
-                                                              }
-                                                              onMouseEnter={
-                                                                showTooltip
-                                                              }
-                                                              onMouseLeave={
-                                                                hideTooltip
                                                               }
                                                               title="Edit quantity"
                                                               disabled={
@@ -4562,12 +4482,6 @@ const AddLocalSchedulePage = () => {
                                                                   idx,
                                                                   part.id
                                                                 )
-                                                              }
-                                                              onMouseEnter={
-                                                                showTooltip
-                                                              }
-                                                              onMouseLeave={
-                                                                hideTooltip
                                                               }
                                                               title="Delete part"
                                                               disabled={
@@ -4960,18 +4874,14 @@ const AddLocalSchedulePage = () => {
 
                               <td
                                 style={vendorPartStyles.td}
-                                onMouseEnter={showTooltip}
-                                onMouseLeave={hideTooltip}
-                                data-tooltip={`${part.partCode}`}
+                                title={`${part.partCode}`}
                               >
                                 {part.partCode}
                               </td>
 
                               <td
                                 style={vendorPartStyles.td}
-                                onMouseEnter={showTooltip}
-                                onMouseLeave={hideTooltip}
-                                data-tooltip={`${part.partName || "—"}`}
+                                title={`${part.partName || "—"}`}
                               >
                                 {part.partName || "—"}
                               </td>
@@ -5033,9 +4943,7 @@ const AddLocalSchedulePage = () => {
 
                               <td
                                 style={vendorPartStyles.td}
-                                onMouseEnter={showTooltip}
-                                onMouseLeave={hideTooltip}
-                                data-tooltip={`${part.unit || "PCS"}`}
+                                title={`${part.unit || "PCS"}`}
                               >
                                 {part.unit || "PCS"}
                               </td>
@@ -5044,9 +4952,7 @@ const AddLocalSchedulePage = () => {
                                 <button
                                   style={vendorPartStyles.deleteButton}
                                   onClick={() => handleRemovePart(part.id)}
-                                  onMouseEnter={showTooltip}
-                                  onMouseLeave={hideTooltip}
-                                  data-tooltip="Delete"
+                                  title="Delete"
                                 >
                                   <Trash2 size={10} />
                                 </button>

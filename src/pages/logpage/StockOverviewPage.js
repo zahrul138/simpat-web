@@ -10,13 +10,11 @@ const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const StockOverviewPage = () => {
   const navigate = useNavigate();
 
-  // State untuk search dan data part
   const [searchPartCode, setSearchPartCode] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [stockData, setStockData] = useState(null);
   const [searchError, setSearchError] = useState("");
 
-  // State untuk Movement History
   const [movements, setMovements] = useState([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("M136");
@@ -37,7 +35,6 @@ const StockOverviewPage = () => {
     return `${year}-${month}-${day}`;
   });
 
-  // Format datetime: dd/mm/yyyy hh.mm
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
@@ -49,7 +46,6 @@ const StockOverviewPage = () => {
     return `${day}/${month}/${year} ${hours}.${minutes}`;
   };
 
-  // Format date only: dd/mm/yyyy
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
@@ -59,7 +55,6 @@ const StockOverviewPage = () => {
     return `${day}/${month}/${year}`;
   };
 
-  // Get "From" display based on source_type
   const getFromDisplay = (movement) => {
     if (!movement.source_type) return "-";
 
@@ -74,18 +69,17 @@ const StockOverviewPage = () => {
         return "Transfer";
       case "production":
         return "Production";
+      case "finish_good":
+        return "Finish Good";
       case "return_scrap":
-        // M101 tab: OUT → TO = SCRAP | SCRAP tab: IN → FROM = M101
         return movement.movement_type === "OUT" ? "SCRAP" : "M101";
       case "return_to_inspect":
-        // SCRAP tab: OUT → TO = M101 | M101 tab: IN → FROM = SCRAP
         return movement.movement_type === "OUT" ? "M101" : "SCRAP";
       default:
         return movement.source_type;
     }
   };
 
-  // Search part by code
   const handleSearch = async () => {
     if (!searchPartCode.trim()) {
       setSearchError("Please enter a part code");
@@ -105,7 +99,6 @@ const StockOverviewPage = () => {
 
       if (result.success && result.data) {
         setStockData(result.data);
-        // Fetch movement history for current tab
         await fetchMovements(searchPartCode.trim(), activeTab, 1);
       } else {
         setSearchError(result.message || "Part code not found");
@@ -119,7 +112,6 @@ const StockOverviewPage = () => {
     }
   };
 
-  // Fetch movement history
   const fetchMovements = async (partCode, stockLevel, page = 1) => {
     if (!partCode) return;
 
@@ -152,7 +144,6 @@ const StockOverviewPage = () => {
     }
   };
 
-  // Handle tab change
   const handleTabClick = (tab) => {
     setActiveTab(tab);
     setCurrentPage(1);
@@ -161,7 +152,6 @@ const StockOverviewPage = () => {
     }
   };
 
-  // Handle page change
   const handlePageChange = (newPage) => {
     const totalPages = Math.ceil(movementsPagination.total / itemsPerPage) || 1;
     if (newPage >= 1 && newPage <= totalPages) {
@@ -172,7 +162,6 @@ const StockOverviewPage = () => {
     }
   };
 
-  // Handle Enter key on search
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       handleSearch();
@@ -485,8 +474,6 @@ const StockOverviewPage = () => {
             <div style={{ marginBottom: "24px" }}>
               <h2 style={styles.h2}>Stock Overview</h2>
             </div>
-
-            {/* Search Part Code */}
             <div style={{ display: "flex" }}>
               <div style={{ flex: "1", display: "grid", gap: "10px" }}>
                 <div style={styles.formGroupPartCode}>
@@ -520,7 +507,6 @@ const StockOverviewPage = () => {
               </div>
             </div>
 
-            {/* Part Name & Vendor Name */}
             <div style={{ display: "flex" }}>
               <div style={{ flex: "1", display: "grid", gap: "10px" }}>
                 <div style={styles.formGroupPartCode}>
@@ -566,7 +552,6 @@ const StockOverviewPage = () => {
               </div>
             </div>
 
-            {/* Stock Info */}
             <div style={{ display: "flex" }}>
               <div style={{ flex: "1", display: "grid", gap: "20px" }}>
                 <div>
@@ -673,10 +658,7 @@ const StockOverviewPage = () => {
             </div>
           </div>
 
-          {/* Movement History Section */}
           <h2 style={styles.h2}>Movement History</h2>
-
-          {/* Tabs */}
           <div style={styles.tabsContainer}>
             <button
               style={{
@@ -764,7 +746,6 @@ const StockOverviewPage = () => {
             </button>
           </div>
 
-          {/* Movement History Table */}
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
               <table
@@ -892,8 +873,6 @@ const StockOverviewPage = () => {
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination */}
             <div style={styles.paginationBar}>
               <div style={styles.paginationControls}>
                 <button

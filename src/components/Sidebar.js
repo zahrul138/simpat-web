@@ -273,7 +273,6 @@ const Sidebar = ({
     </svg>
   );
 
-  // Inventory icons
   const WarehouseIcon = ({ size = 12 }) => (
     <svg
       width={size}
@@ -393,7 +392,6 @@ const Sidebar = ({
     </svg>
   );
 
-  // System icons
   const UsersIcon = ({ size = 12 }) => (
     <svg
       width={size}
@@ -706,10 +704,13 @@ const Sidebar = ({
           icon: LockIcon,
           isActive:
             isPathActive("/user-control") ||
-            isPathActive("/user-management"),
+            isPathActive("/user-management") ||
+            isPathActive("/user-feedback"),
+
           subItems: [
             { title: "Manage User", href: "/user-control", icon: UsersIcon },
             { title: "User List", href: "/user-management", icon: ScrollIcon },
+            { title: "User Feedback", href: "/user-feedback", icon: ScrollIcon },
           ],
         },
         {
@@ -757,7 +758,6 @@ const Sidebar = ({
     [location.pathname, currentApplication],
   );
 
-  /** ================== EFFECTS ================== */
   useEffect(() => {
     const heights = {};
     menuItems.forEach((item) => {
@@ -766,20 +766,17 @@ const Sidebar = ({
     setSubMenuHeights(heights);
   }, [menuItems]);
 
-  // SINGLE-OPEN ACCORDION: buka satu, tutup yang lain
   const toggleExpanded = (title) => {
     setExpandedItems((prev) => (prev[0] === title ? [] : [title]));
   };
 
   useEffect(() => {
-    // Auto expand parent menu of current route (single-open)
     const currentParentMenu = menuItems.find(
       (item) =>
         item.subItems &&
         item.subItems.some((sub) => sub.href === location.pathname || location.pathname === sub.href + "/add"),
     );
 
-    // Special case: expand Production when on /target-schedule/add
     if (location.pathname === "/target-schedule/add") {
       const productionMenu = menuItems.find(
         (item) => item.title === "Production",
@@ -801,7 +798,6 @@ const Sidebar = ({
     }
   }, [location.pathname, menuItems, prevPathname]);
 
-  // hover helpers
   const handleCloseButtonHover = (e, isHover) => {
     e.currentTarget.style.backgroundColor = isHover ? "#475569" : "transparent";
   };
@@ -986,7 +982,6 @@ const Sidebar = ({
 
   return (
     <aside style={styles.sidebar} className="sidebar-scrollbar">
-      {/* Header */}
       <div style={styles.sidebarHeader}>
         <div style={styles.headerContent}>
           <h2 style={styles.headerTitle}>Navigation</h2>
@@ -1001,8 +996,6 @@ const Sidebar = ({
           </button>
         </div>
       </div>
-
-      {/* Body */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         <nav style={styles.nav}>
           <ul style={styles.menuList}>
@@ -1010,7 +1003,6 @@ const Sidebar = ({
               const expanded = expandedItems[0] === item.title;
               return (
                 <li key={item.title} style={styles.menuItem}>
-                  {/* Parent (toggle only) */}
                   <button
                     type="button"
                     onClick={() => toggleExpanded(item.title)}
