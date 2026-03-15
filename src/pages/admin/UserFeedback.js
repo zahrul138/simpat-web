@@ -78,8 +78,10 @@ const UserFeedback = ({ sidebarVisible }) => {
     getAuthUserLocal()?.emp_name || getAuthUserLocal()?.name || null;
 
   const [activeTab, setActiveTab] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    const t = params.get("tab") || "New";
+    // Cek navigation state dulu (dari AdminDashboard), lalu query param
+    const stateTab = window.history.state?.usr?.tab;
+    const params   = new URLSearchParams(window.location.search);
+    const t        = stateTab || params.get("tab") || "New";
     return TABS.includes(t) ? t : "New";
   });
   const [tableData, setTableData] = useState([]);
@@ -105,10 +107,17 @@ const UserFeedback = ({ sidebarVisible }) => {
     );
 
   useEffect(() => {
+    // Cek navigation state (dari AdminDashboard)
+    const stateTab = location.state?.tab;
+    if (stateTab && TABS.includes(stateTab)) {
+      setActiveTab(stateTab);
+      return;
+    }
+    // Fallback ke query param
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab") || "New";
     if (TABS.includes(t)) setActiveTab(t);
-  }, [location.search]);
+  }, [location.search, location.state]);
 
   useEffect(() => {
     fetchData();
@@ -1133,15 +1142,7 @@ const UserFeedback = ({ sidebarVisible }) => {
                             <Trash2 size={10} />
                           </button>
                         </td>
-                        <td style={styles.tdCenter}>
-                          <button
-                            style={styles.deleteButton}
-                            title="Delete"
-                            onClick={() => handleDelete(row.id)}
-                          >
-                            <Trash2 size={10} />
-                          </button>
-                        </td>
+                      
                       </tr>
                     );
                   })}

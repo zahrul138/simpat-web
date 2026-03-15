@@ -42,6 +42,7 @@ import OverseaPartSchedulePage from "./pages/logpage/OverseaPartSchedulePage";
 import AddOverseaPartSchedulePage from "./pages/logpage/AddOverseaPartSchedulePage";
 import StorageInventoryPage from "./pages/logpage/StorageInventoryPage";
 import RTVPartPage from "./pages/logpage/RTVPartPage";
+import PartDisposalReportPage from "./pages/logpage/PartDisposalReportPage";
 
 // Halaman SCN-IQC (Quality Control)
 import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
@@ -50,6 +51,7 @@ import QCCheckPage from "./pages/iqcpage/QCCheckPage";
 import AddQCCheckPage from "./pages/iqcpage/AddQCCheckPage";
 import QCOverseaPartSchedulePage from "./pages/iqcpage/QCOverseaPartSchedulePage";
 import QCReturnPartsPage from "./pages/iqcpage/QCReturnPartsPage";
+import QCDashboardPage from "./pages/iqcpage/QCDashboardPage";
 
 import PartsEnquiryIdPage from "./pages/mhpage/PartsEnquiryIdPage";
 import AddPartsEnquiryIdPage from "./pages/mhpage/AddPartsEnquiryIdPage";
@@ -61,9 +63,11 @@ import PartsReceivePage from "./pages/mhpage/PartsReceivePage";
 import UserControlPage from "./pages/admin/UserControlPage";
 import CreateUserPage from "./pages/admin/CreateUserPage";
 import UserFeedback from "./pages/admin/UserFeedback";
-import timerService from "./utils/TimerService";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import ActivityLogPage    from "./pages/admin/ActivityLogPage";
 
 import { getUser as getAuthUser } from "./utils/auth";
+import useActiveCheck from "./utils/useActiveCheck";
 
 const MainLayout = ({
   children,
@@ -120,6 +124,7 @@ const Protected = ({ children }) => {
 };
 
 const LayoutHandler = () => {
+  useActiveCheck(); // ── kick out jika akun di-nonaktifkan ──
   const location = useLocation();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [currentApplication, setCurrentApplication] = useState("production");
@@ -161,7 +166,6 @@ const LayoutHandler = () => {
   useEffect(() => {
     const path = location.pathname;
     const routeMapping = {
-      // Production Management routes
       "/target-schedule": { app: "production", dept: "SCN-MH" },
       "/control-part": { app: "production", dept: "SCN-MH" },
       "/component-master": { app: "production", dept: "SCN-MH" },
@@ -173,8 +177,6 @@ const LayoutHandler = () => {
       "/mh-local-schedule": { app: "production", dept: "SCN-MH" },
       "/stock-overview-mh": { app: "production", dept: "SCN-MH" },
       "/target-scanning": { app: "production", dept: "SCN-MH" },
-
-      // Inventory Control routes
       "/local-schedule": { app: "inventory", dept: "SCN-LOG" },
       "/oversea-schedule": { app: "inventory", dept: "SCN-LOG" },
       "/receive-request": { app: "inventory", dept: "SCN-LOG" },
@@ -184,25 +186,21 @@ const LayoutHandler = () => {
       "/stock-overview": { app: "inventory", dept: "SCN-LOG" },
       "/storage-inventory": { app: "inventory", dept: "SCN-LOG" },
       "/rtv-part": { app: "inventory", dept: "SCN-LOG" },
-
-
-      // Quality Assurance routes
+      "/part-disposal-report": { app: "inventory", dept: "SCN-LOG" },
+      "/quality-dashboard": { app: "quality", dept: "SCN-IQC" },
       "/iqc-local": { app: "quality", dept: "SCN-IQC" },
       "/quality": { app: "quality", dept: "SCN-IQC" },
       "/qc-local-schedule": { app: "quality", dept: "SCN-IQC" },
       "/qc-part": { app: "quality", dept: "SCN-IQC" },
       "/qc-oversea-schedule": { app: "quality", dept: "SCN-IQC" },
       "/qc-return-parts": { app: "quality", dept: "SCN-IQC" },
-
-
-      // System Management routes
+      "/system-dashboard": { app: "system", dept: "ADMIN" },
       "/user-control": { app: "system", dept: "ADMIN" },
       "/user-management": { app: "system", dept: "ADMIN" },
       "/system-config": { app: "system", dept: "ADMIN" },
       "/user-feedback": { app: "system", dept: "ADMIN" },
+      "/activity-log": { app: "system", dept: "ADMIN" },
 
-
-      // Default fallback
       "/dashboard": { app: "production", dept: "SCN-MH" },
     };
 
@@ -264,6 +262,7 @@ const LayoutHandler = () => {
       {location.pathname === "/mh-local-schedule" && <MHLocalSchedulePage />}
       {location.pathname === "/qc-local-schedule" && <QCLocalSchedulePage />}
       {location.pathname === "/qc-oversea-schedule" && <QCOverseaPartSchedulePage />}
+      {location.pathname === "/quality-dashboard" && <QCDashboardPage />}
       {location.pathname === "/oversea-schedule" && <OverseaPartSchedulePage />}
       {location.pathname === "/oversea-schedule/add" && <AddOverseaPartSchedulePage />}
       {location.pathname === "/storage-inventory" && <StorageInventoryPage />}
@@ -279,8 +278,9 @@ const LayoutHandler = () => {
       {location.pathname === "/iqc-local" && <IQCLocalPage />}
       {location.pathname === "/qc-part" && <QCCheckPage />}
       {location.pathname === "/qc-part/add" && <AddQCCheckPage />}
-      {location.pathname ===  "/qc-return-parts" && <QCReturnPartsPage />}
-      {location.pathname ===  "/rtv-part" && <RTVPartPage />}
+      {location.pathname === "/qc-return-parts" && <QCReturnPartsPage />}
+      {location.pathname === "/rtv-part" && <RTVPartPage />}
+      {location.pathname === "/part-disposal-report" && <PartDisposalReportPage />}
 
       {location.pathname === "/part-enquiry-id" && <PartsEnquiryIdPage />}
       {location.pathname === "/part-enquiry-id/add" && (
@@ -307,6 +307,8 @@ const LayoutHandler = () => {
       {location.pathname === "/user-control" && <UserControlPage />}
       {location.pathname === "/create-user" && <CreateUserPage />}
       {location.pathname === "/user-feedback" && <UserFeedback />}
+      {location.pathname === "/system-dashboard" && <AdminDashboardPage />}
+      {location.pathname === "/activity-log" && <ActivityLogPage />}
     </MainLayout>
   );
 };
@@ -316,12 +318,6 @@ const App = () => {
     if (!sessionStorage.getItem("__boot_cleared")) {
       sessionStorage.setItem("__boot_cleared", "1");
     }
-    timerService.start();
-    console.log("[App] TimerService started");
-    return () => {
-      timerService.stop();
-      console.log("[App] TimerService stopped");
-    };
   }, []);
 
   return (

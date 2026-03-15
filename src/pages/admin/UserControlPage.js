@@ -2,15 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet";
-import { Plus, Trash2, Pencil, Edit, Eye, EyeOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Plus, Trash2, Pencil, Edit, Eye, EyeOff, Save, X } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { getToken, clearAuth, getUser } from "../../utils/auth";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
-const getToken = () => localStorage.getItem("auth_token");
 const PAGE_SIZE = 10;
 
 const UserControlPage = () => {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location   = useLocation();
+  const loggedInId = getUser()?.id;
   const [users, setUsers] = useState([]);
   const [filterKeyword, setFilterKeyword] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
@@ -30,7 +32,9 @@ const UserControlPage = () => {
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [showPassword, setShowPassword] = useState(false);
-  const [activeTab, setActiveTab] = useState("Active");
+  const [activeTab, setActiveTab] = useState(
+    location.state?.tab || "Active"
+  );
 
   // ===== Helpers =====
   const getRoleByDepartment = (department) =>
@@ -39,7 +43,7 @@ const UserControlPage = () => {
   const formatDateTime = (dt) => {
     if (!dt) return "-";
     const d = new Date(dt);
-    if (isNaN(d.getTime())) return dt; // kalau backend udah kirim string siap pakai
+    if (isNaN(d.getTime())) return dt;
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
@@ -48,14 +52,12 @@ const UserControlPage = () => {
     return `${y}-${m}-${day} ${hh}.${mm}`;
   };
 
-  const createdText = (u) => {
-    const creator =
-      u.createdBy || u.created_by || u.creator_name || u.createdby || "SYSTEM";
-    const when = formatDateTime(u.createdDate || u.created_at || u.createdAt);
-    return `${creator} | ${when}`;
+  const uploadByText = (u) => {
+    const who = u.updatedBy || u.createdBy || "SYSTEM";
+    const when = formatDateTime(u.updatedDate || u.updatedAt || u.createdDate);
+    return `${who} | ${when}`;
   };
 
-  // ===== Load dari API sekali di mount =====
   useEffect(() => {
     const load = async () => {
       try {
@@ -64,20 +66,19 @@ const UserControlPage = () => {
         });
         const data = await r.json();
         if (!r.ok) {
-          alert(data?.error || "Load users gagal");
+          alert(data?.error || "Failed to load users");
           setUsers([]);
           return;
         }
         setUsers(Array.isArray(data) ? data : []);
       } catch {
-        alert("Network error");
+        alert("Network error, please try again");
         setUsers([]);
       }
     };
     load();
   }, []);
 
-  // ===== Filtering + Tabs =====
   const filteredUsers = useMemo(() => {
     let filtered = users.filter((u) => {
       const kw = filterKeyword.toLowerCase();
@@ -103,29 +104,24 @@ const UserControlPage = () => {
     (u) => u.status === "Inactive"
   ).length;
 
-  // total halaman
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE)),
     [filteredUsers.length]
   );
 
-  // data untuk halaman aktif
   const pageUsers = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredUsers.slice(start, start + PAGE_SIZE);
   }, [filteredUsers, currentPage]);
 
-  // reset ke page 1 kalau filter/tab berubah
   useEffect(() => {
     setCurrentPage(1);
   }, [filterKeyword, roleFilter, statusFilter, activeTab]);
 
-  // clamp halaman kalau totalPages mengecil (misal habis delete)
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [totalPages, currentPage]);
 
-  // ===== Tooltip =====
   const showTooltip = (e) => {
     let content = "";
     if (e.target.tagName === "BUTTON" || e.target.closest("button")) {
@@ -146,7 +142,6 @@ const UserControlPage = () => {
   };
   const hideTooltip = () => setTooltip((t) => ({ ...t, visible: false }));
 
-  // ===== UI hover helpers =====
   const handleButtonHover = (e, isHover) => {
     e.currentTarget.style.backgroundColor = isHover ? "#1d4ed8" : "#2563eb";
   };
@@ -161,7 +156,10 @@ const UserControlPage = () => {
     setDetailModal({ visible: true, user });
     setEditMode(false);
     setShowPassword(false);
-    setEditForm({ ...user });
+    setEditForm({
+      ...user,
+      role: user.department === "ADMIN" ? "Admin" : "User",
+    });
   };
 
   const closeDetailModal = () => {
@@ -178,8 +176,8 @@ const UserControlPage = () => {
         idCard: editForm.idCard,
         name: editForm.name,
         username: editForm.username,
-        password: editForm.password, // plain
-        department: editForm.department, // dept_code
+        password: editForm.password,
+        department: editForm.department,
         role: editForm.role,
         status: editForm.status,
       };
@@ -193,21 +191,29 @@ const UserControlPage = () => {
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        alert(data?.error || "Update gagal");
+        alert(data?.error || "Failed to update user");
         return;
       }
-      // update local list + modal content
+      const nowStr = new Date().toISOString();
+      const updater = JSON.parse(sessionStorage.getItem("auth_user") || "null")?.emp_name || "SYSTEM";
+      const withMeta = { ...payload, updatedBy: updater, updatedDate: nowStr };
       setUsers((prev) =>
-        prev.map((u) => (u.id === editForm.id ? { ...u, ...payload } : u))
+        prev.map((u) => (u.id === editForm.id ? { ...u, ...withMeta } : u))
       );
       setDetailModal((prev) => ({
         ...prev,
-        user: { ...prev.user, ...payload },
+        user: { ...prev.user, ...withMeta },
       }));
       setEditMode(false);
+      // ── Kick out jika akun sendiri di-set Inactive via modal edit ──
+      if (payload.status === "Inactive" && editForm.id === loggedInId) {
+        clearAuth();
+        navigate("/login");
+        return;
+      }
       alert("User updated successfully!");
     } catch {
-      alert("Network error");
+      alert("Network error, please try again");
     }
   };
 
@@ -220,12 +226,12 @@ const UserControlPage = () => {
       });
       if (!r.ok) {
         const data = await r.json().catch(() => ({}));
-        alert(data?.error || "Delete gagal");
+        alert(data?.error || "Failed to delete user");
         return;
       }
       setUsers((prev) => prev.filter((x) => x.id !== id));
     } catch {
-      alert("Network error");
+      alert("Network error, please try again");
     }
   };
 
@@ -244,20 +250,24 @@ const UserControlPage = () => {
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        alert(data?.error || "Gagal mengubah status");
+        alert(data?.error || "Failed to change status");
         return;
       }
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, status: nextStatus } : u))
       );
-      // kalau lagi kebuka modal dan user sama, sinkronkan juga
       setDetailModal((prev) =>
         prev.user && prev.user.id === userId
           ? { ...prev, user: { ...prev.user, status: nextStatus } }
           : prev
       );
+      // ── Kick out jika user yang di-deactivate adalah yang sedang login ──
+      if (nextStatus === "Inactive" && userId === loggedInId) {
+        clearAuth();
+        navigate("/login");
+      }
     } catch {
-      alert("Network error");
+      alert("Network error, please try again");
     }
   };
 
@@ -285,32 +295,28 @@ const UserControlPage = () => {
     setCurrentPage(Math.min(Math.max(1, num), totalPages));
   };
 
-  // ===== Styles (dipertahankan sesuai UI yang oke) =====
+  // ===== Styles =====
   const modalOverlayStyle = {
     position: "fixed",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
     display: detailModal.visible ? "flex" : "none",
     justifyContent: "center",
-    alignItems: "flex-start",
-    zIndex: 1000,
-    overflowY: "auto",
-    padding: "20px 0",
+    alignItems: "center",
+    zIndex: 2000,
   };
   const modalContentStyle = {
     backgroundColor: "white",
     borderRadius: "8px",
-    padding: "24px",
     width: "500px",
-    maxWidth: "90vw",
-    maxHeight: "calc(90vh - 40px)",
-    overflow: "auto",
-    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
-    marginTop: "130px",
-    marginBottom: "10px",
+    maxWidth: "95vw",
+    maxHeight: "92vh",
+    overflowY: "auto",
+    boxShadow: "0 8px 32px rgba(99, 102, 241, 0.18), 0 2px 8px rgba(0,0,0,0.12)",
+    border: "1.5px solid #9fa8da",
   };
   const passwordInputWrapper = {
     display: "flex",
@@ -601,72 +607,132 @@ const UserControlPage = () => {
     },
     modalOverlay: modalOverlayStyle,
     modalContent: modalContentStyle,
-    modalField: { marginBottom: "10px" },
-    modalLabel: {
-      fontSize: "12px",
-      fontWeight: "600",
+    modalHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: "#e0e7ff",
+      borderBottom: "1.5px solid #9fa8da",
+      padding: "12px 20px",
+      borderRadius: "6px 6px 0 0",
+    },
+    modalHeaderTitle: {
+      fontSize: "14px",
+      fontWeight: "700",
       color: "#374151",
-      display: "block",
-      marginBottom: "6px",
+      margin: 0,
+      letterSpacing: "0.01em",
+    },
+    modalCloseBtn: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "4px",
+      borderRadius: "4px",
+      color: "#2563eb",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    modalBody: {
+      padding: "18px 20px 4px 20px",
+    },
+    modalSectionTitle: {
+      fontSize: "11px",
+      fontWeight: "700",
+      color: "#2563eb",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "10px",
+      paddingBottom: "5px",
+      borderBottom: "1px solid #e0e7ff",
+    },
+    modalField: {
+      display: "grid",
+      gridTemplateColumns: "115px 1fr",
+      alignItems: "center",
+      marginBottom: "9px",
+      gap: "8px",
+    },
+    modalLabel: {
+      fontSize: "11px",
+      fontWeight: "600",
+      color: "#4b5563",
     },
     modalValue: {
       fontSize: "12px",
-      color: "#6b7280",
-      padding: "8px 12px",
+      color: "#374151",
+      padding: "0 8px",
+      height: "30px",
+      lineHeight: "30px",
       backgroundColor: "#f9fafb",
       borderRadius: "4px",
+      border: "1px solid #9fa8da",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
     },
     modalInput: {
-      width: "70%",
-      padding: "8px 12px",
-      border: "1px solid #d1d5db",
+      width: "100%",
+      height: "30px",
+      border: "1px solid #9fa8da",
       borderRadius: "4px",
+      padding: "0 8px",
       fontSize: "12px",
+      backgroundColor: "white",
       fontFamily: "inherit",
       outline: "none",
+      color: "#374151",
+      boxSizing: "border-box",
     },
-    modalActions: {
+    modalFooter: {
       display: "flex",
-      gap: "12px",
       justifyContent: "flex-end",
-      marginTop: "24px",
-      paddingTop: "16px",
-      borderTop: "1px solid #e5e7eb",
+      gap: "8px",
+      padding: "12px 20px",
+      backgroundColor: "#e0e7ff",
+      borderTop: "1.5px solid #9fa8da",
+      borderRadius: "0 0 6px 6px",
+      marginTop: "16px",
     },
     saveButton: {
       backgroundColor: "#10b981",
       color: "white",
-      padding: "8px 16px",
+      padding: "6px 18px",
       border: "none",
       borderRadius: "4px",
       fontSize: "12px",
-      fontWeight: "500",
+      fontWeight: "600",
       cursor: "pointer",
-      transition: "background-color 0.2s ease",
+      fontFamily: "inherit",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
     },
     editButtonModal: {
       backgroundColor: "#2563eb",
       color: "white",
-      padding: "8px 16px",
+      padding: "6px 18px",
       border: "none",
       borderRadius: "4px",
       fontSize: "12px",
-      fontWeight: "500",
+      fontWeight: "600",
       cursor: "pointer",
-      transition: "background-color 0.2s ease",
+      fontFamily: "inherit",
       display: "flex",
       alignItems: "center",
       gap: "6px",
     },
     cancelButton: {
-      backgroundColor: "#f3f4f6",
+      backgroundColor: "white",
       color: "#374151",
-      padding: "8px 16px",
-      border: "none",
+      padding: "6px 16px",
+      border: "1px solid #9fa8da",
       borderRadius: "4px",
       fontSize: "12px",
-      fontWeight: "500",
+      fontWeight: "600",
       cursor: "pointer",
+      fontFamily: "inherit",
     },
     roleInfo: {
       marginTop: "4px",
@@ -763,7 +829,7 @@ const UserControlPage = () => {
               handleTabHover(e, false, activeTab === "Active")
             }
           >
-            Active ({activeCount})
+            Active 
           </button>
 
           <button
@@ -779,7 +845,7 @@ const UserControlPage = () => {
               handleTabHover(e, false, activeTab === "In-Active")
             }
           >
-            In-Active ({inactiveCount})
+            In-Active
           </button>
         </div>
 
@@ -796,12 +862,12 @@ const UserControlPage = () => {
                 <col style={{ width: "27px" }} />
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "20%" }} />
-                <col style={{ width: "15%" }} />
+                <col style={{ width: "12%" }} />
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "10%" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "5%" }} />
+                <col style={{ width: "25%" }} />
+                <col style={{ width: "6%" }} />
               </colgroup>
               <thead>
                 <tr style={styles.tableHeader}>
@@ -812,7 +878,7 @@ const UserControlPage = () => {
                   <th style={styles.thWithLeftBorder}>Department</th>
                   <th style={styles.thWithLeftBorder}>Role</th>
                   <th style={styles.thWithLeftBorder}>Status</th>
-                  <th style={styles.thWithLeftBorder}>Created</th>
+                  <th style={styles.thWithLeftBorder}>Upload By</th>
                   <th style={styles.thWithLeftBorder}>Action</th>
                 </tr>
               </thead>
@@ -822,12 +888,12 @@ const UserControlPage = () => {
                     <tr
                       key={user.id}
                       onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
+                      (e.target.closest("tr").style.backgroundColor =
+                        "#c7cde8")
                       }
                       onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
+                      (e.target.closest("tr").style.backgroundColor =
+                        "transparent")
                       }
                     >
                       <td
@@ -840,43 +906,37 @@ const UserControlPage = () => {
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        onMouseEnter={showTooltip}
-                        onMouseLeave={hideTooltip}
+                        title={user.idCard || ""}
                       >
                         {user.idCard}
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        onMouseEnter={showTooltip}
-                        onMouseLeave={hideTooltip}
+                        title={user.name || ""}
                       >
                         {user.name}
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        onMouseEnter={showTooltip}
-                        onMouseLeave={hideTooltip}
+                        title={user.username || ""}
                       >
                         {user.username}
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        onMouseEnter={showTooltip}
-                        onMouseLeave={hideTooltip}
+                        title={user.department || ""}
                       >
                         {user.department}
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        onMouseEnter={showTooltip}
-                        onMouseLeave={hideTooltip}
+                        title={user.role || ""}
                       >
                         {user.role}
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        onMouseEnter={showTooltip}
-                        onMouseLeave={hideTooltip}
+                        title={user.status || ""}
                       >
                         <span
                           style={{
@@ -890,36 +950,31 @@ const UserControlPage = () => {
                         <button
                           style={styles.statusButton}
                           onClick={() => toggleUserStatus(user.id)}
-                          title={`Set to ${
-                            user.status === "Active" ? "Inactive" : "Active"
-                          }`}
+                          title={`Set to ${user.status === "Active" ? "Inactive" : "Active"
+                            }`}
                         >
                           {user.status === "Active" ? "Deactivate" : "Activate"}
                         </button>
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        onMouseEnter={showTooltip}
-                        onMouseLeave={hideTooltip}
+                        title={uploadByText(user)}
                       >
-                        {createdText(user)}
+                        {uploadByText(user)}
                       </td>
                       <td style={styles.tdWithLeftBorder}>
                         <button
                           style={styles.editButton}
-                          onMouseEnter={showTooltip}
-                          onMouseLeave={hideTooltip}
+
                           onClick={() => openDetailModal(user)}
-                          title="Edit User"
+                          title="Edit"
                         >
                           <Edit size={10} />
                         </button>
                         <button
                           style={styles.deleteButton}
-                          onMouseEnter={showTooltip}
-                          onMouseLeave={hideTooltip}
                           onClick={() => deleteUser(user.id)}
-                          title="Delete User"
+                          title="Delete"
                         >
                           <Trash2 size={10} />
                         </button>
@@ -928,18 +983,7 @@ const UserControlPage = () => {
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan="9"
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                        color: "#9ca3af",
-                      }}
-                    >
-                      {users.length === 0
-                        ? "No data has been created"
-                        : "No users match your search criteria"}
-                    </td>
+                   
                   </tr>
                 )}
               </tbody>
@@ -1006,8 +1050,6 @@ const UserControlPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Detail/Edit Modal */}
       <div
         style={styles.modalOverlay}
         onClick={(e) => {
@@ -1016,203 +1058,195 @@ const UserControlPage = () => {
       >
         <div style={styles.modalContent}>
           {detailModal.visible && detailModal.user && (
-            <div>
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>ID Card</label>
-                {editMode ? (
-                  <input
-                    type="text"
-                    style={styles.modalInput}
-                    value={editForm.idCard || ""}
-                    onChange={(e) => handleEditChange("idCard", e.target.value)}
-                  />
-                ) : (
-                  <div style={styles.modalValue}>{detailModal.user.idCard}</div>
-                )}
-              </div>
-
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Employee</label>
-                {editMode ? (
-                  <input
-                    type="text"
-                    style={{ ...styles.modalInput, textTransform: "uppercase" }}
-                    value={editForm.name || ""}
-                    onChange={(e) => handleEditChange("name", e.target.value)}
-                  />
-                ) : (
-                  <div style={styles.modalValue}>{detailModal.user.name}</div>
-                )}
-              </div>
-
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Username</label>
-                {editMode ? (
-                  <input
-                    type="text"
-                    style={styles.modalInput}
-                    value={editForm.username || ""}
-                    onChange={(e) =>
-                      handleEditChange("username", e.target.value)
-                    }
-                  />
-                ) : (
-                  <div style={styles.modalValue}>
-                    {detailModal.user.username}
-                  </div>
-                )}
-              </div>
-
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Password</label>
-                {editMode ? (
-                  <div style={passwordInputWrapper}>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      style={{
-                        ...styles.modalInput,
-                        paddingRight: "36px",
-                        width: "100%",
-                      }}
-                      value={editForm.password || ""}
-                      onChange={(e) =>
-                        handleEditChange("password", e.target.value)
-                      }
-                    />
-                    <button
-                      style={passwordEyeButton}
-                      onClick={() => setShowPassword(!showPassword)}
-                      type="button"
-                      title={showPassword ? "Hide" : "Show"}
-                    >
-                      {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
-                    </button>
-                  </div>
-                ) : (
-                  <div style={styles.modalValue}>
-                    {detailModal.user.password}
-                  </div>
-                )}
-              </div>
-
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Department</label>
-                {editMode ? (
-                  <select
-                    style={modalSelectInput}
-                    value={editForm.department || "SCN-MH"}
-                    onChange={(e) =>
-                      handleEditChange("department", e.target.value)
-                    }
-                  >
-                    <option value="SCN-MH">SCN-MH</option>
-                    <option value="SCN-LOG">SCN-LOG</option>
-                    <option value="SCN-IQC">SCN-IQC</option>
-                    <option value="ADMIN">ADMIN</option>
-                  </select>
-                ) : (
-                  <div style={styles.modalValue}>
-                    {detailModal.user.department}
-                  </div>
-                )}
-              </div>
-
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Role</label>
-                {editMode ? (
-                  <select
-                    style={modalSelectInput}
-                    value={editForm.role || "User"}
-                    onChange={(e) => handleEditChange("role", e.target.value)}
-                  >
-                    <option value="User">User</option>
-                    <option value="Admin">Admin</option>
-                  </select>
-                ) : (
-                  <div style={styles.modalValue}>{detailModal.user.role}</div>
-                )}
-              </div>
-
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Status</label>
-                {editMode ? (
-                  <select
-                    style={modalSelectInput}
-                    value={editForm.status || "Active"}
-                    onChange={(e) => handleEditChange("status", e.target.value)}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                ) : (
-                  <div style={styles.modalValue}>{detailModal.user.status}</div>
-                )}
-              </div>
-
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Created</label>
-                <div style={styles.modalValue}>
-                  {createdText(detailModal.user)}
+            <>
+              <div style={styles.modalHeader}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={styles.modalHeaderTitle}>
+                    {editMode ? "Edit User" : "User Detail"}
+                  </span>
+                  {editMode && (
+                    <span style={{
+                      fontSize: "10px",
+                      fontWeight: "700",
+                      color: "#065f46",
+                      backgroundColor: "#d1fae5",
+                      border: "1px solid #10b981",
+                      borderRadius: "4px",
+                      padding: "1px 7px",
+                      letterSpacing: "0.05em",
+                      textTransform: "uppercase",
+                    }}>
+                      Editing
+                    </span>
+                  )}
                 </div>
+                <button style={styles.modalCloseBtn} onClick={closeDetailModal}>
+                  <X size={16} />
+                </button>
               </div>
 
-              <div style={styles.modalActions}>
+              {/* ── Body ── */}
+              <div style={styles.modalBody}>
+
+                {/* Section: Identity */}
+                <div style={styles.modalSectionTitle}>Identity</div>
+
+                <div style={styles.modalField}>
+                  <label style={styles.modalLabel}>ID Card</label>
+                  {editMode ? (
+                    <input
+                      type="text"
+                      style={styles.modalInput}
+                      value={editForm.idCard || ""}
+                      onChange={(e) => handleEditChange("idCard", e.target.value)}
+                    />
+                  ) : (
+                    <div style={styles.modalValue}>{detailModal.user.idCard}</div>
+                  )}
+                </div>
+
+                <div style={styles.modalField}>
+                  <label style={styles.modalLabel}>Employee</label>
+                  {editMode ? (
+                    <input
+                      type="text"
+                      style={{ ...styles.modalInput, textTransform: "uppercase" }}
+                      value={editForm.name || ""}
+                      onChange={(e) => handleEditChange("name", e.target.value)}
+                    />
+                  ) : (
+                    <div style={styles.modalValue}>{detailModal.user.name}</div>
+                  )}
+                </div>
+
+                <div style={styles.modalField}>
+                  <label style={styles.modalLabel}>Department</label>
+                  {editMode ? (
+                    <select
+                      style={{ ...styles.modalInput, cursor: "pointer" }}
+                      value={editForm.department || "SCN-MH"}
+                      onChange={(e) => handleEditChange("department", e.target.value)}
+                    >
+                      <option value="SCN-MH">SCN-MH</option>
+                      <option value="SCN-LOG">SCN-LOG</option>
+                      <option value="SCN-IQC">SCN-IQC</option>
+                      <option value="ADMIN">ADMIN</option>
+                    </select>
+                  ) : (
+                    <div style={styles.modalValue}>{detailModal.user.department}</div>
+                  )}
+                </div>
+
+
+                {/* Section: Account */}
+                <div style={{ ...styles.modalSectionTitle, marginTop: "14px" }}>Account</div>
+
+                <div style={styles.modalField}>
+                  <label style={styles.modalLabel}>Username</label>
+                  {editMode ? (
+                    <input
+                      type="text"
+                      style={styles.modalInput}
+                      value={editForm.username || ""}
+                      onChange={(e) => handleEditChange("username", e.target.value)}
+                    />
+                  ) : (
+                    <div style={styles.modalValue}>{detailModal.user.username}</div>
+                  )}
+                </div>
+
+                <div style={styles.modalField}>
+                  <label style={styles.modalLabel}>Password</label>
+                  {editMode ? (
+                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        style={{ ...styles.modalInput, paddingRight: "32px" }}
+                        value={editForm.password || ""}
+                        onChange={(e) => handleEditChange("password", e.target.value)}
+                      />
+                      <button
+                        style={{ position: "absolute", right: "6px", background: "none", border: "none", cursor: "pointer", color: "#6b7280", display: "flex", alignItems: "center", padding: 0 }}
+                        onClick={() => setShowPassword(!showPassword)}
+                        type="button"
+                      >
+                        {showPassword ? <Eye size={14} /> : <EyeOff size={14} />}
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={styles.modalValue}>{detailModal.user.password}</div>
+                  )}
+                </div>
+
+                <div style={styles.modalField}>
+                  <label style={styles.modalLabel}>Status</label>
+                  {editMode ? (
+                    <select
+                      style={{ ...styles.modalInput, cursor: "pointer" }}
+                      value={editForm.status || "Active"}
+                      onChange={(e) => handleEditChange("status", e.target.value)}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  ) : (
+                    <div style={{
+                      ...styles.modalValue,
+                      color: detailModal.user.status === "Active" ? "#16a34a" : "#dc2626",
+                      fontWeight: "600",
+                    }}>
+                      {detailModal.user.status}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* ── Footer ── */}
+              <div style={styles.modalFooter}>
                 {editMode ? (
                   <>
                     <button
-                      style={styles.saveButton}
-                      onClick={saveEditedUser}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#059669")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#10b981")
-                      }
-                    >
-                      Save Changes
-                    </button>
-                    <button
                       style={styles.cancelButton}
                       onClick={toggleEditMode}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#e5e7eb")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#f3f4f6")
-                      }
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f3f4f6")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "white")}
                     >
                       Cancel
                     </button>
+                    <button
+                      style={styles.saveButton}
+                      onClick={saveEditedUser}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#059669")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#10b981")}
+                    >
+                      <Save size={13} />
+                      Save Changes
+                    </button>
                   </>
                 ) : (
-                  <button
-                    style={styles.editButtonModal}
-                    onClick={toggleEditMode}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor = "#1d4ed8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = "#2563eb")
-                    }
-                  >
-                    <Pencil size={14} />
-                    Edit User
-                  </button>
+                  <>
+                    <button
+                      style={styles.cancelButton}
+                      onClick={closeDetailModal}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f3f4f6")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "white")}
+                    >
+                      Close
+                    </button>
+                    <button
+                      style={styles.editButtonModal}
+                      onClick={toggleEditMode}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#1d4ed8")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#2563eb")}
+                    >
+                      <Pencil size={13} />
+                      Edit User
+                    </button>
+                  </>
                 )}
-                <button
-                  style={styles.cancelButton}
-                  onClick={closeDetailModal}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "#e5e7eb")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "#f3f4f6")
-                  }
-                >
-                  Close
-                </button>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>

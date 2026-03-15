@@ -188,11 +188,21 @@ const Navbar = ({
   const handleLogout = () => {
     const user = getAuthUser();
     if (user) {
+      // Hapus dari active sessions
       fetch(`${API_BASE}/api/active-sessions/logout`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id || user.emp_id || user.username }),
+      }).catch(() => {});
+
+      // Catat ke activity log
+      fetch(`${API_BASE}/api/activity-logs/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user.id || user.emp_id || user.username,
+          empId:       user.id,
+          empName:     user.emp_name,
+          description: `User "${user.username}" logged out`,
         }),
       }).catch(() => {});
     }
@@ -782,7 +792,7 @@ const Navbar = ({
                       marginBottom: "2px",
                     }}
                   >
-                    ID
+                    ID CARD
                   </span>
                   <span style={{ fontWeight: "600", color: "#6b7280" }}>
                     {authUser?.emp_id || "-"}

@@ -202,6 +202,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     return s ? parseInt(s) || 0 : 0;
   });
   const [planningUnitsInput, setPlanningUnitsInput] = useState("");
+  const [shortageCustomerFilter, setShortageCustomerFilter] = useState("ALL");
   const currentScheduleRef = useRef(null);
   const isBackgroundRefreshingRef = useRef(false);
   const showDetailPopupRef = useRef(false);
@@ -581,6 +582,22 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const { remainingShiftTime } = calculateShiftTimes();
   const currentWarningReason = getCurrentWarningPeriod();
   const isWarning = !!currentWarningReason;
+
+  // ── Customers map (id → name) ────────────────────────────────
+  const [customersMap, setCustomersMap] = useState({});
+
+  useEffect(() => {
+    http("/api/customers/active-minimal")
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const map = {};
+          data.forEach((c) => { map[String(c.id)] = c.cust_name; });
+          setCustomersMap(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // currentCustomer: berdasarkan unit BERIKUTNYA yang akan diapprove
   // actual_input=21 (EHC 21 unit habis) → checkUnit=22 → langsung tampil EAL
   const currentCustomer = useMemo(() => {
@@ -597,6 +614,19 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     // Semua unit sudah approve → tunjukkan customer terakhir
     return details[details.length - 1];
   }, [scheduleDetails, currentSchedule]);
+
+  // Daftar customers unik dari schedule yang sedang berjalan
+  const scheduleCustomers = useMemo(() => {
+    if (!scheduleDetails?.details) return [];
+    return [...new Set(scheduleDetails.details.map((d) => d.customer).filter(Boolean))];
+  }, [scheduleDetails]);
+
+  // Reverse map: cust_name → id (untuk matching filter)
+  const customerNameToId = useMemo(() => {
+    const map = {};
+    Object.entries(customersMap).forEach(([id, name]) => { map[name] = id; });
+    return map;
+  }, [customersMap]);
 
   // 1. useEffect untuk inisialisasi
   useEffect(() => {
@@ -1544,24 +1574,52 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const [parts, setParts] = useState([]);
   const [partsLoading, setPartsLoading] = useState(false);
 
+  // Semua customers unik yang ada di data parts (untuk opsi dropdown)
+  const allPartsCustomers = useMemo(() => {
+    const nameSet = new Set();
+    parts.forEach((p) => {
+      if (p.customerSpecial) {
+        p.customerSpecial.forEach((id) => {
+          const name = customersMap[id];
+          if (name) nameSet.add(name);
+        });
+      }
+    });
+    return [...nameSet].sort();
+  }, [parts, customersMap]);
+
+  const parseCustomerSpecial = (raw) => {
+    if (!raw) return null;
+    try {
+      const arr = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return Array.isArray(arr) && arr.length > 0 ? arr.map(String) : null;
+    } catch {
+      return null;
+    }
+  };
+
   const fetchParts = useCallback(async (silent = false) => {
     if (!silent) setPartsLoading(true);
     try {
       const data = await http(`/api/kanban-master/with-details?include_inactive=false`);
       if (data?.success && Array.isArray(data.data)) {
-        const mapped = data.data.map((p) => ({
-          id: p.id,
-          code: p.part_code || "",
-          name: p.part_name || "",
-          type: p.part_types || "-",
-          vendorType: p.vendor_type || "-",
-          vendorName: p.vendor_name || "-",
-          assembly_station: p.assembly_station || null,
-          qty_per_assembly: p.qty_per_assembly || 1,
-          m101: p.stock_m101 ?? 0,
-          m136: p.stock_m136 ?? 0,
-          usagePerUnit: p.qty_per_assembly || 1,
-        }));
+        const mapped = data.data.map((p) => {
+          const cs = parseCustomerSpecial(p.customer_special);
+          return {
+            id: p.id,
+            code: p.part_code || "",
+            name: p.part_name || "",
+            type: p.part_types || "-",
+            vendorType: p.vendor_type || "-",
+            vendorName: p.vendor_name || "-",
+            assembly_station: p.assembly_station || null,
+            qty_per_assembly: p.qty_per_assembly || 1,
+            m101: p.stock_m101 ?? 0,
+            m136: p.stock_m136 ?? 0,
+            usagePerUnit: p.qty_per_assembly || 1,
+            customerSpecial: cs,
+          };
+        });
         setParts(mapped);
       }
     } catch (err) {
@@ -1649,6 +1707,26 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const filteredParts = parts.filter((p) => {
     // Tab filter
     if (activeTab !== "all" && p.assembly_station !== activeTab) return false;
+
+    // Customer filter (shortage control)
+    if (shortageCustomerFilter === "ALL") {
+      // auto: jika ada schedule berjalan, filter berdasarkan customers di schedule
+      if (scheduleCustomers.length > 0) {
+        const scheduleIds = scheduleCustomers
+          .map((name) => customerNameToId[name])
+          .filter(Boolean);
+        const isGeneral = !p.customerSpecial;
+        const matchesSchedule = p.customerSpecial?.some((id) => scheduleIds.includes(id));
+        if (!isGeneral && !matchesSchedule) return false;
+      }
+    } else {
+      // customer spesifik dipilih user — "All Customers" (customerSpecial null) selalu lolos
+      const filterId = customerNameToId[shortageCustomerFilter];
+      const isGeneral = !p.customerSpecial;
+      const matchesCustomer = filterId ? p.customerSpecial?.includes(filterId) : false;
+      if (!isGeneral && !matchesCustomer) return false;
+    }
+
     // Search filter
     if (!appliedKeyword) return true;
     const kw = appliedKeyword.toLowerCase();
@@ -2413,7 +2491,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
             <input
               type="number"
               min="0"
-              placeholder="e.g. 123"
+              placeholder="Input number"
               value={planningUnitsInput}
               onChange={(e) => setPlanningUnitsInput(e.target.value)}
               onKeyDown={(e) => {
@@ -2427,7 +2505,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                 }
               }}
               style={{
-                width: "80px",
+                width: "88px",
                 height: "28px",
                 border: "1px solid #9fa8da",
                 borderRadius: "4px",
@@ -2471,6 +2549,37 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                   Clear
                 </button>
               </>
+            )}
+
+            {/* Customer filter */}
+            <span style={{ fontSize: "11px", color: "#6b7280", marginLeft: "8px", borderLeft: "1px solid #e5e7eb", paddingLeft: "12px" }}>
+              Customer:
+            </span>
+            <select
+              value={shortageCustomerFilter}
+              onChange={(e) => { setShortageCustomerFilter(e.target.value); setCurrentPage(1); }}
+              style={{
+                height: "28px",
+                border: "1px solid #9fa8da",
+                borderRadius: "4px",
+                padding: "0 8px",
+                fontSize: "11px",
+                fontFamily: "inherit",
+                cursor: "pointer",
+                backgroundColor: "white",
+              }}
+            >
+              <option value="ALL">
+                {scheduleCustomers.length > 0 ? "Auto (From Schedule)" : "All Customers"}
+              </option>
+              {allPartsCustomers.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            {shortageCustomerFilter !== "ALL" && (
+              <span style={{ fontSize: "11px", backgroundColor: "#e0e7ff", color: "#2563eb", padding: "2px 8px", borderRadius: "10px", fontWeight: "600" }}>
+                {shortageCustomerFilter}
+              </span>
             )}
           </div>
         </div>
@@ -2517,18 +2626,19 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
             >
               <colgroup>
                 <col style={{ width: "28px" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "8%" }} />
-                <col style={{ width: "8%" }} />
-                <col style={{ width: "12%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "5%" }} />
                 <col style={{ width: "6%" }} />
                 <col style={{ width: "6%" }} />
-                <col style={{ width: "7%" }} />
-                <col style={{ width: "7%" }} />
-                <col style={{ width: "7%" }} />
-                <col style={{ width: "7%" }} />
-                <col style={{ width: "7%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "6%" }} />
               </colgroup>
               <thead>
                 <tr style={styles.tableHeader}>
@@ -2539,6 +2649,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                   <th style={styles.thWithLeftBorder}>Vendor Type</th>
                   <th style={styles.thWithLeftBorder}>Vendor Name</th>
                   <th style={styles.thWithLeftBorder}>Station</th>
+                  <th style={styles.thWithLeftBorder}>Customer</th>
                   <th style={styles.thWithLeftBorder}>QTY/Assy</th>
                   <th style={styles.thWithLeftBorder}>Stock Target</th>
                   <th style={styles.thWithLeftBorder}>Stock Expected</th>
@@ -2622,6 +2733,19 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       {p.assembly_station
                         ? p.assembly_station.toUpperCase()
                         : "-"}
+                    </td>
+
+                    <td
+                      style={styles.tdWithLeftBorder}
+                      title={p.customerSpecial
+                        ? p.customerSpecial.map((id) => customersMap[id] || id).join(", ")
+                        : "All Customers"}
+                      onMouseEnter={showTooltip}
+                      onMouseLeave={hideTooltip}
+                    >
+                      {p.customerSpecial
+                        ? p.customerSpecial.map((id) => customersMap[id] || id).join(", ")
+                        : "All Customers"}
                     </td>
 
                     <td

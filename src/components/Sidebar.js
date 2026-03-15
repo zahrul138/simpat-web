@@ -466,6 +466,19 @@ const Sidebar = ({
     </svg>
   );
 
+  const MessageSquareIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+
   const SlidersIcon = ({ size = 12 }) => (
     <svg
       width={size}
@@ -488,7 +501,14 @@ const Sidebar = ({
   );
 
   const IdCardIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <rect x="2" y="5" width="20" height="14" rx="2" />
       <circle cx="8" cy="12" r="2" />
       <path d="M14 9h4M14 12h4M14 15h2" />
@@ -496,7 +516,14 @@ const Sidebar = ({
   );
 
   const LayoutDashboardIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <rect x="3" y="3" width="7" height="9" rx="1" />
       <rect x="14" y="3" width="7" height="5" rx="1" />
       <rect x="14" y="12" width="7" height="9" rx="1" />
@@ -505,7 +532,14 @@ const Sidebar = ({
   );
 
   const PackageCheckIcon = ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14" />
       <path d="M16.5 9.4 7.55 4.24M3.29 7 12 12l8.71-5M12 22V12" />
       <polyline points="16 20 18 22 22 18" />
@@ -541,7 +575,7 @@ const Sidebar = ({
           icon: FactoryIcon,
           isActive:
             isPathActive("/target-schedule") ||
-             isPathActive("/target-scanning") ||
+            isPathActive("/target-scanning") ||
             isPathActive("/production-monitoring"),
           subItems: [
             {
@@ -549,7 +583,7 @@ const Sidebar = ({
               href: "/target-schedule",
               icon: CalendarIcon,
             },
-             {
+            {
               title: "Target Scanning",
               href: "/target-scanning",
               icon: MonitorIcon,
@@ -580,7 +614,7 @@ const Sidebar = ({
             location.pathname.startsWith("/part-enquiry-non-id") ||
             isPathActive("/stock-overview-mh"),
           subItems: [
-             {
+            {
               title: "Request Parts",
               href: "/part-enquiry-non-id",
               icon: QuestionIcon,
@@ -622,8 +656,16 @@ const Sidebar = ({
             isParentOrChildActive("/local-schedule") ||
             isParentOrChildActive("/oversea-schedule"),
           subItems: [
-            { title: "Local Schedule",   href: "/local-schedule",   icon: ClockIcon },
-            { title: "Oversea Schedule", href: "/oversea-schedule", icon: ShipIcon },
+            {
+              title: "Local Schedule",
+              href: "/local-schedule",
+              icon: ClockIcon,
+            },
+            {
+              title: "Oversea Schedule",
+              href: "/oversea-schedule",
+              icon: ShipIcon,
+            },
           ],
         },
         {
@@ -634,9 +676,17 @@ const Sidebar = ({
             isPathActive("/stock-overview") ||
             isParentOrChildActive("/part-details"),
           subItems: [
-            { title: "Storage Inventory", href: "/storage-inventory", icon: DatabaseIcon },
-            { title: "Stock Overview",    href: "/stock-overview",    icon: LayoutDashboardIcon },
-            { title: "Part Details",      href: "/part-details",      icon: PackageIcon },
+            {
+              title: "Storage Inventory",
+              href: "/storage-inventory",
+              icon: DatabaseIcon,
+            },
+            {
+              title: "Stock Overview",
+              href: "/stock-overview",
+              icon: LayoutDashboardIcon,
+            },
+            { title: "Part Details", href: "/part-details", icon: PackageIcon },
           ],
         },
         {
@@ -646,24 +696,54 @@ const Sidebar = ({
             isParentOrChildActive("/vendor-details") ||
             isParentOrChildActive("/vendor-placement"),
           subItems: [
-            { title: "Vendor Details",   href: "/vendor-details",   icon: IdCardIcon },
-            { title: "Vendor Placement", href: "/vendor-placement", icon: MapPinIcon },
+            {
+              title: "Vendor Details",
+              href: "/vendor-details",
+              icon: IdCardIcon,
+            },
+            {
+              title: "Vendor Placement",
+              href: "/vendor-placement",
+              icon: MapPinIcon,
+            },
           ],
         },
         {
           title: "Receive Control",
           icon: PackageCheckIcon,
-          isActive: 
+          isActive:
             isPathActive("/receive-request") ||
-            isParentOrChildActive("/rtv-part"),
+            isParentOrChildActive("/rtv-part") ||
+            isParentOrChildActive("/part-disposal-report"),
           subItems: [
-            { title: "Receive Request", href: "/receive-request", icon: PackageCheckIcon },
+            {
+              title: "Receive Request",
+              href: "/receive-request",
+              icon: PackageCheckIcon,
+            },
             { title: "RTV Control", href: "/rtv-part", icon: PackageCheckIcon },
+            {
+              title: "Part Disposal Report",
+              href: "/part-disposal-report",
+              icon: PackageCheckIcon,
+            },
           ],
         },
       ],
 
       quality: [
+        {
+          title: "Dashboard",
+          icon: LayoutDashboardIcon,
+          isActive: isPathActive("/quality-dashboard"),
+          subItems: [
+            {
+              title: "QC Overview",
+              href: "/quality-dashboard",
+              icon: LayoutDashboardIcon,
+            },
+          ],
+        },
         {
           title: "Local Schedule",
           icon: ClockIcon,
@@ -671,7 +751,7 @@ const Sidebar = ({
             isPathActive("/qc-local-schedule") ||
             isPathActive("/qc-oversea-schedule") ||
             isPathActive("/qc-part") ||
-             isPathActive("/qc-return-parts"),
+            isPathActive("/qc-return-parts"),
 
           subItems: [
             {
@@ -700,51 +780,35 @@ const Sidebar = ({
 
       system: [
         {
-          title: "Management Control",
-          icon: LockIcon,
+          title: "Dashboard",
+          icon: LayoutDashboardIcon,
+          isActive: isPathActive("/system-dashboard"),
+          subItems: [
+            {
+              title: "System Overview",
+              href: "/system-dashboard",
+              icon: LayoutDashboardIcon,
+            },
+          ],
+        },
+        {
+          title: "User Management",
+          icon: UsersIcon,
           isActive:
             isPathActive("/user-control") ||
-            isPathActive("/user-management") ||
+            isPathActive("/create-user") ||
             isPathActive("/user-feedback"),
-
           subItems: [
-            { title: "Manage User", href: "/user-control", icon: UsersIcon },
-            { title: "User List", href: "/user-management", icon: ScrollIcon },
-            { title: "User Feedback", href: "/user-feedback", icon: ScrollIcon },
+            { title: "Manage User",    href: "/user-control",  icon: UsersIcon },
+            { title: "User Feedback",  href: "/user-feedback", icon: MessageSquareIcon },
           ],
         },
         {
-          title: "System Configuration",
-          icon: SettingsIcon,
-          isActive: isPathActive("/system-config"),
+          title: "System Monitor",
+          icon: SlidersIcon,
+          isActive: isPathActive("/activity-log"),
           subItems: [
-            {
-              title: "General Settings",
-              href: "/system-config/general",
-              icon: SlidersIcon,
-            },
-            {
-              title: "Access Control",
-              href: "/system-config/access",
-              icon: LockIcon,
-            },
-          ],
-        },
-        {
-          title: "System Reports",
-          icon: BarChartIcon,
-          isActive: isPathActive("/system-reports"),
-          subItems: [
-            {
-              title: "Audit Log",
-              href: "/system-reports/audit",
-              icon: ScrollIcon,
-            },
-            {
-              title: "System Health",
-              href: "/system-reports/health",
-              icon: HeartIcon,
-            },
+            { title: "Activity Log", href: "/activity-log", icon: ScrollIcon },
           ],
         },
       ],
@@ -774,7 +838,11 @@ const Sidebar = ({
     const currentParentMenu = menuItems.find(
       (item) =>
         item.subItems &&
-        item.subItems.some((sub) => sub.href === location.pathname || location.pathname === sub.href + "/add"),
+        item.subItems.some(
+          (sub) =>
+            sub.href === location.pathname ||
+            location.pathname === sub.href + "/add",
+        ),
     );
 
     if (location.pathname === "/target-schedule/add") {
@@ -810,7 +878,8 @@ const Sidebar = ({
 
   const handleSubMenuButtonHover = (e, isHover) => {
     const to = e.currentTarget.getAttribute("data-to");
-    const isActive = location.pathname === to || location.pathname === to + "/add";
+    const isActive =
+      location.pathname === to || location.pathname === to + "/add";
 
     if (isActive) {
       e.currentTarget.style.backgroundColor = "#475569";
@@ -828,7 +897,8 @@ const Sidebar = ({
       const buttons = document.querySelectorAll("[data-to]");
       buttons.forEach((button) => {
         const href = button.getAttribute("data-to");
-        const isActive = location.pathname === href || location.pathname === href + "/add";
+        const isActive =
+          location.pathname === href || location.pathname === href + "/add";
 
         if (!isActive) {
           button.style.backgroundColor = "transparent";
@@ -957,6 +1027,7 @@ const Sidebar = ({
       fontFamily: "inherit",
       boxSizing: "border-box",
       transition: "all 0.1s ease",
+      whiteSpace: "nowrap",
     },
     subMenuButtonActive: {
       fontWeight: "600",
@@ -1048,7 +1119,9 @@ const Sidebar = ({
                     }}
                   >
                     {item.subItems?.map((subItem) => {
-                      const active = location.pathname === subItem.href || location.pathname === subItem.href + "/add";
+                      const active =
+                        location.pathname === subItem.href ||
+                        location.pathname === subItem.href + "/add";
                       return (
                         <div key={subItem.title} style={styles.subMenuItem}>
                           <Link

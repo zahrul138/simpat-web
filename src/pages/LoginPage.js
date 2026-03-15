@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LogoSimkom from "../assets/images/logo-simkom.png";
+import timerService from "../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const saveAuth = ({ token, user }) => {
@@ -244,6 +245,7 @@ const LoginPage = () => {
         return;
       }
       saveAuth(data);
+      timerService.start(); // start setelah session tersimpan
       navigate("/landing-page");
     } catch (e) {
       alert("Network error");
