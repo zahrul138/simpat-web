@@ -657,8 +657,7 @@ const Navbar = ({
           </div>
 
           <div style={styles.rightInfo}>
-            <span style={{ fontWeight: "500" }}>Main Menu SIMKOM</span>
-            <span style={styles.formBadge}>Form No: 1</span>
+            
             <div
               style={styles.editIconContainer}
               title="Send Feedback"

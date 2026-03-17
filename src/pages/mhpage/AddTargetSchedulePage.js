@@ -38,7 +38,7 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch { }
+  } catch {}
 
   if (!res.ok) {
     const msg = data?.message || text || `HTTP ${res.status}`;
@@ -59,7 +59,7 @@ const checkTargetDateExists = async (targetDate) => {
       dateTo: targetDate,
       page: 1,
       limit: 1,
-    })
+    }),
   );
   const total = Number(resp?.total || 0);
   if (total > 0) return true;
@@ -116,7 +116,7 @@ const stripNullish = (obj) => {
     return Object.fromEntries(
       Object.entries(obj)
         .filter(([, v]) => v != null)
-        .map(([k, v]) => [k, stripNullish(v)])
+        .map(([k, v]) => [k, stripNullish(v)]),
     );
   }
   return obj;
@@ -153,10 +153,6 @@ const postOneSchedule = async (header) => {
     throw new Error("Login token not found. Please login again.");
   }
   const body = buildScheduleBody(header);
-  console.log(
-    "[POST] /api/production-schedules",
-    JSON.stringify(body, null, 2)
-  );
   return http(API.schedules.create(), { method: "POST", body });
 };
 
@@ -215,13 +211,6 @@ const AddTargetSchedulePage = () => {
     return `${year}-${month}-${day}`;
   });
 
-  const [tooltip, setTooltip] = useState({
-    visible: false,
-    content: "",
-    x: 0,
-    y: 0,
-  });
-
   const toggleHeaderCheckbox = (headerId, checked) => {
     setSelectedHeaderIds((prev) => {
       const next = new Set(prev);
@@ -259,8 +248,8 @@ const AddTargetSchedulePage = () => {
         default_pallet_type: r.default_pallet_type ?? r.pallet_type ?? "R",
         pallet_capacity: Number(
           r.pallet_capacity ??
-          r.capacity ??
-          (r.default_pallet_type === "W" ? 32 : 16)
+            r.capacity ??
+            (r.default_pallet_type === "W" ? 32 : 16),
         ),
         min_pallet_w_quantity:
           r.min_pallet_w_quantity != null ? Number(r.min_pallet_w_quantity) : 5,
@@ -288,13 +277,12 @@ const AddTargetSchedulePage = () => {
       setFromMap(map);
       localStorage.setItem(CUSTOMER_CACHE_KEY, JSON.stringify(map));
     } catch (err) {
-      console.warn("[customers] load failed:", err);
       setCustomerMap({});
       setCustomerList([]);
       setCustomerError(
         err?.message === "Empty dataset"
           ? "Customer list is empty from API."
-          : "Failed to load customers."
+          : "Failed to load customers.",
       );
     } finally {
       setCustomerLoading(false);
@@ -310,7 +298,7 @@ const AddTargetSchedulePage = () => {
         if (mounted && map && typeof map === "object") {
           setFromMap(map);
         }
-      } catch { }
+      } catch {}
     }
     loadCustomers();
 
@@ -328,7 +316,7 @@ const AddTargetSchedulePage = () => {
     if (stored) {
       try {
         setSavedProductionSchedules(JSON.parse(stored));
-      } catch { }
+      } catch {}
     }
   }, []);
 
@@ -355,80 +343,8 @@ const AddTargetSchedulePage = () => {
   const toggleRowExpansion = (rowId) =>
     setExpandedRows((prev) => ({ ...prev, [rowId]: !prev[rowId] }));
 
-  const showTooltip = (e) => {
-    let content = "";
-    if (e.target.tagName === "BUTTON" || e.target.closest("button")) {
-      const button =
-        e.target.tagName === "BUTTON" ? e.target : e.target.closest("button");
-      if (
-        button.querySelector('svg[data-icon="plus"]') ||
-        (button.querySelector("svg") &&
-          button.querySelector("svg").parentElement.contains(e.target) &&
-          button.querySelector('[size="10"]'))
-      ) {
-        content = "Add";
-      } else if (
-        button.querySelector('svg[data-icon="trash-2"]') ||
-        (button.querySelector("svg") &&
-          button.querySelector("svg").parentElement.contains(e.target) &&
-          button.classList.contains("delete-button"))
-      ) {
-        content = "Delete";
-      } else if (button.title) {
-        content = button.title;
-      } else if (button.querySelector("svg")) {
-        const icon = button.querySelector("svg").parentElement;
-        if (icon) {
-          if (icon.contains(e.target)) {
-            if (button.querySelector('[size="10"]')) content = "Add";
-            else content = "Expand/hide details";
-          }
-        }
-      }
-    } else if (e.target.type === "checkbox") {
-      content = "Select this row";
-    } else if (e.target.tagName === "TD" || e.target.tagName === "TH") {
-      content = e.target.textContent.trim() || "Information";
-    }
-    const rect = e.target.getBoundingClientRect();
-    setTooltip({
-      visible: true,
-      content: content || "Information",
-      x: rect.left + rect.width / 2,
-      y: rect.top - 10,
-    });
-  };
-  const hideTooltip = () => setTooltip((t) => ({ ...t, visible: false }));
-
-  // const checkScheduleExistsInDb = async ({ line, shiftTime, targetDate }) => {
-  //   try {
-  //     const resp = await http(
-  //       API.schedules.list({
-  //         dateFrom: targetDate,
-  //         dateTo: targetDate,
-  //         limit: 200,
-  //         page: 1,
-  //       })
-  //     );
-  //     const items = resp?.items || [];
-  //     const found = items.find(
-  //       (it) =>
-  //         it.line_code === line &&
-  //         it.shift_time === shiftTime &&
-  //         it.target_date === targetDate
-  //     );
-  //     return found || null;
-  //   } catch (err) {
-  //     throw new Error(
-  //       `Failed to check duplicate on server: ${err.message || err}`
-  //     );
-  //   }
-  // };
-
   const handleInsertHeader = async () => {
-    console.log("=== DEBUG handleInsertHeader ===");
     console.log("targetDateFrom:", targetDateFrom);
-    console.log("shiftStart:", shiftStart, "shiftEnd:", shiftEnd);
     console.log("savedProductionSchedules:", savedProductionSchedules);
 
     if (!targetDateFrom) {
@@ -461,41 +377,6 @@ const AddTargetSchedulePage = () => {
     }
 
     const shiftTime = `${shiftStart} - ${shiftEnd}`;
-
-    // const toYMD = (d) => {
-    //   const yy = d.getFullYear();
-    //   const mm = String(d.getMonth() + 1).padStart(2, "0");
-    //   const dd = String(d.getDate()).padStart(2, "0");
-    //   return `${yy}-${mm}-${dd}`;
-    // };
-
-    // const todayStr = toYMD(new Date());
-    // const td = new Date(`${targetDateFrom}T00:00:00`);
-    // const ty = new Date(`${todayStr}T00:00:00`);
-
-    // if (td <= ty) {
-    //   alert("Target Date must be greater than Request Date (today.");
-    //   return;
-    // }
-
-    // const existsLocalDate = savedProductionSchedules.some(
-    //   (h) => h.date === targetDateFrom && h.shiftTime === shiftTime
-    // );
-    // if (existsLocalDate) {
-    //   alert("Schedule with same date and shift already exists in local list.");
-    //   return;
-    // }
-
-    // try {
-    //   const existsInDb = await checkTargetDateExists(targetDateFrom);
-    //   if (existsInDb) {
-    //     alert("Target Date has been created, select another Target Date");
-    //     return;
-    //   }
-    // } catch (err) {
-    //   alert(err.message || "Failed to check duplicate on server.");
-    //   return;
-    // }
 
     const line = "B1";
     const id = Date.now();
@@ -615,7 +496,7 @@ const AddTargetSchedulePage = () => {
     }
 
     const hIdx = savedProductionSchedules.findIndex(
-      (h) => h.id === activeHeaderId
+      (h) => h.id === activeHeaderId,
     );
     if (hIdx === -1) return;
 
@@ -629,7 +510,7 @@ const AddTargetSchedulePage = () => {
       const already = header.details.some(
         (d) =>
           (d.customer || "").trim() === (payload.customer || "").trim() &&
-          (d.poNumber || "").trim().toLowerCase() === poKey
+          (d.poNumber || "").trim().toLowerCase() === poKey,
       );
       if (already) {
         alert("PO Number already exists for this customer.");
@@ -655,7 +536,6 @@ const AddTargetSchedulePage = () => {
       description: "",
     });
 
-    // Auto-expand the detail table for this header
     setExpandedRows((prev) => ({ ...prev, [activeHeaderId]: true }));
   };
 
@@ -671,10 +551,10 @@ const AddTargetSchedulePage = () => {
     }
 
     const selected = [...selectedHeaderIds].map((id) =>
-      savedProductionSchedules.find((x) => x.id === id)
+      savedProductionSchedules.find((x) => x.id === id),
     );
     const tanpaDetail = selected.filter(
-      (h) => !h || !Array.isArray(h.details) || h.details.length === 0
+      (h) => !h || !Array.isArray(h.details) || h.details.length === 0,
     );
     if (tanpaDetail.length > 0) {
       alert("Please make schedule detail before input");
@@ -684,17 +564,12 @@ const AddTargetSchedulePage = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     for (const h of selected) {
-      // const td = new Date(`${h.date}T00:00:00`);
-      // if (td <= today) {
-      //   alert("Target Date must be greater than Request Date (today).");
-      //   return;
-      // }
       const dupeLocal = savedProductionSchedules.some(
         (x) =>
           x !== h &&
           x.date === h.date &&
           x.line === h.line &&
-          x.shiftTime === h.shiftTime
+          x.shiftTime === h.shiftTime,
       );
       if (dupeLocal) {
         alert("Duplicate schedule detected in local data.");
@@ -707,7 +582,7 @@ const AddTargetSchedulePage = () => {
 
       const postedIds = new Set(selected.map((h) => h.id));
       const remaining = savedProductionSchedules.filter(
-        (h) => !postedIds.has(h.id)
+        (h) => !postedIds.has(h.id),
       );
       setSavedProductionSchedules(remaining);
       localStorage.setItem("productionSchedules", JSON.stringify(remaining));
@@ -748,7 +623,7 @@ const AddTargetSchedulePage = () => {
           (d) =>
             d.customer === payload.customer &&
             d.poNumber === payload.poNumber &&
-            d.palletType === "Pallet W"
+            d.palletType === "Pallet W",
         )
         .reduce((a, b) => a + (Number(b.input) || 0), 0);
 
@@ -757,11 +632,11 @@ const AddTargetSchedulePage = () => {
       if (existed === 0 && remaining <= cap) {
         if (remaining < minW) {
           header.details.push(
-            cloneRow({ input: remaining, palletType: "Pallet R" })
+            cloneRow({ input: remaining, palletType: "Pallet R" }),
           );
         } else {
           header.details.push(
-            cloneRow({ input: remaining, palletType: "Pallet W" })
+            cloneRow({ input: remaining, palletType: "Pallet W" }),
           );
         }
         return;
@@ -772,7 +647,7 @@ const AddTargetSchedulePage = () => {
         const chunk = Math.min(roomW, remaining);
         if (chunk > 0) {
           header.details.push(
-            cloneRow({ input: chunk, palletType: "Pallet W" })
+            cloneRow({ input: chunk, palletType: "Pallet W" }),
           );
           remaining -= chunk;
         }
@@ -781,12 +656,12 @@ const AddTargetSchedulePage = () => {
       while (remaining > 0) {
         if (remaining < minW) {
           header.details.push(
-            cloneRow({ input: remaining, palletType: "Pallet R" })
+            cloneRow({ input: remaining, palletType: "Pallet R" }),
           );
           remaining = 0;
         } else if (remaining <= cap) {
           header.details.push(
-            cloneRow({ input: remaining, palletType: "Pallet W" })
+            cloneRow({ input: remaining, palletType: "Pallet W" }),
           );
           remaining = 0;
         } else {
@@ -1312,24 +1187,6 @@ const AddTargetSchedulePage = () => {
       marginTop: "10px",
       marginLeft: "13px",
     },
-    tooltip: {
-      position: "fixed",
-      top: tooltip.y,
-      left: tooltip.x,
-      backgroundColor: "rgba(0, 0, 0, 0.8)",
-      color: "white",
-      padding: "6px 10px",
-      borderRadius: "4px",
-      fontSize: "12px",
-      fontWeight: "500",
-      whiteSpace: "nowrap",
-      pointerEvents: "none",
-      zIndex: 1000,
-      opacity: tooltip.visible ? 1 : 0,
-      transition: "opacity 0.2s ease",
-      maxWidth: "300px",
-      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-    },
     cellContent: {
       overflow: "hidden",
       textOverflow: "ellipsis",
@@ -1595,29 +1452,18 @@ const AddTargetSchedulePage = () => {
                 </thead>
                 <tbody>
                   {savedProductionSchedules.length === 0 ? (
-                    <tr>
-                      {/* <td
-                        colSpan="12"
-                        style={{
-                          ...styles.tdWithLeftBorder,
-                          textAlign: "center",
-                          color: "#9ca3af",
-                        }}
-                      >
-                        No schedules yet — click Insert to create one.
-                      </td> */}
-                    </tr>
+                    <tr></tr>
                   ) : (
                     savedProductionSchedules.map((h, idx) => (
                       <FragmentLike key={h.id}>
                         <tr
                           onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                            (e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8")
                           }
                           onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                            (e.target.closest("tr").style.backgroundColor =
+                              "transparent")
                           }
                         >
                           <td
@@ -1664,57 +1510,51 @@ const AddTargetSchedulePage = () => {
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={toDDMMYYYY(h.date)}
                           >
                             {toDDMMYYYY(h.date)}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={h.line || ""}
                           >
                             {h.line}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={h.shiftTime || ""}
                           >
                             {h.shiftTime}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={String(h.total_input || 0)}
                           >
                             {h.total_input || 0}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={String(h.total_customer || 0)}
                           >
                             {h.total_customer || 0}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={String(h.total_model || 0)}
                           >
                             {h.total_model || 0}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={String(h.total_pallet || 0)}
                           >
                             {h.total_pallet || 0}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={
+                              h.createdByDisplay || String(h.createdBy || "")
+                            }
                           >
                             {h.createdByDisplay || h.createdBy}
                           </td>
@@ -1722,16 +1562,14 @@ const AddTargetSchedulePage = () => {
                             <button
                               style={styles.addButton}
                               onClick={() => openThirdLevelPopup(h.id)}
-                              onMouseEnter={showTooltip}
-                              onMouseLeave={hideTooltip}
+                              title="Add Detail"
                             >
                               <Plus size={10} />
                             </button>
                             <button
                               style={styles.deleteButton}
                               onClick={() => handleDeleteHeader(h.id)}
-                              onMouseEnter={showTooltip}
-                              onMouseLeave={hideTooltip}
+                              title="Delete"
                             >
                               <Trash2 size={10} />
                             </button>
@@ -1786,31 +1624,21 @@ const AddTargetSchedulePage = () => {
                                   </thead>
                                   <tbody>
                                     {(!h.details || h.details.length === 0) && (
-                                      <tr>
-                                        {/* <td
-                                          colSpan="10"
-                                          style={{
-                                            ...styles.expandedTd,
-                                            textAlign: "center",
-                                          }}
-                                        >
-                                          Details not yet added.
-                                        </td> */}
-                                      </tr>
+                                      <tr></tr>
                                     )}
                                     {h.details?.map((d, i) => (
                                       <tr
                                         key={`${h.id}-${i}`}
                                         onMouseEnter={(e) =>
-                                        (e.target.closest(
-                                          "tr"
-                                        ).style.backgroundColor = "#c7cde8")
+                                          (e.target.closest(
+                                            "tr",
+                                          ).style.backgroundColor = "#c7cde8")
                                         }
                                         onMouseLeave={(e) =>
-                                        (e.target.closest(
-                                          "tr"
-                                        ).style.backgroundColor =
-                                          "transparent")
+                                          (e.target.closest(
+                                            "tr",
+                                          ).style.backgroundColor =
+                                            "transparent")
                                         }
                                       >
                                         <td
@@ -1822,28 +1650,52 @@ const AddTargetSchedulePage = () => {
                                         >
                                           {i + 1}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title={d.materialCode || ""}
+                                        >
                                           {d.materialCode}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title={d.customer || ""}
+                                        >
                                           {d.customer}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title={d.model || ""}
+                                        >
                                           {d.model}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title={d.description || ""}
+                                        >
                                           {d.description}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title={String(d.input)}
+                                        >
                                           {d.input}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title={d.poNumber || ""}
+                                        >
                                           {d.poNumber}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title={d.palletType || ""}
+                                        >
                                           {d.palletType}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title={String(d.palletUse)}
+                                        >
                                           {d.palletUse}
                                         </td>
                                         <td style={styles.expandedTd}>
@@ -2057,7 +1909,6 @@ const AddTargetSchedulePage = () => {
           </div>
         </div>
       )}
-      <div style={styles.tooltip}>{tooltip.content}</div>
     </div>
   );
 };

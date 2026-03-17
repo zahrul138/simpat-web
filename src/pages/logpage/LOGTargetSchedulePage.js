@@ -66,7 +66,7 @@ const toDDMMYYYY = (iso) => {
   }
 };
 
-const TargetSchedulePage = ({ sidebarVisible }) => {
+const LOGTargetSchedulePage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
   const [productionSchedules, setProductionSchedules] = useState([]);
   const [expandedRows, setExpandedRows] = useState({});
@@ -82,7 +82,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("New");
+  const [activeTab, setActiveTab] = useState("OnProgress");
   const [autoCompleteLoading, setAutoCompleteLoading] = useState(false);
 
   const [lastDataUpdate, setLastDataUpdate] = useState(Date.now());
@@ -1516,15 +1516,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
           </div>
         </div>
         <div style={styles.actionButtonsGroup}>
-          <button
-            style={{ ...styles.button, ...styles.primaryButton }}
-            onMouseEnter={(e) => handleButtonHover(e, true, "search")}
-            onMouseLeave={(e) => handleButtonHover(e, false, "search")}
-            onClick={() => navigate("/target-schedule/add")}
-          >
-            <Plus size={16} />
-            Create
-          </button>
 
           {activeTab === "OnProgress" && selectedHeaderIds.size > 0 && (
             <button
@@ -1547,17 +1538,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         </div>
 
         <div style={styles.tabsContainer}>
-          <button
-            style={{
-              ...styles.tabButton,
-              ...(activeTab === "New" && styles.tabButtonActive),
-            }}
-            onClick={() => setActiveTab("New")}
-            onMouseEnter={(e) => handleTabHover(e, true, activeTab === "New")}
-            onMouseLeave={(e) => handleTabHover(e, false, activeTab === "New")}
-          >
-            New
-          </button>
           <button
             style={{
               ...styles.tabButton,
@@ -2182,4 +2162,4 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
 
 const FragmentLike = ({ children }) => children;
 
-export default TargetSchedulePage;
+export default LOGTargetSchedulePage;

@@ -546,6 +546,35 @@ const Sidebar = ({
     </svg>
   );
 
+  const RotateCcwIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <polyline points="1 4 1 10 7 10" />
+      <path d="M3.51 15a9 9 0 1 0 .49-4.95" />
+    </svg>
+  );
+
+  const DefectIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+
   const isPathActive = (basePath) => {
     return (
       location.pathname === basePath ||
@@ -641,9 +670,16 @@ const Sidebar = ({
         {
           title: "Quality Control",
           icon: ShieldIcon,
-          isActive: location.pathname.startsWith("/return-parts"),
+          isActive:
+            isParentOrChildActive("/return-parts") ||
+            isParentOrChildActive("/part-disposal-report-mh"),
           subItems: [
             { title: "Return Parts", href: "/return-parts", icon: UndoIcon },
+            {
+              title: "Part Disposal Report",
+              href: "/part-disposal-report-mh",
+              icon: BarChartIcon,
+            },
           ],
         },
       ],
@@ -654,7 +690,9 @@ const Sidebar = ({
           icon: CalendarIcon,
           isActive:
             isParentOrChildActive("/local-schedule") ||
-            isParentOrChildActive("/oversea-schedule"),
+            isParentOrChildActive("/oversea-schedule") ||
+            isParentOrChildActive("/production-schedule"),
+
           subItems: [
             {
               title: "Local Schedule",
@@ -666,6 +704,11 @@ const Sidebar = ({
               href: "/oversea-schedule",
               icon: ShipIcon,
             },
+            {
+              title: "Production Schedule",
+              href: "/production-schedule",
+              icon: CalendarIcon,
+            },
           ],
         },
         {
@@ -674,6 +717,7 @@ const Sidebar = ({
           isActive:
             isPathActive("/storage-inventory") ||
             isPathActive("/stock-overview") ||
+            isPathActive("/shortage-part") ||
             isParentOrChildActive("/part-details"),
           subItems: [
             {
@@ -684,6 +728,11 @@ const Sidebar = ({
             {
               title: "Stock Overview",
               href: "/stock-overview",
+              icon: LayoutDashboardIcon,
+            },
+            {
+              title: "Shortage Monitoring",
+              href: "/shortage-part",
               icon: LayoutDashboardIcon,
             },
             { title: "Part Details", href: "/part-details", icon: PackageIcon },
@@ -711,21 +760,31 @@ const Sidebar = ({
         {
           title: "Receive Control",
           icon: PackageCheckIcon,
-          isActive:
-            isPathActive("/receive-request") ||
-            isParentOrChildActive("/rtv-part") ||
-            isParentOrChildActive("/part-disposal-report"),
+          isActive: isPathActive("/receive-request"),
           subItems: [
             {
               title: "Receive Request",
               href: "/receive-request",
               icon: PackageCheckIcon,
             },
-            { title: "RTV Control", href: "/rtv-part", icon: PackageCheckIcon },
+          ],
+        },
+        {
+          title: "Defect Management",
+          icon: DefectIcon,
+          isActive:
+            isParentOrChildActive("/rtv-part") ||
+            isParentOrChildActive("/part-disposal-report"),
+          subItems: [
+            {
+              title: "RTV Control",
+              href: "/rtv-part",
+              icon: RotateCcwIcon,
+            },
             {
               title: "Part Disposal Report",
               href: "/part-disposal-report",
-              icon: PackageCheckIcon,
+              icon: BarChartIcon,
             },
           ],
         },
@@ -733,26 +792,11 @@ const Sidebar = ({
 
       quality: [
         {
-          title: "Dashboard",
-          icon: LayoutDashboardIcon,
-          isActive: isPathActive("/quality-dashboard"),
-          subItems: [
-            {
-              title: "QC Overview",
-              href: "/quality-dashboard",
-              icon: LayoutDashboardIcon,
-            },
-          ],
-        },
-        {
-          title: "Local Schedule",
-          icon: ClockIcon,
+          title: "Procurement Schedule",
+          icon: CalendarIcon,
           isActive:
             isPathActive("/qc-local-schedule") ||
-            isPathActive("/qc-oversea-schedule") ||
-            isPathActive("/qc-part") ||
-            isPathActive("/qc-return-parts"),
-
+            isPathActive("/qc-oversea-schedule"),
           subItems: [
             {
               title: "Local Schedule",
@@ -764,6 +808,17 @@ const Sidebar = ({
               href: "/qc-oversea-schedule",
               icon: ShipIcon,
             },
+          ],
+        },
+        {
+          title: "Quality Control",
+          icon: ShieldIcon,
+          isActive:
+            isPathActive("/qc-part") ||
+            isPathActive("/qc-return-parts") ||
+            isParentOrChildActive("/part-disposal-report-iqc"),
+
+          subItems: [
             {
               title: "Quality Parts",
               href: "/qc-part",
@@ -773,6 +828,11 @@ const Sidebar = ({
               title: "Return Parts",
               href: "/qc-return-parts",
               icon: UndoIcon,
+            },
+            {
+              title: "Part Disposal Report",
+              href: "/part-disposal-report-iqc",
+              icon: BarChartIcon,
             },
           ],
         },
@@ -799,8 +859,12 @@ const Sidebar = ({
             isPathActive("/create-user") ||
             isPathActive("/user-feedback"),
           subItems: [
-            { title: "Manage User",    href: "/user-control",  icon: UsersIcon },
-            { title: "User Feedback",  href: "/user-feedback", icon: MessageSquareIcon },
+            { title: "Manage User", href: "/user-control", icon: UsersIcon },
+            {
+              title: "User Feedback",
+              href: "/user-feedback",
+              icon: MessageSquareIcon,
+            },
           ],
         },
         {

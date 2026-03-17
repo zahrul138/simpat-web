@@ -43,6 +43,8 @@ import AddOverseaPartSchedulePage from "./pages/logpage/AddOverseaPartSchedulePa
 import StorageInventoryPage from "./pages/logpage/StorageInventoryPage";
 import RTVPartPage from "./pages/logpage/RTVPartPage";
 import PartDisposalReportPage from "./pages/logpage/PartDisposalReportPage";
+import LOGTargetSchedulePage from "./pages/logpage/LOGTargetSchedulePage";
+import ShortagePartPage from "./pages/logpage/ShortagePartPage";
 
 // Halaman SCN-IQC (Quality Control)
 import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
@@ -64,7 +66,7 @@ import UserControlPage from "./pages/admin/UserControlPage";
 import CreateUserPage from "./pages/admin/CreateUserPage";
 import UserFeedback from "./pages/admin/UserFeedback";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import ActivityLogPage    from "./pages/admin/ActivityLogPage";
+import ActivityLogPage from "./pages/admin/ActivityLogPage";
 
 import { getUser as getAuthUser } from "./utils/auth";
 import useActiveCheck from "./utils/useActiveCheck";
@@ -176,6 +178,7 @@ const LayoutHandler = () => {
       "/return-parts": { app: "production", dept: "SCN-MH" },
       "/mh-local-schedule": { app: "production", dept: "SCN-MH" },
       "/stock-overview-mh": { app: "production", dept: "SCN-MH" },
+      
       "/target-scanning": { app: "production", dept: "SCN-MH" },
       "/local-schedule": { app: "inventory", dept: "SCN-LOG" },
       "/oversea-schedule": { app: "inventory", dept: "SCN-LOG" },
@@ -186,7 +189,11 @@ const LayoutHandler = () => {
       "/stock-overview": { app: "inventory", dept: "SCN-LOG" },
       "/storage-inventory": { app: "inventory", dept: "SCN-LOG" },
       "/rtv-part": { app: "inventory", dept: "SCN-LOG" },
+      "/part-disposal-report-mh": { app: "production", dept: "SCN-MH" },
+      "/part-disposal-report-iqc": { app: "quality", dept: "SCN-IQC" },
       "/part-disposal-report": { app: "inventory", dept: "SCN-LOG" },
+      "/production-schedule": { app: "inventory", dept: "SCN-LOG" },
+      "/shortage-part": { app: "inventory", dept: "SCN-LOG" },
       "/quality-dashboard": { app: "quality", dept: "SCN-IQC" },
       "/iqc-local": { app: "quality", dept: "SCN-IQC" },
       "/quality": { app: "quality", dept: "SCN-IQC" },
@@ -267,7 +274,8 @@ const LayoutHandler = () => {
       {location.pathname === "/oversea-schedule/add" && <AddOverseaPartSchedulePage />}
       {location.pathname === "/storage-inventory" && <StorageInventoryPage />}
       {location.pathname === "/target-scanning" && <TargetScanningPage />}
-
+      {location.pathname === "/part-disposal-report-mh" && <PartDisposalReportPage />}
+      {location.pathname === "/part-disposal-report-iqc" && <PartDisposalReportPage />}
       {location.pathname === "/vendor-details" && <VendorDetailsPage />}
       {location.pathname === "/vendor-details/add" && <AddVendorPage />}
       {location.pathname === "/stock-overview" && <StockOverviewPage />}
@@ -281,6 +289,8 @@ const LayoutHandler = () => {
       {location.pathname === "/qc-return-parts" && <QCReturnPartsPage />}
       {location.pathname === "/rtv-part" && <RTVPartPage />}
       {location.pathname === "/part-disposal-report" && <PartDisposalReportPage />}
+      {location.pathname === "/production-schedule" && <LOGTargetSchedulePage />}
+      {location.pathname === "/shortage-part" && <ShortagePartPage />}
 
       {location.pathname === "/part-enquiry-id" && <PartsEnquiryIdPage />}
       {location.pathname === "/part-enquiry-id/add" && (

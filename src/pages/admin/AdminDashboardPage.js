@@ -653,12 +653,6 @@ const AdminDashboardPage = () => {
               <MessageSquare size={13} color="#2563eb" />
               <span style={styles.cardHeaderTitle}>Feedback Status</span>
             </div>
-            <button
-              style={styles.cardHeaderAction}
-              onClick={() => navigate("/user-feedback")}
-            >
-              View All <ChevronRight size={11} />
-            </button>
           </div>
           <div style={styles.feedbackBody}>
             {feedbackItems.map((item) => {
@@ -709,7 +703,7 @@ const AdminDashboardPage = () => {
             })}
             <div style={styles.divider} />
             <div style={styles.feedbackTotal}>
-              <span style={styles.feedbackTotalLabel}>Total</span>
+              <span style={styles.feedbackTotalLabel}>Total :</span>
               <span style={styles.feedbackTotalValue}>{val(f.total)}</span>
             </div>
           </div>

@@ -28,6 +28,7 @@ const PAGE_LABELS = {
   "/activity-log":         "Activity Log",
   "/system-dashboard":     "System Dashboard",
   "/create-user":          "Create User",
+  "/production-schedule": "Production Schedule"
 };
 
 export const getPageLabel = (path) => {
