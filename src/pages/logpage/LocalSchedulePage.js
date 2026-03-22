@@ -101,8 +101,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const [filters, setFilters] = useState({
     dateFrom: "",
     dateTo: "",
-    vendorName: "",
-    partCode: "",
+    searchBy: "vendorName",
+    keyword: "",
   });
 
   const fetchQcChecksComplete = async () => {
@@ -384,7 +384,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   useEffect(() => {
     const autoMoveOnMount = async () => {
       try {
-        // Ambil semua schedule berstatus 'Schedule'
+
         const response = await fetch(`${API_BASE}/api/local-schedules?status=Schedule`);
         if (!response.ok) return;
         const result = await response.json();
@@ -406,7 +406,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           body: JSON.stringify({ scheduleIds: toMove.map((s) => s.id), targetTab: "Today" }),
         });
 
-        // Refresh tab Schedule/Today jika sedang aktif
         if (activeTab === "Schedule" || activeTab === "Today") fetchSchedules();
       } catch (_) { }
     };
@@ -427,7 +426,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     try {
       const response = await fetch(`${API_BASE}/api/masters/trips`);
       const data = await response.json();
-      // Handle berbagai format response
+
       if (Array.isArray(data)) {
         setTripOptions(data);
       } else if (data && Array.isArray(data.data)) {
@@ -445,7 +444,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     try {
       const response = await fetch(`${API_BASE}/api/vendors`);
       const data = await response.json();
-      // Handle berbagai format response
+
       let vendorsArray = [];
       if (Array.isArray(data)) {
         vendorsArray = data;
@@ -469,7 +468,32 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
       const result = await response.json();
       if (result.success) {
-        setReceivedVendors(result.data || []);
+        let filteredVendors = result.data || [];
+        if (filters.dateFrom) {
+          filteredVendors = filteredVendors.filter((v) => {
+            const d = v.schedule_date ? v.schedule_date.split("T")[0] : "";
+            return d >= filters.dateFrom;
+          });
+        }
+        if (filters.dateTo) {
+          filteredVendors = filteredVendors.filter((v) => {
+            const d = v.schedule_date ? v.schedule_date.split("T")[0] : "";
+            return d <= filters.dateTo;
+          });
+        }
+        if (filters.keyword) {
+          const q = filters.keyword.toLowerCase();
+          if (filters.searchBy === "vendorName") {
+            filteredVendors = filteredVendors.filter((v) =>
+              v.vendor_name?.toLowerCase().includes(q),
+            );
+          } else if (filters.searchBy === "partCode") {
+            filteredVendors = filteredVendors.filter((v) =>
+              v.parts?.some((p) => p.part_code?.toLowerCase().includes(q)),
+            );
+          }
+        }
+        setReceivedVendors(filteredVendors);
       }
     } catch (error) {
       console.error("Error fetching received vendors:", error);
@@ -482,19 +506,43 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const fetchIqcProgressVendors = async () => {
     setLoading(true);
     try {
-      // Cek dulu apakah ada vendor IQC Progress yang sudah bisa pindah ke Pass
-      // (semua sample_dates sudah Complete di qc_checks) — mirip mekanisme Oversea
+
       await fetch(`${API_BASE}/api/local-schedules/check-iqc-to-pass`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-      }).catch(() => { }); // Jangan hentikan flow jika gagal
+      }).catch(() => { });
 
       const response = await fetch(
         `${API_BASE}/api/local-schedules/iqc-progress-vendors`,
       );
       const result = await response.json();
       if (result.success) {
-        setIqcProgressVendors(result.data || []);
+        let filteredVendors = result.data || [];
+        if (filters.dateFrom) {
+          filteredVendors = filteredVendors.filter((v) => {
+            const d = v.schedule_date ? v.schedule_date.split("T")[0] : "";
+            return d >= filters.dateFrom;
+          });
+        }
+        if (filters.dateTo) {
+          filteredVendors = filteredVendors.filter((v) => {
+            const d = v.schedule_date ? v.schedule_date.split("T")[0] : "";
+            return d <= filters.dateTo;
+          });
+        }
+        if (filters.keyword) {
+          const q = filters.keyword.toLowerCase();
+          if (filters.searchBy === "vendorName") {
+            filteredVendors = filteredVendors.filter((v) =>
+              v.vendor_name?.toLowerCase().includes(q),
+            );
+          } else if (filters.searchBy === "partCode") {
+            filteredVendors = filteredVendors.filter((v) =>
+              v.parts?.some((p) => p.part_code?.toLowerCase().includes(q)),
+            );
+          }
+        }
+        setIqcProgressVendors(filteredVendors);
       }
     } catch (error) {
       console.error("Error fetching IQC Progress vendors:", error);
@@ -512,7 +560,32 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
       const result = await response.json();
       if (result.success) {
-        setPassVendors(result.data || []);
+        let filteredVendors = result.data || [];
+        if (filters.dateFrom) {
+          filteredVendors = filteredVendors.filter((v) => {
+            const d = v.schedule_date ? v.schedule_date.split("T")[0] : "";
+            return d >= filters.dateFrom;
+          });
+        }
+        if (filters.dateTo) {
+          filteredVendors = filteredVendors.filter((v) => {
+            const d = v.schedule_date ? v.schedule_date.split("T")[0] : "";
+            return d <= filters.dateTo;
+          });
+        }
+        if (filters.keyword) {
+          const q = filters.keyword.toLowerCase();
+          if (filters.searchBy === "vendorName") {
+            filteredVendors = filteredVendors.filter((v) =>
+              v.vendor_name?.toLowerCase().includes(q),
+            );
+          } else if (filters.searchBy === "partCode") {
+            filteredVendors = filteredVendors.filter((v) =>
+              v.parts?.some((p) => p.part_code?.toLowerCase().includes(q)),
+            );
+          }
+        }
+        setPassVendors(filteredVendors);
       }
     } catch (error) {
       console.error("Error fetching Pass vendors:", error);
@@ -530,7 +603,32 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
       const result = await response.json();
       if (result.success) {
-        setCompleteVendors(result.data || []);
+        let filteredVendors = result.data || [];
+        if (filters.dateFrom) {
+          filteredVendors = filteredVendors.filter((v) => {
+            const d = v.schedule_date ? v.schedule_date.split("T")[0] : "";
+            return d >= filters.dateFrom;
+          });
+        }
+        if (filters.dateTo) {
+          filteredVendors = filteredVendors.filter((v) => {
+            const d = v.schedule_date ? v.schedule_date.split("T")[0] : "";
+            return d <= filters.dateTo;
+          });
+        }
+        if (filters.keyword) {
+          const q = filters.keyword.toLowerCase();
+          if (filters.searchBy === "vendorName") {
+            filteredVendors = filteredVendors.filter((v) =>
+              v.vendor_name?.toLowerCase().includes(q),
+            );
+          } else if (filters.searchBy === "partCode") {
+            filteredVendors = filteredVendors.filter((v) =>
+              v.parts?.some((p) => p.part_code?.toLowerCase().includes(q)),
+            );
+          }
+        }
+        setCompleteVendors(filteredVendors);
       }
     } catch (error) {
       console.error("Error fetching Complete vendors:", error);
@@ -583,6 +681,32 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           });
         }
 
+        if (filters.dateFrom) {
+          filteredData = filteredData.filter((s) => {
+            const d = s.schedule_date ? s.schedule_date.split("T")[0] : "";
+            return d >= filters.dateFrom;
+          });
+        }
+        if (filters.dateTo) {
+          filteredData = filteredData.filter((s) => {
+            const d = s.schedule_date ? s.schedule_date.split("T")[0] : "";
+            return d <= filters.dateTo;
+          });
+        }
+        if (filters.keyword) {
+          const q = filters.keyword.toLowerCase();
+          if (filters.searchBy === "vendorName") {
+            filteredData = filteredData.filter((s) =>
+              s.vendors?.some((v) => v.vendor_name?.toLowerCase().includes(q)),
+            );
+          } else if (filters.searchBy === "partCode") {
+            filteredData = filteredData.filter((s) =>
+              s.vendors?.some((v) =>
+                v.parts?.some((p) => p.part_code?.toLowerCase().includes(q)),
+              ),
+            );
+          }
+        }
         setSchedules(filteredData);
         setSelectedScheduleIds(new Set());
         setSelectAll(false);
@@ -599,7 +723,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
-  // ====== EDIT SCHEDULE ======
+  const handleSearch = () => {
+    if (activeTab === "Received") fetchReceivedVendors();
+    else if (activeTab === "IQC Progress") fetchIqcProgressVendors();
+    else if (activeTab === "Pass") fetchPassVendors();
+    else if (activeTab === "Complete") fetchCompleteVendors();
+    else fetchSchedules();
+  };
+
+
   const handleEditSchedule = (schedule) => {
     setEditingScheduleId(schedule.id);
     setEditScheduleData({
@@ -648,10 +780,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== EDIT PART ======
   const handleEditPart = (part, vendorId) => {
     setEditingPartId(part.id);
-    // Gabungkan prod_date dengan prod_dates untuk editing
+
     const existingDates = part.prod_dates ? [...part.prod_dates] : [];
     if (
       part.prod_date &&
@@ -699,12 +830,11 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditPart = async (partId) => {
     try {
-      // Filter out empty dates
+
       const validDates = (editPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== "",
       );
 
-      // Ambil user yang sedang login dari sessionStorage
       const authUser = getAuthUser();
       const uploadByName = authUser?.emp_name || authUser?.name || "";
       const uploadById = authUser?.id || null;
@@ -730,8 +860,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        // Langsung update local state agar kolom Upload By (Today tab) terupdate seketika
-        // tanpa perlu menunggu fetchSchedules() selesai
+
         const vendorId = editPartData.vendorId;
         const nowIso = new Date().toISOString();
 
@@ -764,10 +893,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== PRODUCTION DATES POPUP HANDLERS (Multiple Dates) ======
   const handleOpenProdDatesPopup = (part) => {
     setActiveProdDatesPart(part);
-    // Gabungkan prod_date dengan prod_dates
+
     const existingDates = part.prod_dates ? [...part.prod_dates] : [];
     if (
       part.prod_date &&
@@ -800,7 +928,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const handleSaveProdDates = async () => {
     if (!activeProdDatesPart) return;
 
-    // Filter out empty dates
     const validDates = tempProdDates.filter((d) => d && d.trim() !== "");
 
     try {
@@ -828,7 +955,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== ADD SAMPLE DATE HANDLERS (IQC Progress) ======
   const handleOpenAddSamplePopup = (part) => {
     setActiveSamplePart(part);
     setNewSampleDate("");
@@ -854,12 +980,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       existingProdDates.unshift(activeSamplePart.prod_date.split("T")[0]);
     }
 
-    // Tambahkan date baru jika belum ada
     if (!existingProdDates.includes(newSampleDate)) {
       existingProdDates.push(newSampleDate);
     }
 
-    // Juga perbarui sample_dates (frozen) agar Status & Sample column tetap konsisten
     const existingSampleDates = Array.isArray(activeSamplePart.sample_dates)
       ? [...activeSamplePart.sample_dates]
       : [];
@@ -892,7 +1016,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== DELETE FUNCTIONS ======
   const handleDeleteSchedule = async (scheduleId) => {
     if (!window.confirm("Are you sure you want to delete this schedule?"))
       return;
@@ -924,7 +1047,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleDeleteVendor = async (vendorId) => {
-    if (!window.confirm("Are you sure you want to delete this vendor?")) return;
+    if (!window.confirm("Are you sure you want to delete this schedule?")) return;
 
     try {
       const response = await fetch(
@@ -937,7 +1060,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        alert("Vendor deleted successfully!");
+        alert("Schedule deleted successfully!");
         if (activeTab === "Received") {
           await fetchReceivedVendors();
         } else {
@@ -947,7 +1070,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         throw new Error(result.message || "Failed to delete vendor");
       }
     } catch (error) {
-      alert("Failed to delete vendor: " + error.message);
+      alert("Failed to delete schedule: " + error.message);
     }
   };
 
@@ -975,7 +1098,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== CHECKBOX FUNCTIONS ======
   const toggleScheduleCheckbox = (scheduleId, checked) => {
     setSelectedScheduleIds((prev) => {
       const next = new Set(prev);
@@ -994,9 +1116,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     setSelectAll(checked);
   };
 
-  // ====== MOVE FUNCTIONS ======
   const handleMoveVendorToReceived = async (vendorId, scheduleId) => {
-    if (!window.confirm("Move this vendor to Received?")) return;
+    if (!window.confirm("Move this schedule to Received?")) return;
 
     try {
       const authUser = getAuthUser();
@@ -1013,20 +1134,21 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        alert("Vendor moved to Received!");
+        alert("Schedule moved to Received!");
+        setActiveTab("Received");
         await fetchSchedules();
       } else {
         throw new Error(result.message || "Failed to move vendor");
       }
     } catch (error) {
-      alert("Failed to move vendor: " + error.message);
+      alert("Failed to move schedule: " + error.message);
     }
   };
 
   const handleApproveVendor = async (vendorId) => {
     if (
       !window.confirm(
-        "Approve this vendor?\n\nParts will be added to M101 stock inventory.\nIf all production dates are already complete in QC Check, vendor will go directly to Pass.\nOtherwise vendor will be moved to IQC Progress for sampling.",
+        "Approve this schedule?",
       )
     )
       return;
@@ -1054,24 +1176,25 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           ? "\nNo sampling needed → moved to Pass."
           : "\nProd dates pending QC → moved to IQC Progress.";
 
-        alert(`Vendor approved!${stockInfo}${destinationInfo}`);
+        alert(`Schedule approved!`);
+        setActiveTab(result.data.allPartsPass ? "Pass" : "IQC Progress");
         await fetchReceivedVendors();
       } else {
         throw new Error(result.message || "Failed to approve vendor");
       }
     } catch (error) {
-      alert("Failed to approve vendor: " + error.message);
+      alert("Failed to approve schedule: " + error.message);
     }
   };
 
   const handleApproveVendorWithStockChoice = async (vendorId, vendor) => {
-    // Tampilkan dialog untuk memilih stock level
+
     const stockLevel = window.prompt(
       "Approve vendor and add parts to stock.\n\nSelect stock level:\n- M101 (MH Scanner)\n- M136 (Logistic)\n\nEnter M101 or M136:",
       "M136",
     );
 
-    if (!stockLevel) return; // User cancelled
+    if (!stockLevel) return;
 
     const normalizedStockLevel = stockLevel.toUpperCase().trim();
     if (!["M101", "M136"].includes(normalizedStockLevel)) {
@@ -1081,7 +1204,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
     if (
       !window.confirm(
-        `Approve this vendor and add parts to ${normalizedStockLevel} stock?`,
+        `Approve this schedule and add parts to ${normalizedStockLevel} stock?`,
       )
     )
       return;
@@ -1109,21 +1232,21 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             ? `\n${result.data.partsAddedToStock} parts added to ${result.data.stockLevel} stock.`
             : "";
 
-        alert(`Vendor approved!${stockInfo}`);
+        alert(`Schedule approved!${stockInfo}`);
+        setActiveTab(result.data.allPartsPass ? "Pass" : "IQC Progress");
         await fetchReceivedVendors();
       } else {
         throw new Error(result.message || "Failed to approve vendor");
       }
     } catch (error) {
-      alert("Failed to approve vendor: " + error.message);
+      alert("Failed to approve schedule: " + error.message);
     }
   };
 
-  // ====== MOVE PART TO SAMPLE (Create QC Check entries) ======
   const handleMovePartToSample = async (part, vendor) => {
-    // PERBAIKAN: Terima vendor object, bukan hanya vendorId
+
     const vendorName = vendor.vendor_name || "";
-    const vendorType = "Local"; // Karena ini LocalSchedulePage
+    const vendorType = "Local";
 
     const { status, sampleDates } = getPartSampleStatus(part);
 
@@ -1150,13 +1273,12 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       const authUser = getAuthUser();
       const moveByName = authUser?.emp_name || "Unknown";
 
-      // Create QC Check entries for each sample date
       for (const sampleDate of sampleDates) {
         const qcCheckData = {
           part_code: part.part_code,
           part_name: part.part_name,
           production_date: sampleDate,
-          // Note: Don't send vendor_id because local_schedule_vendors.id != vendor_detail.id
+
           vendor_name: vendorName,
           vendor_type: vendorType,
           local_schedule_part_id: part.id,
@@ -1178,7 +1300,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         }
       }
 
-      // Update part status to SAMPLE
       await fetch(`${API_BASE}/api/local-schedules/parts/${part.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -1193,11 +1314,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== HANDLERS FOR IQC PROGRESS TAB ======
   const handleMoveVendorToSample = async (vendorId) => {
     if (
       !window.confirm(
-        "Move this vendor to Sample? All SAMPLE parts will be sent to Current Check.",
+        "Move this schedule to Sample? All SAMPLE parts will be sent to Current Check.",
       )
     )
       return;
@@ -1206,25 +1326,22 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       const authUser = getAuthUser();
       const moveByName = authUser?.emp_name || "Unknown";
 
-      // Find the vendor from iqcProgressVendors to get parts
       const vendor = iqcProgressVendors.find((v) => v.id === vendorId);
       if (!vendor) {
         throw new Error("Vendor not found");
       }
 
-      // Create QC Check entries for all SAMPLE parts
       if (vendor.parts && vendor.parts.length > 0) {
         for (const part of vendor.parts) {
           const { status, sampleDates } = getPartSampleStatus(part);
 
-          // Only create QC checks for SAMPLE status parts with sample dates
           if (status === "SAMPLE" && sampleDates.length > 0) {
             for (const sampleDate of sampleDates) {
               const qcCheckData = {
                 part_code: part.part_code,
                 part_name: part.part_name,
                 production_date: sampleDate,
-                // Note: Don't send vendor_id because local_schedule_vendors.id != vendor_detail.id
+
                 vendor_name: vendor.vendor_name || "",
                 vendor_type: "Local",
                 local_schedule_part_id: part.id,
@@ -1232,7 +1349,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 data_from: "M101",
                 status: "M101 Part",
                 created_by: moveByName,
-                skip_duplicate_check: true, // Skip duplicate check since we're doing vendor-level move
+                skip_duplicate_check: true,
               };
 
               await fetch(`${API_BASE}/api/qc-checks`, {
@@ -1245,7 +1362,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         }
       }
 
-      // Move vendor to Sample tab
       const response = await fetch(
         `${API_BASE}/api/local-schedules/vendors/${vendorId}/move-to-sample`,
         {
@@ -1257,19 +1373,20 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        alert("Vendor moved to Sample! SAMPLE parts sent to Current Check.");
+        alert("Schedule moved to Sample! SAMPLE parts sent to Current Check.");
+        setActiveTab("Pass");
         await fetchIqcProgressVendors();
       } else {
         throw new Error(result.message || "Failed to move vendor");
       }
     } catch (error) {
-      alert("Failed to move vendor: " + error.message);
+      alert("Failed to move schedule: " + error.message);
     }
   };
 
   const handleEditIqcPart = (part, vendorId) => {
     setEditingIqcPartId(part.id);
-    // Gabungkan prod_date dengan prod_dates untuk editing
+
     const existingDates = part.prod_dates ? [...part.prod_dates] : [];
     if (
       part.prod_date &&
@@ -1293,18 +1410,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditIqcPart = async (partId) => {
     try {
-      // Filter out empty dates
+
       const validDates = (editIqcPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== "",
       );
 
-      // Recalculate sample_dates dari prod_dates baru:
-      // hanya tanggal yang belum Complete di qc_checks yang masuk sample
       const newSampleDates = validDates.filter(
         (date) => !isProductionDateComplete(editIqcPartData.part_code, date.split("T")[0]),
       );
 
-      // Ambil user dari sessionStorage untuk update Approve By
       const authUser = getAuthUser();
       const approveByName = authUser?.emp_name || authUser?.name || "";
       const approveById = authUser?.id || null;
@@ -1327,7 +1441,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        // Langsung update local state agar kolom Approve By terupdate seketika
+
         const vendorId = editIqcPartData.vendorId;
         const nowIso = new Date().toISOString();
 
@@ -1352,9 +1466,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== HANDLERS FOR PASS TAB ======
   const handleMoveVendorToComplete = async (vendorId) => {
-    if (!window.confirm("Move this vendor to Complete?")) return;
+    if (!window.confirm("Move this schedule to Complete?")) return;
 
     try {
       const authUser = getAuthUser();
@@ -1371,13 +1484,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        alert("Vendor moved to Complete!");
+        alert("Schedule moved to Complete!");
+        setActiveTab("Complete");
         await fetchPassVendors();
       } else {
         throw new Error(result.message || "Failed to move vendor");
       }
     } catch (error) {
-      alert("Failed to move vendor: " + error.message);
+      alert("Failed to move schedule: " + error.message);
     }
   };
 
@@ -1422,7 +1536,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleReturnVendor = async (vendorId) => {
-    if (!window.confirm("Return this vendor to Today tab?")) return;
+    if (!window.confirm("Return this schedule to Today tab?")) return;
 
     try {
       const response = await fetch(
@@ -1435,13 +1549,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        alert("Vendor returned to Today!");
+        alert("Schedule returned to Today!");
+        setActiveTab("Today");
         await fetchReceivedVendors();
       } else {
         throw new Error(result.message || "Failed to return vendor");
       }
     } catch (error) {
-      alert("Failed to return vendor: " + error.message);
+      alert("Failed to return schedule: " + error.message);
     }
   };
 
@@ -1479,7 +1594,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== ADD VENDOR POPUP HANDLERS (same as AddLocalSchedulePage.js) ======
   const handleOpenAddVendor = (scheduleId) => {
     setActiveHeaderIdForVendorForm(scheduleId);
     setAddVendorFormData({
@@ -1558,7 +1672,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (result.success) {
-        alert("Vendor added successfully");
+        alert("Schedule added successfully");
         setAddVendorDetail(false);
         setAddVendorFormData({
           trip: "",
@@ -1568,19 +1682,18 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         });
         fetchSchedules();
       } else {
-        alert(result.message || "Failed to add vendor");
+        alert(result.message || "Failed to add schedule");
       }
     } catch (error) {
       console.error("Error adding vendor:", error);
-      alert("Failed to add vendor");
+      alert("Failed to add schedule");
     }
   };
 
-  // ====== ADD PART POPUP HANDLERS (same as AddLocalSchedulePage.js) ======
   const handleOpenAddPart = (vendorId, vendorData) => {
     setActiveVendorContext({
       vendorId: vendorId,
-      vendorDbId: vendorData?.vendor_id || null, // ID vendor dari database untuk validasi part
+      vendorDbId: vendorData?.vendor_id || null,
       doNumbers: vendorData?.do_numbers
         ? vendorData.do_numbers.split(",")
         : [""],
@@ -1603,7 +1716,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     if (!partCode) return;
 
     if (!activeVendorContext) {
-      alert("Vendor context not found. Open popup from vendor row.");
+      alert("Schedule context not found. Open popup from schedule row.");
       return;
     }
 
@@ -1621,7 +1734,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const json = await resp.json();
 
-      // Validasi: jika part tidak ditemukan sama sekali
       if (!json.success || !json.item) {
         alert("Part code has not found.");
         return;
@@ -1629,17 +1741,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const item = json.item;
 
-      // Validasi: jika part ditemukan tapi milik vendor lain
       if (
         activeVendorContext.vendorDbId &&
         item.vendor_id &&
         Number(item.vendor_id) !== Number(activeVendorContext.vendorDbId)
       ) {
-        alert("Part code belongs to another vendor.");
+        alert("Part code belongs to another schedule.");
         return;
       }
 
-      // Validasi: jika part sudah ditambahkan
       if (existingPartCodes.includes(item.part_code)) {
         alert("Part already added");
         return;
@@ -1762,7 +1872,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== FORMAT FUNCTIONS ======
   const formatDate = (dateString) => {
     try {
       if (!dateString) return "-";
@@ -1793,7 +1902,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // ====== ROW EXPANSION ======
   const toggleRowExpansion = (rowId) => {
     if (activeTab === "Today") return;
     setExpandedRows((prev) => ({ ...prev, [rowId]: !prev[rowId] }));
@@ -1805,8 +1913,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       [vendorRowId]: !prev[vendorRowId],
     }));
   };
-
-
 
   const handleInputFocus = (e) => (e.target.style.borderColor = "#9fa8da");
   const handleInputBlur = (e) => (e.target.style.borderColor = "#d1d5db");
@@ -2619,7 +2725,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       color: "#374151",
     },
 
-    // Inline Prod Dates Editor (Today Tab)
     inlineProdDatesContainer: {
       display: "flex",
       flexWrap: "wrap",
@@ -2667,7 +2772,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       fontSize: "10px",
     },
 
-    // Status Badge - POLOS tanpa warna
     statusBadge: {
       padding: "2px 8px",
       borderRadius: "4px",
@@ -2678,18 +2782,17 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     },
 
     statusPass: {
-      // Polos tanpa warna
+
       backgroundColor: "transparent",
       color: "#374151",
     },
 
     statusSample: {
-      // Polos tanpa warna
+
       backgroundColor: "transparent",
       color: "#374151",
     },
 
-    // Sample Dates
     sampleDatesList: {
       display: "flex",
       flexDirection: "column",
@@ -2703,7 +2806,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       borderRadius: "2px",
     },
 
-    // Popup Styles untuk Multiple Dates
     popupOverlayDates: {
       position: "fixed",
       top: 0,
@@ -3121,6 +3223,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="13"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          
+            title="Loading"
           >
             Loading...
           </td>
@@ -3136,10 +3240,11 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
+            title={index + 1}
           >
             {index + 1}
           </td>
-          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}>
+          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }} title="Toggle details">
             <button
               style={styles.arrowButton}
               onClick={() =>
@@ -3268,6 +3373,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                               ...styles.expandedWithLeftBorder,
                               ...styles.emptyColumn,
                             }}
+                            title={i + 1}
                           >
                             {i + 1}
                           </td>
@@ -3331,6 +3437,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             padding: "10px",
                             color: "#6b7280",
                           }}
+                          title="No parts"
                         >
                           No parts
                         </td>
@@ -3346,7 +3453,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // ====== RENDER IQC PROGRESS TAB ======
   const renderIqcProgressTab = () => {
     if (loading)
       return (
@@ -3354,6 +3460,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="13"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          
+            title="Loading"
           >
             Loading...
           </td>
@@ -3729,7 +3837,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 </>
                               ) : (
                                 <>
-                                  {/* Tombol Edit */}
+                                  
                                   <button
                                     style={styles.editButton}
                                     onClick={() => handleEditIqcPart(part, vendor.id)}
@@ -3738,7 +3846,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                     <Pencil size={10} />
                                   </button>
 
-                                  {/* Tombol Delete */}
+                                  
                                   <button
                                     style={styles.deleteButton}
                                     onClick={() => handleDeletePart(part.id)}
@@ -3761,6 +3869,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             padding: "10px",
                             color: "#6b7280",
                           }}
+                          title="No parts"
                         >
                           No parts
                         </td>
@@ -3776,7 +3885,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // ====== RENDER PASS TAB ======
   const renderPassTab = () => {
     if (loading)
       return (
@@ -3784,6 +3892,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="13"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          
+            title="Loading"
           >
             Loading...
           </td>
@@ -4137,7 +4247,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // ====== RENDER COMPLETE TAB ======
   const renderCompleteTab = () => {
     if (loading)
       return (
@@ -4145,6 +4254,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="12"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          
+            title="Loading"
           >
             Loading...
           </td>
@@ -4423,7 +4534,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // ====== RENDER TABLE BODY ======
   const renderTableBody = () => {
     if (loading)
       return (
@@ -4431,6 +4541,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="11"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
+          
+            title="Loading"
           >
             Loading...
           </td>
@@ -4446,11 +4558,12 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
+            title={index + 1}
           >
             {index + 1}
           </td>
           {activeTab !== "Schedule" && activeTab !== "Today" && (
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title="Select">
               <input
                 type="checkbox"
                 checked={selectedScheduleIds.has(schedule.id)}
@@ -4467,8 +4580,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               />
             </td>
           )}
-          {/* REMOVED MdArrowDropDown for Today tab - empty cell instead */}
-          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}>
+          
+          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }} title="Toggle details">
             {activeTab === "Today" ? null : (
               <button
                 style={styles.arrowButton}
@@ -4482,7 +4595,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               </button>
             )}
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Date" : formatDate(schedule.schedule_date)}>
             {editingScheduleId === schedule.id ? (
               <input
                 type="date"
@@ -4499,7 +4612,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               formatDate(schedule.schedule_date)
             )}
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Stock Level" : schedule.stock_level || "-"}>
             {editingScheduleId === schedule.id ? (
               <input
                 type="text"
@@ -4516,7 +4629,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               schedule.stock_level
             )}
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Model" : schedule.model_name || "-"}>
             {editingScheduleId === schedule.id ? (
               <input
                 type="text"
@@ -4533,15 +4646,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               schedule.model_name
             )}
           </td>
-          <td style={styles.tdWithLeftBorder}>{schedule.total_vendor || 0}</td>
-          <td style={styles.tdWithLeftBorder}>{schedule.total_pallet || 0}</td>
-          <td style={styles.tdWithLeftBorder}>{schedule.total_item || 0}</td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={schedule.total_vendor?.toString() || "0"}>{schedule.total_vendor || 0}</td>
+          <td style={styles.tdWithLeftBorder} title={schedule.total_pallet?.toString() || "0"}>{schedule.total_pallet || 0}</td>
+          <td style={styles.tdWithLeftBorder} title={schedule.total_item?.toString() || "0"}>{schedule.total_item || 0}</td>
+          <td style={styles.tdWithLeftBorder} title={`${schedule.upload_by_name || "-"} | ${formatDateTime(schedule.updated_at || schedule.created_at)}`}>
             {schedule.upload_by_name} |{" "}
             {formatDateTime(schedule.updated_at || schedule.created_at)}
           </td>
-          {/* ACTION column with Add Vendor button moved here */}
-          <td style={styles.tdWithLeftBorder}>
+          
+          <td style={styles.tdWithLeftBorder} title="Action">
             {editingScheduleId === schedule.id ? (
               <>
                 <button
@@ -4579,7 +4692,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                     <Trash2 size={10} />
                   </button>
                 )}
-                {/* ADD VENDOR BUTTON MOVED HERE - beside delete */}
+                
                 {(activeTab === "Today" || activeTab === "Schedule") && (
                   <button
                     style={styles.addButton}
@@ -4634,6 +4747,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 ...styles.expandedWithLeftBorder,
                                 ...styles.emptyColumn,
                               }}
+                              title={vi + 1}
                             >
                               {vi + 1}
                             </td>
@@ -4642,6 +4756,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 ...styles.tdWithLeftBorder,
                                 ...styles.emptyColumn,
                               }}
+                              title="Toggle details"
                             >
                               <button
                                 style={styles.arrowButton}
@@ -5047,7 +5162,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                                     </span>
                                                   )
                                                 ) : (
-                                                  // Tab New dan Schedule: Tampilkan "-"
+
                                                   "-"
                                                 )}
                                               </td>
@@ -5180,40 +5295,46 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </div>
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
-              <span style={styles.label}>Date Filter</span>
-              <select style={styles.select}>
-                <option style={optionStyle}>Search Date</option>
-              </select>
+              <span style={styles.label}>Date From</span>
               <input
                 type="date"
                 style={styles.input}
-                placeholder="Date From"
-
+                value={filters.dateFrom}
+                onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
               />
-              <span style={styles.label}>To</span>
+              <span style={styles.label}>Date To</span>
               <input
                 type="date"
                 style={styles.input}
-                placeholder="Date To"
-
+                value={filters.dateTo}
+                onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
               />
             </div>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
               <select
                 style={styles.select}
+                value={filters.searchBy}
+                onChange={(e) => handleFilterChange("searchBy", e.target.value)}
               >
-                <option style={optionStyle}>Customer</option>
-                <option style={optionStyle}>Product Code</option>
-                <option style={optionStyle}>Product Description</option>
+                <option style={optionStyle} value="vendorName">Vendor Name</option>
+                <option style={optionStyle} value="partCode">Part Code</option>
               </select>
               <input
                 type="text"
                 style={styles.input}
                 placeholder="Input Keyword"
-
+                value={filters.keyword}
+                onChange={(e) => handleFilterChange("keyword", e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
               />
-              <button style={styles.button}>
+              <button style={styles.button} onClick={handleSearch}>
                 Search
               </button>
             </div>
@@ -5439,7 +5560,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             </div>
           )}
 
-        {/* ADD VENDOR POPUP - from AddLocalSchedulePage.js */}
+        
         {addVendorDetail && (
           <div style={vendorDetailStyles.popupOverlay}>
             <div style={vendorDetailStyles.popupContainer}>
@@ -5585,7 +5706,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        {/* ADD PART POPUP - from AddLocalSchedulePage.js */}
+        
         {addVendorPartDetail && (
           <div style={vendorPartStyles.popupOverlay}>
             <div style={vendorPartStyles.popupContainer}>
@@ -5717,10 +5838,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 ).style.backgroundColor = "transparent")
                                 }
                               >
-                                <td style={vendorPartStyles.tdNumber}>
+                                <td style={vendorPartStyles.tdNumber} title={index + 1}>
                                   {index + 1}
                                 </td>
-                                <td style={styles.tdWithLeftBorder}>
+                                <td style={styles.tdWithLeftBorder} title="Select">
                                   <input
                                     type="checkbox"
                                     checked={selectedPartsInPopup.includes(
@@ -5750,7 +5871,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 >
                                   {part.partName || "—"}
                                 </td>
-                                <td style={vendorPartStyles.td}>
+                                <td style={vendorPartStyles.td} title={part.qty?.toString() || "0"}>
                                   <input
                                     type="number"
                                     value={part.qty || ""}
@@ -5791,7 +5912,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                     placeholder="0"
                                   />
                                 </td>
-                                <td style={vendorPartStyles.td}>
+                                <td style={vendorPartStyles.td} title={part.qtyBox?.toString() || "0"}>
                                   <div>
                                     <div>{part.qtyBox || ""}</div>
                                     {part.qtyPerBoxFromMaster &&
@@ -5872,7 +5993,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </div>
         )}
       </div>
-      {/* Production Dates Popup (for Today tab) */}
+      
       {showProdDatesPopup && activeProdDatesPart && (
         <div style={styles.popupOverlayDates}>
           <div style={styles.popupContainerDates}>

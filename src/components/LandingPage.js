@@ -19,7 +19,7 @@ const LandingPage = ({ currentDepartment = "SCN-MH" }) => {
 
   return (
     <div style={styles.pageContainer}>
-      <Helmet><title>SIMPAT | Dashboard</title></Helmet>
+      <Helmet><title>SIMPAT | Landing Page</title></Helmet>
       <h1 style={styles.welcomeText}>WELCOME TO SIMPAT</h1>
       <p style={styles.departmentText}>YOU LOGIN AS {dept}</p>
     </div>

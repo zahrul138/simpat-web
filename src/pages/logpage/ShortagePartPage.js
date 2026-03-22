@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { AlertTriangle, SlidersHorizontal, Save } from "lucide-react";
+import { AlertTriangle, SlidersHorizontal, Save, FileDown } from "lucide-react";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -204,6 +204,131 @@ const ShortagePartPage = ({ sidebarVisible }) => {
     setPopupOkInput("");
     localStorage.setItem("sp_warning_threshold", "0");
     localStorage.setItem("sp_ok_threshold", "0");
+  };
+
+  const handleDownloadExcel = () => {
+    const shortageParts = sortedFilteredParts.filter(
+      (p) => getShortageStatus(p.m136, p.qty_per_assembly) === "Shortage",
+    );
+
+    if (shortageParts.length === 0) {
+      alert("Tidak ada part dengan status Shortage");
+      return;
+    }
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+    const rowsHtml = shortageParts
+      .map((p, i) => {
+        const coverage = getUnitCoverage(p.m136, p.qty_per_assembly);
+        const balance =
+          coverage === Infinity
+            ? "∞"
+            : `${coverage - okThreshold >= 0 ? "+" : ""}${coverage - okThreshold} pcs`;
+        const rowBg = "#eff6ff";
+        return `
+          <tr style="background-color:${rowBg}">
+            <td style="text-align:center">${i + 1}</td>
+            <td style="text-align:left">${p.code || "-"}</td>
+            <td>${p.name || "-"}</td>
+            <td>${p.vendorName || "-"}</td>
+            <td>${p.vendorType || "-"}</td>
+            <td style="text-align:center">${p.m101} pcs</td>
+            <td style="text-align:center">${p.m136} pcs</td>
+            <td style="text-align:center;color:#dc2626;font-weight:700">${thresholdsActive ? balance : "-"}</td>
+          </tr>`;
+      })
+      .join("");
+
+    const metaInfo = [
+      `Tanggal Cetak: ${dateStr}`,
+      `Total Parts: ${shortageParts.length} item`,
+      thresholdsActive
+        ? `Threshold: Warning < ${warningThreshold} | OK ≥ ${okThreshold} units`
+        : "",
+      vendorFilter !== "ALL" ? `Vendor: ${vendorFilter}` : "",
+      appliedKeyword ? `Filter: ${appliedSearchBy} = "${appliedKeyword}"` : "",
+    ]
+      .filter(Boolean)
+      .join("     |     ");
+
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="UTF-8" />
+        <!--[if gte mso 9]>
+        <xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+          <x:Name>Shortage Part</x:Name>
+          <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+        </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml>
+        <![endif]-->
+        <style>
+          body { font-family: Arial, sans-serif; font-size: 11px; }
+          .title-row td { font-size: 14px; font-weight: 700; color: #1e3a8a; padding: 4px 8px; }
+          .meta-row td { font-size: 10px; color: #6b7280; padding: 2px 8px 8px; }
+          table { border-collapse: collapse; width: 100%; }
+          th {
+            background-color: #1e3a8a;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 7px 10px;
+            border: 1px solid #1e40af;
+            text-align: center;
+            white-space: nowrap;
+          }
+          td {
+            padding: 5px 10px;
+            border: 1px solid #bfdbfe;
+            font-size: 11px;
+            color: #1f2937;
+          }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr class="title-row"><td colspan="8">List Shortage Part (M136)</td></tr>
+          <tr class="meta-row"><td colspan="8">${metaInfo}</td></tr>
+          <tr><td colspan="8" style="padding:4px"></td></tr>
+          <thead>
+            <tr>
+              <th style="width:40px">No</th>
+              <th style="width:120px">Part Code</th>
+              <th style="width:220px">Part Name</th>
+              <th style="width:180px">Vendor Name</th>
+              <th style="width:110px">Vendor Type</th>
+              <th style="width:100px">Stock M101</th>
+              <th style="width:100px">Stock M136</th>
+              <th style="width:90px">Balance</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </body>
+      </html>`;
+
+    const dd = String(today.getDate()).padStart(2, "0");
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const yyyy = today.getFullYear();
+    const hh = String(today.getHours()).padStart(2, "0");
+    const min = String(today.getMinutes()).padStart(2, "0");
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ListShortagePart(${dd}-${mm}-${yyyy}_${hh}.${min}).xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleSearch = () => {
@@ -1126,6 +1251,29 @@ const ShortagePartPage = ({ sidebarVisible }) => {
                 {">>"}
               </button>
             </div>
+
+            {sortedFilteredParts.length > 0 && (
+              <button
+                onClick={handleDownloadExcel}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "4px 12px",
+                  backgroundColor: "#2563eb",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+                title="Download Excel"
+              >
+                <FileDown size={13} />
+              </button>
+            )}
           </div>
         </div>
       </div>

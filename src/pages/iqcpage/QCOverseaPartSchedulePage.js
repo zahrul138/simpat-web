@@ -9,10 +9,6 @@ import {
   Pencil,
   Save,
   X,
-  Check,
-  CheckCircle,
-  RotateCcw,
-  Calendar,
 } from "lucide-react";
 import { Helmet } from "react-helmet";
 
@@ -27,16 +23,10 @@ const getAuthUserLocal = () => {
 };
 
 const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
-  const navigate = useNavigate();
-  const [currentDate, setCurrentDate] = useState(new Date());
 
-  // PERMISSIONS
   const canCreateSchedule = true;
   const canDeleteSchedule = true;
-  const canEditSchedule = true;
-  const canEditPartsInSchedule = true;
 
-  // STATE UNTUK DATA
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState(new Set());
@@ -45,39 +35,14 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
   const [activeTab, setActiveTab] = useState("Schedule");
 
-  // STATE FOR PALLET CALCULATIONS
   const [palletCalculations, setPalletCalculations] = useState({});
 
-  // PALLET CONFIGURATION
-  const palletConfig = {
-    large: {
-      width: 110,
-      length: 110,
-      maxHeight: 170,
-      baseHeight: 15,
-      maxWeight: 150,
-      name: "Large Pallet (110x110)",
-    },
-    small: {
-      width: 76,
-      length: 96,
-      maxHeight: 150,
-      baseHeight: 15,
-      maxWeight: 60,
-      name: "Small Pallet (76x96)",
-    },
-  };
-
-  // STATE FOR EDITING
-  const [editingScheduleId, setEditingScheduleId] = useState(null);
-  const [editScheduleData, setEditScheduleData] = useState({});
   const [editingPartId, setEditingPartId] = useState(null);
   const [editPartData, setEditPartData] = useState({});
 
-  // STATE FOR ADD VENDOR POPUP
   const [addVendorDetail, setAddVendorDetail] = useState(false);
-  const [activeHeaderIdForVendorForm, setActiveHeaderIdForVendorForm] =
-    useState(null);
+  const [activeHeaderIdForVendorForm, setActiveHeaderIdForVendorForm] = useState(null);
+  const [activeVendorContext, setActiveVendorContext] = useState(null);
   const [tripOptions, setTripOptions] = useState([]);
   const [vendorOptions, setVendorOptions] = useState([]);
   const [addVendorFormData, setAddVendorFormData] = useState({
@@ -87,27 +52,21 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     arrivalTime: "",
   });
 
-  // STATE FOR ADD PART POPUP
   const [addVendorPartDetail, setAddVendorPartDetail] = useState(false);
-  const [activeVendorContext, setActiveVendorContext] = useState(null);
   const [selectedPartsInPopup, setSelectedPartsInPopup] = useState([]);
   const [addVendorPartFormData, setAddVendorPartFormData] = useState({
     parts: [],
   });
   const [partSearchInput, setPartSearchInput] = useState("");
 
-  // STATE FOR TABS
   const [receivedVendors, setReceivedVendors] = useState([]);
   const [iqcProgressVendors, setIqcProgressVendors] = useState([]);
   const [editingIqcPartId, setEditingIqcPartId] = useState(null);
   const [editIqcPartData, setEditIqcPartData] = useState({});
   const [qcChecksComplete, setQcChecksComplete] = useState([]);
   const [passVendors, setPassVendors] = useState([]);
-  const [editingPassPartId, setEditingPassPartId] = useState(null);
-  const [editPassPartData, setEditPassPartData] = useState({});
   const [completeVendors, setCompleteVendors] = useState([]);
 
-  // STATE FOR POPUPS
   const [showProdDatesPopup, setShowProdDatesPopup] = useState(false);
   const [activeProdDatesPart, setActiveProdDatesPart] = useState(null);
   const [tempProdDates, setTempProdDates] = useState([]);
@@ -118,11 +77,15 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   const [filters, setFilters] = useState({
     dateFrom: "",
     dateTo: "",
-    vendorName: "",
-    partCode: "",
+    searchBy: "vendor_name",
+    keyword: "",
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [appliedKeyword, setAppliedKeyword] = useState({ searchBy: "vendor_name", keyword: "" });
+  const filtersRef = React.useRef(filters);
+  React.useEffect(() => { filtersRef.current = filters; }, [filters]);
+  const ROWS_PER_PAGE = 10;
 
-  // ====== TABLE CONFIGURATION PER TAB ======
   const tableConfig = {
     Schedule: {
       mainTable: {
@@ -140,16 +103,16 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     Received: {
       mainTable: {
         cols: [
-          "26px", // No
-          "26px", // Arrow
-          "25%", // Vendor
-          "15%", // DO Number
-          "10%", // Total Pallet
-          "10%", // Total Item
-          "12%", // Schedule Date
-          "12%", // Stock Level
-          "10%", // Model
-          "25%", // Move By
+          "26px",
+          "26px",
+          "25%",
+          "15%",
+          "10%",
+          "10%",
+          "12%",
+          "12%",
+          "10%",
+          "25%",
         ],
       },
       partsTable: {
@@ -160,17 +123,17 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     "IQC Progress": {
       mainTable: {
         cols: [
-          "26px", // No
-          "26px", // Arrow
-          "25%", // Vendor
-          "12%", // DO Number
-          "8%", // Total Pallet
-          "8%", // Total Item
-          "15%", // Schedule Date
-          "10%", // Stock Level
-          "10%", // Model
-          "10%", // Complete By
-          "12%", // Complete At
+          "26px",
+          "26px",
+          "25%",
+          "12%",
+          "8%",
+          "8%",
+          "15%",
+          "10%",
+          "10%",
+          "10%",
+          "12%",
           "25%"
         ],
       },
@@ -182,18 +145,18 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     Pass: {
       mainTable: {
         cols: [
-          "26px", // No
-          "26px", // Arrow
-          "14%", // Vendor
-          "11%", // DO Number
-          "7%", // Total Pallet
-          "7%", // Total Item
-          "10%", // Schedule Date
-          "7%", // Stock Level
-          "9%", // Model
-          "10%", // Pass By
-          "11%", // Pass At
-          "7%", // Action
+          "26px",
+          "26px",
+          "14%",
+          "11%",
+          "7%",
+          "7%",
+          "10%",
+          "7%",
+          "9%",
+          "10%",
+          "11%",
+          "7%",
         ],
       },
       partsTable: {
@@ -215,17 +178,17 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     Complete: {
       mainTable: {
         cols: [
-          "26px", // No
-          "26px", // Arrow
-          "25%", // Vendor
-          "12%", // DO Number
-          "8%", // Total Pallet
-          "8%", // Total Item
-          "15%", // Schedule Date
-          "10%", // Stock Level
-          "10%", // Model
-          "10%", // Complete By
-          "12%", // Complete At
+          "26px",
+          "26px",
+          "25%",
+          "12%",
+          "8%",
+          "8%",
+          "15%",
+          "10%",
+          "10%",
+          "10%",
+          "12%",
           "25%"
         ],
       },
@@ -236,7 +199,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     },
   };
 
-  // Helper functions
   const renderColgroup = (cols) => (
     <colgroup>
       {cols.map((width, index) => (
@@ -275,17 +237,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Check if prod_date is complete in qc_checks
-  const isProductionDateComplete = (partCode, prodDate) => {
-    if (!partCode || !prodDate || !qcChecksComplete.length) return false;
-    return qcChecksComplete.some(
-      (qc) =>
-        qc.part_code === partCode &&
-        qc.production_date === prodDate &&
-        qc.status === "Complete",
-    );
-  };
-
   const getPartSampleStatus = (part) => {
     const sampleDates = part.sample_dates || [];
 
@@ -306,9 +257,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }));
   };
 
-  // ====== PALLET CALCULATION HELPER FUNCTIONS ======
-
-  // Helper: cek apakah box muat di pallet (dengan mempertimbangkan rotasi)
   const canBoxFitPallet = (boxLength, boxWidth, palletLength, palletWidth) => {
     return (
       (boxLength <= palletLength && boxWidth <= palletWidth) ||
@@ -316,7 +264,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     );
   };
 
-  // Fungsi untuk menghitung kapasitas maksimal box dalam pallet
   const calculateMaxBoxesInPallet = (box, palletType) => {
     const config =
       palletType === "large"
@@ -337,27 +284,22 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
     const availableHeight = config.maxHeight - config.baseHeight;
 
-    // Hitung boxes per layer dengan orientasi terbaik
     let bestBoxesPerLayer = 0;
 
-    // Coba orientasi normal
     const boxesLengthwiseNormal = Math.floor(config.length / box.length);
     const boxesWidthwiseNormal = Math.floor(config.width / box.width);
     const boxesPerLayerNormal = boxesLengthwiseNormal * boxesWidthwiseNormal;
 
-    // Coba orientasi rotated
     const boxesLengthwiseRotated = Math.floor(config.length / box.width);
     const boxesWidthwiseRotated = Math.floor(config.width / box.length);
     const boxesPerLayerRotated = boxesLengthwiseRotated * boxesWidthwiseRotated;
 
-    // Ambil yang terbaik
     if (boxesPerLayerNormal >= boxesPerLayerRotated) {
       bestBoxesPerLayer = boxesPerLayerNormal;
     } else {
       bestBoxesPerLayer = boxesPerLayerRotated;
     }
 
-    // Untuk large pallet, coba kombinasi mixed jika kurang dari 4
     if (palletType === "large" && bestBoxesPerLayer < 4) {
       const boxesMixed = boxesPerLayerNormal + boxesPerLayerRotated;
       if (boxesMixed > bestBoxesPerLayer) {
@@ -365,27 +307,20 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       }
     }
 
-    // Hitung maksimal layers berdasarkan tinggi
     const maxLayersByHeight = Math.floor(availableHeight / box.height);
     const safeLayersByHeight = Math.max(1, maxLayersByHeight - 1);
 
-    // Hitung berat per layer
     const weightPerLayer = bestBoxesPerLayer * box.weight;
 
-    // Hitung maksimal layers berdasarkan berat
     const maxLayersByWeight = Math.floor(config.maxWeight / weightPerLayer);
 
-    // Ambil yang lebih kecil antara batas tinggi dan batas berat
     const safeLayers = Math.min(safeLayersByHeight, maxLayersByWeight);
     const finalLayers = Math.max(1, safeLayers);
 
-    // Total boxes per pallet berdasarkan dimensi
     const maxBoxesByDimension = bestBoxesPerLayer * finalLayers;
 
-    // Hitung max boxes berdasarkan berat saja
     const maxBoxesByWeight = Math.floor(config.maxWeight / box.weight);
 
-    // Ambil yang lebih kecil (dimensi ATAU berat yang membatasi)
     const maxBoxesPerPallet = Math.min(maxBoxesByDimension, maxBoxesByWeight);
 
     return {
@@ -395,34 +330,29 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     };
   };
 
-  // Fungsi optimasi untuk mixing pallet
   const optimizePalletMixing = (palletDetails) => {
     if (palletDetails.length <= 1) return palletDetails;
 
     const optimized = [...palletDetails];
 
-    // Coba gabung pallet yang sama type dan masih ada space
     for (let i = 0; i < optimized.length; i++) {
       for (let j = i + 1; j < optimized.length; j++) {
         const palletA = optimized[i];
         const palletB = optimized[j];
 
-        // Hanya gabung jika type sama
         if (palletA.palletType !== palletB.palletType) continue;
 
         const maxWeight = palletA.palletType === "large" ? 150 : 60;
         const combinedWeight = palletA.totalWeight + palletB.totalWeight;
         const combinedBoxes = palletA.boxesCount + palletB.boxesCount;
 
-        // Cek apakah bisa digabung (berat dan kapasitas)
         if (combinedWeight <= maxWeight && combinedBoxes <= palletA.capacity) {
-          // Gabungkan ke palletA
+
           palletA.boxesCount = combinedBoxes;
           palletA.totalWeight = combinedWeight;
 
-          // Hapus palletB
           optimized.splice(j, 1);
-          j--; // Adjust index karena array berubah
+          j--;
           console.log(`Merged pallets (${palletA.palletType})`);
         }
       }
@@ -446,7 +376,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
       console.log(`=== PERHITUNGAN PALLET DENGAN ${boxData.length} BOX ===`);
 
-      // 1. Kumpulkan data box berdasarkan ukuran
       const boxGroups = {};
       let totalBoxesAll = boxData.length;
       let totalWeightAll = 0;
@@ -486,7 +415,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       );
       console.log(`Kelompok box:`, Object.keys(boxGroups).length);
 
-      // 2. Hitung pallet untuk setiap kelompok box
       let totalLargePallets = 0;
       let totalSmallPallets = 0;
       const palletDetails = [];
@@ -500,7 +428,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         console.log(`  Berat per box: ${weightPerBox.toFixed(2)}kg`);
         console.log(`  Total berat: ${group.totalWeight.toFixed(2)}kg`);
 
-        // Cek apakah muat di small pallet
         const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
         const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
 
@@ -509,7 +436,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           palletType = "small";
         }
 
-        // Hitung kapasitas untuk pallet type yang dipilih
         const capacity = calculateMaxBoxesInPallet(
           {
             length: group.length,
@@ -523,14 +449,12 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         console.log(`  ${palletType} pallet capacity:`);
         console.log(`    Max boxes per pallet: ${capacity.maxBoxesPerPallet}`);
 
-        // Hitung berapa pallet dibutuhkan
         const palletsNeeded = Math.ceil(
           group.totalBoxes / capacity.maxBoxesPerPallet
         );
 
         console.log(`  Pallets needed: ${palletsNeeded}`);
 
-        // Distribusikan ke pallet-pallet
         let remainingBoxes = group.totalBoxes;
         for (let i = 0; i < palletsNeeded; i++) {
           const boxesInThisPallet = Math.min(
@@ -559,10 +483,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         }
       }
 
-      // 3. Coba optimasi mixing untuk box yang underutilized
       const optimizedPallets = optimizePalletMixing(palletDetails);
 
-      // 4. Hitung hasil akhir
       let finalLargePallets = 0;
       let finalSmallPallets = 0;
       let finalTotalWeight = 0;
@@ -609,7 +531,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       };
     } catch (error) {
       console.error("Error in optimized calculation:", error);
-      // Fallback ke perhitungan sederhana
+
       return calculateSimplePalletFromBoxData(boxData);
     }
   };
@@ -626,7 +548,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       };
     }
 
-    // Kelompokkan box berdasarkan ukuran
     const boxGroups = {};
     let totalWeight = 0;
 
@@ -658,7 +579,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
       const avgWeightPerBox = group.totalWeight / group.totalBoxes;
 
-      // Pilih pallet type
       let palletType = "large";
       const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
       const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
@@ -677,7 +597,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         palletType
       );
 
-      // Hitung pallet yang dibutuhkan
       const palletsNeeded = Math.ceil(
         group.totalBoxes / capacity.maxBoxesPerPallet
       );
@@ -698,7 +617,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       });
     }
 
-    // Optimasi: gabung small pallets jika bisa
     if (totalSmallPallets >= 2) {
       const largeFromSmall = Math.floor(totalSmallPallets / 2);
       totalLargePallets += largeFromSmall;
@@ -715,7 +633,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     };
   };
 
-  // Fungsi untuk mendapatkan dimensi box dari part
   const fetchBoxDimensions = async (partCode) => {
     try {
       const response = await fetch(
@@ -741,7 +658,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // FUNGSI BARU: recalculatePalletForVendor - sama seperti di OverseaPartSchedulePage.js
   const recalculatePalletForVendor = async (vendorId, parts) => {
     try {
       console.log(`[Recalc] Starting for vendor ${vendorId} with ${parts.length} parts`);
@@ -769,7 +685,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         };
       }
 
-      // Collect box data dengan placement details
       const boxData = [];
       let totalBoxes = 0;
       let totalWeight = 0;
@@ -798,7 +713,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
             console.log(`[Recalc] ${partCode}: Using default dimensions`);
           }
 
-          // Tambahkan box sebanyak qtyBox
           for (let i = 0; i < qtyBox; i++) {
             boxData.push({
               length: boxLength,
@@ -817,7 +731,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
       console.log(`[Recalc] Total boxes: ${boxData.length}, Total weight: ${totalWeight.toFixed(2)}kg`);
 
-      // Hitung pallet dengan optimasi
       const result = await calculateOptimizedMixedPallet(boxData);
 
       console.log(`[Recalc] Vendor ${vendorId} result:`, result);
@@ -831,7 +744,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     } catch (error) {
       console.error(`[Recalc] Error for vendor ${vendorId}:`, error);
 
-      // Fallback: hitung dari qty_box
       let totalQtyBox = 0;
       if (parts && Array.isArray(parts)) {
         parts.forEach((part) => {
@@ -841,7 +753,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
       const fallbackResult = {
         largePallets: 0,
-        smallPallets: totalQtyBox, // fallback: 1 box = 1 small pallet
+        smallPallets: totalQtyBox,
         totalPallets: totalQtyBox,
         totalWeight: 0,
         details: [],
@@ -857,181 +769,18 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Async function untuk menghitung pallet dengan placement data
-  const calculateVendorPalletWithPlacement = async (vendor) => {
-    if (!vendor || !vendor.parts || vendor.parts.length === 0) {
-      return {
-        largePallets: 0,
-        smallPallets: 0,
-        totalPallets: 0,
-        totalWeight: 0,
-      };
-    }
-
-    try {
-      const boxGroups = {};
-      let totalWeight = 0;
-
-      for (const part of vendor.parts) {
-        const partCode = part.part_code || part.partCode;
-        const qtyBox = Number(part.qty_box || part.quantity_box || 0);
-
-        if (qtyBox <= 0 || !partCode) continue;
-
-        let placementData = null;
-        let partWeight = 0;
-
-        // Fetch placement data dari API
-        try {
-          const placementResp = await fetch(
-            `${API_BASE}/api/kanban-master/placement-details?part_code=${encodeURIComponent(partCode)}`,
-          );
-          if (placementResp.ok) {
-            const result = await placementResp.json();
-            placementData = result.item || result.data;
-
-            if (placementData?.part_weight) {
-              partWeight = parseFloat(placementData.part_weight);
-              // Convert to kg if needed
-              if (placementData.weight_unit === "g") {
-                partWeight = partWeight / 1000;
-              } else if (placementData.weight_unit === "lbs") {
-                partWeight = partWeight * 0.453592;
-              }
-            }
-          }
-        } catch (err) {
-          console.warn(`Error fetching placement for ${partCode}:`, err);
-        }
-
-        // Jika ada data dimensi, gunakan untuk kalkulasi
-        if (
-          placementData &&
-          placementData.length_cm &&
-          placementData.width_cm &&
-          placementData.height_cm
-        ) {
-          const boxKey = `${placementData.length_cm}x${placementData.width_cm}x${placementData.height_cm}`;
-
-          if (!boxGroups[boxKey]) {
-            boxGroups[boxKey] = {
-              totalBoxes: 0,
-              totalWeight: 0,
-              length: parseFloat(placementData.length_cm),
-              width: parseFloat(placementData.width_cm),
-              height: parseFloat(placementData.height_cm),
-            };
-          }
-
-          boxGroups[boxKey].totalBoxes += qtyBox;
-          boxGroups[boxKey].totalWeight += partWeight * qtyBox;
-          totalWeight += partWeight * qtyBox;
-        }
-      }
-
-      // Jika tidak ada data placement, fallback ke qty_box
-      if (Object.keys(boxGroups).length === 0) {
-        let totalQtyBox = 0;
-        vendor.parts.forEach((part) => {
-          totalQtyBox += Number(part.qty_box || part.quantity_box || 0);
-        });
-        return {
-          largePallets: 0,
-          smallPallets: 0,
-          totalPallets: totalQtyBox, // Fallback: 1 box = 1 pallet (simplified)
-          totalWeight: 0,
-          isFallback: true,
-        };
-      }
-
-      // Hitung pallet untuk setiap kelompok box
-      let totalLargePallets = 0;
-      let totalSmallPallets = 0;
-
-      for (const key in boxGroups) {
-        const group = boxGroups[key];
-        if (group.totalBoxes <= 0) continue;
-
-        const avgWeightPerBox = group.totalWeight / group.totalBoxes || 0.5;
-
-        // Cek apakah muat di pallet
-        const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
-        const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
-
-        let palletType = "large";
-        if (!fitsLarge && fitsSmall) {
-          palletType = "small";
-        }
-
-        // Hitung kapasitas
-        const capacity = calculateMaxBoxesInPallet(
-          {
-            length: group.length,
-            width: group.width,
-            height: group.height,
-            weight: avgWeightPerBox,
-          },
-          palletType,
-        );
-
-        // Hitung pallet yang dibutuhkan
-        const palletsNeeded = Math.ceil(
-          group.totalBoxes / capacity.maxBoxesPerPallet,
-        );
-
-        if (palletType === "large") {
-          totalLargePallets += palletsNeeded;
-        } else {
-          totalSmallPallets += palletsNeeded;
-        }
-      }
-
-      // Optimasi: gabung small pallets jika bisa
-      if (totalSmallPallets >= 2) {
-        const largeFromSmall = Math.floor(totalSmallPallets / 2);
-        totalLargePallets += largeFromSmall;
-        totalSmallPallets = totalSmallPallets % 2;
-      }
-
-      return {
-        largePallets: totalLargePallets,
-        smallPallets: totalSmallPallets,
-        totalPallets: totalLargePallets + totalSmallPallets,
-        totalWeight,
-      };
-    } catch (error) {
-      console.error("Error calculating pallet:", error);
-      // Fallback
-      let totalQtyBox = 0;
-      vendor.parts.forEach((part) => {
-        totalQtyBox += Number(part.qty_box || part.quantity_box || 0);
-      });
-      return {
-        largePallets: 0,
-        smallPallets: 0,
-        totalPallets: totalQtyBox,
-        totalWeight: 0,
-        isFallback: true,
-      };
-    }
-  };
-
-  // Kalkulasi Total Pallet untuk vendor - menggunakan palletCalculations jika tersedia
   const getVendorTotalPallet = (vendor) => {
-    // CRITICAL: PRIORITIZE DATABASE VALUE
-    // Always use vendor.total_pallet from database if available
+
     if (vendor.total_pallet !== undefined && vendor.total_pallet !== null) {
       return vendor.total_pallet;
     }
 
-    // Fallback 1: Use calculation if available
     const vendorId = vendor.id;
     const calculation = palletCalculations[vendorId];
     if (calculation && calculation.totalPallets !== undefined) {
       return calculation.totalPallets;
     }
 
-    // Fallback 2: Calculate from qty_box
     let totalQtyBox = 0;
     if (vendor.parts && vendor.parts.length > 0) {
       vendor.parts.forEach((part) => {
@@ -1044,7 +793,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     return 0;
   };
 
-  // Alias untuk backward compatibility
   const calculateVendorTotalPallet = getVendorTotalPallet;
 
   const calculateVendorTotalItem = (vendor) => {
@@ -1055,7 +803,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     return vendor.parts.length;
   };
 
-  // Kalkulasi Total Pallet untuk schedule (aggregate dari semua vendor)
   const calculateScheduleTotalPallet = (schedule) => {
     if (!schedule || !schedule.vendors || schedule.vendors.length === 0) {
       return schedule?.total_pallet || 0;
@@ -1069,7 +816,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     return totalPallet;
   };
 
-  // Kalkulasi Total Item untuk schedule (aggregate dari semua vendor)
   const calculateScheduleTotalItem = (schedule) => {
     if (!schedule || !schedule.vendors || schedule.vendors.length === 0) {
       return schedule?.total_item || 0;
@@ -1083,82 +829,14 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     return totalItem;
   };
 
-  // Effect untuk menghitung pallet dengan placement data saat schedules berubah
-  useEffect(() => {
-    const calculateAllPallets = async () => {
-      console.log("=== CALCULATING ALL PALLETS (QC) ===");
-
-      // 1. Hitung untuk semua vendors di schedules (tab New dan Schedule)
-      for (const schedule of schedules) {
-        if (!schedule.vendors || schedule.vendors.length === 0) continue;
-
-        for (const vendor of schedule.vendors) {
-          // PERBAIKAN: Selalu hitung ulang menggunakan recalculatePalletForVendor
-          if (vendor.parts && vendor.parts.length > 0) {
-            console.log(`[Auto Calc] Schedule vendor ${vendor.id}`);
-            await recalculatePalletForVendor(vendor.id, vendor.parts);
-          }
-        }
-      }
-
-      // 2. Hitung untuk received vendors
-      if (activeTab === "Received") {
-        for (const vendor of receivedVendors) {
-          if (vendor.parts && vendor.parts.length > 0) {
-            console.log(`[Auto Calc] Received vendor ${vendor.id}`);
-            await recalculatePalletForVendor(vendor.id, vendor.parts);
-          }
-        }
-      }
-
-      // 3. Hitung untuk IQC Progress vendors
-      if (activeTab === "IQC Progress") {
-        for (const vendor of iqcProgressVendors) {
-          if (vendor.parts && vendor.parts.length > 0) {
-            console.log(`[Auto Calc] IQC Progress vendor ${vendor.id}`);
-            await recalculatePalletForVendor(vendor.id, vendor.parts);
-          }
-        }
-      }
-
-      // 4. Hitung untuk Pass vendors
-      if (activeTab === "Pass") {
-        for (const vendor of passVendors) {
-          if (vendor.parts && vendor.parts.length > 0) {
-            console.log(`[Auto Calc] Pass vendor ${vendor.id}`);
-            await recalculatePalletForVendor(vendor.id, vendor.parts);
-          }
-        }
-      }
-
-      // 5. Hitung untuk Complete vendors
-      if (activeTab === "Complete") {
-        for (const vendor of completeVendors) {
-          if (vendor.parts && vendor.parts.length > 0) {
-            console.log(`[Auto Calc] Complete vendor ${vendor.id}`);
-            await recalculatePalletForVendor(vendor.id, vendor.parts);
-          }
-        }
-      }
-    };
-
-    calculateAllPallets();
-  }, [schedules, receivedVendors, iqcProgressVendors, passVendors, completeVendors, activeTab]);
-
-  // ====== API FUNCTIONS ======
-
-  // Fetch schedules based on active tab
   const fetchSchedules = useCallback(async () => {
     setLoading(true);
     try {
       let url = `${API_BASE}/api/oversea-schedules?status=${activeTab}`;
 
-      if (filters.dateFrom) url += `&date_from=${filters.dateFrom}`;
-      if (filters.dateTo) url += `&date_to=${filters.dateTo}`;
-      if (filters.vendorName)
-        url += `&vendor_name=${encodeURIComponent(filters.vendorName)}`;
-      if (filters.partCode)
-        url += `&part_code=${encodeURIComponent(filters.partCode)}`;
+      const f = filtersRef.current;
+      if (f.dateFrom) url += `&date_from=${f.dateFrom}`;
+      if (f.dateTo) url += `&date_to=${f.dateTo}`;
 
       console.log("Fetching schedules from:", url);
       const response = await fetch(url);
@@ -1182,9 +860,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, filters]);
+  }, [activeTab]);
 
-  // Fetch received vendors
   const fetchReceivedVendors = useCallback(async () => {
     setLoading(true);
     try {
@@ -1194,12 +871,11 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       const data = await response.json();
       console.log("Received vendors API response:", data);
 
-      // API returns { vendors: [...] } format
       if (data.vendors) {
         console.log("Setting receivedVendors from data.vendors:", data.vendors);
         setReceivedVendors(data.vendors || []);
       } else if (data.success && data.data) {
-        // Fallback for { success: true, data: [...] } format
+
         console.log("Setting receivedVendors from data.data:", data.data);
         setReceivedVendors(data.data || []);
       } else {
@@ -1214,7 +890,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   }, []);
 
-  // Fetch IQC Progress vendors
   const fetchIqcProgressVendors = useCallback(async () => {
     setLoading(true);
     try {
@@ -1226,7 +901,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       const vendorsData = await vendorsRes.json();
       const qcData = await qcRes.json();
 
-      // API returns { vendors: [...] } format
       if (vendorsData.vendors) {
         setIqcProgressVendors(vendorsData.vendors || []);
       } else if (vendorsData.success && vendorsData.data) {
@@ -1246,19 +920,17 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   }, []);
 
-  // Fetch Sample vendors
   const fetchPassVendors = useCallback(async () => {
     setLoading(true);
     try {
       const [vendorsRes, qcRes] = await Promise.all([
-        fetch(`${API_BASE}/api/oversea-schedules/sample-vendors`),
+        fetch(`${API_BASE}/api/oversea-schedules/pass-vendors`),
         fetch(`${API_BASE}/api/qc-checks?status=Complete`),
       ]);
 
       const vendorsData = await vendorsRes.json();
       const qcData = await qcRes.json();
 
-      // API returns { vendors: [...] } format
       if (vendorsData.vendors) {
         setPassVendors(vendorsData.vendors || []);
       } else if (vendorsData.success && vendorsData.data) {
@@ -1278,7 +950,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   }, []);
 
-  // Fetch Complete vendors
   const fetchCompleteVendors = useCallback(async () => {
     setLoading(true);
     try {
@@ -1287,7 +958,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       );
       const data = await response.json();
 
-      // API returns { vendors: [...] } format
       if (data.vendors) {
         setCompleteVendors(data.vendors || []);
       } else if (data.success && data.data) {
@@ -1303,34 +973,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   }, []);
 
-  // Fetch trips for add vendor
-  const fetchTrips = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/api/trips`);
-      const data = await response.json();
-      if (data.success) {
-        setTripOptions(data.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching trips:", error);
-    }
-  };
-
-  // Fetch vendors for add vendor
-  const fetchVendors = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/api/vendor-detail`);
-      const data = await response.json();
-      if (data.success) {
-        setVendorOptions(data.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching vendors:", error);
-    }
-  };
-
-  // Effect to fetch data based on active tab
   useEffect(() => {
+    setCurrentPage(1);
     setExpandedRows({});
     setExpandedVendorRows({});
     setSelectedScheduleIds(new Set());
@@ -1356,9 +1000,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     fetchCompleteVendors,
   ]);
 
-  // ====== HANDLER FUNCTIONS ======
-
-  // Handle search
   const handleSearch = () => {
     if (activeTab === "Received") {
       fetchReceivedVendors();
@@ -1373,30 +1014,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Handle select all checkbox
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedScheduleIds(new Set());
-    } else {
-      const allIds = new Set(schedules.map((s) => s.id));
-      setSelectedScheduleIds(allIds);
-    }
-    setSelectAll(!selectAll);
-  };
-
-  // Handle individual checkbox
-  const handleSelectSchedule = (id) => {
-    const newSelected = new Set(selectedScheduleIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedScheduleIds(newSelected);
-    setSelectAll(newSelected.size === schedules.length && schedules.length > 0);
-  };
-
-  // Move selected schedules from New to Schedule
   const handleMoveToSchedule = async () => {
     if (selectedScheduleIds.size === 0) {
       alert("Please select at least one schedule to move.");
@@ -1419,7 +1036,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             scheduleIds: Array.from(selectedScheduleIds),
-            status: "Schedule", // Ini akan diubah ke "Scheduled" di backend
+            status: "Schedule",
           }),
         },
       );
@@ -1442,19 +1059,11 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Move vendor to Received (from Schedule tab) - DISABLED FOR QC PAGE
-  const handleMoveVendorToReceived = async (vendorId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
-    return;
-  };
-
-  // Approve vendor (from Received to IQC Progress + add stock) - DISABLED FOR QC PAGE
   const handleApproveVendor = async (vendorId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
+
     return;
   };
 
-  // Move vendor from IQC Progress to Pass
   const handleMoveVendorToPass = async (vendorId) => {
     if (!window.confirm("Move this vendor to Pass?")) return;
 
@@ -1483,36 +1092,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Move vendor from Pass to Complete
-  const handleMoveVendorToComplete = async (vendorId) => {
-    if (!window.confirm("Move this vendor to Complete?")) return;
-
-    try {
-      const authUser = getAuthUserLocal();
-      const moveByName = authUser?.emp_name || "Unknown";
-
-      const response = await fetch(
-        `${API_BASE}/api/oversea-schedules/vendors/${vendorId}/move-to-complete`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ moveByName }),
-        },
-      );
-
-      const result = await response.json();
-      if (response.ok && result.success) {
-        alert("Vendor moved to Complete!");
-        await fetchPassVendors();
-      } else {
-        throw new Error(result.message || "Failed to move vendor");
-      }
-    } catch (error) {
-      alert("Failed to move vendor: " + error.message);
-    }
-  };
-
-  // ====== IQC PROGRESS TAB - EDIT PART HANDLERS ======
   const handleEditIqcPart = (part) => {
     setEditingIqcPartId(part.id);
 
@@ -1524,11 +1103,10 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       existingDates.unshift(part.prod_date.split("T")[0]);
     }
 
-    // DAPATKAN STATUS YANG SEBENARNYA DARI DATABASE
-    const statusFromDB = part.status || ""; // ← Ambil langsung dari data part
+    const statusFromDB = part.status || "";
 
     setEditIqcPartData({
-      status: statusFromDB, // ← GUNAKAN STATUS DARI DATABASE, bukan autoStatus
+      status: statusFromDB,
       remark: part.remark || "",
       prod_dates: existingDates.length > 0 ? existingDates : [""],
     });
@@ -1541,7 +1119,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditIqcPart = async (partId) => {
     try {
-      // Filter out empty dates
+
       const validDates = (editIqcPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== "",
       );
@@ -1551,7 +1129,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         return;
       }
 
-      // Remove duplicate dates
       const uniqueDates = [...new Set(validDates)];
       if (uniqueDates.length !== validDates.length) {
         alert(
@@ -1599,33 +1176,24 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Delete schedule - DISABLED FOR QC PAGE
   const handleDeleteSchedule = async (scheduleId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
+
     return;
   };
 
-  // Delete vendor - DISABLED FOR QC PAGE
   const handleDeleteVendor = async (vendorId, scheduleId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
+
     return;
   };
 
-  // Delete part - DISABLED FOR QC PAGE
   const handleDeletePart = async (partId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
+
     return;
   };
 
-  // ====== EDIT PART (for Schedule tab) - DISABLED FOR QC PAGE ======
   const handleEditPart = (part, vendorId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
-    return;
-  };
 
-  const handleCancelEditPart = () => {
-    setEditingPartId(null);
-    setEditPartData({});
+    return;
   };
 
   const fetchQtyPerBox = async (partCode) => {
@@ -1648,27 +1216,11 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     setEditPartData((prev) => ({ ...prev, qty: value, qty_box: qtyBox }));
   };
 
-  const handleSaveEditPart = async (partId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
-    return;
-  };
-
-  // Return vendor from Received back to Schedule - DISABLED FOR QC PAGE
   const handleReturnVendor = async (vendorId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
+
     return;
   };
 
-  // Open production dates popup
-  const handleOpenProdDatesPopup = (part) => {
-    setActiveProdDatesPart(part);
-    const existingDates =
-      part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-    setTempProdDates(existingDates.length > 0 ? existingDates : [""]);
-    setShowProdDatesPopup(true);
-  };
-
-  // Save production dates
   const handleSaveProdDates = async () => {
     if (!activeProdDatesPart) return;
 
@@ -1707,7 +1259,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Add sample date
   const handleAddSampleDate = async () => {
     if (!activeSamplePart || !newSampleDate) {
       alert("Please select a date.");
@@ -1751,13 +1302,11 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Open Add Vendor popup - DISABLED FOR QC PAGE
   const handleOpenAddVendor = (scheduleId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
+
     return;
   };
 
-  // Handle trip selection
   const handleTripChange = (tripId) => {
     const selectedTrip = tripOptions.find((t) => t.id === parseInt(tripId));
     setAddVendorFormData((prev) => ({
@@ -1767,7 +1316,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }));
   };
 
-  // Add DO number field
   const handleAddDoNumber = () => {
     setAddVendorFormData((prev) => ({
       ...prev,
@@ -1775,7 +1323,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }));
   };
 
-  // Remove DO number field
   const handleRemoveDoNumber = (index) => {
     setAddVendorFormData((prev) => ({
       ...prev,
@@ -1783,20 +1330,12 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }));
   };
 
-  // Submit add vendor - DISABLED FOR QC PAGE
   const handleSubmitAddVendor = async (e) => {
     e.preventDefault();
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
+
     return;
   };
 
-  // Open Add Part popup - DISABLED FOR QC PAGE
-  const handleOpenAddPart = (scheduleId, vendorId) => {
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
-    return;
-  };
-
-  // Search part by code
   const handleSearchPart = async () => {
     if (!partSearchInput.trim()) {
       alert("Please enter a part code.");
@@ -1810,7 +1349,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       const data = await response.json();
 
       if (data.success && data.data) {
-        // Check if part already exists
+
         const existsInList = addVendorPartFormData.parts.some(
           (p) => p.partCode === data.data.part_code,
         );
@@ -1844,7 +1383,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  // Update part qty in popup
   const handlePopupPartQtyChange = (partId, value) => {
     setAddVendorPartFormData((prev) => ({
       ...prev,
@@ -1860,7 +1398,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }));
   };
 
-  // Remove part from popup list
   const handleRemovePartFromPopup = (partId) => {
     setAddVendorPartFormData((prev) => ({
       ...prev,
@@ -1868,7 +1405,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }));
   };
 
-  // Toggle part selection in popup
   const handlePopupCheckboxChange = (partId) => {
     setSelectedPartsInPopup((prev) => {
       if (prev.includes(partId)) {
@@ -1878,14 +1414,12 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     });
   };
 
-  // Submit add parts - DISABLED FOR QC PAGE
   const handleSubmitAddParts = async (e) => {
     e.preventDefault();
-    // Disabled for QC page - this action is only available on OverseaPartSchedulePage
+
     return;
   };
 
-  // ====== STYLES ======
   const styles = {
     pageContainer: {
       fontFamily:
@@ -2563,7 +2097,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     },
   };
 
-  // Vendor Detail Popup Styles
   const vendorDetailStyles = {
     popupOverlay: {
       position: "fixed",
@@ -2667,7 +2200,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     },
   };
 
-  // Vendor Part Popup Styles
   const vendorPartStyles = {
     popupOverlay: {
       position: "fixed",
@@ -2840,12 +2372,43 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     },
   };
 
-  // Tab names (tanpa Today)
   const tabNames = ["Schedule", "Received", "IQC Progress", "Pass", "Complete"];
 
-  // ====== RENDER FUNCTIONS FOR EACH TAB ======
+  const getByFieldValueQC = (item) => {
+    if (activeTab === "Schedule") return item.upload_by_name || "";
+    if (activeTab === "Received") return item.move_by_name || "";
+    if (activeTab === "IQC Progress") return item.approve_by_name || "";
+    if (activeTab === "Pass") return item.sample_by_name || item.approve_by_name || "";
+    if (activeTab === "Complete") return item.complete_by_name || "";
+    return "";
+  };
 
-  // Render Received Tab
+  const applyFilterQC = (arr, isSchedule = false) => {
+    if (!appliedKeyword.keyword || !appliedKeyword.keyword.trim()) return arr;
+    const kw = appliedKeyword.keyword.trim().toLowerCase();
+    const by = appliedKeyword.searchBy;
+    return arr.filter(item => {
+      if (by === "vendor_name") {
+        if (isSchedule) return (item.vendors || []).some(v => (v.vendor_name || "").toLowerCase().includes(kw));
+        return (item.vendor_name || "").toLowerCase().includes(kw);
+      }
+      if (by === "stock_level") {
+        if (isSchedule) return (item.stock_level || "").toLowerCase().includes(kw);
+        return (item.stock_level || item.stock_level_ref || "").toLowerCase().includes(kw);
+      }
+      if (by === "model_name") {
+        if (isSchedule) return (item.model_name || "").toLowerCase().includes(kw);
+        return (item.model_name || item.model_name_ref || "").toLowerCase().includes(kw);
+      }
+      if (by === "do_number") {
+        if (isSchedule) return (item.vendors || []).some(v => (v.do_number || "").toLowerCase().includes(kw));
+        return (item.do_number || "").toLowerCase().includes(kw);
+      }
+      if (by === "by_name") return getByFieldValueQC(item).toLowerCase().includes(kw);
+      return true;
+    });
+  };
+
   const renderReceivedTab = () => {
     if (loading) {
       return (
@@ -2860,7 +2423,10 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       );
     }
 
-    return receivedVendors.map((vendor, index) => (
+    const _filteredR = applyFilterQC(receivedVendors);
+    const _startR = (currentPage - 1) * ROWS_PER_PAGE;
+    const _pagedR = _filteredR.slice(_startR, _startR + ROWS_PER_PAGE);
+    return _pagedR.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -2887,40 +2453,30 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={vendor.vendor_name || "-"}>
             {vendor.vendor_name || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
-            {vendor.do_numbers || "-"}
+          <td style={styles.tdWithLeftBorder} title={vendor.do_number || "-"}>
+            {vendor.do_number || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder}>{vendor.total_pallet || 0}</td>
-          <td style={styles.tdWithLeftBorder}>{vendor.total_item || 0}</td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={vendor.total_pallet || 0}>{vendor.total_pallet || 0}</td>
+          <td style={styles.tdWithLeftBorder} title={vendor.total_item || 0}>{vendor.total_item || 0}</td>
+          <td style={styles.tdWithLeftBorder} title={formatDate(vendor.schedule_date_ref || vendor.schedule_date)}>
             {formatDate(vendor.schedule_date_ref || vendor.schedule_date)}
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={vendor.stock_level_ref || vendor.stock_level || "-"}>
             {vendor.stock_level_ref || vendor.stock_level || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={vendor.model_name_ref || vendor.schedule_model_name || vendor.model_name || "-"}>
             {vendor.model_name_ref ||
               vendor.schedule_model_name ||
               vendor.model_name ||
               "-"}
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={`${vendor.move_by_name || "-"} | ${formatDateTime(vendor.move_at)}`}>
             {vendor.move_by_name || "-"} | {formatDateTime(vendor.move_at)}
           </td>
-          {/* <td style={styles.tdWithLeftBorder}>
-            <button style={styles.checkButton} onClick={() => handleApproveVendor(vendor.id)} title="Approve">
-              <Check size={10} />
-            </button>
-            <button style={styles.returnButton} onClick={() => handleReturnVendor(vendor.id)} title="Return">
-              <RotateCcw size={10} />
-            </button>
-            <button style={styles.deleteButton} onClick={() => handleDeleteVendor(vendor.id, null)} title="Delete">
-              <Trash2 size={10} />
-            </button>
-          </td> */}
+          {}
         </tr>
 
-        {/* Expanded Parts */}
+        {}
         {expandedRows[vendor.id] && vendor.parts && (
           <tr>
             <td colSpan="12" style={{ padding: 0, border: "none" }}>
@@ -2969,14 +2525,14 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                           >
                             {pIdx + 1}
                           </td>
-                          <td style={styles.thirdLevelTd}>{part.part_code}</td>
-                          <td style={styles.thirdLevelTd}>
+                          <td style={styles.thirdLevelTd} title={part.part_code}>{part.part_code}</td>
+                          <td style={styles.thirdLevelTd} title={part.part_name || "-"}>
                             {part.part_name || "-"}
                           </td>
-                          <td style={styles.thirdLevelTd}>
+                          <td style={styles.thirdLevelTd} title={part.qty || part.quantity || 0}>
                             {part.qty || part.quantity || 0}
                           </td>
-                          <td style={styles.thirdLevelTd}>
+                          <td style={styles.thirdLevelTd} title={part.qty_box || part.quantity_box || 0}>
                             {part.qty_box || part.quantity_box || 0}
                           </td>
                           <td
@@ -3020,7 +2576,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // Render IQC Progress Tab
   const renderIqcProgressTab = () => {
     if (loading) {
       return (
@@ -3035,7 +2590,10 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       );
     }
 
-    return iqcProgressVendors.map((vendor, index) => (
+    const _filteredI = applyFilterQC(iqcProgressVendors);
+    const _startI = (currentPage - 1) * ROWS_PER_PAGE;
+    const _pagedI = _filteredI.slice(_startI, _startI + ROWS_PER_PAGE);
+    return _pagedI.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -3089,8 +2647,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={vendor.trip_code || "-"}>
             {vendor.trip_code || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
-            {vendor.do_numbers || "-"}
+          <td style={styles.tdWithLeftBorder} title={vendor.do_number || "-"}>
+            {vendor.do_number || "-"}
           </td>
           <td
             style={styles.tdWithLeftBorder}
@@ -3129,21 +2687,11 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
               ? `${vendor.approve_by_name} | ${formatDateTime(vendor.approve_at)}`
               : "-"}
           </td>
-          {/* Action - REMOVED: Auto move to Pass via QC checks approval */}
-          {/*
-          <td style={styles.tdWithLeftBorder} title="Move to Pass">
-            <button
-              style={styles.checkButton}
-              onClick={() => handleMoveVendorToPass(vendor.id)}
-              title="Move to Pass"
-            >
-              <Check size={10} />
-            </button>
-          </td>
-          */}
+          {}
+          {}
         </tr>
 
-        {/* Expanded Parts */}
+        {}
         {expandedRows[vendor.id] && vendor.parts && (
           <tr>
             <td colSpan="12" style={{ padding: 0, border: "none" }}>
@@ -3236,7 +2784,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                             >
                               {part.unit || "PCS"}
                             </td>
-                            {/* Prod Date with inline editing */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -3357,7 +2905,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 </span>
                               )}
                             </td>
-                            {/* Sample Dates - ALWAYS show ALL dates (even if approved) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={
@@ -3378,7 +2926,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 "-"
                               )}
                             </td>
-                            {/* Remark with inline editing */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={part.remark || "-"}
@@ -3400,7 +2948,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 part.remark || "-"
                               )}
                             </td>
-                            {/* Action: Edit/Delete untuk vendor part detail */}
+                            {}
                             <td style={styles.thirdLevelTd} title="Action">
                               {editingIqcPartId === part.id ? (
                                 <>
@@ -3454,8 +3002,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // Render Pass Tab - EXACT SAME as IQC Progress Tab
-  // Only difference: data source (passVendors) and Approve By shows Pass timestamp
   const renderPassTab = () => {
     if (loading) {
       return (
@@ -3470,7 +3016,10 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       );
     }
 
-    return passVendors.map((vendor, index) => (
+    const _filteredP = applyFilterQC(passVendors);
+    const _startP = (currentPage - 1) * ROWS_PER_PAGE;
+    const _pagedP = _filteredP.slice(_startP, _startP + ROWS_PER_PAGE);
+    return _pagedP.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -3524,8 +3073,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={vendor.trip_code || "-"}>
             {vendor.trip_code || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
-            {vendor.do_numbers || "-"}
+          <td style={styles.tdWithLeftBorder} title={vendor.do_number || "-"}>
+            {vendor.do_number || "-"}
           </td>
           <td
             style={styles.tdWithLeftBorder}
@@ -3552,7 +3101,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
             {formatDate(vendor.schedule_date_ref || vendor.schedule_date)}
           </td>
 
-          {/* Approve By - Shows when vendor moved to Pass (Sample timestamp) */}
+          {}
           <td
             style={styles.tdWithLeftBorder}
             title={
@@ -3571,7 +3120,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           </td>
         </tr>
 
-        {/* Expanded Parts - EXACT SAME as IQC Progress */}
+        {}
         {expandedRows[vendor.id] && vendor.parts && (
           <tr>
             <td colSpan="12" style={{ padding: 0, border: "none" }}>
@@ -3663,7 +3212,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                             >
                               {part.unit || "PCS"}
                             </td>
-                            {/* Prod Date - display all dates (no inline editing) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -3689,7 +3238,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </span>
                             </td>
 
-                            {/* Status - Display only (no inline editing) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={displayStatus || "-"}
@@ -3699,7 +3248,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </span>
                             </td>
 
-                            {/* Sample Dates - ALWAYS show ALL dates (even if approved) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={
@@ -3721,7 +3270,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               )}
                             </td>
 
-                            {/* Remark - Display only (no inline editing) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={part.remark || "-"}
@@ -3744,7 +3293,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // Render Complete Tab
   const renderCompleteTab = () => {
     if (loading) {
       return (
@@ -3759,7 +3307,10 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       );
     }
 
-    return completeVendors.map((vendor, index) => (
+    const _filteredC = applyFilterQC(completeVendors);
+    const _startC = (currentPage - 1) * ROWS_PER_PAGE;
+    const _pagedC = _filteredC.slice(_startC, _startC + ROWS_PER_PAGE);
+    return _pagedC.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -3813,8 +3364,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={vendor.trip_code || "-"}>
             {vendor.trip_code || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.do_numbers || "-"}>
-            {vendor.do_numbers || "-"}
+          <td style={styles.tdWithLeftBorder} title={vendor.do_number || "-"}>
+            {vendor.do_number || "-"}
           </td>
           <td
             style={styles.tdWithLeftBorder}
@@ -3841,7 +3392,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
             {formatDate(vendor.schedule_date_ref || vendor.schedule_date)}
           </td>
 
-          {/* Complete By - Combined name and timestamp */}
+          {}
           <td
             style={styles.tdWithLeftBorder}
             title={
@@ -3856,7 +3407,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           </td>
         </tr>
 
-        {/* Expanded Parts */}
+        {}
         {expandedRows[vendor.id] && vendor.parts && (
           <tr>
             <td colSpan="12" style={{ padding: 0, border: "none" }}>
@@ -3911,21 +3462,21 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                             >
                               {pIdx + 1}
                             </td>
-                            <td style={styles.thirdLevelTd}>
+                            <td style={styles.thirdLevelTd} title={part.part_code}>
                               {part.part_code}
                             </td>
-                            <td style={styles.thirdLevelTd}>
+                            <td style={styles.thirdLevelTd} title={part.part_name || "-"}>
                               {part.part_name || "-"}
                             </td>
-                            <td style={styles.thirdLevelTd}>{part.qty || 0}</td>
-                            <td style={styles.thirdLevelTd}>
+                            <td style={styles.thirdLevelTd} title={part.qty || 0}>{part.qty || 0}</td>
+                            <td style={styles.thirdLevelTd} title={part.qty_box || 0}>
                               {part.qty_box || 0}
                             </td>
-                            <td style={styles.thirdLevelTd}>
+                            <td style={styles.thirdLevelTd} title={part.unit || "PCS"}>
                               {part.unit || "PCS"}
                             </td>
 
-                            {/* Prod Date - display only (no inline editing) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -3951,7 +3502,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </span>
                             </td>
 
-                            {/* Status - Display only (no inline editing) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={sampleStatus.status || "-"}
@@ -3961,7 +3512,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </span>
                             </td>
 
-                            {/* Sample - ALWAYS show ALL dates (even if approved) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={
@@ -3983,7 +3534,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               )}
                             </td>
 
-                            {/* Remark - Display only (no inline editing) */}
+                            {}
                             <td
                               style={styles.thirdLevelTd}
                               title={part.remark || "-"}
@@ -3993,7 +3544,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </span>
                             </td>
 
-                            {/* Action - Edit button only */}
+                            {}
                             <td style={styles.thirdLevelTd}>
                               <button
                                 style={styles.editButton}
@@ -4017,7 +3568,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     ));
   };
 
-  // Render Schedule Tab
   const renderScheduleTab = () => {
     if (loading) {
       return (
@@ -4032,9 +3582,10 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       );
     }
 
-    return schedules.map((schedule, index) => {
-      const scheduleTotalPallet = calculateScheduleTotalPallet(schedule);
-      const scheduleTotalItem = calculateScheduleTotalItem(schedule);
+    const _filteredS = applyFilterQC(schedules, true);
+    const _startS = (currentPage - 1) * ROWS_PER_PAGE;
+    const _pagedS = _filteredS.slice(_startS, _startS + ROWS_PER_PAGE);
+    return _pagedS.map((schedule, index) => {
 
       return (
         <React.Fragment key={schedule.id}>
@@ -4060,25 +3611,25 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                 )}
               </button>
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={formatDate(schedule.schedule_date)}>
               {formatDate(schedule.schedule_date)}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={schedule.stock_level || "-"}>
               {schedule.stock_level || "-"}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={schedule.model_name || "-"}>
               {schedule.model_name || "-"}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={schedule.total_vendor || 0}>
               {schedule.total_vendor || 0}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={calculateScheduleTotalPallet(schedule)}>
               {calculateScheduleTotalPallet(schedule)}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={calculateScheduleTotalItem(schedule)}>
               {calculateScheduleTotalItem(schedule)}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={`${schedule.upload_by_name} | ${formatDateTime(schedule.updated_at || schedule.created_at)}`}>
               {schedule.upload_by_name} |{" "}
               {formatDateTime(schedule.updated_at || schedule.created_at)}
             </td>
@@ -4104,7 +3655,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
             </td>
           </tr>
 
-          {/* Expanded Vendor Row */}
+          {}
           {expandedRows[schedule.id] &&
             schedule.vendors &&
             schedule.vendors.length > 0 && (
@@ -4168,39 +3719,39 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   )}
                                 </button>
                               </td>
-                              <td style={styles.expandedTd}>
+                              <td style={styles.expandedTd} title={vendor.trip_code || "-"}>
                                 {vendor.trip_code || "-"}
                               </td>
-                              <td style={styles.expandedTd}>
+                              <td style={styles.expandedTd} title={vendor.vendor_name || (vendor.vendor_code ? `Vendor ${vendor.vendor_code}` : "-")}>
                                 {vendor.vendor_name ||
                                   (vendor.vendor_code
                                     ? `Vendor ${vendor.vendor_code}`
                                     : "-")}
                               </td>
-                              <td style={styles.expandedTd}>
-                                {vendor.do_numbers &&
-                                  vendor.do_numbers.length > 0
-                                  ? Array.isArray(vendor.do_numbers)
-                                    ? vendor.do_numbers.join(", ")
-                                    : vendor.do_numbers
+                              <td style={styles.expandedTd} title={vendor.do_number && vendor.do_number.length > 0 ? (Array.isArray(vendor.do_number) ? vendor.do_number.join(", ") : vendor.do_number) : "-"}>
+                                {vendor.do_number &&
+                                  vendor.do_number.length > 0
+                                  ? Array.isArray(vendor.do_number)
+                                    ? vendor.do_number.join(", ")
+                                    : vendor.do_number
                                   : "-"}
                               </td>
-                              <td style={styles.expandedTd}>
+                              <td style={styles.expandedTd} title={vendor.trip_arrival_time || vendor.arrival_time || "-"}>
                                 {vendor.trip_arrival_time ||
                                   vendor.arrival_time ||
                                   "-"}
                               </td>
-                              <td style={styles.expandedTd}>
+                              <td style={styles.expandedTd} title={String(getVendorTotalPallet(vendor))}>
                                 {" "}
                                 {getVendorTotalPallet(vendor)}
                               </td>
-                              <td style={styles.expandedTd}>
+                              <td style={styles.expandedTd} title={calculateVendorTotalItem(vendor)}>
                                 {calculateVendorTotalItem(vendor)}
                               </td>
 
                             </tr>
 
-                            {/* Expanded Parts Row */}
+                            {}
                             {expandedVendorRows[
                               `vendor_${schedule.id}_${vendor.id}`
                             ] &&
@@ -4554,7 +4105,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       </Helmet>
 
       <div style={styles.welcomeCard}>
-        {/* Header and Filter */}
+        {}
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
             <h1 style={styles.title}>Oversea Part Schedule</h1>
@@ -4562,56 +4113,62 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
-              <span style={styles.label}>Date From</span>
+              <span style={styles.label}>Date Filter</span>
               <input
                 type="date"
                 style={styles.input}
+                placeholder="Date From"
                 value={filters.dateFrom}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, dateFrom: e.target.value }))
-                }
+                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
               />
-              <span style={styles.label}>Date To</span>
+              <span style={styles.label}>To</span>
               <input
                 type="date"
                 style={styles.input}
+                placeholder="Date To"
                 value={filters.dateTo}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, dateTo: e.target.value }))
-                }
+                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
               />
             </div>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
+              <select
+                style={styles.select}
+                value={filters.searchBy}
+                onChange={(e) => setFilters(prev => ({ ...prev, searchBy: e.target.value }))}
+              >
+                <option value="vendor_name">Vendor Name</option>
+                <option value="stock_level">Stock Level</option>
+                <option value="model_name">Model</option>
+                <option value="do_number">DO Number</option>
+                <option value="by_name">
+                  {activeTab === "Schedule"
+                    ? "Updated By"
+                    : activeTab === "Received"
+                    ? "Received By"
+                    : activeTab === "IQC Progress"
+                    ? "Approve By"
+                    : activeTab === "Pass"
+                    ? "Pass By"
+                    : "Complete By"}
+                </option>
+              </select>
               <input
                 type="text"
                 style={styles.input}
-                placeholder="Vendor Name"
-                value={filters.vendorName}
-                onChange={(e) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    vendorName: e.target.value,
-                  }))
-                }
+                placeholder="Input Keyword"
+                value={filters.keyword}
+                onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === "Enter") { setAppliedKeyword({ searchBy: filters.searchBy, keyword: filters.keyword }); setCurrentPage(1); } }}
               />
-              <input
-                type="text"
-                style={styles.input}
-                placeholder="Part Code"
-                value={filters.partCode}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, partCode: e.target.value }))
-                }
-              />
-              <button style={styles.button} onClick={handleSearch}>
+              <button style={styles.button} onClick={() => { setAppliedKeyword({ searchBy: filters.searchBy, keyword: filters.keyword }); setCurrentPage(1); }}>
                 Search
               </button>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
+        {}
         <div style={styles.tabsContainer}>
           {tabNames.map((tab) => (
             <button
@@ -4627,7 +4184,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           ))}
         </div>
 
-        {/* Table Container */}
+        {}
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
             {activeTab === "Received" ? (
@@ -4651,7 +4208,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Stock Level</th>
                     <th style={styles.thWithLeftBorder}>Model</th>
                     <th style={styles.thWithLeftBorder}>Move By</th>
-                    {/* <th style={styles.thWithLeftBorder}>Action</th> */}
+                    {}
                   </tr>
                 </thead>
                 <tbody>{renderReceivedTab()}</tbody>
@@ -4679,7 +4236,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Arrival Time</th>
                     <th style={styles.thWithLeftBorder}>Schedule Date</th>
                     <th style={styles.thWithLeftBorder}>Approve By</th>
-                    {/* <th style={styles.thWithLeftBorder}>Action</th> */}
+                    {}
                   </tr>
                 </thead>
                 <tbody>{renderIqcProgressTab()}</tbody>
@@ -4765,23 +4322,29 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
             )}
           </div>
 
-          {/* Pagination */}
-          <div style={styles.paginationBar}>
-            <div style={styles.paginationControls}>
-              <button style={styles.paginationButton}>{"<<"}</button>
-              <button style={styles.paginationButton}>{"<"}</button>
-              <span>Page</span>
-              <input
-                type="text"
-                value="1"
-                style={styles.paginationInput}
-                readOnly
-              />
-              <span>of 1</span>
-              <button style={styles.paginationButton}>{">"}</button>
-              <button style={styles.paginationButton}>{">>"}</button>
-            </div>
-          </div>
+          {}
+          {(() => {
+            const _rawData = activeTab === "Received" ? receivedVendors
+              : activeTab === "IQC Progress" ? iqcProgressVendors
+              : activeTab === "Pass" ? passVendors
+              : activeTab === "Complete" ? completeVendors
+              : schedules;
+            const _activeFiltered = applyFilterQC(_rawData, activeTab === "Schedule");
+            const _totalPages = Math.max(1, Math.ceil(_activeFiltered.length / ROWS_PER_PAGE));
+            return (
+              <div style={styles.paginationBar}>
+                <div style={styles.paginationControls}>
+                  <button style={styles.paginationButton} onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>{"<<"}</button>
+                  <button style={styles.paginationButton} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>{"<"}</button>
+                  <span>Page</span>
+                  <input type="text" value={currentPage} style={styles.paginationInput} readOnly />
+                  <span>of {_totalPages}</span>
+                  <button style={styles.paginationButton} onClick={() => setCurrentPage(p => Math.min(_totalPages, p + 1))} disabled={currentPage === _totalPages}>{">"}</button>
+                  <button style={styles.paginationButton} onClick={() => setCurrentPage(_totalPages)} disabled={currentPage === _totalPages}>{">>"}</button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {activeTab === "New" && schedules.length > 0 && (
@@ -4810,7 +4373,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         )}
       </div>
 
-      {/* Add Vendor Popup */}
+      {}
       {addVendorDetail && (
         <div style={vendorDetailStyles.popupOverlay}>
           <div style={vendorDetailStyles.popupContainer}>
@@ -4937,7 +4500,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         </div>
       )}
 
-      {/* Add Part Popup */}
+      {}
       {addVendorPartDetail && (
         <div style={vendorPartStyles.popupOverlay}>
           <div style={vendorPartStyles.popupContainer}>
@@ -5052,10 +4615,10 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   }
                                 />
                               </td>
-                              <td style={vendorPartStyles.td}>
+                              <td style={vendorPartStyles.td} title={part.partCode}>
                                 {part.partCode}
                               </td>
-                              <td style={vendorPartStyles.td}>
+                              <td style={vendorPartStyles.td} title={part.partName || "—"}>
                                 {part.partName || "—"}
                               </td>
                               <td style={vendorPartStyles.td}>
@@ -5079,10 +4642,10 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   placeholder="0"
                                 />
                               </td>
-                              <td style={vendorPartStyles.td}>
+                              <td style={vendorPartStyles.td} title={part.qtyBox || ""}>
                                 {part.qtyBox || ""}
                               </td>
-                              <td style={vendorPartStyles.td}>
+                              <td style={vendorPartStyles.td} title={part.unit || "PCS"}>
                                 {part.unit || "PCS"}
                               </td>
                               <td style={vendorPartStyles.td}>
@@ -5132,7 +4695,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         </div>
       )}
 
-      {/* Production Dates Popup */}
+      {}
       {showProdDatesPopup && activeProdDatesPart && (
         <div style={styles.popupOverlayDates}>
           <div style={styles.popupContainerDates}>
@@ -5216,7 +4779,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         </div>
       )}
 
-      {/* Add Sample Date Popup */}
+      {}
       {showAddSamplePopup && activeSamplePart && (
         <div style={styles.popupOverlayDates}>
           <div style={styles.popupContainerDates}>

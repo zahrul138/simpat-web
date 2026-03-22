@@ -149,7 +149,7 @@ const Navbar = ({
             empName: user.emp_name || user.name || "Unknown",
           }),
         });
-      } catch {}
+      } catch { }
     };
 
     const fetchCount = async () => {
@@ -157,7 +157,7 @@ const Navbar = ({
         const res = await fetch(`${API_BASE}/api/active-sessions/count`);
         const data = await res.json();
         if (data.onlineCount !== undefined) setOnlineCount(data.onlineCount);
-      } catch {}
+      } catch { }
     };
 
     sendHeartbeat();
@@ -193,18 +193,18 @@ const Navbar = ({
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id || user.emp_id || user.username }),
-      }).catch(() => {});
+      }).catch(() => { });
 
       // Catat ke activity log
       fetch(`${API_BASE}/api/activity-logs/logout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          empId:       user.id,
-          empName:     user.emp_name,
+          empId: user.id,
+          empName: user.emp_name,
           description: `User "${user.username}" logged out`,
         }),
-      }).catch(() => {});
+      }).catch(() => { });
     }
     clearAuth();
     navigate("/login");
@@ -627,7 +627,10 @@ const Navbar = ({
             <div style={styles.controlGroup}>
               <label style={styles.label}>Application</label>
               <select
-                style={styles.select}
+                style={{
+                  ...styles.select,
+                  fontWeight: !isAdmin ? "600" : "400",
+                }}
                 value={selectedApplication}
                 onChange={handleApplicationChange}
                 disabled={!isAdmin}
@@ -642,7 +645,10 @@ const Navbar = ({
             <div style={styles.controlGroup}>
               <label style={styles.label}>Department</label>
               <select
-                style={styles.select}
+                style={{
+                  ...styles.select,
+                  fontWeight: !isAdmin ? "600" : "400",
+                }}
                 value={isAdmin ? "ADMIN" : selectedDepartment}
                 onChange={handleDepartmentChange}
                 disabled={!isAdmin}
@@ -657,7 +663,7 @@ const Navbar = ({
           </div>
 
           <div style={styles.rightInfo}>
-            
+
             <div
               style={styles.editIconContainer}
               title="Send Feedback"

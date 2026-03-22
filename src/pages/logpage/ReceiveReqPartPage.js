@@ -41,108 +41,9 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
   const currentItems = partsData.slice(startIndex, endIndex);
 
   const tableConfig = {
-    "Waiting": {
+    Waiting: {
       cols: [
         "3%",
-        "3%",
-        "15%",
-        "12%",
-        "25%",
-        "10%",
-        "10%",
-        "8%",
-        "18%",
-        "25%",
-        "10.3%",
-      ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By", "Action"],
-      showCheckbox: true,
-      showAction: true,
-    },
-    "Received": {
-      cols: [
-        "3.5%",
-        "3.5%",
-        "15%",
-        "12%",
-        "27%",
-        "8%",
-        "8%",
-        "8%",
-        "15%",
-        "35%",
-      ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Received By"],
-      showCheckbox: true,
-      showAction: false,
-    },
-    "InTransit": {
-      cols: [
-        "3%",
-        "15%",
-        "12%",
-        "25%",
-        "10%",
-        "10%",
-        "8%",
-        "17%",
-        "25%",
-      ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Moved By"],
-      showCheckbox: false,
-      showAction: false,
-    },
-    "Arrived": {
-      cols: [
-        "3.5%",
-        "3.5%",
-        "15%",
-        "12%",
-        "27%",
-        "8%",
-        "8%",
-        "8%",
-        "15%",
-        "35%",
-      ],
-      headers: ["No", "", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Moved By"],
-      showCheckbox: true,
-      showAction: false,
-    },
-    "Complete": {
-      cols: [
-        "3%",
-        "15%",
-        "12%",
-        "25%",
-        "10%",
-        "10%",
-        "8%",
-        "17%",
-        "25%",
-      ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Completed By"],
-      showCheckbox: false,
-      showAction: false,
-    },
-    "History": {
-      cols: [
-        "3%",
-        "15%",
-        "12%",
-        "25%",
-        "10%",
-        "10%",
-        "8%",
-        "17%",
-        "25%",
-      ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By"],
-      showCheckbox: false,
-      showAction: false,
-    },
-    "Rejected": {
-      cols: [
         "3%",
         "13%",
         "11%",
@@ -151,10 +52,165 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
         "8%",
         "7%",
         "14%",
-        "20%",
+        "18%",
+        "25%",
+        "10%",
+      ],
+      headers: [
+        "No",
+        "☑",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Request By",
+        "Action",
+      ],
+      showCheckbox: true,
+      showAction: true,
+    },
+    Received: {
+      cols: [
+        "3.5%",
+        "3.5%",
+        "13%",
+        "11%",
+        "22%",
+        "8%",
+        "8%",
+        "7%",
+        "13%",
+        "18%",
+        "35%",
+      ],
+      headers: [
+        "No",
+        "☑",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Received By",
+      ],
+      showCheckbox: true,
+      showAction: false,
+    },
+    InTransit: {
+      cols: ["3%", "13%", "11%", "22%", "9%", "8%", "7%", "13%", "18%", "30%"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Moved By",
+      ],
+      showCheckbox: false,
+      showAction: false,
+    },
+    Arrived: {
+      cols: [
+        "3.5%",
+        "3.5%",
+        "13%",
+        "11%",
+        "22%",
+        "8%",
+        "8%",
+        "7%",
+        "13%",
+        "18%",
+        "35%",
+      ],
+      headers: [
+        "No",
+        "",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Moved By",
+      ],
+      showCheckbox: true,
+      showAction: false,
+    },
+    Complete: {
+      cols: ["3%", "13%", "11%", "22%", "9%", "8%", "7%", "13%", "18%", "30%"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Completed By",
+      ],
+      showCheckbox: false,
+      showAction: false,
+    },
+    History: {
+      cols: ["3%", "13%", "11%", "22%", "9%", "8%", "7%", "13%", "18%", "30%"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Request By",
+      ],
+      showCheckbox: false,
+      showAction: false,
+    },
+    Rejected: {
+      cols: [
+        "3%",
+        "11%",
+        "10%",
+        "19%",
+        "8%",
+        "7%",
+        "6%",
+        "12%",
+        "18%",
+        "25%",
         "8%",
       ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "Request By", "Action"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Request By",
+        "Action",
+      ],
       showCheckbox: false,
       showAction: true,
     },
@@ -179,10 +235,11 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
     for (const t of source) {
       const startMin = parseTime(t.req_from);
-      const endMin   = parseTime(t.req_to);
-      const isActive = startMin > endMin
-        ? nowMin >= startMin || nowMin < endMin
-        : nowMin >= startMin && nowMin < endMin;
+      const endMin = parseTime(t.req_to);
+      const isActive =
+        startMin > endMin
+          ? nowMin >= startMin || nowMin < endMin
+          : nowMin >= startMin && nowMin < endMin;
       if (isActive) {
         return { label: t.trip_code, timeRange: `${t.req_from}-${t.req_to}` };
       }
@@ -194,11 +251,17 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       const startMin = parseTime(t.req_from);
       let diff = startMin - nowMin;
       if (diff < 0) diff += 24 * 60;
-      if (diff < minDiff) { minDiff = diff; nextTrip = t; }
+      if (diff < minDiff) {
+        minDiff = diff;
+        nextTrip = t;
+      }
     }
 
     if (nextTrip) {
-      return { label: nextTrip.trip_code, timeRange: `${nextTrip.req_from}-${nextTrip.req_to}` };
+      return {
+        label: nextTrip.trip_code,
+        timeRange: `${nextTrip.req_from}-${nextTrip.req_to}`,
+      };
     }
     return { label: "-", timeRange: "-" };
   };
@@ -213,7 +276,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id?status=${activeTab}`
+        `${API_BASE}/api/parts-enquiry-non-id?status=${activeTab}`,
       );
       const result = await response.json();
 
@@ -221,7 +284,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
         setPartsData(result.data);
 
         const remarksObj = {};
-        result.data.forEach(item => {
+        result.data.forEach((item) => {
           remarksObj[item.id] = item.remark || "";
         });
         setRemarks(remarksObj);
@@ -245,7 +308,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       await fetch(`${API_BASE}/api/parts-enquiry-non-id/${partId}/remark`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remark: remarks[partId] || "" })
+        body: JSON.stringify({ remark: remarks[partId] || "" }),
       });
     } catch (error) {
       console.error("Update remark error:", error);
@@ -268,7 +331,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     if (selectAll) {
       setSelectedItems(new Set());
     } else {
-      setSelectedItems(new Set(currentItems.map(p => p.id)));
+      setSelectedItems(new Set(currentItems.map((p) => p.id)));
     }
     setSelectAll(!selectAll);
   };
@@ -278,11 +341,14 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-rejected`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: partId }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/move-to-rejected`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: partId }),
+        },
+      );
       const result = await response.json();
       if (result.success) {
         alert("Part moved to Rejected");
@@ -297,13 +363,18 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
   };
 
   const handleDeletePermanent = async (partId) => {
-    if (!window.confirm("Permanently delete this part? This cannot be undone.")) {
+    if (
+      !window.confirm("Permanently delete this part? This cannot be undone.")
+    ) {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/${partId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/${partId}`,
+        {
+          method: "DELETE",
+        },
+      );
       const result = await response.json();
       if (result.success) {
         alert("Part deleted permanently");
@@ -322,11 +393,14 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/restore-to-waiting`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: partId }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/restore-to-waiting`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: partId }),
+        },
+      );
       const result = await response.json();
       if (result.success) {
         alert("Part restored to Waiting");
@@ -351,11 +425,17 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedItems), approved_by_name: getAuthUserLocal()?.emp_name || null })
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/approve`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ids: Array.from(selectedItems),
+            approved_by_name: getAuthUserLocal()?.emp_name || null,
+          }),
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -384,11 +464,17 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
     const authUser = getAuthUserLocal();
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-intransit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedItems), intransit_by_name: authUser?.emp_name || null })
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/move-to-intransit`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ids: Array.from(selectedItems),
+            intransit_by_name: authUser?.emp_name || null,
+          }),
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -415,11 +501,17 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     }
     const authUser = getAuthUserLocal();
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedItems), complete_by_name: authUser?.emp_name || null }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/move-to-complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ids: Array.from(selectedItems),
+            complete_by_name: authUser?.emp_name || null,
+          }),
+        },
+      );
       const result = await response.json();
       if (result.success) {
         alert(result.message);
@@ -435,7 +527,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadExcel = () => {
     if (partsData.length === 0) {
       alert("No data to export");
       return;
@@ -450,105 +542,106 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
     const tripKeys = Object.keys(tripGroups);
 
-    const printWindow = window.open("", "_blank", "width=900,height=700");
-    if (!printWindow) {
-      alert("Pop-up diblokir browser. Izinkan pop-up untuk halaman ini.");
-      return;
-    }
-
     const today = new Date();
+    const dd = String(today.getDate()).padStart(2, "0");
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const yyyy = today.getFullYear();
+    const hh = String(today.getHours()).padStart(2, "0");
+    const min = String(today.getMinutes()).padStart(2, "0");
     const dateStr = today.toLocaleDateString("id-ID", {
-      day: "2-digit", month: "long", year: "numeric",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
     });
 
-    const pages = tripKeys.map((tripKey, pageIdx) => {
-      const rows = tripGroups[tripKey];
-      const rowsHtml = rows
-        .map(
-          (p, i) => `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${p.label_id || "-"}</td>
-            <td>${p.part_code || "-"}</td>
-            <td>${p.part_name || "-"}</td>
-            <td>${p.model || "-"}</td>
-            <td>${p.qty_requested ?? "-"}</td>
-            <td>${p.remark || "-"}</td>
-            <td>${p.requested_by_name || "Unknown"}</td>
-          </tr>`
-        )
-        .join("");
+    const sectionsHtml = tripKeys
+      .map((tripKey, tripIdx) => {
+        const rows = tripGroups[tripKey];
+        const rowsHtml = rows
+          .map(
+            (p, i) => `
+          <tr style="background-color:#eff6ff">
+            <td style="text-align:center;border:1px solid #bfdbfe">${i + 1}</td>
+            <td style="text-align:left;border:1px solid #bfdbfe;mso-number-format:&quot;@&quot;">${String(p.label_id || "-")}</td>
+            <td style="text-align:left;border:1px solid #bfdbfe;mso-number-format:&quot;@&quot;">${p.part_code || "-"}</td>
+            <td style="border:1px solid #bfdbfe;white-space:normal;word-wrap:break-word;max-width:160px">${p.part_name || "-"}</td>
+            <td style="border:1px solid #bfdbfe">${p.model || "-"}</td>
+            <td style="text-align:center;border:1px solid #bfdbfe">${p.qty_requested ?? "-"}</td>
+            <td style="border:1px solid #bfdbfe">${p.remark || "-"}</td>
+            <td style="border:1px solid #bfdbfe;font-style:italic;color:#6b7280">${p.m136_remark || "-"}</td>
+            <td style="border:1px solid #bfdbfe">${p.requested_by_name || "Unknown"}</td>
+          </tr>`,
+          )
+          .join("");
 
-      return `
-        <div class="page${pageIdx < tripKeys.length - 1 ? " page-break" : ""}">
-          <div class="header">
-            <div class="title">Parts Enquiry Non-ID — Received</div>
-            <div class="meta">
-              <span><b>Trip:</b> ${tripKey}</span>
-              <span><b>Tanggal Cetak:</b> ${dateStr}</span>
-              <span><b>Total Parts:</b> ${rows.length} item</span>
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>No</th>
-                <th>Label ID</th>
-                <th>Part Code</th>
-                <th>Part Name</th>
-                <th>Model</th>
-                <th>Qty Req</th>
-                <th>Remark</th>
-                <th>Request By</th>
-              </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>
-          <div class="footer">
-            Halaman ${pageIdx + 1} dari ${tripKeys.length} &nbsp;|&nbsp; SIMPAT — Parts Enquiry Non-ID
-          </div>
-        </div>`;
-    });
+        const spacer =
+          tripIdx > 0
+            ? `<tr><td colspan="9" style="border:none;padding:10px 0"></td></tr>`
+            : "";
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
+        return `
+        ${spacer}
+        <tr><td colspan="9" style="font-size:14px;font-weight:700;color:#1e3a8a;padding:4px 8px;border:none;white-space:normal;overflow:hidden">List Receive Request Part</td></tr>
+        <tr>
+          <td colspan="2" style="font-size:10px;color:#6b7280;padding:2px 8px 8px;border:none"><b>Trip:</b> ${tripKey}</td>
+          <td colspan="2" style="font-size:10px;color:#6b7280;padding:2px 8px 8px;border:none"><b>Tanggal Cetak:</b> ${dateStr}</td>
+          <td colspan="5" style="font-size:10px;color:#6b7280;padding:2px 8px 8px;border:none"><b>Total Parts:</b> ${rows.length} item</td>
+        </tr>
+        <tr style="background-color:#1e3a8a">
+          <th style="width:35px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af;text-align:center">No</th>
+          <th style="width:120px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af">Label ID</th>
+          <th style="width:90px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af">Part Code</th>
+          <th style="width:160px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af">Part Name</th>
+          <th style="width:80px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af">Model</th>
+          <th style="width:55px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af;text-align:center">Qty Req</th>
+          <th style="width:120px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af">Remark</th>
+          <th style="width:110px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af">M136 Remark</th>
+          <th style="width:140px;color:#ffffff;font-weight:700;font-size:11px;padding:7px 8px;border:1px solid #1e40af">Request By</th>
+        </tr>
+        ${rowsHtml}`;
+      })
+      .join("");
+
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head>
         <meta charset="UTF-8" />
-        <title>Parts Enquiry Non-ID - Received</title>
+        <!--[if gte mso 9]>
+        <xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+          <x:Name>Received</x:Name>
+          <x:WorksheetOptions>
+            <x:DisplayGridlines/>
+            <x:Print>
+              <x:Orientation>Landscape</x:Orientation>
+              <x:FitWidth>1</x:FitWidth>
+              <x:FitHeight>0</x:FitHeight>
+            </x:Print>
+          </x:WorksheetOptions>
+        </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml>
+        <![endif]-->
         <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; font-size: 11px; color: #1f2937; background: white; }
-          .page { padding: 28px 32px 24px; min-height: 100vh; display: flex; flex-direction: column; }
-          .page-break { page-break-after: always; }
-          .header { margin-bottom: 16px; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
-          .title { font-size: 16px; font-weight: 700; color: #1e3a8a; margin-bottom: 6px; }
-          .meta { display: flex; gap: 24px; font-size: 11px; color: #374151; }
-          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-          thead tr { background-color: #dbeafe; }
-          th { padding: 6px 8px; border: 1px solid #93c5fd; font-size: 11px; font-weight: 600;
-               text-align: left; color: #1e3a8a; white-space: nowrap; }
-          td { padding: 5px 8px; border: 1px solid #bfdbfe; font-size: 11px; color: #1f2937; }
-          tbody tr:nth-child(even) { background-color: #eff6ff; }
-          .footer { margin-top: auto; padding-top: 12px; text-align: center; font-size: 10px;
-                    color: #6b7280; border-top: 1px solid #e5e7eb; }
-          @media print {
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .page-break { page-break-after: always; }
-          }
+          body { font-family: Arial, sans-serif; font-size: 11px; }
+          table { border-collapse: collapse; width: auto; }
+          td { padding: 5px 10px; border: 1px solid #bfdbfe; font-size: 11px; color: #1f2937; }
+          @page { size: A4 landscape; margin: 1cm; }
         </style>
       </head>
       <body>
-        ${pages.join("")}
-        <script>
-          window.onload = function() {
-            setTimeout(function() { window.print(); }, 400);
-          };
-        <\/script>
+        <table>${sectionsHtml}</table>
       </body>
-      </html>
-    `);
-    printWindow.document.close();
+      </html>`;
+
+    const blob = new Blob([html], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ReceivedParts(${dd}-${mm}-${yyyy}_${hh}.${min}).xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -911,7 +1004,10 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -928,7 +1024,13 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
           (e.target.closest("tr").style.backgroundColor = "transparent")
         }
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
         <td style={styles.tdWithLeftBorder}>
@@ -945,14 +1047,36 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             }}
           />
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}
+        >
           {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
         <td style={styles.tdWithLeftBorder}>
@@ -963,11 +1087,17 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
               try {
                 if (!window.confirm("Approve this item?")) return;
 
-                const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/approve`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ ids: Array.from(tempSelected), approved_by_name: getAuthUserLocal()?.emp_name || null })
-                });
+                const response = await fetch(
+                  `${API_BASE}/api/parts-enquiry-non-id/approve`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      ids: Array.from(tempSelected),
+                      approved_by_name: getAuthUserLocal()?.emp_name || null,
+                    }),
+                  },
+                );
 
                 const result = await response.json();
                 if (result.success) {
@@ -999,7 +1129,10 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1010,18 +1143,28 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: selectedItems.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
         }}
         onMouseEnter={(e) =>
           (e.target.closest("tr").style.backgroundColor = "#c7cde8")
         }
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
         <td style={styles.tdWithLeftBorder}>
@@ -1038,14 +1181,36 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             }}
           />
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={`${part.approved_by_name || "-"} | ${part.approved_at || "-"}`}>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.approved_by_name || "-"} | ${part.approved_at || "-"}`}
+        >
           {part.approved_by_name || "-"} | {part.approved_at || "-"}
         </td>
       </tr>
@@ -1056,7 +1221,10 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1066,42 +1234,61 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: selectedItems.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
         }}
         onMouseEnter={(e) =>
           (e.target.closest("tr").style.backgroundColor = "#c7cde8")
         }
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder}>
-          {/* <input
-            type="checkbox"
-            checked={selectedItems.has(part.id)}
-            onChange={() => handleCheckbox(part.id)}
-            style={{
-              margin: "0 auto",
-              display: "block",
-              cursor: "pointer",
-              width: "12px",
-              height: "12px",
-            }}
-          /> */}
+        <td style={styles.tdWithLeftBorder} />
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={`${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`}>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`}
+        >
           {part.intransit_by_name || "-"} | {part.intransit_at || "-"}
         </td>
       </tr>
@@ -1112,7 +1299,10 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1128,17 +1318,45 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
           (e.target.closest("tr").style.backgroundColor = "transparent")
         }
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}
+        >
           {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
         <td style={styles.tdWithLeftBorder}>
@@ -1165,7 +1383,10 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="9" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="9"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1182,28 +1403,56 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
           (e.target.closest("tr").style.backgroundColor = "transparent")
         }
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={
-          activeTab === "InTransit"
-            ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`
-            : activeTab === "Complete"
-            ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}`
-            : `${part.requested_by_name || "-"} | ${part.requested_at || "-"}`
-        }>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={
+            activeTab === "InTransit"
+              ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`
+              : activeTab === "Complete"
+                ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}`
+                : `${part.requested_by_name || "-"} | ${part.requested_at || "-"}`
+          }
+        >
           {activeTab === "InTransit"
             ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`
             : activeTab === "Complete"
-            ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}`
-            : `${part.requested_by_name || "-"} | ${part.requested_at || "-"}`}
+              ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}`
+              : `${part.requested_by_name || "-"} | ${part.requested_at || "-"}`}
         </td>
       </tr>
     ));
@@ -1223,17 +1472,9 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
               <select style={styles.select}>
                 <option style={optionStyle}>Search Date</option>
               </select>
-              <input
-                type="date"
-                style={styles.input}
-                placeholder="Date From"
-              />
+              <input type="date" style={styles.input} placeholder="Date From" />
               <span style={styles.label}>To</span>
-              <input
-                type="date"
-                style={styles.input}
-                placeholder="Date To"
-              />
+              <input type="date" style={styles.input} placeholder="Date To" />
             </div>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
@@ -1247,9 +1488,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                 style={styles.input}
                 placeholder="Input Keyword"
               />
-              <button style={styles.button}>
-                Search
-              </button>
+              <button style={styles.button}>Search</button>
             </div>
           </div>
         </div>
@@ -1285,7 +1524,14 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["Waiting"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header === "☑" && currentItems.length > 1 ? (
                           <input
                             type="checkbox"
@@ -1299,7 +1545,11 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                               height: "12px",
                             }}
                           />
-                        ) : header === "☑" ? "" : header}
+                        ) : header === "☑" ? (
+                          ""
+                        ) : (
+                          header
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -1320,7 +1570,14 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["Received"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header === "☑" && currentItems.length > 1 ? (
                           <input
                             type="checkbox"
@@ -1334,7 +1591,11 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                               height: "12px",
                             }}
                           />
-                        ) : header === "☑" ? "" : header}
+                        ) : header === "☑" ? (
+                          ""
+                        ) : (
+                          header
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -1355,7 +1616,14 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["Arrived"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header === "☑" && currentItems.length > 1 ? (
                           <input
                             type="checkbox"
@@ -1369,7 +1637,11 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                               height: "12px",
                             }}
                           />
-                        ) : header === "☑" ? "" : header}
+                        ) : header === "☑" ? (
+                          ""
+                        ) : (
+                          header
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -1378,7 +1650,9 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
               </table>
             )}
 
-            {!["Waiting", "Received", "Arrived", "Rejected"].includes(activeTab) && (
+            {!["Waiting", "Received", "Arrived", "Rejected"].includes(
+              activeTab,
+            ) && (
               <table
                 style={{
                   ...styles.table,
@@ -1390,7 +1664,14 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig[activeTab].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header}
                       </th>
                     ))}
@@ -1412,7 +1693,14 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["Rejected"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header}
                       </th>
                     ))}
@@ -1465,13 +1753,13 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
             {activeTab === "Received" && partsData.length > 0 && (
               <button
-                onClick={handleDownloadPDF}
+                onClick={handleDownloadExcel}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
                   padding: "4px 12px",
-                  backgroundColor:  "#2563eb",
+                  backgroundColor: "#2563eb",
                   color: "white",
                   border: "none",
                   borderRadius: "4px",
@@ -1481,9 +1769,13 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                   fontFamily: "inherit",
                   transition: "background-color 0.2s ease",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor =  "#2563eb")}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor =  "#2563eb")}
-                title="Download PDF per Trip"
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#2563eb")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#2563eb")
+                }
+                title="Download Excel per Trip"
               >
                 <FileDown size={13} />
               </button>
@@ -1491,7 +1783,6 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
           </div>
         </div>
 
-        {/* Action Buttons Below Pagination */}
         {activeTab === "Waiting" && partsData.length > 0 && (
           <div style={styles.saveConfiguration}>
             <button
@@ -1515,18 +1806,6 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             </button>
           </div>
         )}
-
-        {/* {activeTab === "Arrived" && partsData.length > 0 && (
-          <div style={styles.saveConfiguration}>
-            <button
-              style={{ ...styles.button, ...styles.primaryButton }}
-              onClick={handleMoveToComplete}
-            >
-              <Check size={16} />
-              Move to Complete
-            </button>
-          </div>
-        )} */}
       </div>
     </div>
   );

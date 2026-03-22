@@ -85,35 +85,35 @@ const QCCheckPage = ({ sidebarVisible }) => {
   const [keyword, setKeyword] = useState("");
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
-  // STATE FOR PAGINATION
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); // 10 items per page
 
-  // STATE FOR COMPLETE TAB
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
+
   const [completeQCChecks, setCompleteQCChecks] = useState([]);
 
-  // REF FOR PROCESSING (useRef for instant blocking, no re-render delay)
+
   const isProcessingRef = useRef(false);
 
-  // STATE FOR M101 PART TAB (dari Local Schedule IQC Progress)
+
   const [m101Parts, setM101Parts] = useState([]);
   const [selectedM101Ids, setSelectedM101Ids] = useState(new Set());
 
-  // STATE FOR M136 PART TAB (dari Oversea Schedule IQC Progress)
+
   const [m136Parts, setM136Parts] = useState([]);
   const [selectedM136Ids, setSelectedM136Ids] = useState(new Set());
 
-  // STATE FOR REJECT TAB
+
   const [rejectQCChecks, setRejectQCChecks] = useState([]);
 
-  // STATE FOR QC CHECKS COMPLETE (untuk cek status sample)
+
   const [qcChecksComplete, setQcChecksComplete] = useState([]);
 
-  // STATE FOR EDIT (keeping original)
+
   const [editingCurrentId, setEditingCurrentId] = useState(null);
   const [editCurrentData, setEditCurrentData] = useState({ qc_status: "" });
 
-  // Fetch QC Checks when tab changes
+
   useEffect(() => {
     if (activeTab === "Complete") {
       fetchCompleteQCChecks();
@@ -129,7 +129,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
   const fetchCompleteQCChecks = async () => {
     setLoading(true);
     try {
-      // PERBAIKAN: Filter status=Complete
+
       const response = await fetch(`${API_BASE}/api/qc-checks?status=Complete`);
       const result = await response.json();
 
@@ -146,11 +146,11 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fetch M101 Parts (dari qc_checks dengan status 'M101 Part' — mirip M136 Part)
+
   const fetchM101Parts = async () => {
     setLoading(true);
     try {
-      // Fetch qc_checks dengan status "M101 Part" (waiting for approval in QCCheckPage)
+
       const response = await fetch(`${API_BASE}/api/qc-checks?status=M101 Part`);
       const result = await response.json();
 
@@ -159,9 +159,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
       if (result.success) {
         const qcChecks = result.data || [];
 
-        // Transform ke struktur m101Parts (sama dengan m136Parts)
+
         const formattedParts = qcChecks.map(qc => ({
-          id: qc.id,              // qc_checks.id — real ID untuk approve endpoint
+          id: qc.id,
           part_id: qc.source_part_id,
           vendor_id: qc.source_vendor_id,
           part_code: qc.part_code,
@@ -188,11 +188,11 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fetch M136 Parts (dari Oversea Schedule IQC Progress)
+
   const fetchM136Parts = async () => {
     setLoading(true);
     try {
-      // Fetch qc_checks dengan status "M136 Part" (waiting for approval)
+
       const response = await fetch(`${API_BASE}/api/qc-checks?status=M136 Part`);
       const result = await response.json();
 
@@ -201,9 +201,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
       if (result.success) {
         const qcChecks = result.data || [];
 
-        // Transform to match current M136Parts structure
+
         const formattedParts = qcChecks.map(qc => ({
-          id: qc.id,  // qc_checks.id (for approve endpoint)
+          id: qc.id,
           part_id: qc.source_part_id,
           vendor_id: qc.source_vendor_id,
           part_code: qc.part_code,
@@ -211,7 +211,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
           vendor_name: qc.vendor_name,
           production_date: qc.production_date,
           source: "M136",
-          approve_by_name: qc.created_by || "-",  // Who created this entry
+          approve_by_name: qc.created_by || "-",
           approve_at: qc.created_at || null,
         }));
 
@@ -229,7 +229,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fetch Reject QC Checks
+
   const fetchRejectQCChecks = async () => {
     setLoading(true);
     try {
@@ -249,24 +249,24 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fungsi untuk mendapatkan data per halaman
+
   const getCurrentPageData = (data) => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return data.slice(startIndex, endIndex);
   };
 
-  // Fungsi untuk menghitung total halaman
+
   const getTotalPages = (data) => {
     return Math.max(1, Math.ceil(data.length / itemsPerPage));
   };
 
-  // Fungsi untuk reset halaman saat ganti tab
+
   useEffect(() => {
-    setCurrentPage(1); // Reset ke halaman 1 saat ganti tab
+    setCurrentPage(1);
   }, [activeTab]);
 
-  // BARU: Get auth user for approve
+
   const getAuthUser = () => {
     try {
       return JSON.parse(localStorage.getItem("auth_user") || "null");
@@ -275,12 +275,12 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Approve single QC Check (works from M101, M136 and Reject tabs)
+
   const handleApproveQCCheck = async (id, fromTab = "M101 Part") => {
     if (!window.confirm("Approve this QC Check?")) return;
 
     try {
-      // PERBAIKAN: Gunakan getAuthUserLocal() untuk mengambil data user
+
       const authUser = getAuthUserLocal();
       const response = await fetch(`${API_BASE}/api/qc-checks/${id}/approve`, {
         method: "PUT",
@@ -296,7 +296,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setToastMessage("QC Check approved successfully!");
         setToastType("success");
         setTimeout(() => setToastMessage(null), 3000);
-        // Refresh the appropriate tab
+
         if (fromTab === "Reject") {
           fetchRejectQCChecks();
         } else if (fromTab === "M101 Part") {
@@ -314,9 +314,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Approve part from M101 atau M136 tab (update QC check status to Complete)
+
   const handleApprovePartFromSample = async (part, sourceTab) => {
-    // CRITICAL: Use ref for INSTANT blocking (no re-render delay)
+
     if (isProcessingRef.current) {
       console.log("[handleApprovePartFromSample] Already processing, ignoring duplicate call");
       return;
@@ -324,33 +324,32 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
     if (!window.confirm("Approve this QC Check?")) return;
 
-    // Set processing flag IMMEDIATELY
+
     isProcessingRef.current = true;
     console.log("[handleApprovePartFromSample] Processing locked");
 
     try {
-      // PERBAIKAN: Gunakan getAuthUserLocal() untuk mengambil data user
+
       const authUser = getAuthUserLocal();
       console.log("[handleApprovePartFromSample] Auth user:", authUser);
 
       console.log(`[handleApprovePartFromSample] Approving QC check:`, part.id, part.part_code, part.production_date);
 
-      // CRITICAL: Detect if this is the last row for this vendor
-      // Count rows yang belong to same vendor
+
       const currentPartsList = sourceTab === "M101 Part" ? m101Parts : m136Parts;
       const sameVendorRows = currentPartsList.filter(p => p.vendor_id === part.vendor_id);
-      const isLastRow = sameVendorRows.length === 1; // Only this row left
+      const isLastRow = sameVendorRows.length === 1;
 
       console.log(`[handleApprovePartFromSample] Vendor ${part.vendor_id}: ${sameVendorRows.length} row(s) remaining, isLastRow: ${isLastRow}`);
 
-      // UPDATE QC Check status from "M136 Part" to "Complete"
+
       const response = await fetch(`${API_BASE}/api/qc-checks/${part.id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           approved_by: authUser?.id,
           approved_by_name: authUser?.emp_name || authUser?.name || "Unknown",
-          isLastQcCheck: isLastRow, // Flag untuk backend (auto-move to Pass)
+          isLastQcCheck: isLastRow,
         }),
       });
 
@@ -358,8 +357,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       if (response.ok && result.success) {
         console.log(`[handleApprovePartFromSample] Success, vendorMovedToPass:`, result.vendorMovedToPass);
 
-        // CRITICAL: Always do optimistic update first
-        // Remove the approved item from UI immediately
+
         if (sourceTab === "M101 Part") {
           setM101Parts(prevParts => {
             const filtered = prevParts.filter(p => p.id !== part.id);
@@ -374,30 +372,23 @@ const QCCheckPage = ({ sidebarVisible }) => {
           });
         }
 
-        // Untuk M101 Part: panggil check-iqc-to-pass agar LocalSchedulePage
-        // IQC Progress vendor otomatis pindah ke Pass jika semua sample_dates sudah Complete.
-        // (source_vendor_id = NULL karena FK hanya ke oversea_schedule_vendors,
-        //  sehingga auto-move di qcChecks tidak bisa pakai source_vendor_id)
+
         if (sourceTab === "M101 Part") {
-          // Kirim approvedByName agar backend bisa set Pass By column
+
           fetch(`${API_BASE}/api/local-schedules/check-iqc-to-pass`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               approvedByName: authUser?.emp_name || authUser?.name || null,
             }),
-          }).catch(() => { }); // fire-and-forget, jangan hentikan flow
+          }).catch(() => { });
         }
 
-        // Check if vendor was auto-moved to Pass
         if (result.vendorMovedToPass) {
           setToastMessage("QC Check approved! Vendor moved to Pass tab.");
           setToastType("success");
           setTimeout(() => setToastMessage(null), 5000);
-
-          // Refresh after delay to ensure all data is updated
           setTimeout(() => {
-            console.log(`[handleApprovePartFromSample] Refreshing after vendor moved to Pass`);
             if (sourceTab === "M101 Part") {
               fetchM101Parts();
             } else {
@@ -409,6 +400,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
           setToastType("success");
           setTimeout(() => setToastMessage(null), 3000);
         }
+        if (sourceTab === "M136 Part") {
+          setActiveTab("Complete");
+          setTimeout(() => fetchCompleteQCChecks(), 300);
+        }
       } else {
         throw new Error(result.message || "Failed to approve");
       }
@@ -418,7 +413,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       setToastType("error");
       setTimeout(() => setToastMessage(null), 3000);
     } finally {
-      // CRITICAL: Reset flag after everything is done
+
       setTimeout(() => {
         isProcessingRef.current = false;
         console.log("[handleApprovePartFromSample] Processing flag reset");
@@ -426,14 +421,14 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Reject part from M101 atau M136 tab
+
   const handleRejectPartFromSample = async (part, sourceTab) => {
     if (!window.confirm("Reject this QC Check?")) return;
 
     try {
       const authUser = getAuthUser();
 
-      // Create QC Check entry with Reject status
+
       const response = await fetch(`${API_BASE}/api/qc-checks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -455,7 +450,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setToastType("success");
         setTimeout(() => setToastMessage(null), 3000);
 
-        // Refresh data
+
         if (sourceTab === "M101 Part") {
           fetchM101Parts();
         } else {
@@ -491,7 +486,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setToastType("success");
         setTimeout(() => setToastMessage(null), 3000);
 
-        // PERBAIKAN: Refresh berdasarkan active tab
+
         if (activeTab === "M101 Part") {
           fetchM101Parts();
         } else if (activeTab === "M136 Part") {
@@ -509,7 +504,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Edit handlers for Current Check
+
   const handleEditCurrent = (item) => {
     setEditingCurrentId(item.id);
     setEditCurrentData({ qc_status: item.qc_status || "" });
@@ -540,7 +535,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setTimeout(() => setToastMessage(null), 3000);
         setEditingCurrentId(null);
         setEditCurrentData({ qc_status: "" });
-        // Refresh tab yang sesuai
+
         if (activeTab === "M101 Part") {
           fetchM101Parts();
         } else if (activeTab === "M136 Part") {
@@ -560,7 +555,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Bulk approve QC Checks dari M101 atau M136 tab
+
   const handleBulkApprove = async (sourceTab) => {
     const selectedIds = sourceTab === "M101 Part" ? selectedM101Ids : selectedM136Ids;
     const parts = sourceTab === "M101 Part" ? m101Parts : m136Parts;
@@ -573,12 +568,11 @@ const QCCheckPage = ({ sidebarVisible }) => {
     if (!window.confirm(`Approve ${selectedIds.size} selected QC Checks?`)) return;
 
     try {
-      // PERBAIKAN: Gunakan getAuthUserLocal() untuk mengambil data user
+
       const authUser = getAuthUserLocal();
       const selectedParts = parts.filter((p) => selectedIds.has(p.id));
 
-      // PERBAIKAN: Gunakan PUT /:id/approve (bukan POST) agar auto-move ke Pass berjalan
-      // Backend akan query DB sendiri untuk cek sisa qc_checks — tidak perlu isLastQcCheck dari frontend
+
       const promises = selectedParts.map((part) =>
         fetch(`${API_BASE}/api/qc-checks/${part.id}/approve`, {
           method: "PUT",
@@ -592,17 +586,27 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
       await Promise.all(promises);
 
+      if (sourceTab === "M101 Part") {
+        await fetch(`${API_BASE}/api/local-schedules/check-iqc-to-pass`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            approvedByName: authUser?.emp_name || authUser?.name || null,
+          }),
+        }).catch(() => {});
+      }
+
       setToastMessage(`${selectedIds.size} QC Checks approved successfully!`);
       setToastType("success");
       setTimeout(() => setToastMessage(null), 3000);
 
-      // Clear selection and refresh
       if (sourceTab === "M101 Part") {
         setSelectedM101Ids(new Set());
         fetchM101Parts();
       } else {
         setSelectedM136Ids(new Set());
-        fetchM136Parts();
+        setActiveTab("Complete");
+        setTimeout(() => fetchCompleteQCChecks(), 300);
       }
     } catch (error) {
       setToastMessage(`Failed to bulk approve: ${error.message}`);
@@ -611,7 +615,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Toggle checkbox for M101 Part
+
   const toggleM101Checkbox = (id, checked) => {
     setSelectedM101Ids((prev) => {
       const next = new Set(prev);
@@ -624,7 +628,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     });
   };
 
-  // Toggle select all for M101 Part
+
   const toggleSelectAllM101 = () => {
     if (selectedM101Ids.size === m101Parts.length) {
       setSelectedM101Ids(new Set());
@@ -633,7 +637,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Toggle checkbox for M136 Part
+
   const toggleM136Checkbox = (id, checked) => {
     setSelectedM136Ids((prev) => {
       const next = new Set(prev);
@@ -646,7 +650,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     });
   };
 
-  // Toggle select all for M136 Part
+
   const toggleSelectAllM136 = () => {
     if (selectedM136Ids.size === m136Parts.length) {
       setSelectedM136Ids(new Set());
@@ -672,15 +676,15 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setToastMessage("QC Check deleted successfully!");
         setToastType("success");
         setTimeout(() => setToastMessage(null), 3000);
-        // PERBAIKAN: Refresh tab yang benar
+
         if (activeTab === "Current Check") {
-          // Refresh tab yang benar
+
           if (activeTab === "Complete") {
             fetchCompleteQCChecks();
           } else if (activeTab === "Reject") {
             fetchRejectQCChecks();
           }
-          // Note: Tidak perlu refresh M101/M136 karena delete hanya tersedia di Complete dan Reject tab;
+
         } else {
           fetchCompleteQCChecks();
         }
@@ -793,7 +797,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     });
   };
 
-  // Colgroup settings sekarang didefinisikan langsung di masing-masing render function tabel
+
 
   const getColSpanCount = () => {
     if (activeTab === "Complete") return 7;
@@ -945,16 +949,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       padding: "0",
       textAlign: "center",
     },
-    // tableContainer: {
-    //   marginBottom: "2px",
-    //   marginLeft: "10px",
-    //   borderRadius: "8px",
-    //   backgroundColor: "white",
-    //   boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
-    //   border: "1.5px solid #e5e7eb",
-    //   overflowX: "auto",
-    //   width: "calc(100% - 10px)",
-    // },
+
     tableBodyWrapper: {
       overflowX: "auto",
       border: "1.5px solid #9fa8da",
@@ -1234,7 +1229,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     },
   };
 
-  // Render M101 Part Tab Table (sama persis dengan Current Check, hanya data source berbeda)
+
   const renderM101PartTable = () => {
     const currentData = getCurrentPageData(m101Parts);
     const totalPages = getTotalPages(m101Parts);
@@ -1263,12 +1258,12 @@ const QCCheckPage = ({ sidebarVisible }) => {
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
                 <th style={styles.thWithLeftBorder}>
-                  {m101Parts.length > 0 && (
+                  {m101Parts.length > 1 && (
                     <input
                       type="checkbox"
                       checked={
                         selectedM101Ids.size === m101Parts.length &&
-                        m101Parts.length > 0
+                        m101Parts.length > 1
                       }
                       onChange={toggleSelectAllM101}
                       style={{
@@ -1466,7 +1461,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
             </button>
           </div>
         </div>
-        {/* Bulk Approve Button */}
+        {}
         {selectedM101Ids.size > 0 && (
           <div
             style={{
@@ -1490,7 +1485,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render M136 Part Tab Table (sama persis dengan M101, hanya data source berbeda)
+
   const renderM136PartTable = () => {
     const currentData = getCurrentPageData(m136Parts);
     const totalPages = getTotalPages(m136Parts);
@@ -1519,12 +1514,12 @@ const QCCheckPage = ({ sidebarVisible }) => {
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
                 <th style={styles.thWithLeftBorder}>
-                  {m136Parts.length > 0 && (
+                  {m136Parts.length > 1 && (
                     <input
                       type="checkbox"
                       checked={
                         selectedM136Ids.size === m136Parts.length &&
-                        m136Parts.length > 0
+                        m136Parts.length > 1
                       }
                       onChange={toggleSelectAllM136}
                       style={{
@@ -1721,7 +1716,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
             </button>
           </div>
         </div>
-        {/* Bulk Approve Button */}
+        {}
         {selectedM136Ids.size > 0 && (
           <div
             style={{
@@ -1746,7 +1741,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
   };
 
 
-  // Render Complete Tab Table
+
   const renderCompleteTable = () => {
     const currentData = getCurrentPageData(completeQCChecks);
     const totalPages = getTotalPages(completeQCChecks);
@@ -1935,7 +1930,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render Reject Tab Table
+
   const renderRejectTable = () => {
     const currentData = getCurrentPageData(m101Parts);
     const totalPages = getTotalPages(m101Parts);
@@ -2134,7 +2129,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render default table untuk tab lainnya
+
   const renderDefaultTable = () => {
     const currentData = getCurrentPageData(m101Parts);
     const totalPages = getTotalPages(m101Parts);
@@ -2306,7 +2301,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Quality Part</h1>
+            <h1 style={styles.title}>Quality Parts</h1>
           </div>
 
           <div style={styles.filterRow}>

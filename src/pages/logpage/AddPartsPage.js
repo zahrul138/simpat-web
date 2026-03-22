@@ -91,7 +91,7 @@ const AddPartsPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        // 🔥 UBAH: Sort berdasarkan ID secara ASCENDING (1, 2, 3, ...)
+
         const sortedVendors = [...data.data].sort((a, b) => a.id - b.id);
         setVendors(sortedVendors);
       }
@@ -308,10 +308,7 @@ const AddPartsPage = () => {
       missingFields.push("Stock Level To");
     }
 
-    // Placement tidak wajib lagi (optional)
-    // if (!partFormData.placement_id) {
-    //   missingFields.push("Placement Name");
-    // }
+
 
     if (missingFields.length > 0) {
       const errorMessage =
@@ -571,7 +568,7 @@ const AddPartsPage = () => {
     }
   };
 
-  // Fungsi untuk menambah customer ke list
+
   const handleAddCustomer = (customerId) => {
     if (!customerId) return;
 
@@ -580,7 +577,7 @@ const AddPartsPage = () => {
     );
     if (!customer) return;
 
-    // Cek apakah customer sudah dipilih
+
     if (
       selectedCustomers.some((c) => c.id.toString() === customerId.toString())
     ) {
@@ -591,7 +588,7 @@ const AddPartsPage = () => {
     const newSelectedCustomers = [...selectedCustomers, customer];
     setSelectedCustomers(newSelectedCustomers);
 
-    // Update partFormData
+
     const newCustomerIds = newSelectedCustomers.map((c) => c.id);
     setPartFormData({
       ...partFormData,
@@ -732,13 +729,14 @@ const AddPartsPage = () => {
     select: {
       display: "flex",
       height: "2rem",
-      width: "10.1rem",
+      width: "100%",
       borderRadius: "6px",
       border: "1px solid #d1d5db",
       backgroundColor: "#f3f4f6",
       padding: "8px 12px",
-      fontSize: "11px",
+      fontSize: "12px",
       outline: "none",
+      boxSizing: "border-box",
       boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
       transition: "border-color 0.2s ease, box-shadow 0.2s ease",
       cursor: "pointer",
@@ -771,6 +769,82 @@ const AddPartsPage = () => {
       display: "flex",
       gap: "8px",
     },
+    formSection: {
+      marginBottom: "20px",
+    },
+    formSectionTitle: {
+      fontSize: "11px",
+      fontWeight: "700",
+      color: "#374151",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "10px",
+      paddingBottom: "5px",
+      borderBottom: "1px solid #e5e7eb",
+    },
+    formGrid3: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr",
+      gap: "12px 16px",
+    },
+    formGrid4: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr 1fr",
+      gap: "12px 16px",
+    },
+    formGrid2: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "12px 16px",
+    },
+    formLabel: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "600",
+      color: "#4b5563",
+      marginBottom: "4px",
+    },
+    formInput: {
+      width: "100%",
+      height: "30px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "4px",
+      padding: "0 8px",
+      fontSize: "12px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      outline: "none",
+      color: "#374151",
+      boxSizing: "border-box",
+    },
+    formSelect: {
+      width: "100%",
+      height: "30px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "4px",
+      padding: "0 8px",
+      fontSize: "12px",
+      backgroundColor: "white",
+      fontFamily: "inherit",
+      outline: "none",
+      color: "#374151",
+      cursor: "pointer",
+      boxSizing: "border-box",
+    },
+    formReadOnly: {
+      width: "100%",
+      height: "30px",
+      border: "2px solid #e5e7eb",
+      borderRadius: "4px",
+      padding: "0 8px",
+      fontSize: "12px",
+      backgroundColor: "#f3f4f6",
+      fontFamily: "inherit",
+      outline: "none",
+      color: "#6b7280",
+      cursor: "not-allowed",
+      boxSizing: "border-box",
+    },
     saveConfiguration: {
       display: "flex",
       gap: "8px",
@@ -787,14 +861,15 @@ const AddPartsPage = () => {
     },
     inputPartCode: {
       flex: "none",
-      height: "1rem",
-      width: "150px",
+      height: "2rem",
+      width: "100%",
       padding: "8px 12px",
       border: "1px solid #d1d5db",
       backgroundColor: "#f3f4f6",
       borderRadius: "6px",
       fontSize: "12px",
       outline: "none",
+      boxSizing: "border-box",
       boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
       transition: "border-color 0.2s ease, box-shadow 0.2s ease",
       fontFamily: "inherit",
@@ -1184,19 +1259,19 @@ const AddPartsPage = () => {
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
           <div style={styles.card}>
-            <div style={{ marginBottom: "24px" }}>
+            <div style={{ marginBottom: "16px" }}>
               <h2 style={styles.h2}>Add Part Details</h2>
             </div>
-            <div
-              style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}
-            >
-              {/* Kolom 1 */}
-              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
+
+            {/* ── Section 1: Part Information ── */}
+            <div style={styles.formSection}>
+              <div style={styles.formSectionTitle}>Part Information</div>
+              <div style={styles.formGrid4}>
                 <div>
-                  <label style={styles.label}>Part Code</label>
+                  <label style={styles.formLabel}>Part Code</label>
                   <input
                     type="text"
-                    style={styles.inputPartCode}
+                    style={styles.formInput}
                     placeholder="Enter part code"
                     value={partFormData.part_code}
                     onChange={(e) => {
@@ -1205,11 +1280,11 @@ const AddPartsPage = () => {
                     }}
                   />
                 </div>
-                <div>
-                  <label style={styles.label}>Part Name</label>
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={styles.formLabel}>Part Name</label>
                   <input
                     type="text"
-                    style={styles.inputPartCode}
+                    style={styles.formInput}
                     placeholder="Enter part name"
                     value={partFormData.part_name}
                     onChange={(e) =>
@@ -1218,9 +1293,9 @@ const AddPartsPage = () => {
                   />
                 </div>
                 <div>
-                  <label style={styles.label}>Part Size *</label>
+                  <label style={styles.formLabel}>Part Size *</label>
                   <select
-                    style={styles.select}
+                    style={styles.formSelect}
                     value={partFormData.part_size}
                     onChange={(e) =>
                       handlePartInputChange("part_size", e.target.value)
@@ -1228,19 +1303,28 @@ const AddPartsPage = () => {
                   >
                     <option value="">Select Size</option>
                     {partSizes.map((size, index) => (
-                      <option
-                        key={size.id || index}
-                        value={size.size_name || size}
-                      >
+                      <option key={size.id || index} value={size.size_name || size}>
                         {size.size_name || size}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label style={styles.label}>Part Types</label>
+                  <label style={styles.formLabel}>Part Material</label>
+                  <input
+                    type="text"
+                    style={styles.formInput}
+                    placeholder="Enter part material"
+                    value={partFormData.part_material}
+                    onChange={(e) =>
+                      handlePartInputChange("part_material", e.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <label style={styles.formLabel}>Part Types</label>
                   <select
-                    style={styles.select}
+                    style={styles.formSelect}
                     value={partFormData.part_types}
                     onChange={(e) =>
                       handlePartInputChange("part_types", e.target.value)
@@ -1251,95 +1335,49 @@ const AddPartsPage = () => {
                     <option value="Special">SPECIAL</option>
                   </select>
                 </div>
-
                 {partFormData.part_types === "Special" && (
-                  <div>
-                    <label style={styles.label}>Select Customers *</label>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        alignItems: "center",
+                  <div style={{ gridColumn: "span 2" }}>
+                    <label style={styles.formLabel}>Select Customers *</label>
+                    <select
+                      style={styles.formSelect}
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleAddCustomer(e.target.value);
+                          e.target.value = "";
+                        }
                       }}
                     >
-                      <select
-                        style={styles.select}
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleAddCustomer(e.target.value);
-                            e.target.value = "";
-                          }
-                        }}
-                      >
-                        <option value="">Select Customer</option>
-                        {customers
-                          .filter(
-                            (customer) =>
-                              !selectedCustomers.some(
-                                (sc) => sc.id === customer.id
-                              )
-                          )
-                          .map((customer) => (
-                            <option key={customer.id} value={customer.id}>
-                              {customer.mat_code} | {customer.cust_name}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-
-                    {/* Display selected customers */}
+                      <option value="">Select Customer</option>
+                      {customers
+                        .filter(
+                          (customer) =>
+                            !selectedCustomers.some((sc) => sc.id === customer.id)
+                        )
+                        .map((customer) => (
+                          <option key={customer.id} value={customer.id}>
+                            {customer.mat_code} | {customer.cust_name}
+                          </option>
+                        ))}
+                    </select>
                     {selectedCustomers.length > 0 && (
-                      <div style={{ marginTop: "8px" }}>
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#4b5563",
-                            marginBottom: "4px",
-                            fontWeight: "500",
-                          }}
-                        >
-                          Selected For Customers :
+                      <div style={{ marginTop: "6px" }}>
+                        <div style={{ fontSize: "11px", color: "#4b5563", marginBottom: "4px", fontWeight: "500" }}>
+                          Selected Customers:
                         </div>
-                        <div
-                          style={{
-                            maxHeight: "100px",
-                            overflowY: "auto",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "4px",
-                            padding: "8px",
-                            backgroundColor: "#f9fafb",
-                          }}
-                        >
+                        <div style={{ maxHeight: "80px", overflowY: "auto", border: "1px solid #d1d5db", borderRadius: "4px", padding: "6px", backgroundColor: "#f9fafb" }}>
                           {selectedCustomers.map((customer) => (
                             <div
                               key={customer.id}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "4px 8px",
-                                marginBottom: "4px",
-                                backgroundColor: "white",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: "4px",
-                              }}
+                              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 6px", marginBottom: "2px", backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: "4px" }}
                             >
                               <span style={{ fontSize: "11px" }}>
                                 {customer.mat_code} | {customer.cust_name}
                               </span>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  handleRemoveCustomer(customer.id)
-                                }
-                                style={{
-                                  backgroundColor: "transparent",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  fontSize: "12px",
-                                  padding: "2px 4px",
-                                }}
+                                onClick={() => handleRemoveCustomer(customer.id)}
+                                style={{ backgroundColor: "transparent", border: "none", cursor: "pointer", fontSize: "12px", padding: "2px 4px" }}
                                 title="Delete"
                               >
                                 ×
@@ -1351,37 +1389,20 @@ const AddPartsPage = () => {
                     )}
                   </div>
                 )}
-                <div style={styles.actionButtonsGroup}>
-                  <button
-                    style={{ ...styles.button, ...styles.primaryButton }}
-                    onClick={handleInsertToTemp}
-                  >
-                    <Plus size={16} />
-                    Insert
-                  </button>
-                </div>
               </div>
+            </div>
 
-              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
+            {/* ── Section 2: Specs & Pricing ── */}
+            <div style={styles.formSection}>
+              <div style={styles.formSectionTitle}>Specs & Pricing</div>
+              <div style={styles.formGrid4}>
                 <div>
-                  <label style={styles.label}>Part Material</label>
-                  <input
-                    type="text"
-                    style={styles.inputPartCode}
-                    placeholder="Enter part material"
-                    value={partFormData.part_material}
-                    onChange={(e) =>
-                      handlePartInputChange("part_material", e.target.value)
-                    }
-                  />
-                </div>
-                <div>
-                  <label style={styles.label}>Part Price (USD)</label>
+                  <label style={styles.formLabel}>Part Price (USD)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    style={styles.inputPartCode}
+                    style={styles.formInput}
                     placeholder="0.00"
                     value={partFormData.part_price}
                     onChange={(e) =>
@@ -1390,10 +1411,10 @@ const AddPartsPage = () => {
                   />
                 </div>
                 <div>
-                  <label style={styles.label}>Part QTY (Per Box)</label>
+                  <label style={styles.formLabel}>Part QTY (Per Box)</label>
                   <input
                     type="number"
-                    style={styles.inputPartCode}
+                    style={styles.formInput}
                     placeholder="Enter qty"
                     value={partFormData.qty_per_box}
                     onChange={(e) =>
@@ -1402,107 +1423,45 @@ const AddPartsPage = () => {
                     min="1"
                   />
                 </div>
-
                 <div>
-                  <label style={styles.label}>Part Weight (Per Parts)</label>
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "4px",
-                      overflow: "hidden",
-                      width: "175px",
-                      height: "2rem",
-                      backgroundColor: "#f3f4f6",
-                    }}
-                  >
-                    {/* Input Number */}
+                  <label style={styles.formLabel}>Part Weight (Per Parts)</label>
+                  <div style={{ display: "flex", gap: "4px" }}>
                     <input
                       type="number"
                       step="0.001"
                       min="0"
-                      style={{
-                        flex: 1,
-                        border: "none",
-                        padding: "0 8px",
-                        fontSize: "11px",
-                        backgroundColor: "transparent",
-                        outline: "none",
-                        minWidth: 0,
-                        fontFamily: "inherit",
-                      }}
+                      style={{ ...styles.formInput, flex: 1 }}
                       placeholder="Weight"
                       value={partFormData.part_weight}
                       onChange={(e) =>
                         handlePartInputChange("part_weight", e.target.value)
                       }
                     />
-
-                    {/* Unit Selector - Separator */}
-                    <div
-                      style={{
-                        width: "1px",
-                        backgroundColor: "#d1d5db",
-                        alignSelf: "stretch",
-                      }}
-                    ></div>
-
-                    {/* Unit Dropdown */}
-                    <div
-                      style={{
-                        position: "relative",
-                        minWidth: "45px",
-                      }}
+                    <select
+                      style={{ ...styles.formSelect, width: "60px", flex: "none" }}
+                      value={partFormData.weight_unit}
+                      onChange={(e) =>
+                        handlePartInputChange("weight_unit", e.target.value)
+                      }
                     >
-                      <select
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          border: "none",
-                          backgroundColor: "transparent",
-                          fontSize: "11px",
-                          color: "#374151",
-                          cursor: "pointer",
-                          outline: "none",
-                          padding: "0 20px 0 8px",
-                          appearance: "none",
-                          fontFamily: "inherit",
-                        }}
-                        value={partFormData.weight_unit}
-                        onChange={(e) =>
-                          handlePartInputChange("weight_unit", e.target.value)
-                        }
-                      >
-                        <option value="kg">kg</option>
-                        <option value="g">g</option>
-                        <option value="lbs">lbs</option>
-                        <option value="oz">oz</option>
-                      </select>
-                      {/* Custom dropdown arrow */}
-                      <div
-                        style={{
-                          position: "absolute",
-                          right: "6px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          width: "0",
-                          height: "0",
-                          borderLeft: "3px solid transparent",
-                          borderRight: "3px solid transparent",
-                          borderTop: "3px solid #6b7280",
-                          pointerEvents: "none",
-                        }}
-                      ></div>
-                    </div>
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="lbs">lbs</option>
+                      <option value="oz">oz</option>
+                    </select>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
+            {/* ── Section 3: Vendor & Stock ── */}
+            <div style={styles.formSection}>
+              <div style={styles.formSectionTitle}>Vendor & Stock</div>
+              <div style={styles.formGrid4}>
                 <div>
-                  <label style={styles.label}>Model</label>
+                  <label style={styles.formLabel}>Model</label>
                   <select
-                    style={styles.select}
+                    style={styles.formSelect}
                     value={partFormData.model}
                     onChange={(e) =>
                       handlePartInputChange("model", e.target.value)
@@ -1510,16 +1469,14 @@ const AddPartsPage = () => {
                   >
                     <option value="">Select Model</option>
                     {models.map((model, index) => (
-                      <option key={index} value={model}>
-                        {model}
-                      </option>
+                      <option key={index} value={model}>{model}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label style={styles.label}>Vendor</label>
+                  <label style={styles.formLabel}>Vendor</label>
                   <select
-                    style={styles.select}
+                    style={styles.formSelect}
                     value={partFormData.vendor_id}
                     onChange={(e) =>
                       handlePartInputChange("vendor_id", e.target.value)
@@ -1534,26 +1491,19 @@ const AddPartsPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={styles.label}>Vendor Types</label>
+                  <label style={styles.formLabel}>Vendor Types</label>
                   <input
                     type="text"
-                    style={{
-                      ...styles.inputPartCode,
-                      backgroundColor: "#f3f4f6",
-                      color: "#6b7280",
-                      cursor: "not-allowed",
-                    }}
+                    style={styles.formReadOnly}
                     value={selectedVendorType}
                     readOnly
                     placeholder="Auto from vendor"
                   />
                 </div>
                 <div>
-                  <label style={styles.label}>
-                    Stock Level To (From Vendor)
-                  </label>
+                  <label style={styles.formLabel}>Stock Level To (From Vendor)</label>
                   <select
-                    style={styles.select}
+                    style={styles.formSelect}
                     value={partFormData.stock_level_to}
                     onChange={(e) =>
                       handlePartInputChange("stock_level_to", e.target.value)
@@ -1561,29 +1511,21 @@ const AddPartsPage = () => {
                   >
                     <option value="">Select Stock Level</option>
                     {stockLevels.map((level, index) => (
-                      <option key={index} value={level.value}>
-                        {level.label}
-                      </option>
+                      <option key={index} value={level.value}>{level.label}</option>
                     ))}
                   </select>
                 </div>
-                {/* <div>
-                    <label style={styles.label}>Created By</label>
-                    <input
-                      type="text"
-                      style={styles.inputPartCode}
-                      value={currentEmpName}
-                      readOnly
-                      placeholder="User not logged in"
-                    />
-                  </div> */}
               </div>
+            </div>
 
-              <div style={{ flex: "2", display: "grid", gap: "35px" }}>
+            {/* ── Section 4: Placement & Assembly ── */}
+            <div style={styles.formSection}>
+              <div style={styles.formSectionTitle}>Placement & Assembly</div>
+              <div style={styles.formGrid4}>
                 <div>
-                  <label style={styles.label}>Placement Name</label>
+                  <label style={styles.formLabel}>Placement Name</label>
                   <select
-                    style={styles.select}
+                    style={styles.formSelect}
                     value={partFormData.placement_id}
                     onChange={handlePlacementChange}
                   >
@@ -1599,90 +1541,69 @@ const AddPartsPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={styles.label}>Placement Length</label>
+                  <label style={styles.formLabel}>Placement Length</label>
                   <input
                     type="text"
-                    style={{
-                      ...styles.inputPartCode,
-                      backgroundColor: "#f3f4f6",
-                      cursor: "not-allowed",
-                      color: selectedPlacement ? "#374151" : "#9ca3af",
-                    }}
+                    style={{ ...styles.formReadOnly, color: selectedPlacement ? "#374151" : "#9ca3af" }}
                     value={
                       selectedPlacement
                         ? `${selectedPlacement.length_cm} cm`
-                        : partFormData.placement_id === "no-placement" ||
-                          !partFormData.placement_id
+                        : partFormData.placement_id === "no-placement" || !partFormData.placement_id
                         ? "No Placement"
                         : ""
                     }
                     readOnly
                     placeholder={
-                      partFormData.placement_id === "no-placement" ||
-                      !partFormData.placement_id
+                      partFormData.placement_id === "no-placement" || !partFormData.placement_id
                         ? "No Placement"
                         : "Auto from placement"
                     }
                   />
                 </div>
                 <div>
-                  <label style={styles.label}>Placement Width</label>
+                  <label style={styles.formLabel}>Placement Width</label>
                   <input
                     type="text"
-                    style={{
-                      ...styles.inputPartCode,
-                      backgroundColor: "#f3f4f6",
-                      cursor: "not-allowed",
-                      color: selectedPlacement ? "#374151" : "#9ca3af",
-                    }}
+                    style={{ ...styles.formReadOnly, color: selectedPlacement ? "#374151" : "#9ca3af" }}
                     value={
                       selectedPlacement
                         ? `${selectedPlacement.width_cm} cm`
-                        : partFormData.placement_id === "no-placement" ||
-                          !partFormData.placement_id
+                        : partFormData.placement_id === "no-placement" || !partFormData.placement_id
                         ? "No Placement"
                         : ""
                     }
                     readOnly
                     placeholder={
-                      partFormData.placement_id === "no-placement" ||
-                      !partFormData.placement_id
+                      partFormData.placement_id === "no-placement" || !partFormData.placement_id
                         ? "No Placement"
                         : "Auto from placement"
                     }
                   />
                 </div>
                 <div>
-                  <label style={styles.label}>Placement Height</label>
+                  <label style={styles.formLabel}>Placement Height</label>
                   <input
                     type="text"
-                    style={{
-                      ...styles.inputPartCode,
-                      backgroundColor: "#f3f4f6",
-                      cursor: "not-allowed",
-                      color: selectedPlacement ? "#374151" : "#9ca3af",
-                    }}
+                    style={{ ...styles.formReadOnly, color: selectedPlacement ? "#374151" : "#9ca3af" }}
                     value={
                       selectedPlacement
                         ? `${selectedPlacement.height_cm} cm`
-                        : partFormData.placement_id === "no-placement" ||
-                          !partFormData.placement_id
+                        : partFormData.placement_id === "no-placement" || !partFormData.placement_id
                         ? "No Placement"
                         : ""
                     }
                     readOnly
                     placeholder={
-                      partFormData.placement_id === "no-placement" ||
-                      !partFormData.placement_id
+                      partFormData.placement_id === "no-placement" || !partFormData.placement_id
                         ? "No Placement"
                         : "Auto from placement"
                     }
                   />
                 </div>
                 <div>
-                  <label style={styles.label}>Assembly Station</label>
+                  <label style={styles.formLabel}>Assembly Station</label>
                   <select
-                    style={styles.select}
+                    style={styles.formSelect}
                     value={partFormData.assembly_station}
                     onChange={(e) =>
                       handlePartInputChange("assembly_station", e.target.value)
@@ -1703,10 +1624,10 @@ const AddPartsPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={styles.label}>QTY Per Assembly</label>
+                  <label style={styles.formLabel}>QTY Per Assembly</label>
                   <input
                     type="number"
-                    style={styles.inputPartCode}
+                    style={styles.formInput}
                     placeholder="1"
                     value={partFormData.qty_per_assembly}
                     onChange={(e) =>
@@ -1716,6 +1637,16 @@ const AddPartsPage = () => {
                   />
                 </div>
               </div>
+            </div>
+
+            <div style={styles.actionButtonsGroup}>
+              <button
+                style={{ ...styles.button, ...styles.primaryButton }}
+                onClick={handleInsertToTemp}
+              >
+                <Plus size={16} />
+                Insert
+              </button>
             </div>
           </div>
 
@@ -1800,18 +1731,7 @@ const AddPartsPage = () => {
                 <tbody>
                   {tempParts.length === 0 ? (
                     <tr>
-                      {/* <td
-                          colSpan="16"
-                          style={{
-                            ...styles.tdWithLeftBorder,
-                            textAlign: "center",
-                            fontStyle: "italic",
-                            color: "#6b7280",
-                          }}
-                        >
-                          No part data available. Please use the form above to add
-                          parts.
-                        </td> */}
+                      
                     </tr>
                   ) : (
                     tempParts.map((part, index) => (

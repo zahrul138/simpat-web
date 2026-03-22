@@ -3,7 +3,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
-import { Plus, Trash2, Pencil, Save, X, Search, Check, FileDown } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  Save,
+  X,
+  Search,
+  Check,
+  FileDown,
+} from "lucide-react";
 import timerService from "../../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
@@ -14,6 +23,18 @@ const getAuthUserLocal = () => {
   } catch {
     return null;
   }
+};
+
+const formatDateTime = (rawStr) => {
+  if (!rawStr || rawStr === "-") return "-";
+  const d = new Date(rawStr);
+  if (isNaN(d)) return rawStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}.${minutes}`;
 };
 
 const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
@@ -43,137 +64,193 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
   const currentItems = partsData.slice(startIndex, endIndex);
 
   const tableConfig = {
-    "New": {
+    New: {
+      cols: [
+        "3.8%",
+        "3.8%",
+        "13%",
+        "10%",
+        "20%",
+        "9%",
+        "8%",
+        "7%",
+        "14%",
+        "17%",
+        "20%",
+        "8%",
+      ],
+      headers: [
+        "No",
+        "☑",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Request By",
+        "Action",
+      ],
+      showCheckbox: true,
+      showAction: true,
+    },
+    Waiting: {
+      cols: ["3%", "13%", "11%", "22%", "9%", "8%", "7%", "14%", "20%", "25%"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Request By",
+      ],
+      showCheckbox: false,
+      showAction: false,
+    },
+    Received: {
+      cols: [
+        "3.5%",
+        "3.5%",
+        "13%",
+        "11%",
+        "22%",
+        "8%",
+        "8%",
+        "7%",
+        "13%",
+        "20%",
+        "30%",
+      ],
+      headers: [
+        "No",
+        "",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Received By",
+      ],
+      showCheckbox: true,
+      showAction: false,
+    },
+    InTransit: {
+      cols: ["3%", "13%", "11%", "22%", "9%", "8%", "7%", "13%", "20%", "25%"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Moved By",
+      ],
+      showCheckbox: false,
+      showAction: false,
+    },
+    Arrived: {
+      cols: [
+        "3.5%",
+        "3.5%",
+        "13%",
+        "11%",
+        "22%",
+        "8%",
+        "8%",
+        "7%",
+        "13%",
+        "20%",
+        "30%",
+      ],
+      headers: [
+        "No",
+        "☑",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Moved By",
+      ],
+      showCheckbox: true,
+      showAction: false,
+    },
+    Complete: {
+      cols: ["3%", "13%", "11%", "22%", "9%", "8%", "7%", "13%", "20%", "25%"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Completed By",
+      ],
+      showCheckbox: false,
+      showAction: false,
+    },
+    History: {
+      cols: ["3%", "13%", "11%", "22%", "9%", "8%", "7%", "13%", "20%", "25%"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Request By",
+      ],
+      showCheckbox: false,
+      showAction: false,
+    },
+    Rejected: {
       cols: [
         "3%",
-        "3%",
-        "15%",
-        "12%",
-        "25%",
+        "11%",
         "10%",
-        "10%",
+        "19%",
         "8%",
-        "18%",
-        "25%",
+        "7%",
         "6%",
-      ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Request By", "Action"],
-      showCheckbox: true,
-      showAction: true,
-    },
-    "Waiting": {
-      cols: [
-        "3%",
-        "3%",
-        "13%",
-        "11%",
-        "22%",
-        "9%",
-        "8%",
-        "7%",
-        "14%",
-        "20%",
-        ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Request By",],
-      showCheckbox: true,
-      showAction: true,
-    },
-    "Received": {
-      cols: [
-        "3.5%",
-        "3.5%",
-        "15%",
         "12%",
-        "27%",
-        "8%",
-        "8%",
-        "8%",
-        "15%",
-        "35%",
-      ],
-      headers: ["No", "", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Received By"],
-      showCheckbox: true,
-      showAction: false,
-    },
-    "InTransit": {
-      cols: [
-        "3%",
-        "15%",
-        "12%",
-        "25%",
-        "10%",
-        "10%",
-        "8%",
         "17%",
-        "25%",
-      ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Moved By"],
-      showCheckbox: false,
-      showAction: false,
-    },
-    "Arrived": {
-      cols: [
-        "3.5%",
-        "3.5%",
-        "15%",
-        "12%",
-        "27%",
-        "8%",
-        "8%",
-        "8%",
-        "15%",
-        "35%",
-      ],
-      headers: ["No", "☑", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Moved By"],
-      showCheckbox: true,
-      showAction: false,
-    },
-    "Complete": {
-      cols: [
-        "3%",
-        "15%",
-        "12%",
-        "25%",
-        "10%",
-        "10%",
-        "8%",
-        "17%",
-        "25%",
-      ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Completed By"],
-      showCheckbox: false,
-      showAction: false,
-    },
-    "History": {
-      cols: [
-        "3%",
-        "15%",
-        "12%",
-        "25%",
-        "10%",
-        "10%",
-        "8%",
-        "17%",
-        "25%",
-      ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Request By"],
-      showCheckbox: false,
-      showAction: false,
-    },
-    "Rejected": {
-      cols: [
-        "3%",
-        "13%",
-        "11%",
-        "22%",
-        "9%",
-        "8%",
-        "7%",
-        "14%",
         "20%",
         "8%",
       ],
-      headers: ["No", "Label ID", "Part Code", "Part Name", "Model", "Qty Req", "Trip", "Remark", "M136 Remark", "Request By", "Action"],
+      headers: [
+        "No",
+        "Label ID",
+        "Part Code",
+        "Part Name",
+        "Model",
+        "Qty Req",
+        "Trip",
+        "Remark",
+        "M136 Remark",
+        "Request By",
+        "Action",
+      ],
       showCheckbox: false,
       showAction: true,
     },
@@ -198,10 +275,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
     for (const t of source) {
       const startMin = parseTime(t.req_from);
-      const endMin   = parseTime(t.req_to);
-      const isActive = startMin > endMin
-        ? nowMin >= startMin || nowMin < endMin
-        : nowMin >= startMin && nowMin < endMin;
+      const endMin = parseTime(t.req_to);
+      const isActive =
+        startMin > endMin
+          ? nowMin >= startMin || nowMin < endMin
+          : nowMin >= startMin && nowMin < endMin;
       if (isActive) {
         return { label: t.trip_code, timeRange: `${t.req_from}-${t.req_to}` };
       }
@@ -213,11 +291,17 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       const startMin = parseTime(t.req_from);
       let diff = startMin - nowMin;
       if (diff < 0) diff += 24 * 60;
-      if (diff < minDiff) { minDiff = diff; nextTrip = t; }
+      if (diff < minDiff) {
+        minDiff = diff;
+        nextTrip = t;
+      }
     }
 
     if (nextTrip) {
-      return { label: nextTrip.trip_code, timeRange: `${nextTrip.req_from}-${nextTrip.req_to}` };
+      return {
+        label: nextTrip.trip_code,
+        timeRange: `${nextTrip.req_from}-${nextTrip.req_to}`,
+      };
     }
     return { label: "-", timeRange: "-" };
   };
@@ -232,7 +316,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id?status=${activeTab}`
+        `${API_BASE}/api/parts-enquiry-non-id?status=${activeTab}`,
       );
       const result = await response.json();
 
@@ -240,7 +324,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         setPartsData(result.data);
 
         const remarksObj = {};
-        result.data.forEach(item => {
+        result.data.forEach((item) => {
           remarksObj[item.id] = item.remark || "";
         });
         setRemarks(remarksObj);
@@ -264,7 +348,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       await fetch(`${API_BASE}/api/parts-enquiry-non-id/${partId}/remark`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remark: remarks[partId] || "" })
+        body: JSON.stringify({ remark: remarks[partId] || "" }),
       });
     } catch (error) {
       console.error("Update remark error:", error);
@@ -287,7 +371,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (selectAll) {
       setSelectedItems(new Set());
     } else {
-      setSelectedItems(new Set(currentItems.map(p => p.id)));
+      setSelectedItems(new Set(currentItems.map((p) => p.id)));
     }
     setSelectAll(!selectAll);
   };
@@ -305,11 +389,17 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     const tripAtSend = getActiveTripInfo(new Date(), tripsData).label;
 
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-waiting`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedItems), trip: tripAtSend })
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/move-to-waiting`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ids: Array.from(selectedItems),
+            trip: tripAtSend,
+          }),
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -332,11 +422,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-rejected`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: partId }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/move-to-rejected`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: partId }),
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -352,14 +445,19 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
   };
 
   const handleDeletePermanent = async (partId) => {
-    if (!window.confirm("Permanently delete this part? This cannot be undone.")) {
+    if (
+      !window.confirm("Permanently delete this part? This cannot be undone.")
+    ) {
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/${partId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/${partId}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -380,11 +478,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/restore-to-waiting`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: partId }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/restore-to-waiting`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: partId }),
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -410,11 +511,17 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedItems), approved_by_name: getAuthUserLocal()?.emp_name || null })
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/approve`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ids: Array.from(selectedItems),
+            approved_by_name: getAuthUserLocal()?.emp_name || null,
+          }),
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -443,11 +550,17 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
     const authUser = getAuthUserLocal();
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-intransit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedItems), intransit_by_name: authUser?.emp_name || null })
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/move-to-intransit`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ids: Array.from(selectedItems),
+            intransit_by_name: authUser?.emp_name || null,
+          }),
+        },
+      );
 
       const result = await response.json();
       if (result.success) {
@@ -474,11 +587,17 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     }
     const authUser = getAuthUserLocal();
     try {
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id/move-to-complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedItems), complete_by_name: authUser?.emp_name || null }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/parts-enquiry-non-id/move-to-complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ids: Array.from(selectedItems),
+            complete_by_name: authUser?.emp_name || null,
+          }),
+        },
+      );
       const result = await response.json();
       if (result.success) {
         alert(result.message);
@@ -517,7 +636,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
     const today = new Date();
     const dateStr = today.toLocaleDateString("id-ID", {
-      day: "2-digit", month: "long", year: "numeric",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
     });
 
     const pages = tripKeys.map((tripKey, pageIdx) => {
@@ -534,7 +655,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             <td>${p.qty_requested ?? "-"}</td>
             <td>${p.remark || "-"}</td>
             <td>${p.requested_by_name || "Unknown"}</td>
-          </tr>`
+          </tr>`,
         )
         .join("");
 
@@ -978,7 +1099,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -995,7 +1119,13 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           (e.target.closest("tr").style.backgroundColor = "transparent")
         }
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
         <td style={styles.tdWithLeftBorder}>
@@ -1012,12 +1142,25 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             }}
           />
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={getActiveTripInfo(currentTime).label}>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={getActiveTripInfo(currentTime).label}
+        >
           {getActiveTripInfo(currentTime).label}
         </td>
         <td style={styles.tdWithLeftBorder}>
@@ -1031,10 +1174,16 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           />
         </td>
         <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
-          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
         </td>
-        <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
-          {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.requested_by_name || "Unknown"} | ${formatDateTime(part.requested_at)}`}
+        >
+          {part.requested_by_name || "Unknown"} |{" "}
+          {formatDateTime(part.requested_at)}
         </td>
         <td style={styles.tdWithLeftBorder}>
           <button
@@ -1052,7 +1201,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1069,23 +1221,47 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           (e.target.closest("tr").style.backgroundColor = "transparent")
         }
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder}>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
         <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
-          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
         </td>
-        <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
-          {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.requested_by_name || "Unknown"} | ${formatDateTime(part.requested_at)}`}
+        >
+          {part.requested_by_name || "Unknown"} |{" "}
+          {formatDateTime(part.requested_at)}
         </td>
       </tr>
     ));
@@ -1095,7 +1271,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1106,46 +1285,62 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: selectedItems.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
         }}
         onMouseEnter={(e) =>
           (e.target.closest("tr").style.backgroundColor = "#c7cde8")
         }
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder}>
-          {/* <input
-            type="checkbox"
-            checked={selectedItems.has(part.id)}
-            onChange={() => handleCheckbox(part.id)}
-            style={{
-              margin: "0 auto",
-              display: "block",
-              cursor: "pointer",
-              width: "12px",
-              height: "12px",
-            }}
-          /> */}
+        <td style={styles.tdWithLeftBorder} />
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
         <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
-          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
         </td>
-        <td style={styles.tdWithLeftBorder} title={`${part.approved_by_name || "-"} | ${part.approved_at || "-"}`}>
-          {part.approved_by_name || "-"} | {part.approved_at || "-"}
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.approved_by_name || "-"} | ${formatDateTime(part.approved_at)}`}
+        >
+          {part.approved_by_name || "-"} | {formatDateTime(part.approved_at)}
         </td>
       </tr>
     ));
@@ -1155,7 +1350,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1165,18 +1363,28 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: selectedItems.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
         }}
         onMouseEnter={(e) =>
           (e.target.closest("tr").style.backgroundColor = "#c7cde8")
         }
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
         <td style={styles.tdWithLeftBorder}>
@@ -1193,18 +1401,37 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             }}
           />
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
-          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
         </td>
-        <td style={styles.tdWithLeftBorder} title={`${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`}>
-          {part.intransit_by_name || "-"} | {part.intransit_at || "-"}
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.intransit_by_name || "-"} | ${formatDateTime(part.intransit_at)}`}
+        >
+          {part.intransit_by_name || "-"} | {formatDateTime(part.intransit_at)}
         </td>
       </tr>
     ));
@@ -1214,7 +1441,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1231,21 +1461,47 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           (e.target.closest("tr").style.backgroundColor = "transparent")
         }
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
-          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
         </td>
-        <td style={styles.tdWithLeftBorder} title={`${part.requested_by_name || "Unknown"} | ${part.requested_at || "-"}`}>
-          {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={`${part.requested_by_name || "Unknown"} | ${formatDateTime(part.requested_at)}`}
+        >
+          {part.requested_by_name || "Unknown"} |{" "}
+          {formatDateTime(part.requested_at)}
         </td>
         <td style={styles.tdWithLeftBorder}>
           <button
@@ -1271,7 +1527,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="9" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="9"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1288,29 +1547,56 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           (e.target.closest("tr").style.backgroundColor = "transparent")
         }
       >
-        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+        <td
+          style={{
+            ...styles.expandedTd,
+            ...styles.expandedWithLeftBorder,
+            ...styles.emptyColumn,
+          }}
+        >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>{part.label_id || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_code}>{part.part_code}</td>
-        <td style={styles.tdWithLeftBorder} title={part.part_name}>{part.part_name}</td>
-        <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
-        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>{part.qty_requested}</td>
-        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>{part.trip || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>{part.remark || "-"}</td>
-        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
-          <span style={{ color: "#6b7280", fontStyle: "italic" }}>{part.m136_remark || "-"}</span>
+        <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
+          {part.label_id || "-"}
         </td>
-        <td style={styles.tdWithLeftBorder} title={
-          activeTab === "InTransit" ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}` :
-          activeTab === "Complete"  ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}` :
-          `${part.requested_by_name || "-"} | ${part.requested_at || "-"}`
-        }>
+        <td style={styles.tdWithLeftBorder} title={part.part_code}>
+          {part.part_code}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.part_name}>
+          {part.part_name}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.model}>
+          {part.model}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={String(part.qty_requested)}>
+          {part.qty_requested}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.trip || "-"}>
+          {part.trip || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.remark || "-"}>
+          {part.remark || "-"}
+        </td>
+        <td style={styles.tdWithLeftBorder} title={part.m136_remark || "-"}>
+          <span style={{ color: "#6b7280", fontStyle: "italic" }}>
+            {part.m136_remark || "-"}
+          </span>
+        </td>
+        <td
+          style={styles.tdWithLeftBorder}
+          title={
+            activeTab === "InTransit"
+              ? `${part.intransit_by_name || "-"} | ${formatDateTime(part.intransit_at)}`
+              : activeTab === "Complete"
+                ? `${part.complete_by_name || "-"} | ${formatDateTime(part.complete_at)}`
+                : `${part.requested_by_name || "-"} | ${formatDateTime(part.requested_at)}`
+          }
+        >
           {activeTab === "InTransit"
-            ? `${part.intransit_by_name || "-"} | ${part.intransit_at || "-"}`
+            ? `${part.intransit_by_name || "-"} | ${formatDateTime(part.intransit_at)}`
             : activeTab === "Complete"
-            ? `${part.complete_by_name || "-"} | ${part.complete_at || "-"}`
-            : `${part.requested_by_name || "-"} | ${part.requested_at || "-"}`}
+              ? `${part.complete_by_name || "-"} | ${formatDateTime(part.complete_at)}`
+              : `${part.requested_by_name || "-"} | ${formatDateTime(part.requested_at)}`}
         </td>
       </tr>
     ));
@@ -1330,17 +1616,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               <select style={styles.select}>
                 <option style={optionStyle}>Search Date</option>
               </select>
-              <input
-                type="date"
-                style={styles.input}
-                placeholder="Date From"
-              />
+              <input type="date" style={styles.input} placeholder="Date From" />
               <span style={styles.label}>To</span>
-              <input
-                type="date"
-                style={styles.input}
-                placeholder="Date To"
-              />
+              <input type="date" style={styles.input} placeholder="Date To" />
             </div>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
@@ -1354,9 +1632,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 style={styles.input}
                 placeholder="Input Keyword"
               />
-              <button style={styles.button}>
-                Search
-              </button>
+              <button style={styles.button}>Search</button>
             </div>
           </div>
         </div>
@@ -1404,7 +1680,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["New"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header === "☑" && currentItems.length > 1 ? (
                           <input
                             type="checkbox"
@@ -1418,7 +1701,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                               height: "12px",
                             }}
                           />
-                        ) : header === "☑" ? "" : header}
+                        ) : header === "☑" ? (
+                          ""
+                        ) : (
+                          header
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -1439,21 +1726,15 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["Waiting"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
-                        {header === "☑" && currentItems.length > 1 ? (
-                          <input
-                            type="checkbox"
-                            checked={selectAll}
-                            onChange={handleSelectAll}
-                            style={{
-                              margin: "0 auto",
-                              display: "block",
-                              cursor: "pointer",
-                              width: "12px",
-                              height: "12px",
-                            }}
-                          />
-                        ) : header === "☑" ? "" : header}
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
+                        {header}
                       </th>
                     ))}
                   </tr>
@@ -1474,7 +1755,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["Received"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header === "☑" && currentItems.length > 1 ? (
                           <input
                             type="checkbox"
@@ -1488,7 +1776,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                               height: "12px",
                             }}
                           />
-                        ) : header === "☑" ? "" : header}
+                        ) : header === "☑" ? (
+                          ""
+                        ) : (
+                          header
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -1509,7 +1801,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["Arrived"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header === "☑" && currentItems.length > 1 ? (
                           <input
                             type="checkbox"
@@ -1523,7 +1822,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                               height: "12px",
                             }}
                           />
-                        ) : header === "☑" ? "" : header}
+                        ) : header === "☑" ? (
+                          ""
+                        ) : (
+                          header
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -1532,7 +1835,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
               </table>
             )}
 
-            {!["New", "Waiting", "Received", "Arrived", "Rejected"].includes(activeTab) && (
+            {!["New", "Waiting", "Received", "Arrived", "Rejected"].includes(
+              activeTab,
+            ) && (
               <table
                 style={{
                   ...styles.table,
@@ -1544,7 +1849,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig[activeTab].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header}
                       </th>
                     ))}
@@ -1566,7 +1878,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 <thead>
                   <tr style={styles.tableHeader}>
                     {tableConfig["Rejected"].headers.map((header, idx) => (
-                      <th key={idx} style={idx === 0 ? styles.expandedTh : styles.thWithLeftBorder}>
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
                         {header}
                       </th>
                     ))}
@@ -1616,38 +1935,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 {">>"}
               </button>
             </div>
-
-            {/* PDF Download Button — hanya di tab Received
-            {activeTab === "Received" && partsData.length > 0 && (
-              <button
-                onClick={handleDownloadPDF}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "4px 12px",
-                  backgroundColor: "#dc2626",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "background-color 0.2s ease",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#b91c1c")}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#dc2626")}
-                title="Download PDF per Trip"
-              >
-                <FileDown size={13} />
-                Download PDF
-              </button>
-            )} */}
           </div>
         </div>
 
-        {/* Action Buttons Below Pagination */}
         {activeTab === "New" && partsData.length > 0 && (
           <div style={styles.saveConfiguration}>
             <button
@@ -1659,30 +1949,6 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             </button>
           </div>
         )}
-
-        {/* {activeTab === "Waiting" && partsData.length > 0 && (
-          <div style={styles.saveConfiguration}>
-            <button
-              style={{ ...styles.button, ...styles.primaryButton }}
-              onClick={handleApproveParts}
-            >
-              <Check size={16} />
-              Approve
-            </button>
-          </div>
-        )} */}
-
-        {/* {activeTab === "Received" && partsData.length > 0 && (
-          <div style={styles.saveConfiguration}>
-            <button
-              style={{ ...styles.button, ...styles.primaryButton }}
-              onClick={handleMoveToInTransit}
-            >
-              <MdArrowRight size={16} />
-              Move to InTransit
-            </button>
-          </div>
-        )} */}
 
         {activeTab === "Arrived" && partsData.length > 0 && (
           <div style={styles.saveConfiguration}>

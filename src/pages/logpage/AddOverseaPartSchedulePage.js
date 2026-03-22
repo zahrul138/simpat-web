@@ -17,15 +17,10 @@ const getAuthUserLocal = () => {
 
 const AddOverseaPartSchedulePage = () => {
   const navigate = useNavigate();
-  const [selectedStockLevel, setSelectedStockLevel] = useState("M136 | SCN-LOG");
+  const [selectedStockLevel, setSelectedStockLevel] =
+    useState("M136 | SCN-LOG");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
   const [scheduleDate, setScheduleDate] = useState("");
-  const [tooltip, setTooltip] = useState({
-    visible: false,
-    content: "",
-    x: 0,
-    y: 0,
-  });
   const [currentEmpName, setCurrentEmpName] = useState("Unknown User");
   const [headerDrafts, setHeaderDrafts] = useState([]);
   const [vendorDraftsByHeader, setVendorDraftsByHeader] = useState({});
@@ -66,27 +61,7 @@ const AddOverseaPartSchedulePage = () => {
   const [loadingParts, setLoadingParts] = useState({});
   const [palletCalculations, setPalletCalculations] = useState({});
 
-  // Tambah state untuk loading submit
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const palletConfig = {
-    large: {
-      width: 110,
-      length: 110,
-      maxHeight: 170,
-      baseHeight: 15,
-      maxWeight: 150,
-      name: "Large Pallet (110x110)",
-    },
-    small: {
-      width: 76,
-      length: 96,
-      maxHeight: 150,
-      baseHeight: 15,
-      maxWeight: 60,
-      name: "Small Pallet (76x96)",
-    },
-  };
 
   const [editingExpandedPart, setEditingExpandedPart] = useState({
     headerId: null,
@@ -118,9 +93,6 @@ const AddOverseaPartSchedulePage = () => {
     }
   }, []);
 
-  // ==================== FUNGSI UTAMA PALLET CALCULATION ====================
-
-  // Helper function: cek apakah box muat di pallet
   const canBoxFitPallet = (boxLength, boxWidth, palletLength, palletWidth) => {
     return (
       (boxLength <= palletLength && boxWidth <= palletWidth) ||
@@ -128,42 +100,37 @@ const AddOverseaPartSchedulePage = () => {
     );
   };
 
-  // Fungsi untuk menghitung kapasitas maksimal box dalam pallet
   const calculateMaxBoxesInPallet = (box, palletType) => {
     const config =
       palletType === "large"
         ? {
-          length: 110,
-          width: 110,
-          maxHeight: 170,
-          baseHeight: 15,
-          maxWeight: 150,
-        }
+            length: 110,
+            width: 110,
+            maxHeight: 170,
+            baseHeight: 15,
+            maxWeight: 150,
+          }
         : {
-          length: 96,
-          width: 76,
-          maxHeight: 150,
-          baseHeight: 15,
-          maxWeight: 60,
-        };
+            length: 96,
+            width: 76,
+            maxHeight: 150,
+            baseHeight: 15,
+            maxWeight: 60,
+          };
 
     const availableHeight = config.maxHeight - config.baseHeight;
 
-    // Hitung boxes per layer dengan orientasi terbaik
     let bestBoxesPerLayer = 0;
     let bestOrientation = "";
 
-    // Coba orientasi normal
     const boxesLengthwiseNormal = Math.floor(config.length / box.length);
     const boxesWidthwiseNormal = Math.floor(config.width / box.width);
     const boxesPerLayerNormal = boxesLengthwiseNormal * boxesWidthwiseNormal;
 
-    // Coba orientasi rotated
     const boxesLengthwiseRotated = Math.floor(config.length / box.width);
     const boxesWidthwiseRotated = Math.floor(config.width / box.length);
     const boxesPerLayerRotated = boxesLengthwiseRotated * boxesWidthwiseRotated;
 
-    // Ambil yang terbaik
     if (boxesPerLayerNormal >= boxesPerLayerRotated) {
       bestBoxesPerLayer = boxesPerLayerNormal;
       bestOrientation = "normal";
@@ -172,7 +139,6 @@ const AddOverseaPartSchedulePage = () => {
       bestOrientation = "rotated";
     }
 
-    // Untuk large pallet, coba kombinasi mixed jika kurang dari 4
     if (palletType === "large" && bestBoxesPerLayer < 4) {
       const boxesMixed = boxesPerLayerNormal + boxesPerLayerRotated;
       if (boxesMixed > bestBoxesPerLayer) {
@@ -181,32 +147,23 @@ const AddOverseaPartSchedulePage = () => {
       }
     }
 
-    // Hitung maksimal layers berdasarkan tinggi
     const maxLayersByHeight = Math.floor(availableHeight / box.height);
 
-    // Safety factor: kurangi 1 layer untuk toleransi
     const safeLayersByHeight = Math.max(1, maxLayersByHeight - 1);
 
-    // Hitung berat per layer
     const weightPerLayer = bestBoxesPerLayer * box.weight;
 
-    // Hitung maksimal layers berdasarkan berat
     const maxLayersByWeight = Math.floor(config.maxWeight / weightPerLayer);
 
-    // Ambil yang lebih kecil antara batas tinggi dan batas berat
     const safeLayers = Math.min(safeLayersByHeight, maxLayersByWeight);
     const finalLayers = Math.max(1, safeLayers);
 
-    // Total boxes per pallet berdasarkan dimensi
     const maxBoxesByDimension = bestBoxesPerLayer * finalLayers;
 
-    // Hitung max boxes berdasarkan berat saja
     const maxBoxesByWeight = Math.floor(config.maxWeight / box.weight);
 
-    // Ambil yang lebih kecil (dimensi ATAU berat yang membatasi)
     const maxBoxesPerPallet = Math.min(maxBoxesByDimension, maxBoxesByWeight);
 
-    // Hitung berat per pallet
     const weightPerPallet = maxBoxesPerPallet * box.weight;
 
     return {
@@ -218,55 +175,6 @@ const AddOverseaPartSchedulePage = () => {
       isWeightLimited: maxBoxesPerPallet === maxBoxesByWeight,
       isHeightLimited: maxBoxesPerPallet === maxBoxesByDimension,
     };
-  };
-
-  // Fungsi optimasi untuk mixing pallet
-  const optimizeMixedPalletPacking = async (palletResults) => {
-    if (palletResults.length <= 1) return palletResults;
-
-    // Urutkan berdasarkan utilization terendah
-    palletResults.sort((a, b) => {
-      const utilA = a.weight / (a.type === "large" ? 150 : 60);
-      const utilB = b.weight / (b.type === "large" ? 150 : 60);
-      return utilA - utilB;
-    });
-
-    const optimized = [...palletResults];
-    let changed = true;
-
-    // Iterasi untuk optimasi
-    while (changed && optimized.length > 1) {
-      changed = false;
-
-      for (let i = 0; i < optimized.length; i++) {
-        for (let j = i + 1; j < optimized.length; j++) {
-          const palletA = optimized[i];
-          const palletB = optimized[j];
-
-          // Hanya gabung jika type sama
-          if (palletA.type !== palletB.type) continue;
-
-          const maxWeight = palletA.type === "large" ? 150 : 60;
-          const combinedWeight = palletA.weight + palletB.weight;
-
-          // Cek apakah bisa digabung berdasarkan berat
-          if (combinedWeight <= maxWeight) {
-            // Gabungkan
-            palletA.weight = combinedWeight;
-            palletA.boxesCount += palletB.boxesCount;
-
-            // Hapus palletB
-            optimized.splice(j, 1);
-            changed = true;
-            console.log(`Merged pallet ${j} into ${i} (${palletA.type})`);
-            break;
-          }
-        }
-        if (changed) break;
-      }
-    }
-
-    return optimized;
   };
 
   const calculateOptimizedMixedPallet = async (boxData) => {
@@ -284,7 +192,6 @@ const AddOverseaPartSchedulePage = () => {
 
       console.log(`=== PERHITUNGAN PALLET DENGAN ${boxData.length} BOX ===`);
 
-      // 1. Kumpulkan data box berdasarkan ukuran
       const boxGroups = {};
       let totalBoxesAll = boxData.length;
       let totalWeightAll = 0;
@@ -321,20 +228,17 @@ const AddOverseaPartSchedulePage = () => {
 
       console.log(
         `Total box: ${totalBoxesAll}, Total berat: ${totalWeightAll.toFixed(
-          2
-        )}kg`
+          2,
+        )}kg`,
       );
       console.log(`Kelompok box:`, Object.keys(boxGroups).length);
 
-      // 2. Hitung pallet untuk setiap kelompok box
       let totalLargePallets = 0;
       let totalSmallPallets = 0;
       const palletDetails = [];
 
-      // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
-      // for...in tidak menjamin urutan, sehingga urutan row bisa mempengaruhi hasil
       const sortedKeys = Object.keys(boxGroups).sort();
-      
+
       for (const key of sortedKeys) {
         const group = boxGroups[key];
         const weightPerBox = group.totalWeight / group.totalBoxes;
@@ -344,7 +248,6 @@ const AddOverseaPartSchedulePage = () => {
         console.log(`  Berat per box: ${weightPerBox.toFixed(2)}kg`);
         console.log(`  Total berat: ${group.totalWeight.toFixed(2)}kg`);
 
-        // Cek apakah muat di small pallet
         const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
         const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
 
@@ -353,7 +256,6 @@ const AddOverseaPartSchedulePage = () => {
           palletType = "small";
         }
 
-        // Hitung kapasitas untuk pallet type yang dipilih
         const capacity = calculateMaxBoxesInPallet(
           {
             length: group.length,
@@ -361,28 +263,26 @@ const AddOverseaPartSchedulePage = () => {
             height: group.height,
             weight: weightPerBox,
           },
-          palletType
+          palletType,
         );
 
         console.log(`  ${palletType} pallet capacity:`);
         console.log(`    Max boxes per pallet: ${capacity.maxBoxesPerPallet}`);
         console.log(
-          `    Weight per pallet: ${capacity.weightPerPallet.toFixed(2)}kg`
+          `    Weight per pallet: ${capacity.weightPerPallet.toFixed(2)}kg`,
         );
 
-        // Hitung berapa pallet dibutuhkan
         const palletsNeeded = Math.ceil(
-          group.totalBoxes / capacity.maxBoxesPerPallet
+          group.totalBoxes / capacity.maxBoxesPerPallet,
         );
 
         console.log(`  Pallets needed: ${palletsNeeded}`);
 
-        // Distribusikan ke pallet-pallet
         let remainingBoxes = group.totalBoxes;
         for (let i = 0; i < palletsNeeded; i++) {
           const boxesInThisPallet = Math.min(
             remainingBoxes,
-            capacity.maxBoxesPerPallet
+            capacity.maxBoxesPerPallet,
           );
           const weightInThisPallet = boxesInThisPallet * weightPerBox;
 
@@ -406,10 +306,8 @@ const AddOverseaPartSchedulePage = () => {
         }
       }
 
-      // 3. Coba optimasi mixing untuk box yang underutilized
       const optimizedPallets = optimizePalletMixing(palletDetails);
 
-      // 4. Hitung hasil akhir
       let finalLargePallets = 0;
       let finalSmallPallets = 0;
       let finalTotalWeight = 0;
@@ -456,7 +354,7 @@ const AddOverseaPartSchedulePage = () => {
       };
     } catch (error) {
       console.error("Error in optimized calculation:", error);
-      // Fallback ke perhitungan sederhana
+
       return calculateSimplePalletFromBoxData(boxData);
     }
   };
@@ -473,13 +371,11 @@ const AddOverseaPartSchedulePage = () => {
       };
     }
 
-    // Kelompokkan box berdasarkan ukuran
     const boxGroups = {};
     let totalWeight = 0;
 
     boxData.forEach((box) => {
       const boxKey = `${box.length}x${box.width}x${box.height}`;
-
       if (!boxGroups[boxKey]) {
         boxGroups[boxKey] = {
           totalBoxes: 0,
@@ -489,7 +385,6 @@ const AddOverseaPartSchedulePage = () => {
           height: box.height,
         };
       }
-
       boxGroups[boxKey].totalBoxes += 1;
       boxGroups[boxKey].totalWeight += box.weight;
       totalWeight += box.weight;
@@ -499,7 +394,6 @@ const AddOverseaPartSchedulePage = () => {
     let totalSmallPallets = 0;
     const details = [];
 
-    // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
     const sortedKeys = Object.keys(boxGroups).sort();
 
     for (const key of sortedKeys) {
@@ -508,28 +402,15 @@ const AddOverseaPartSchedulePage = () => {
 
       const avgWeightPerBox = group.totalWeight / group.totalBoxes;
 
-      // Hitung kapasitas untuk setiap jenis pallet
       const largeCapacity = calculateMaxBoxesInPallet(
-        {
-          length: group.length,
-          width: group.width,
-          height: group.height,
-          weight: avgWeightPerBox,
-        },
-        "large"
+        { length: group.length, width: group.width, height: group.height, weight: avgWeightPerBox },
+        "large",
       );
-
       const smallCapacity = calculateMaxBoxesInPallet(
-        {
-          length: group.length,
-          width: group.width,
-          height: group.height,
-          weight: avgWeightPerBox,
-        },
-        "small"
+        { length: group.length, width: group.width, height: group.height, weight: avgWeightPerBox },
+        "small",
       );
 
-      // Pilih pallet type
       let palletType = "large";
       let capacity = largeCapacity;
 
@@ -541,10 +422,7 @@ const AddOverseaPartSchedulePage = () => {
         capacity = smallCapacity;
       }
 
-      // Hitung pallet yang dibutuhkan
-      const palletsNeeded = Math.ceil(
-        group.totalBoxes / capacity.maxBoxesPerPallet
-      );
+      const palletsNeeded = Math.ceil(group.totalBoxes / capacity.maxBoxesPerPallet);
 
       if (palletType === "large") {
         totalLargePallets += palletsNeeded;
@@ -562,7 +440,6 @@ const AddOverseaPartSchedulePage = () => {
       });
     }
 
-    // Optimasi: gabung small pallets jika bisa
     if (totalSmallPallets >= 2) {
       const largeFromSmall = Math.floor(totalSmallPallets / 2);
       totalLargePallets += largeFromSmall;
@@ -584,233 +461,30 @@ const AddOverseaPartSchedulePage = () => {
 
     const optimized = [...palletDetails];
 
-    // Coba gabung pallet yang sama type dan masih ada space
     for (let i = 0; i < optimized.length; i++) {
       for (let j = i + 1; j < optimized.length; j++) {
         const palletA = optimized[i];
         const palletB = optimized[j];
 
-        // Hanya gabung jika type sama
         if (palletA.palletType !== palletB.palletType) continue;
 
         const maxWeight = palletA.palletType === "large" ? 150 : 60;
         const combinedWeight = palletA.totalWeight + palletB.totalWeight;
         const combinedBoxes = palletA.boxesCount + palletB.boxesCount;
 
-        // Cek apakah bisa digabung (berat dan kapasitas)
         if (combinedWeight <= maxWeight && combinedBoxes <= palletA.capacity) {
-          // Gabungkan ke palletA
+
           palletA.boxesCount = combinedBoxes;
           palletA.totalWeight = combinedWeight;
 
-          // Hapus palletB
           optimized.splice(j, 1);
-          j--; // Adjust index karena array berubah
+          j--;
           console.log(`Merged pallets (${palletA.palletType})`);
         }
       }
     }
 
     return optimized;
-  };
-
-  // Fungsi fallback sederhana
-  const calculateSimplePallet = async (headerId, vendorIndex) => {
-    try {
-      const vendor = vendorDraftsByHeader[headerId]?.[vendorIndex];
-      if (!vendor || !vendor.parts || vendor.parts.length === 0) {
-        return {
-          largePallets: 0,
-          smallPallets: 0,
-          totalPallets: 0,
-          details: [],
-          totalWeight: 0,
-          optimized: false,
-        };
-      }
-
-      // Kelompokkan box berdasarkan ukuran
-      const boxGroups = {};
-      let totalWeight = 0;
-
-      for (const part of vendor.parts) {
-        const partCode = part.partCode;
-        const qtyBox = part.qtyBox || 0;
-
-        if (qtyBox <= 0) continue;
-
-        let placementData = null;
-        let partWeight = 0;
-
-        // Fetch placement data
-        if (part.placementId) {
-          try {
-            const placementResp = await fetch(
-              `${API_BASE}/api/vendor-placements/${part.placementId}`
-            );
-            if (placementResp.ok) {
-              const result = await placementResp.json();
-              placementData = result.data || result;
-            }
-          } catch (err) {
-            console.warn(`Error fetching placement:`, err);
-          }
-        }
-
-        // Fetch part weight
-        if (!partWeight && partCode) {
-          try {
-            const partResp = await fetch(
-              `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
-                partCode
-              )}`
-            );
-            if (partResp.ok) {
-              const partResult = await partResp.json();
-              const kanbanData =
-                partResult.item || partResult.data || partResult;
-
-              if (kanbanData.part_weight) {
-                partWeight = parseFloat(kanbanData.part_weight);
-
-                if (kanbanData.weight_unit === "g") {
-                  partWeight = partWeight / 1000;
-                } else if (kanbanData.weight_unit === "lbs") {
-                  partWeight = partWeight * 0.453592;
-                } else if (kanbanData.weight_unit === "oz") {
-                  partWeight = partWeight * 0.0283495;
-                }
-              }
-            }
-          } catch (err) {
-            console.warn(`Error fetching part weight:`, err);
-          }
-        }
-
-        if (
-          placementData &&
-          placementData.length_cm &&
-          placementData.width_cm &&
-          placementData.height_cm
-        ) {
-          const boxKey = `${placementData.length_cm}x${placementData.width_cm}x${placementData.height_cm}`;
-
-          if (!boxGroups[boxKey]) {
-            boxGroups[boxKey] = {
-              totalBoxes: 0,
-              totalWeight: 0,
-              length: parseFloat(placementData.length_cm),
-              width: parseFloat(placementData.width_cm),
-              height: parseFloat(placementData.height_cm),
-            };
-          }
-
-          boxGroups[boxKey].totalBoxes += qtyBox;
-          boxGroups[boxKey].totalWeight += partWeight * qtyBox;
-          totalWeight += partWeight * qtyBox;
-        }
-      }
-
-      let totalLargePallets = 0;
-      let totalSmallPallets = 0;
-      const details = [];
-
-      // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
-      const sortedKeys = Object.keys(boxGroups).sort();
-
-      for (const key of sortedKeys) {
-        const group = boxGroups[key];
-        if (group.totalBoxes <= 0) continue;
-
-        const avgWeightPerBox = group.totalWeight / group.totalBoxes;
-
-        // Hitung kapasitas untuk setiap jenis pallet
-        const largeCapacity = calculateMaxBoxesInPallet(
-          {
-            length: group.length,
-            width: group.width,
-            height: group.height,
-            weight: avgWeightPerBox,
-          },
-          "large"
-        );
-
-        const smallCapacity = calculateMaxBoxesInPallet(
-          {
-            length: group.length,
-            width: group.width,
-            height: group.height,
-            weight: avgWeightPerBox,
-          },
-          "small"
-        );
-
-        // Pilih pallet type
-        let palletType = "large";
-        let capacity = largeCapacity;
-
-        const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
-        const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
-
-        if (!fitsLarge && fitsSmall) {
-          palletType = "small";
-          capacity = smallCapacity;
-        }
-
-        // Hitung pallet yang dibutuhkan
-        const palletsNeeded = Math.ceil(
-          group.totalBoxes / capacity.maxBoxesPerPallet
-        );
-
-        if (palletType === "large") {
-          totalLargePallets += palletsNeeded;
-        } else {
-          totalSmallPallets += palletsNeeded;
-        }
-
-        details.push({
-          boxSize: `${group.length}×${group.width}×${group.height}cm`,
-          totalBoxes: group.totalBoxes,
-          totalWeight: group.totalWeight,
-          palletType,
-          palletsNeeded,
-          capacity: capacity.maxBoxesPerPallet,
-        });
-
-        console.log(
-          `Group ${key}: ${palletsNeeded} ${palletType} pallet(s), ${group.totalBoxes} boxes, capacity: ${capacity.maxBoxesPerPallet}/pallet`
-        );
-      }
-
-      // Optimasi: gabung small pallets jika bisa
-      if (totalSmallPallets >= 2) {
-        const largeFromSmall = Math.floor(totalSmallPallets / 2);
-        totalLargePallets += largeFromSmall;
-        totalSmallPallets = totalSmallPallets % 2;
-        console.log(
-          `Optimized: ${largeFromSmall} small pallets → ${largeFromSmall} large pallet(s)`
-        );
-      }
-
-      return {
-        largePallets: totalLargePallets,
-        smallPallets: totalSmallPallets,
-        totalPallets: totalLargePallets + totalSmallPallets,
-        totalWeight,
-        details,
-        optimized: false,
-      };
-    } catch (error) {
-      console.error("Error in simple calculation:", error);
-      return {
-        largePallets: 0,
-        smallPallets: 0,
-        totalPallets: 0,
-        totalWeight: 0,
-        details: [],
-        optimized: false,
-      };
-    }
   };
 
   const recalculatePalletForVendor = async (headerId, vendorIndex) => {
@@ -833,7 +507,6 @@ const AddOverseaPartSchedulePage = () => {
         return;
       }
 
-      // Collect box data dengan placement details
       const boxData = [];
       let totalBoxes = 0;
       let totalWeight = 0;
@@ -845,11 +518,11 @@ const AddOverseaPartSchedulePage = () => {
         if (qtyBox <= 0) continue;
 
         try {
-          // Gunakan endpoint untuk placement details
+
           const placementResp = await fetch(
             `${API_BASE}/api/kanban-master/placement-details?part_code=${encodeURIComponent(
-              partCode
-            )}`
+              partCode,
+            )}`,
           );
 
           if (placementResp.ok) {
@@ -867,7 +540,6 @@ const AddOverseaPartSchedulePage = () => {
               const boxHeight = parseFloat(placementData.height_cm);
               const boxWeight = parseFloat(placementData.part_weight || 0);
 
-              // Tambahkan box sebanyak qtyBox
               for (let i = 0; i < qtyBox; i++) {
                 boxData.push({
                   length: boxLength,
@@ -887,10 +559,10 @@ const AddOverseaPartSchedulePage = () => {
         }
       }
 
-      console.log(`Total boxes collected: ${totalBoxes}, Total weight: ${totalWeight.toFixed(2)}kg`);
+      console.log(
+        `Total boxes collected: ${totalBoxes}, Total weight: ${totalWeight.toFixed(2)}kg`,
+      );
 
-      // PERBAIKAN ERROR 1: Jika tidak ada boxData sama sekali, langsung return 0
-      // Jangan panggil calculateSimplePallet karena bisa memberikan hasil yang salah
       if (boxData.length === 0) {
         console.log(`No box data collected, setting total pallet to 0`);
         setPalletCalculations((prev) => ({
@@ -907,7 +579,6 @@ const AddOverseaPartSchedulePage = () => {
         return;
       }
 
-      // Hitung pallet dengan optimasi
       const result = await calculateOptimizedMixedPallet(boxData);
 
       setPalletCalculations((prev) => ({
@@ -921,7 +592,7 @@ const AddOverseaPartSchedulePage = () => {
 
       console.log(
         `Pallet calculation result for vendor ${vendorIndex + 1}:`,
-        result
+        result,
       );
     } catch (error) {
       console.error("Error in pallet calculation:", error);
@@ -951,15 +622,12 @@ const AddOverseaPartSchedulePage = () => {
     return details;
   };
 
-  // ==================== FUNGSI-FUNGSI LAIN (TIDAK BERUBAH) ====================
-  // [Semua fungsi lainnya tetap sama seperti sebelumnya...]
-
   const handleEditPartClick = (
     headerId,
     vendorIndex,
     partIndex,
     partId,
-    currentQty
+    currentQty,
   ) => {
     setEditingPart({
       headerId,
@@ -976,7 +644,7 @@ const AddOverseaPartSchedulePage = () => {
     vendorIndex,
     partIndex,
     partId,
-    newQty
+    newQty,
   ) => {
     try {
       const qty = parseInt(newQty);
@@ -996,8 +664,8 @@ const AddOverseaPartSchedulePage = () => {
 
       const resp = await fetch(
         `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
-          partData.partCode
-        )}`
+          partData.partCode,
+        )}`,
       );
 
       if (!resp.ok) throw new Error("Failed to fetch part details");
@@ -1033,7 +701,7 @@ const AddOverseaPartSchedulePage = () => {
       const qtyBox = Math.ceil(qty / qtyPerBox);
 
       console.log(
-        `Saving part ${partData.partCode}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}`
+        `Saving part ${partData.partCode}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}`,
       );
 
       setVendorDraftsByHeader((prev) => {
@@ -1055,12 +723,11 @@ const AddOverseaPartSchedulePage = () => {
           ...newVendors[vendorIndex],
           parts: newParts,
         };
-        
-        // PERBAIKAN ROBUST: Check jika semua parts punya qtyBox = 0
-        const hasNonZeroQty = newParts.some(p => (p.qtyBox || 0) > 0);
-        
+
+        const hasNonZeroQty = newParts.some((p) => (p.qtyBox || 0) > 0);
+
         if (!hasNonZeroQty) {
-          // Semua parts qtyBox = 0, set pallet ke 0
+
           setPalletCalculations((prevCalc) => ({
             ...prevCalc,
             [`${headerId}_${vendorIndex}`]: {
@@ -1074,12 +741,12 @@ const AddOverseaPartSchedulePage = () => {
             },
           }));
         } else {
-          // Ada parts dengan qtyBox > 0, recalculate dengan delay
+
           setTimeout(() => {
             recalculatePalletForVendor(headerId, vendorIndex);
           }, 100);
         }
-        
+
         return { ...prev, [headerId]: newVendors };
       });
 
@@ -1104,7 +771,7 @@ const AddOverseaPartSchedulePage = () => {
     vendorIndex,
     partIndex,
     partId,
-    currentQty
+    currentQty,
   ) => {
     setEditingExpandedPart({
       headerId,
@@ -1121,7 +788,7 @@ const AddOverseaPartSchedulePage = () => {
     vendorIndex,
     partIndex,
     partId,
-    newQty
+    newQty,
   ) => {
     try {
       const qty = parseInt(newQty);
@@ -1142,8 +809,8 @@ const AddOverseaPartSchedulePage = () => {
 
       const resp = await fetch(
         `${API_BASE}/api/kanban-master/qty-per-box?part_code=${encodeURIComponent(
-          partData.partCode
-        )}`
+          partData.partCode,
+        )}`,
       );
 
       if (!resp.ok) throw new Error("Failed to fetch part details");
@@ -1179,7 +846,7 @@ const AddOverseaPartSchedulePage = () => {
       const qtyBox = Math.ceil(qty / qtyPerBox);
 
       console.log(
-        `Saving part ${partData.partCode}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}`
+        `Saving part ${partData.partCode}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}`,
       );
 
       setVendorDraftsByHeader((prev) => {
@@ -1199,12 +866,11 @@ const AddOverseaPartSchedulePage = () => {
           ...newVendors[vendorIndex],
           parts: newParts,
         };
-        
-        // PERBAIKAN ROBUST: Check jika semua parts punya qtyBox = 0
-        const hasNonZeroQty = newParts.some(p => (p.qtyBox || 0) > 0);
-        
+
+        const hasNonZeroQty = newParts.some((p) => (p.qtyBox || 0) > 0);
+
         if (!hasNonZeroQty) {
-          // Semua parts qtyBox = 0, set pallet ke 0
+
           setPalletCalculations((prevCalc) => ({
             ...prevCalc,
             [`${headerId}_${vendorIndex}`]: {
@@ -1218,12 +884,12 @@ const AddOverseaPartSchedulePage = () => {
             },
           }));
         } else {
-          // Ada parts dengan qtyBox > 0, recalculate dengan delay
+
           setTimeout(() => {
             recalculatePalletForVendor(headerId, vendorIndex);
           }, 100);
         }
-        
+
         return { ...prev, [headerId]: newVendors };
       });
 
@@ -1248,7 +914,7 @@ const AddOverseaPartSchedulePage = () => {
     headerId,
     vendorIndex,
     partIndex,
-    partId
+    partId,
   ) => {
     if (e.key === "Enter") {
       handleSaveExpandedPartQty(
@@ -1256,7 +922,7 @@ const AddOverseaPartSchedulePage = () => {
         vendorIndex,
         partIndex,
         partId,
-        editingExpandedPart.qty
+        editingExpandedPart.qty,
       );
     } else if (e.key === "Escape") {
       setEditingExpandedPart({
@@ -1271,7 +937,7 @@ const AddOverseaPartSchedulePage = () => {
   };
 
   useEffect(() => {
-    // Hitung ulang pallet setiap kali vendorDraftsByHeader berubah
+
     headerDrafts.forEach((header) => {
       const vendors = vendorDraftsByHeader[header.id] || [];
       vendors.forEach((_, vendorIndex) => {
@@ -1285,7 +951,7 @@ const AddOverseaPartSchedulePage = () => {
     headerId,
     vendorIndex,
     partIndex,
-    partId
+    partId,
   ) => {
     if (e.key === "Enter") {
       handleSavePartQty(
@@ -1293,7 +959,7 @@ const AddOverseaPartSchedulePage = () => {
         vendorIndex,
         partIndex,
         partId,
-        editingPart.qty
+        editingPart.qty,
       );
     } else if (e.key === "Escape") {
       setEditingPart({
@@ -1342,46 +1008,6 @@ const AddOverseaPartSchedulePage = () => {
         return;
       }
 
-      // const sel = new Date(`${scheduleDate}T00:00:00`);
-      // const now = new Date();
-      // const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      // if (!(sel instanceof Date) || Number.isNaN(sel.getTime())) {
-      //   alert("Format Schedule Date not valid");
-      //   return;
-      // }
-      // if (sel <= today) {
-      //   alert("The schedule date must be later than today.");
-      //   return;
-      // }
-
-      // Cek apakah schedule date sudah ada di database
-      const resp = await fetch(
-        `${API_BASE}/api/oversea-schedules/check-date?scheduleDate=${scheduleDate}`
-      );
-      const data = await resp.json();
-
-      if (!resp.ok) {
-        throw new Error(data.message || "Failed to check schedule date");
-      }
-
-      if (data.exists) {
-        alert(
-          "Schedule Date has been created in database. Try creating another Schedule Date."
-        );
-        return;
-      }
-
-      // Cek apakah schedule date sudah ada di draft lokal
-      const isDuplicateDate = headerDrafts.some(
-        (hdr) => hdr.scheduleDate === scheduleDate
-      );
-
-      if (isDuplicateDate) {
-        alert("Schedule Date has been created in draft, try make another");
-        return;
-      }
-
       const createdAt = new Date().toISOString();
       const newId = `draft-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -1396,7 +1022,6 @@ const AddOverseaPartSchedulePage = () => {
 
       setHeaderDrafts((prev) => [...prev, newHeader]);
       setVendorDraftsByHeader((prev) => ({ ...prev, [newId]: [] }));
-
     } catch (e) {
       alert("Error: " + e.message);
     }
@@ -1419,14 +1044,14 @@ const AddOverseaPartSchedulePage = () => {
       return {
         ...vendor,
         totalPallet: totalPalletForVendor,
-        totalItem: totalItemForVendor
+        totalItem: totalItemForVendor,
       };
     });
 
     return {
       totalPalletForSchedule,
       totalItemForSchedule,
-      vendorDataWithPallets
+      vendorDataWithPallets,
     };
   };
 
@@ -1438,24 +1063,22 @@ const AddOverseaPartSchedulePage = () => {
       }
 
       const selectedSchedules = [...selectedHeaderIds].map((id) =>
-        headerDrafts.find((h) => h.id === id)
+        headerDrafts.find((h) => h.id === id),
       );
 
-      // Validasi: setiap schedule harus memiliki vendor
       for (const schedule of selectedSchedules) {
         const scheduleVendors = vendorDraftsByHeader[schedule.id] || [];
         if (scheduleVendors.length === 0) {
           alert(
-            `Schedule for ${schedule.scheduleDate} has no vendors. Please add vendors before submitting.`
+            `Schedule for ${schedule.scheduleDate} has no vendors. Please add vendors before submitting.`,
           );
           return;
         }
 
-        // Validasi: setiap vendor harus memiliki parts
         for (const vendor of scheduleVendors) {
           if (!vendor.parts || vendor.parts.length === 0) {
             alert(
-              `Schedule for ${schedule.scheduleDate} has vendors without parts. Please add parts before submitting.`
+              `Schedule for ${schedule.scheduleDate} has vendors without parts. Please add parts before submitting.`,
             );
             return;
           }
@@ -1466,18 +1089,15 @@ const AddOverseaPartSchedulePage = () => {
       const results = [];
       const errors = [];
 
-      // Process each schedule
       for (const schedule of selectedSchedules) {
         try {
           console.log(`Processing schedule for ${schedule.scheduleDate}`);
 
-          // AMBIL DATA VENDORS DARI STATE
-          const vendorsForThisSchedule = vendorDraftsByHeader[schedule.id] || [];
+          const vendorsForThisSchedule =
+            vendorDraftsByHeader[schedule.id] || [];
 
-          // Hitung total pallet dan item untuk schedule ini
           const scheduleTotals = calculateAndSendPalletData(schedule.id);
 
-          // 1. Create schedule header
           const schedulePayload = {
             stockLevel: schedule.stockLevel,
             modelName: schedule.modelName,
@@ -1485,7 +1105,7 @@ const AddOverseaPartSchedulePage = () => {
             uploadByName: schedule.uploadByName || currentEmpName,
             totalVendor: vendorsForThisSchedule.length,
             totalPallet: scheduleTotals.totalPalletForSchedule,
-            totalItem: scheduleTotals.totalItemForSchedule
+            totalItem: scheduleTotals.totalItemForSchedule,
           };
 
           console.log("Creating schedule header:", schedulePayload);
@@ -1498,14 +1118,14 @@ const AddOverseaPartSchedulePage = () => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify(schedulePayload),
-            }
+            },
           );
 
           if (!scheduleResponse.ok) {
             const errorData = await scheduleResponse.json();
             throw new Error(
               errorData.message ||
-              `Failed to create schedule: ${scheduleResponse.status}`
+                `Failed to create schedule: ${scheduleResponse.status}`,
             );
           }
 
@@ -1518,27 +1138,26 @@ const AddOverseaPartSchedulePage = () => {
 
           console.log(`Schedule created with ID: ${createdScheduleId}`);
 
-          // 2. Add vendors to schedule - PAKAI vendorsForThisSchedule
           if (vendorsForThisSchedule.length > 0) {
             const vendorPayload = {
               items: vendorsForThisSchedule.map((vendor, vendorIndex) => {
-                // Hitung total pallet untuk vendor ini
+
                 const palletKey = `${schedule.id}_${vendorIndex}`;
                 const palletCalculation = palletCalculations[palletKey] || {};
-                const totalPalletForVendor = palletCalculation.totalPallets || 0;
+                const totalPalletForVendor =
+                  palletCalculation.totalPallets || 0;
 
-                // Hitung total item (parts) untuk vendor ini
                 const totalItemForVendor = vendor.parts?.length || 0;
 
                 return {
                   tripId: vendor.trip_id,
                   vendorId: vendor.vendor_id,
-                  doNumbers: vendor.do_numbers || [],
+                  doNumbers: vendor.do_number || [],
                   arrivalTime: vendor.arrivalTime || null,
                   totalPallet: totalPalletForVendor,
-                  totalItem: totalItemForVendor
+                  totalItem: totalItemForVendor,
                 };
-              })
+              }),
             };
 
             console.log("Adding vendors:", vendorPayload);
@@ -1551,7 +1170,7 @@ const AddOverseaPartSchedulePage = () => {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify(vendorPayload),
-              }
+              },
             );
 
             const vendorData = await vendorResponse.json();
@@ -1559,20 +1178,19 @@ const AddOverseaPartSchedulePage = () => {
             if (!vendorResponse.ok) {
               throw new Error(
                 vendorData.message ||
-                `Failed to add vendors: ${vendorResponse.status}`
+                  `Failed to add vendors: ${vendorResponse.status}`,
               );
             }
 
             const vendorIds = vendorData.vendorIds || [];
             console.log(`Vendors added: ${vendorIds.length}`, vendorIds);
 
-            // 3. Add parts to each vendor
             for (let i = 0; i < vendorsForThisSchedule.length; i++) {
               const vendor = vendorsForThisSchedule[i];
               const vendorId = vendorIds[i];
 
               if (vendorId && vendor.parts && vendor.parts.length > 0) {
-                // Persiapkan data parts untuk API yang ada
+
                 const partsData = vendor.parts.map((part) => ({
                   partCode: part.partCode,
                   partName: part.partName || "",
@@ -1584,10 +1202,9 @@ const AddOverseaPartSchedulePage = () => {
 
                 console.log(
                   `Adding ${partsData.length} parts to vendor ${vendorId}:`,
-                  partsData
+                  partsData,
                 );
 
-                // Gunakan endpoint bulk parts yang sudah ada
                 const partsResponse = await fetch(
                   `${API_BASE}/api/oversea-schedules/${vendorId}/parts/bulk`,
                   {
@@ -1596,7 +1213,7 @@ const AddOverseaPartSchedulePage = () => {
                       "Content-Type": "application/json",
                     },
                     body: JSON.stringify({ items: partsData }),
-                  }
+                  },
                 );
 
                 const partsResult = await partsResponse.json();
@@ -1604,15 +1221,18 @@ const AddOverseaPartSchedulePage = () => {
                 if (!partsResponse.ok) {
                   console.error(
                     `Failed to add parts to vendor ${vendorId}:`,
-                    partsResult
+                    partsResult,
                   );
                   throw new Error(
                     partsResult.message ||
-                    `Failed to add parts: ${partsResponse.status}`
+                      `Failed to add parts: ${partsResponse.status}`,
                   );
                 }
 
-                console.log(`Parts added successfully to vendor ${vendorId}:`, partsResult);
+                console.log(
+                  `Parts added successfully to vendor ${vendorId}:`,
+                  partsResult,
+                );
               }
             }
           }
@@ -1623,11 +1243,13 @@ const AddOverseaPartSchedulePage = () => {
             success: true,
           });
 
-          console.log(`Schedule ${schedule.scheduleDate} successfully submitted`);
+          console.log(
+            `Schedule ${schedule.scheduleDate} successfully submitted`,
+          );
         } catch (error) {
           console.error(
             `Error submitting schedule ${schedule.scheduleDate}:`,
-            error
+            error,
           );
           errors.push({
             scheduleDate: schedule.scheduleDate,
@@ -1639,24 +1261,22 @@ const AddOverseaPartSchedulePage = () => {
       if (errors.length > 0) {
         alert(
           `Successfully submitted ${results.length} schedule(s).\n` +
-          `Failed to submit ${errors.length} schedule(s):\n` +
-          errors.map((e) => `- ${e.scheduleDate}: ${e.error}`).join("\n")
+            `Failed to submit ${errors.length} schedule(s):\n` +
+            errors.map((e) => `- ${e.scheduleDate}: ${e.error}`).join("\n"),
         );
       } else {
-        alert(
-          `Successfully submitted ${results.length} schedule(s).`
-        );
+        alert(`Successfully submitted ${results.length} schedule(s).`);
       }
 
-      // Clear successfully submitted schedules
       const successfulScheduleIds = results
-        .map((r) =>
-          headerDrafts.find((h) => h.scheduleDate === r.scheduleDate)?.id
+        .map(
+          (r) =>
+            headerDrafts.find((h) => h.scheduleDate === r.scheduleDate)?.id,
         )
         .filter((id) => id);
 
       setHeaderDrafts((prev) =>
-        prev.filter((h) => !successfulScheduleIds.includes(h.id))
+        prev.filter((h) => !successfulScheduleIds.includes(h.id)),
       );
 
       setVendorDraftsByHeader((prev) => {
@@ -1673,7 +1293,6 @@ const AddOverseaPartSchedulePage = () => {
         return newSet;
       });
 
-      // Navigate back to main page
       navigate("/oversea-schedule");
     } catch (error) {
       console.error("Error in handleSubmitScheduleToDatabase:", error);
@@ -1735,25 +1354,22 @@ const AddOverseaPartSchedulePage = () => {
       delete next[`${headerId}_${vendorIndex}`];
       return next;
     });
-
   };
 
   const handleDeletePart = (headerId, vendorIndex, partId) => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
-      
-      // Update parts
+
       const updatedParts = (vendors[vendorIndex].parts || []).filter(
-        (p) => p.id !== partId
+        (p) => p.id !== partId,
       );
-      
+
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
         parts: updatedParts,
       };
-      
-      // PERBAIKAN ROBUST: Langsung set pallet ke 0 jika parts kosong
+
       if (updatedParts.length === 0) {
         setPalletCalculations((prevCalc) => ({
           ...prevCalc,
@@ -1768,12 +1384,12 @@ const AddOverseaPartSchedulePage = () => {
           },
         }));
       } else {
-        // Jika masih ada parts, recalculate dengan delay
+
         setTimeout(() => {
           recalculatePalletForVendor(headerId, vendorIndex);
         }, 100);
       }
-      
+
       return { ...prev, [headerId]: vendors };
     });
   };
@@ -1867,7 +1483,7 @@ const AddOverseaPartSchedulePage = () => {
 
     if (!activeHeaderIdForVendorForm) {
       alert(
-        "Header schedule not found. Click the + button on the schedule to which you want to add a vendor."
+        "Header schedule not found. Click the + button on the schedule to which you want to add a vendor.",
       );
       return;
     }
@@ -1891,7 +1507,7 @@ const AddOverseaPartSchedulePage = () => {
     }
 
     const t = tripOptions.find(
-      (x) => String(x.trip_no) === String(addVendorFormData.trip)
+      (x) => String(x.trip_no) === String(addVendorFormData.trip),
     );
     if (!t?.id) {
       alert("Trip tidak dikenali. Pastikan trip master sudah tersedia.");
@@ -1900,7 +1516,7 @@ const AddOverseaPartSchedulePage = () => {
 
     const vendorLabel = addVendorFormData.vendor;
     const v = vendorOptions.find(
-      (x) => `${x.vendor_code} - ${x.vendor_name}` === vendorLabel
+      (x) => `${x.vendor_code} - ${x.vendor_name}` === vendorLabel,
     );
     if (!v?.id) {
       alert("Vendor tidak dikenali. Pastikan vendor master sudah tersedia.");
@@ -1919,12 +1535,15 @@ const AddOverseaPartSchedulePage = () => {
           {
             trip_id: Number(t.id),
             vendor_id: Number(v.id),
-            do_numbers: clean,
+            do_number: clean,
             parts: [],
-            schedule_date_ref: headerDrafts.find(h => h.id === headerId)?.scheduleDate,
-            stock_level_ref: headerDrafts.find(h => h.id === headerId)?.stockLevel,
-            model_name_ref: headerDrafts.find(h => h.id === headerId)?.modelName,
-            arrival_time: t.arv_to
+            schedule_date_ref: headerDrafts.find((h) => h.id === headerId)
+              ?.scheduleDate,
+            stock_level_ref: headerDrafts.find((h) => h.id === headerId)
+              ?.stockLevel,
+            model_name_ref: headerDrafts.find((h) => h.id === headerId)
+              ?.modelName,
+            arrival_time: t.arv_to,
           },
         ],
       };
@@ -1944,7 +1563,7 @@ const AddOverseaPartSchedulePage = () => {
     headerId,
     vendorIndex,
     vendorData,
-    vendorLabel
+    vendorLabel,
   ) => {
     autoExpandVendorOnPartAdd(headerId, vendorIndex);
     const existingPartsInVendor = vendorData.parts || [];
@@ -1955,19 +1574,19 @@ const AddOverseaPartSchedulePage = () => {
       vendorIndex,
       vendorId: vendorData.vendor_id,
       vendorLabel,
-      doNumbers: vendorData.do_numbers || [],
+      doNumbers: vendorData.do_number || [],
     });
     const currentPartsInForm = vendorData.parts ? [...vendorData.parts] : [];
     const filteredParts = currentPartsInForm.filter(
-      (part) => !existingPartCodes.includes(part.partCode)
+      (part) => !existingPartCodes.includes(part.partCode),
     );
 
     setAddVendorPartFormData({
       trip: "",
       vendor: vendorLabel,
       doNumbers:
-        vendorData.do_numbers && vendorData.do_numbers.length
-          ? [...vendorData.do_numbers]
+        vendorData.do_number && vendorData.do_number.length
+          ? [...vendorData.do_number]
           : [""],
       arrivalTime: "",
       parts: filteredParts,
@@ -1991,14 +1610,14 @@ const AddOverseaPartSchedulePage = () => {
       existingPartCodes.push(...vendorData.parts.map((p) => p.partCode));
     if (addVendorPartFormData.parts)
       existingPartCodes.push(
-        ...addVendorPartFormData.parts.map((p) => p.partCode)
+        ...addVendorPartFormData.parts.map((p) => p.partCode),
       );
 
     try {
       const resp = await fetch(
         `${API_BASE}/api/kanban-master/qty-per-box?part_code=${encodeURIComponent(
-          partCode
-        )}`
+          partCode,
+        )}`,
       );
 
       if (!resp.ok) throw new Error("Failed to check Part Code.");
@@ -2014,7 +1633,7 @@ const AddOverseaPartSchedulePage = () => {
       console.log("API Response with qty_per_box:", item);
 
       const isDuplicate = existingPartCodes.some(
-        (code) => String(code) === String(item.part_code)
+        (code) => String(code) === String(item.part_code),
       );
       if (isDuplicate) {
         alert("Part already inserted in this vendor");
@@ -2036,7 +1655,7 @@ const AddOverseaPartSchedulePage = () => {
           : [];
       if (!availableDoNumbers.length) {
         alert(
-          "DO Number for this vendor is not available. Please add it first in Vendor Detail."
+          "DO Number for this vendor is not available. Please add it first in Vendor Detail.",
         );
         return;
       }
@@ -2046,7 +1665,7 @@ const AddOverseaPartSchedulePage = () => {
       if (qtyPerBox <= 0) {
         qtyPerBox = 1;
         console.warn(
-          `Invalid qty_per_box for part ${item.part_code}: ${item.qty_per_box}, using default 1`
+          `Invalid qty_per_box for part ${item.part_code}: ${item.qty_per_box}, using default 1`,
         );
       }
 
@@ -2067,7 +1686,7 @@ const AddOverseaPartSchedulePage = () => {
       console.log(`Part ${item.part_code}: weight = ${partWeight} kg`);
 
       console.log(
-        `Adding part ${item.part_code}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}, weight=${partWeight} kg`
+        `Adding part ${item.part_code}: qty=${qty}, qtyPerBox=${qtyPerBox}, qtyBox=${qtyBox}, weight=${partWeight} kg`,
       );
 
       setAddVendorPartFormData((prev) => {
@@ -2109,7 +1728,7 @@ const AddOverseaPartSchedulePage = () => {
     const { headerId, vendorIndex } = activeVendorContext;
     autoExpandVendorOnPartAdd(headerId, vendorIndex);
     const partsToInsert = addVendorPartFormData.parts.filter((part) =>
-      selectedPartsInPopup.includes(part.id)
+      selectedPartsInPopup.includes(part.id),
     );
 
     setVendorDraftsByHeader((prev) => {
@@ -2118,19 +1737,17 @@ const AddOverseaPartSchedulePage = () => {
       const existingParts = vendors[vendorIndex].parts || [];
       const existingPartCodes = existingParts.map((p) => p.partCode);
       const uniquePartsToInsert = partsToInsert.filter(
-        (part) => !existingPartCodes.includes(part.partCode)
+        (part) => !existingPartCodes.includes(part.partCode),
       );
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
         parts: [...existingParts, ...uniquePartsToInsert],
       };
-      
-      // PERBAIKAN: Recalculate berdasarkan state yang baru
-      // Set timeout agar state update selesai dulu
+
       setTimeout(() => {
         recalculatePalletForVendor(headerId, vendorIndex);
       }, 0);
-      
+
       return { ...prev, [headerId]: vendors };
     });
 
@@ -2156,7 +1773,6 @@ const AddOverseaPartSchedulePage = () => {
     return totalParts;
   };
 
-  // Calculate total parts for vendor
   const calculateTotalPartsForVendor = (vendorData) => {
     if (!vendorData || !vendorData.parts || !Array.isArray(vendorData.parts))
       return 0;
@@ -2197,316 +1813,8 @@ const AddOverseaPartSchedulePage = () => {
     return { totalLarge, totalSmall, total, totalWeight };
   };
 
-  async function handleSubmitVendors() {
-    await handleSubmitScheduleToDatabase();
-  }
-
-  // Fungsi untuk menghapus schedule dari database
-  const handleDeleteSchedule = async (scheduleId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this schedule? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${API_BASE}/api/oversea-schedules/${scheduleId}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete schedule");
-      }
-
-      alert("Schedule deleted successfully!");
-
-      // Refresh data
-    } catch (error) {
-      console.error("Error deleting schedule:", error);
-      alert(`Failed to delete schedule: ${error.message}`);
-    }
-  };
-
-  async function handleSubmitVendors() {
-    try {
-      if (!headerDrafts.length) {
-        alert("Belum ada draft schedule. Klik Insert dulu.");
-        return;
-      }
-      if (selectedHeaderIds.size === 0) {
-        alert("Please select schedule data");
-        return;
-      }
-      const selected = [...selectedHeaderIds].map((id) =>
-        headerDrafts.find((x) => x.id === id)
-      );
-
-      const tanpaVendor = selected.filter(
-        (h) =>
-          !h ||
-          !vendorDraftsByHeader[h.id] ||
-          vendorDraftsByHeader[h.id].length === 0
-      );
-      if (tanpaVendor.length > 0) {
-        alert("Please add vendor details before input");
-        return;
-      }
-
-      // Validasi semua vendor harus memiliki parts
-      for (const hdr of selected) {
-        const vendors = vendorDraftsByHeader[hdr.id] || [];
-        for (const vendor of vendors) {
-          if (!vendor.parts || vendor.parts.length === 0) {
-            alert(
-              `Schedule tanggal ${hdr.scheduleDate} memiliki vendor yang belum memiliki parts. Silakan tambahkan part details terlebih dahulu.`
-            );
-            return;
-          }
-        }
-      }
-
-      console.log("=== START SUBMITTING ALL SCHEDULES ===");
-
-      for (let i = 0; i < selected.length; i++) {
-        const hdr = selected[i];
-        console.log(`Processing schedule ${i + 1}/${selected.length}:`, hdr);
-
-        // 1. Create schedule header
-        const scheduleBody = {
-          stockLevel: hdr.stockLevel,
-          modelName: hdr.modelName,
-          scheduleDate: hdr.scheduleDate,
-          uploadByName: hdr.uploadByName,
-        };
-
-        console.log("Creating schedule header:", scheduleBody);
-
-        const scheduleResp = await fetch(`${API_BASE}/api/oversea-schedules`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(scheduleBody),
-        });
-
-        const scheduleData = await scheduleResp.json();
-        if (!scheduleResp.ok) {
-          console.error("Failed to create schedule:", scheduleData);
-          throw new Error(
-            `Gagal membuat schedule: ${scheduleData.message || "Failed to create schedule"
-            }`
-          );
-        }
-
-        const scheduleId = scheduleData.schedule?.id;
-        if (!scheduleId) {
-          console.error("Schedule ID not found:", scheduleData);
-          throw new Error(`Schedule ID tidak ditemukan`);
-        }
-
-        console.log(`Schedule created with ID: ${scheduleId}`);
-
-        // 2. Create vendors
-        const vendors = vendorDraftsByHeader[hdr.id] || [];
-        if (vendors.length > 0) {
-          const vendorPayload = {
-            items: vendors.map((vendor) => ({
-              trip_id: vendor.trip_id,
-              vendor_id: vendor.vendor_id,
-              do_numbers: vendor.do_numbers || [],
-            })),
-          };
-
-          console.log(`Creating ${vendors.length} vendors:`, vendorPayload);
-
-          const vendorsResp = await fetch(
-            `${API_BASE}/api/oversea-schedules/${scheduleId}/vendors/bulk`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(vendorPayload),
-            }
-          );
-
-          const vendorsData = await vendorsResp.json();
-          if (!vendorsResp.ok) {
-            console.error("Failed to create vendors:", vendorsData);
-            throw new Error(
-              `Gagal menyimpan vendor: ${vendorsData.message || "Failed to submit vendors"
-              }`
-            );
-          }
-
-          console.log(`Vendors created successfully:`, vendorsData);
-
-          // 3. Create parts for each vendor
-          for (let j = 0; j < vendors.length; j++) {
-            const vendor = vendors[j];
-            const vendorId = vendorsData.vendors[j]?.id;
-
-            if (vendorId && vendor.parts && vendor.parts.length > 0) {
-              const partsData = vendor.parts.map((part) => ({
-                part_code: part.partCode,
-                part_name: part.partName || "",
-                qty: part.qty || 0,
-                qty_box: part.qtyBox || 0,
-                unit: part.unit || "PCS",
-                do_number: part.doNumber || "",
-              }));
-
-              console.log(
-                `Creating ${partsData.length} parts for vendor ${vendorId}:`,
-                partsData
-              );
-
-              const partsResp = await fetch(
-                `${API_BASE}/api/oversea-schedules/${vendorId}/parts/bulk`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ items: partsData }),
-                }
-              );
-
-              const partsResult = await partsResp.json();
-              if (!partsResp.ok) {
-                console.error("Failed to create parts:", partsResult);
-                throw new Error(
-                  `Gagal menyimpan parts untuk vendor ${vendorId}: ${partsResult.message || "Failed to submit parts"
-                  }`
-                );
-              }
-
-              console.log(`Parts created for vendor ${vendorId}:`, partsResult);
-            }
-          }
-        }
-      }
-
-      console.log("=== ALL SCHEDULES SUBMITTED SUCCESSFULLY ===");
-
-      alert("Semua schedule, vendor details, dan parts berhasil disimpan.");
-
-      // Clear local drafts
-      const nextHeaders = headerDrafts.filter(
-        (h) => !selectedHeaderIds.has(h.id)
-      );
-      setHeaderDrafts(nextHeaders);
-
-      const nextVendors = { ...vendorDraftsByHeader };
-      selectedHeaderIds.forEach((id) => {
-        delete nextVendors[id];
-      });
-      setVendorDraftsByHeader(nextVendors);
-
-      setSelectedHeaderIds(new Set());
-      setSelectAll(false);
-
-      setExpandedRows((prev) => {
-        const next = { ...prev };
-        selectedHeaderIds.forEach((id) => {
-          delete next[id];
-        });
-        return next;
-      });
-
-      setExpandedVendorRows((prev) => {
-        const next = { ...prev };
-        Object.keys(next).forEach((key) => {
-          selectedHeaderIds.forEach((id) => {
-            if (key.startsWith(`${id}_vendor_`)) delete next[key];
-          });
-        });
-        return next;
-      });
-
-      setPalletCalculations((prev) => {
-        const next = { ...prev };
-        selectedHeaderIds.forEach((id) => {
-          Object.keys(next).forEach((key) => {
-            if (key.startsWith(`${id}_`)) delete next[key];
-          });
-        });
-        return next;
-      });
-
-      // Navigate ke halaman utama
-      navigate("/oversea-schedule");
-    } catch (error) {
-      console.error("Error in handleSubmitVendors:", error);
-      alert("Error: " + error.message);
-    }
-  }
-
-  const handleUniversalEditPartClick = (
-    headerId,
-    vendorIndex,
-    partIndex,
-    partId,
-    currentQty,
-    source = "expanded"
-  ) => {
-    if (source === "popup") {
-      handleEditPartClick(headerId, vendorIndex, partIndex, partId, currentQty);
-    } else {
-      handleEditExpandedPartClick(
-        headerId,
-        vendorIndex,
-        partIndex,
-        partId,
-        currentQty
-      );
-    }
-  };
-
-  const handleUniversalSavePartQty = async (
-    headerId,
-    vendorIndex,
-    partIndex,
-    partId,
-    newQty,
-    source = "expanded"
-  ) => {
-    if (source === "popup") {
-      await handleSavePartQty(headerId, vendorIndex, partIndex, partId, newQty);
-    } else {
-      await handleSaveExpandedPartQty(
-        headerId,
-        vendorIndex,
-        partIndex,
-        partId,
-        newQty
-      );
-    }
-  };
-
-  const handleUniversalKeyPress = (
-    e,
-    headerId,
-    vendorIndex,
-    partIndex,
-    partId,
-    source = "expanded"
-  ) => {
-    if (source === "popup") {
-      handleEditPartKeyPress(e, headerId, vendorIndex, partIndex, partId);
-    } else {
-      handleEditExpandedPartKeyPress(
-        e,
-        headerId,
-        vendorIndex,
-        partIndex,
-        partId
-      );
-    }
-  };
-
   useEffect(() => {
-    const syncLoadingState = () => { };
+    const syncLoadingState = () => {};
 
     syncLoadingState();
   }, [loadingParts]);
@@ -2579,7 +1887,7 @@ const AddOverseaPartSchedulePage = () => {
   const removeDoNumberField = (index) => {
     if (addVendorFormData.doNumbers.length > 1) {
       const updatedDoNumbers = addVendorFormData.doNumbers.filter(
-        (_, i) => i !== index
+        (_, i) => i !== index,
       );
       setAddVendorFormData((prev) => ({
         ...prev,
@@ -2601,8 +1909,8 @@ const AddOverseaPartSchedulePage = () => {
                 try {
                   const resp = await fetch(
                     `${API_BASE}/api/kanban-master/by-part-code?part_code=${encodeURIComponent(
-                      part.partCode
-                    )}`
+                      part.partCode,
+                    )}`,
                   );
                   if (resp.ok) {
                     const data = await resp.json();
@@ -2628,7 +1936,7 @@ const AddOverseaPartSchedulePage = () => {
                   console.error(
                     "Error fetching qty_per_box for part:",
                     part.partCode,
-                    error
+                    error,
                   );
                 }
               }
@@ -2663,46 +1971,6 @@ const AddOverseaPartSchedulePage = () => {
     setSelectedPartsInPopup((prev) => prev.filter((id) => id !== partId));
   };
 
-  const handleRemoveVendorPart = (headerId, vendorIndex, partId) => {
-    setVendorDraftsByHeader((prev) => {
-      const vendors = [...(prev[headerId] || [])];
-      if (!vendors[vendorIndex]) return prev;
-      
-      // Update parts
-      const updatedParts = (vendors[vendorIndex].parts || []).filter(
-        (p) => p.id !== partId
-      );
-      
-      vendors[vendorIndex] = {
-        ...vendors[vendorIndex],
-        parts: updatedParts,
-      };
-      
-      // PERBAIKAN ROBUST: Langsung set pallet ke 0 jika parts kosong
-      if (updatedParts.length === 0) {
-        setPalletCalculations((prevCalc) => ({
-          ...prevCalc,
-          [`${headerId}_${vendorIndex}`]: {
-            largePallets: 0,
-            smallPallets: 0,
-            totalPallets: 0,
-            details: [],
-            totalWeight: 0,
-            totalBoxes: 0,
-            optimized: false,
-          },
-        }));
-      } else {
-        // Jika masih ada parts, recalculate dengan delay
-        setTimeout(() => {
-          recalculatePalletForVendor(headerId, vendorIndex);
-        }, 100);
-      }
-      
-      return { ...prev, [headerId]: vendors };
-    });
-  };
-
   useEffect(() => {
     const calculateAllPallets = async () => {
       console.log("=== CALCULATING ALL PALLETS WITH OPTIMIZATION ===");
@@ -2720,117 +1988,6 @@ const AddOverseaPartSchedulePage = () => {
       calculateAllPallets();
     }
   }, [vendorDraftsByHeader]);
-
-  const resetVendorPartForm = () => {
-    setAddVendorPartFormData({
-      trip: "",
-      vendor: "",
-      doNumbers: [""],
-      arrivalTime: "",
-      parts: [],
-    });
-    setSelectedPartsInPopup([]);
-    setActiveVendorContext(null);
-  };
-
-  const showTooltip = (e) => {
-    e.stopPropagation();
-    const target = e.target;
-    let content = "";
-
-    if (target.dataset.tooltip) content = target.dataset.tooltip;
-    else if (target.closest("[data-tooltip]"))
-      content = target.closest("[data-tooltip]").dataset.tooltip;
-    else if (target.title) content = target.title;
-    else if (
-      target.tagName === "TD" &&
-      target.textContent.trim().match(/^\d+$/)
-    ) {
-      const cell = target;
-      const row = cell.closest("tr");
-
-      if (row) {
-        const cells = Array.from(row.querySelectorAll("td"));
-        const cellIndex = cells.indexOf(cell);
-
-        if (cellIndex >= 0) {
-          const table = row.closest("table");
-          if (table) {
-            const headers = table.querySelectorAll("thead th");
-            if (headers[cellIndex]) {
-              const headerText = headers[cellIndex].textContent
-                .trim()
-                .toLowerCase();
-              if (headerText.includes("pallet")) {
-                if (cell.title) {
-                  content = cell.title;
-                } else {
-                  content = `Total Pallet: ${target.textContent.trim()}`;
-                }
-              }
-            }
-          }
-        }
-      }
-    } else if (target.tagName === "BUTTON" || target.closest("button")) {
-      const button =
-        target.tagName === "BUTTON" ? target : target.closest("button");
-
-      if (button.querySelector("svg")) {
-        const icon = button.querySelector("svg");
-
-        if (icon.getAttribute("size") === "10") {
-          content = "Add";
-        } else if (button.classList.contains("delete-button")) {
-          content = "Delete";
-        } else if (button.querySelector('[data-icon="pencil"]')) {
-          content = "Edit";
-        } else if (button.querySelector('[data-icon="save"]')) {
-          content = "Save";
-        } else if (
-          button.querySelector('[data-icon="arrow-right"]') ||
-          button.querySelector('[data-icon="arrow-drop-down"]')
-        ) {
-          content = "Expand/collapse details";
-        }
-      }
-
-      if (!content && button.title) content = button.title;
-    } else if (target.type === "checkbox") {
-      content = "Select this row";
-    } else if (
-      (target.tagName === "TD" || target.tagName === "TH") &&
-      target.textContent.trim()
-    ) {
-      content = target.textContent.trim();
-    }
-
-    if (!content) content = "Information";
-
-    const rect = target.getBoundingClientRect();
-    setTooltip({
-      visible: true,
-      content,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 10,
-    });
-  };
-
-  const hideTooltip = () => {
-    setTooltip((prev) => ({ ...prev, visible: false }));
-  };
-
-  const handleInputFocus = (e) => {
-    e.target.style.borderColor = "#9fa8da";
-  };
-
-  const handleInputBlur = (e) => {
-    e.target.style.borderColor = "#d1d5db";
-  };
-
-  const handleButtonHover = (e, isHover) => {
-    e.target.style.backgroundColor = isHover ? "#1d4ed8" : "#2563eb";
-  };
 
   const styles = {
     pageContainer: {
@@ -3310,51 +2467,6 @@ const AddOverseaPartSchedulePage = () => {
         cursor: "pointer",
       },
     },
-    // TOOLTIP STYLE (SAMA SEPERTI TARGETSCHEDULEPAGE.JS)
-    tooltip: {
-      position: "fixed",
-      top: tooltip.y,
-      left: tooltip.x,
-      transform: "translateX(-50%)",
-      backgroundColor: "rgba(0, 0, 0, 0.8)",
-      color: "white",
-      padding: "6px 10px",
-      borderRadius: "4px",
-      fontSize: "12px",
-      fontWeight: "500",
-      whiteSpace: "nowrap",
-      pointerEvents: "none",
-      zIndex: 9999,
-      opacity: tooltip.visible ? 1 : 0,
-      transition: "opacity 0.2s ease",
-      maxWidth: "300px",
-      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-    },
-    cellContent: {
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    },
-    tooltip: {
-      position: "fixed",
-      top: tooltip.y,
-      left: tooltip.x,
-      transform: "translateX(-50%)",
-      backgroundColor: "rgba(0, 0, 0, 0.8)",
-      color: "white",
-      padding: "6px 10px",
-      borderRadius: "4px",
-      fontSize: "12px",
-      fontWeight: "500",
-      whiteSpace: "nowrap",
-      pointerEvents: "none",
-      zIndex: 9999,
-      opacity: tooltip.visible ? 1 : 0,
-      transition: "opacity 0.2s ease",
-      maxWidth: "300px",
-      boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-    },
-
     cellContent: {
       overflow: "hidden",
       textOverflow: "ellipsis",
@@ -3454,7 +2566,7 @@ const AddOverseaPartSchedulePage = () => {
       gap: "4px",
     },
     timeInput: {
-      width: "100%",
+      width: "96.5%",
       padding: "8px",
       border: "1px solid #d1d5db",
       borderRadius: "4px",
@@ -3906,19 +3018,19 @@ const AddOverseaPartSchedulePage = () => {
                     headerDrafts.map((hdr, headerIndex) => {
                       const headerVendors = vendorDraftsByHeader[hdr.id] || [];
                       const headerPalletTotal = calculateTotalPalletForHeader(
-                        hdr.id
+                        hdr.id,
                       );
 
                       const headerRow = (
                         <tr
                           key={`hdr-${hdr.id}`}
                           onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                            (e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8")
                           }
                           onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                            (e.target.closest("tr").style.backgroundColor =
+                              "transparent")
                           }
                         >
                           <td
@@ -3966,8 +3078,17 @@ const AddOverseaPartSchedulePage = () => {
 
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={(() => {
+                              try {
+                                const d = new Date(hdr.scheduleDate);
+                                if (Number.isNaN(d.getTime()))
+                                  return hdr.scheduleDate || "-";
+                                const pad = (n) => String(n).padStart(2, "0");
+                                return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+                              } catch {
+                                return hdr.scheduleDate || "-";
+                              }
+                            })()}
                           >
                             {(() => {
                               try {
@@ -3977,7 +3098,7 @@ const AddOverseaPartSchedulePage = () => {
                                 }
                                 const pad = (n) => String(n).padStart(2, "0");
                                 return `${pad(d.getDate())}/${pad(
-                                  d.getMonth() + 1
+                                  d.getMonth() + 1,
                                 )}/${d.getFullYear()}`;
                               } catch {
                                 return hdr.scheduleDate || "-";
@@ -3987,55 +3108,60 @@ const AddOverseaPartSchedulePage = () => {
 
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
                             title={hdr.stockLevel}
                           >
                             {hdr.stockLevel}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
                             title={hdr.modelName}
                           >
                             {hdr.modelName}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={headerVendors.length}
                           >
                             {headerVendors.length}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
                             title={getPalletTooltipDetailsForHeader(hdr.id)}
                           >
                             {headerPalletTotal.total}
                           </td>
                           <td
                             style={styles.tdWithLeftBorder}
-                            onMouseEnter={showTooltip}
-                            onMouseLeave={hideTooltip}
+                            title={calculateTotalPartsForHeader(hdr.id)}
                           >
                             {calculateTotalPartsForHeader(hdr.id)}
                           </td>
 
                           <td
                             style={styles.tdWithLeftBorder}
-                            title={hdr.uploadByName}
+                            title={(() => {
+                              try {
+                                const d = new Date(hdr.createdAt || Date.now());
+                                const pad = (n) => String(n).padStart(2, "0");
+                                const ts = `${d.getFullYear()}/${pad(
+                                  d.getMonth() + 1,
+                                )}/${pad(d.getDate())} ${pad(
+                                  d.getHours(),
+                                )}:${pad(d.getMinutes())}`;
+                                return `${hdr.uploadByName} | ${ts}`;
+                              } catch {
+                                return hdr.uploadByName;
+                              }
+                            })()}
                           >
                             {(() => {
                               try {
                                 const d = new Date(hdr.createdAt || Date.now());
                                 const pad = (n) => String(n).padStart(2, "0");
                                 const ts = `${d.getFullYear()}/${pad(
-                                  d.getMonth() + 1
+                                  d.getMonth() + 1,
                                 )}/${pad(d.getDate())} ${pad(
-                                  d.getHours()
+                                  d.getHours(),
                                 )}:${pad(d.getMinutes())}`;
                                 return `${hdr.uploadByName} | ${ts}`;
                               } catch {
@@ -4114,36 +3240,37 @@ const AddOverseaPartSchedulePage = () => {
                                     headerVendors.map((vd, idx) => {
                                       const trip = tripOptions.find(
                                         (t) =>
-                                          Number(t.id) === Number(vd.trip_id)
+                                          Number(t.id) === Number(vd.trip_id),
                                       );
                                       const vendor = vendorOptions.find(
                                         (v) =>
-                                          Number(v.id) === Number(vd.vendor_id)
+                                          Number(v.id) === Number(vd.vendor_id),
                                       );
                                       const tripLabel = trip?.trip_no || "-";
                                       const vendorLabel = vendor
                                         ? `${vendor.vendor_code} - ${vendor.vendor_name}`
                                         : "-";
                                       const doJoined = (
-                                        vd.do_numbers || []
+                                        vd.do_number || []
                                       ).join(" | ");
                                       const arrival = trip?.arv_to || "-";
-                                      const vendorRowId = `${hdr.id}_vendor_${idx + 1
-                                        }`;
+                                      const vendorRowId = `${hdr.id}_vendor_${
+                                        idx + 1
+                                      }`;
 
                                       const vendorRow = (
                                         <tr
                                           key={`${vendorRowId}-row`}
                                           onMouseEnter={(e) =>
-                                          (e.target.closest(
-                                            "tr"
-                                          ).style.backgroundColor = "#c7cde8")
+                                            (e.target.closest(
+                                              "tr",
+                                            ).style.backgroundColor = "#c7cde8")
                                           }
                                           onMouseLeave={(e) =>
-                                          (e.target.closest(
-                                            "tr"
-                                          ).style.backgroundColor =
-                                            "transparent")
+                                            (e.target.closest(
+                                              "tr",
+                                            ).style.backgroundColor =
+                                              "transparent")
                                           }
                                         >
                                           <td
@@ -4165,7 +3292,7 @@ const AddOverseaPartSchedulePage = () => {
                                               style={styles.arrowButton}
                                               onClick={() =>
                                                 toggleVendorRowExpansion(
-                                                  vendorRowId
+                                                  vendorRowId,
                                                 )
                                               }
                                             >
@@ -4184,54 +3311,45 @@ const AddOverseaPartSchedulePage = () => {
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={tripLabel}
                                           >
                                             {tripLabel}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={vendorLabel}
                                           >
                                             {vendorLabel}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={doJoined}
                                           >
                                             {doJoined}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={arrival}
                                           >
                                             {arrival}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
                                             title={getPalletTooltipDetails(
                                               hdr.id,
-                                              idx
-                                            )}
-                                            data-tooltip={getPalletTooltipDetails(
-                                              hdr.id,
-                                              idx
+                                              idx,
                                             )}
                                           >
                                             {getTotalPalletForVendor(
                                               hdr.id,
-                                              idx
+                                              idx,
                                             )}
                                           </td>
                                           <td
                                             style={styles.expandedTd}
-                                            onMouseEnter={showTooltip}
-                                            onMouseLeave={hideTooltip}
+                                            title={calculateTotalPartsForVendor(
+                                              vd,
+                                            )}
                                           >
                                             {calculateTotalPartsForVendor(vd)}
                                           </td>
@@ -4243,12 +3361,10 @@ const AddOverseaPartSchedulePage = () => {
                                                   hdr.id,
                                                   idx,
                                                   vd,
-                                                  vendorLabel
+                                                  vendorLabel,
                                                 )
                                               }
-                                              onMouseEnter={showTooltip}
-                                              onMouseLeave={hideTooltip}
-                                              data-tooltip="Add Part Detail"
+                                              title="Add Part Detail"
                                             >
                                               <Plus size={10} />
                                             </button>
@@ -4258,9 +3374,7 @@ const AddOverseaPartSchedulePage = () => {
                                               onClick={() =>
                                                 handleDeleteVendor(hdr.id, idx)
                                               }
-                                              onMouseEnter={showTooltip}
-                                              onMouseLeave={hideTooltip}
-                                              data-tooltip="Delete Vendor"
+                                              title="Delete"
                                             >
                                               <Trash2 size={10} />
                                             </button>
@@ -4367,23 +3481,24 @@ const AddOverseaPartSchedulePage = () => {
                                                 </thead>
                                                 <tbody>
                                                   {Array.isArray(vd.parts) &&
-                                                    vd.parts.length > 0 ? (
+                                                  vd.parts.length > 0 ? (
                                                     vd.parts.map(
                                                       (part, pIndex) => (
                                                         <tr
-                                                          key={`${vendorRowId}-part-${part.id || pIndex
-                                                            }`}
+                                                          key={`${vendorRowId}-part-${
+                                                            part.id || pIndex
+                                                          }`}
                                                           onMouseEnter={(e) =>
-                                                          (e.target.closest(
-                                                            "tr"
-                                                          ).style.backgroundColor =
-                                                            "#c7cde8")
+                                                            (e.target.closest(
+                                                              "tr",
+                                                            ).style.backgroundColor =
+                                                              "#c7cde8")
                                                           }
                                                           onMouseLeave={(e) =>
-                                                          (e.target.closest(
-                                                            "tr"
-                                                          ).style.backgroundColor =
-                                                            "transparent")
+                                                            (e.target.closest(
+                                                              "tr",
+                                                            ).style.backgroundColor =
+                                                              "transparent")
                                                           }
                                                         >
                                                           <td
@@ -4399,11 +3514,8 @@ const AddOverseaPartSchedulePage = () => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
-                                                            onMouseEnter={
-                                                              showTooltip
-                                                            }
-                                                            onMouseLeave={
-                                                              hideTooltip
+                                                            title={
+                                                              part.partCode
                                                             }
                                                           >
                                                             {part.partCode}
@@ -4412,15 +3524,10 @@ const AddOverseaPartSchedulePage = () => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
-                                                            onMouseEnter={
-                                                              showTooltip
-                                                            }
-                                                            onMouseLeave={
-                                                              hideTooltip
-                                                            }
-                                                            title={`Part Name: ${part.partName ||
+                                                            title={
+                                                              part.partName ||
                                                               "—"
-                                                              }`}
+                                                            }
                                                           >
                                                             {part.partName ||
                                                               "—"}
@@ -4429,16 +3536,19 @@ const AddOverseaPartSchedulePage = () => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
+                                                            title={String(
+                                                              part.qty ?? 0,
+                                                            )}
                                                           >
                                                             {(() => {
                                                               const isEditing =
                                                                 editingExpandedPart.showInput &&
                                                                 editingExpandedPart.headerId ===
-                                                                hdr.id &&
+                                                                  hdr.id &&
                                                                 editingExpandedPart.vendorIndex ===
-                                                                idx &&
+                                                                  idx &&
                                                                 editingExpandedPart.partIndex ===
-                                                                pIndex;
+                                                                  pIndex;
 
                                                               if (isEditing) {
                                                                 return (
@@ -4448,28 +3558,28 @@ const AddOverseaPartSchedulePage = () => {
                                                                       editingExpandedPart.qty
                                                                     }
                                                                     onChange={(
-                                                                      e
+                                                                      e,
                                                                     ) =>
                                                                       setEditingExpandedPart(
                                                                         (
-                                                                          prev
+                                                                          prev,
                                                                         ) => ({
                                                                           ...prev,
                                                                           qty: e
                                                                             .target
                                                                             .value,
-                                                                        })
+                                                                        }),
                                                                       )
                                                                     }
                                                                     onKeyDown={(
-                                                                      e
+                                                                      e,
                                                                     ) =>
                                                                       handleEditExpandedPartKeyPress(
                                                                         e,
                                                                         hdr.id,
                                                                         idx,
                                                                         pIndex,
-                                                                        part.id
+                                                                        part.id,
                                                                       )
                                                                     }
                                                                     onBlur={() =>
@@ -4478,7 +3588,7 @@ const AddOverseaPartSchedulePage = () => {
                                                                         idx,
                                                                         pIndex,
                                                                         part.id,
-                                                                        editingExpandedPart.qty
+                                                                        editingExpandedPart.qty,
                                                                       )
                                                                     }
                                                                     autoFocus
@@ -4501,14 +3611,7 @@ const AddOverseaPartSchedulePage = () => {
                                                                 );
                                                               } else {
                                                                 return (
-                                                                  <span
-                                                                    onMouseEnter={
-                                                                      showTooltip
-                                                                    }
-                                                                    onMouseLeave={
-                                                                      hideTooltip
-                                                                    }
-                                                                  >
+                                                                  <span>
                                                                     {loadingParts[
                                                                       part.id
                                                                     ] ? (
@@ -4523,8 +3626,8 @@ const AddOverseaPartSchedulePage = () => {
                                                                         ...
                                                                       </span>
                                                                     ) : (
-                                                                      part.qty ??
-                                                                      0
+                                                                      (part.qty ??
+                                                                      0)
                                                                     )}
                                                                   </span>
                                                                 );
@@ -4535,14 +3638,9 @@ const AddOverseaPartSchedulePage = () => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
-                                                            onMouseEnter={
-                                                              showTooltip
+                                                            title={
+                                                              part.qtyBox ?? 0
                                                             }
-                                                            onMouseLeave={
-                                                              hideTooltip
-                                                            }
-                                                            title={`Quantity Box: ${part.qtyBox ?? 0
-                                                              }`}
                                                           >
                                                             {part.qtyBox ?? 0}
                                                           </td>
@@ -4550,14 +3648,9 @@ const AddOverseaPartSchedulePage = () => {
                                                             style={
                                                               styles.thirdLevelTd
                                                             }
-                                                            onMouseEnter={
-                                                              showTooltip
+                                                            title={
+                                                              part.unit || "PCS"
                                                             }
-                                                            onMouseLeave={
-                                                              hideTooltip
-                                                            }
-                                                            title={`Unit: ${part.unit || "PCS"
-                                                              }`}
                                                           >
                                                             {part.unit || "PCS"}
                                                           </td>
@@ -4576,19 +3669,13 @@ const AddOverseaPartSchedulePage = () => {
                                                                   idx,
                                                                   pIndex,
                                                                   part.id,
-                                                                  part.qty || 0
+                                                                  part.qty || 0,
                                                                 )
                                                               }
-                                                              onMouseEnter={
-                                                                showTooltip
-                                                              }
-                                                              onMouseLeave={
-                                                                hideTooltip
-                                                              }
-                                                              title="Edit quantity"
+                                                              title="Edit"
                                                               disabled={
                                                                 loadingParts[
-                                                                part.id
+                                                                  part.id
                                                                 ]
                                                               }
                                                             >
@@ -4617,19 +3704,13 @@ const AddOverseaPartSchedulePage = () => {
                                                                 handleDeletePart(
                                                                   hdr.id,
                                                                   idx,
-                                                                  part.id
+                                                                  part.id,
                                                                 )
                                                               }
-                                                              onMouseEnter={
-                                                                showTooltip
-                                                              }
-                                                              onMouseLeave={
-                                                                hideTooltip
-                                                              }
-                                                              title="Delete part"
+                                                              title="Delete"
                                                               disabled={
                                                                 loadingParts[
-                                                                part.id
+                                                                  part.id
                                                                 ]
                                                               }
                                                             >
@@ -4639,7 +3720,7 @@ const AddOverseaPartSchedulePage = () => {
                                                             </button>
                                                           </td>
                                                         </tr>
-                                                      )
+                                                      ),
                                                     )
                                                   ) : (
                                                     <tr></tr>
@@ -4957,7 +4038,7 @@ const AddOverseaPartSchedulePage = () => {
                                 checked={
                                   addVendorPartFormData.parts.length > 0 &&
                                   selectedPartsInPopup.length ===
-                                  addVendorPartFormData.parts.length
+                                    addVendorPartFormData.parts.length
                                 }
                                 style={{
                                   cursor: "pointer",
@@ -4984,12 +4065,12 @@ const AddOverseaPartSchedulePage = () => {
                             <tr
                               key={part.id || index}
                               onMouseEnter={(e) =>
-                              (e.target.closest("tr").style.backgroundColor =
-                                "#c7cde8")
+                                (e.target.closest("tr").style.backgroundColor =
+                                  "#c7cde8")
                               }
                               onMouseLeave={(e) =>
-                              (e.target.closest("tr").style.backgroundColor =
-                                "transparent")
+                                (e.target.closest("tr").style.backgroundColor =
+                                  "transparent")
                               }
                             >
                               <td style={vendorPartStyles.tdNumber}>
@@ -5000,7 +4081,7 @@ const AddOverseaPartSchedulePage = () => {
                                 <input
                                   type="checkbox"
                                   checked={selectedPartsInPopup.includes(
-                                    part.id
+                                    part.id,
                                   )}
                                   onChange={(e) =>
                                     handlePopupCheckboxChange(e, part.id)
@@ -5017,18 +4098,14 @@ const AddOverseaPartSchedulePage = () => {
 
                               <td
                                 style={vendorPartStyles.td}
-                                onMouseEnter={showTooltip}
-                                onMouseLeave={hideTooltip}
-                                data-tooltip={`${part.partCode}`}
+                                title={`${part.partCode}`}
                               >
                                 {part.partCode}
                               </td>
 
                               <td
                                 style={vendorPartStyles.td}
-                                onMouseEnter={showTooltip}
-                                onMouseLeave={hideTooltip}
-                                data-tooltip={`${part.partName || "—"}`}
+                                title={`${part.partName || "—"}`}
                               >
                                 {part.partName || "—"}
                               </td>
@@ -5043,14 +4120,14 @@ const AddOverseaPartSchedulePage = () => {
                                       value.includes("e") ||
                                       value.includes("E")
                                     ) {
-                                      // Hapus karakter 'e' atau 'E'
+
                                       const cleanValue = value.replace(
                                         /[eE]/g,
-                                        ""
+                                        "",
                                       );
                                       handlePopupPartQtyChange(
                                         part.id,
-                                        cleanValue
+                                        cleanValue,
                                       );
                                     } else {
                                       handlePopupPartQtyChange(part.id, value);
@@ -5090,9 +4167,7 @@ const AddOverseaPartSchedulePage = () => {
 
                               <td
                                 style={vendorPartStyles.td}
-                                onMouseEnter={showTooltip}
-                                onMouseLeave={hideTooltip}
-                                data-tooltip={`${part.unit || "PCS"}`}
+                                title={`${part.unit || "PCS"}`}
                               >
                                 {part.unit || "PCS"}
                               </td>
@@ -5101,9 +4176,7 @@ const AddOverseaPartSchedulePage = () => {
                                 <button
                                   style={vendorPartStyles.deleteButton}
                                   onClick={() => handleRemovePart(part.id)}
-                                  onMouseEnter={showTooltip}
-                                  onMouseLeave={hideTooltip}
-                                  data-tooltip="Delete"
+                                  title="Delete"
                                 >
                                   <Trash2 size={10} />
                                 </button>
@@ -5161,8 +4234,6 @@ const AddOverseaPartSchedulePage = () => {
           </div>
         </div>
       )}
-
-      <div style={styles.tooltip}>{tooltip.content}</div>
     </div>
   );
 };

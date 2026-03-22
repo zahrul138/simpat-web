@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 
-const BarChart = ({ data, typeFilter, onBarClick }) => {
+const BarChart = ({ data, typeFilter, onBarClick, animKey }) => {
   const CHART_H = 300;
   const CHART_BOTTOM = 30;
   const CHART_TOP = 30;
@@ -102,6 +102,17 @@ const BarChart = ({ data, typeFilter, onBarClick }) => {
         style={{ display: "block" }}
         onMouseLeave={() => setTooltip(null)}
       >
+        <defs>
+          <style>{`
+            @keyframes barRise {
+              from { transform: scaleY(0); }
+              to   { transform: scaleY(1); }
+            }
+            .bar-anim {
+              animation: barRise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+            }
+          `}</style>
+        </defs>
         {yLabels.map((label, i) => {
           const y = CHART_TOP + (i / yTicks) * plotH;
           return (
@@ -155,6 +166,8 @@ const BarChart = ({ data, typeFilter, onBarClick }) => {
               />
               {showScrap && scrapH > 0 && (
                 <rect
+                  key={`scrap-${animKey}-${idx}`}
+                  className="bar-anim"
                   x={groupX}
                   y={baseY - scrapH}
                   width={barW}
@@ -162,12 +175,15 @@ const BarChart = ({ data, typeFilter, onBarClick }) => {
                   rx="2"
                   fill="#ef4444"
                   opacity="0.85"
+                  style={{ transformOrigin: `${groupX + barW / 2}px ${baseY}px` }}
                   onMouseEnter={showTip}
                   onMouseLeave={hideTip}
                 />
               )}
               {showRtv && rtvH > 0 && (
                 <rect
+                  key={`rtv-${animKey}-${idx}`}
+                  className="bar-anim"
                   x={showScrap ? groupX + barW + BAR_GAP : groupX}
                   y={baseY - rtvH}
                   width={barW}
@@ -175,6 +191,7 @@ const BarChart = ({ data, typeFilter, onBarClick }) => {
                   rx="2"
                   fill="#2563eb"
                   opacity="0.85"
+                  style={{ transformOrigin: `${(showScrap ? groupX + barW + BAR_GAP : groupX) + barW / 2}px ${baseY}px` }}
                   onMouseEnter={showTip}
                   onMouseLeave={hideTip}
                 />
@@ -246,6 +263,7 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
   });
   const [chartData, setChartData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
+  const [animKey, setAnimKey] = useState(0);
   const [dayModal, setDayModal] = useState(null);
   const [modalPage, setModalPage] = useState(1);
   const MODAL_PER_PAGE = 10;
@@ -345,6 +363,7 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
       );
       const result = await res.json();
       setChartData(result.success ? result.data || [] : []);
+      setAnimKey((k) => k + 1);
     } catch (error) {
       setChartData([]);
     } finally {
@@ -1215,6 +1234,7 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
               data={chartData}
               typeFilter={typeFilter}
               onBarClick={(d) => fetchDayDetail(d.date)}
+              animKey={animKey}
             />
           )}
 

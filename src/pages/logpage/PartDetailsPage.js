@@ -2,14 +2,12 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import {
   Plus,
   Trash2,
   Pencil,
   Save,
   X,
-  RefreshCw,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -19,12 +17,10 @@ const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const PartDetailsPage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
 
-  // State untuk data
   const [partsData, setPartsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // State untuk popup edit
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [editingPart, setEditingPart] = useState(null);
   const [editFormData, setEditFormData] = useState({
@@ -52,7 +48,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
   const [editError, setEditError] = useState(null);
   const [selectedRowId, setSelectedRowId] = useState(null);
 
-  // Data untuk dropdowns
   const [customers, setCustomers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [models, setModels] = useState([]);
@@ -62,19 +57,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     { value: "M101 | SCN-MH", label: "M101 | SCN-MH" },
     { value: "M136 | SCN-LOG", label: "M136 | SCN-LOG" },
   ]);
-  const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
-  const [selectedModel, setSelectedModel] = useState("Veronicas");
-  const [selectedAnnexUpdate, setSelectedAnnexUpdate] =
-    useState("ZAHRUL ROMADHON");
-  const [scheduleDate, setScheduleDate] = useState("");
-  const [expandedRows, setExpandedRows] = useState({});
-  const [expandedVendorRows, setExpandedVendorRows] = useState({});
-  const [addVendorDetail, setAddVendorDetail] = useState(false);
-  const [addVendorFormData, setAddVendorFormData] = useState({
-    partCode: "",
-    partName: "",
-    quantity: "",
-  });
 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -242,10 +224,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       const result = await response.json();
 
       if (result.success) {
-        // Debug log untuk melihat data yang diterima
+
         console.log("Parts data received:", result.data);
 
-        // Tambahkan logic untuk handle null placement
         const processedData = (result.data || []).map((part) => ({
           ...part,
           placement_name: part.placement_name || "No Placement",
@@ -318,10 +299,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
 
     setEditError(null);
     setShowEditPopup(true);
+    document.body.style.overflow = "hidden";
   };
 
   const handleCloseEditPopup = () => {
     setShowEditPopup(false);
+    document.body.style.overflow = "";
     setEditingPart(null);
     setEditFormData({
       part_code: "",
@@ -369,7 +352,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
         [name]: value,
       });
     } else if (name === "placement_id") {
-      // Handle "No Placement"
+
       if (value === "no-placement") {
         setEditFormData({
           ...editFormData,
@@ -519,7 +502,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fungsi untuk handle search (existing)
   const handleSearchClick = async () => {
     try {
       setLoading(true);
@@ -659,14 +641,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     }
   }, [partsData, keyword, searchBy, showInactive, getCustomerName]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const currentData = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredData.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredData, currentPage, itemsPerPage]);
 
-  // Format date untuk display
   const formatDateForDisplay = (dateString) => {
     try {
       const date = new Date(dateString);
@@ -693,179 +673,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     );
   }, [editFormData.placement_id, placements]);
 
-  const toggleRowExpansion = (rowId) => {
-    setExpandedRows((prev) => {
-      const newExpandedRows = {
-        ...prev,
-        [rowId]: !prev[rowId],
-      };
-
-      if (prev[rowId]) {
-        setExpandedVendorRows((prevVendor) => {
-          const newVendorRows = { ...prevVendor };
-          Object.keys(newVendorRows).forEach((key) => {
-            if (
-              key.startsWith(`vendor_${rowId}_`) ||
-              key === `vendor_${rowId}` ||
-              key.includes("vendor_")
-            ) {
-              delete newVendorRows[key];
-            }
-          });
-          return newVendorRows;
-        });
-      }
-      return newExpandedRows;
-    });
-  };
-
-  const toggleVendorRowExpansion = (vendorRowId) => {
-    setExpandedVendorRows((prev) => ({
-      ...prev,
-      [vendorRowId]: !prev[vendorRowId],
-    }));
-  };
-
-  const handleAddVendorSubmit = (e) => {
-    e.preventDefault();
-    console.log("Third Level Form Data:", addVendorFormData);
-    setAddVendorDetail(false);
-    setAddVendorFormData({
-      partCode: "",
-      partName: "",
-      quantity: "",
-    });
-  };
-
-  const handleAddVendorInputChange = (field, value) => {
-    setAddVendorFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const convertToKg = (value, unit) => {
-    if (!value || !unit) return 0;
-
-    const numValue = parseFloat(value);
-
-    switch (unit.toLowerCase()) {
-      case "g":
-        return numValue / 1000;
-      case "lbs":
-        return numValue * 0.453592;
-      case "oz":
-        return numValue * 0.0283495;
-      case "kg":
-        return numValue;
-      default:
-        return numValue;
-    }
-  };
-
-  // Fungsi untuk format display
-  const formatWeightDisplay = (weight, unit) => {
-    if (!weight) return "-";
-
-    const numWeight = parseFloat(weight);
-    let displayWeight = numWeight;
-    let displayUnit = unit || "kg";
-
-    // Jika gram dan nilai besar, konversi ke kg untuk display
-    if (unit === "g" && numWeight >= 1000) {
-      displayWeight = numWeight / 1000;
-      displayUnit = "kg";
-    }
-
-    return `${displayWeight.toLocaleString(undefined, {
-      minimumFractionDigits: displayWeight < 1 ? 3 : 1,
-      maximumFractionDigits: 3,
-    })} ${displayUnit}`;
-  };
-
-  const openThirdLevelPopup = () => {
-    setAddVendorDetail(true);
-  };
-
   const [tooltip, setTooltip] = useState({
     visible: false,
     content: "",
     x: 0,
     y: 0,
   });
-
-  const showTooltip = (e) => {
-    let content = "";
-
-    if (e.target.tagName === "BUTTON" || e.target.closest("button")) {
-      const button =
-        e.target.tagName === "BUTTON" ? e.target : e.target.closest("button");
-
-      if (
-        button.querySelector('svg[data-icon="plus"]') ||
-        (button.querySelector("svg") &&
-          button.querySelector("svg").parentElement.contains(e.target) &&
-          button.querySelector('[size="10"]'))
-      ) {
-        content = "Add";
-      } else if (
-        button.querySelector('svg[data-icon="trash-2"]') ||
-        (button.querySelector("svg") &&
-          button.querySelector("svg").parentElement.contains(e.target) &&
-          button.classList.contains("delete-button"))
-      ) {
-        content = "Delete";
-      } else if (button.title) {
-        content = button.title;
-      } else if (button.querySelector("svg")) {
-        const icon = button.querySelector("svg").parentElement;
-        if (icon) {
-          if (icon.contains(e.target)) {
-            if (button.querySelector('[size="10"]')) {
-              content = "Add";
-            } else {
-              content = "Perluas/sembunyikan detail";
-            }
-          }
-        }
-      }
-    } else if (e.target.type === "checkbox") {
-      content = "Pilih baris ini";
-    } else if (e.target.tagName === "TD" || e.target.tagName === "TH") {
-      content = e.target.textContent.trim();
-
-      if (!content) {
-        if (e.target.cellIndex === 1) {
-          content = "Pilih baris ini";
-        } else if (e.target.cellIndex === 2) {
-          content = "Perluas/sembunyikan detail";
-        }
-      }
-    }
-
-    if (!content && e.target.textContent.trim()) {
-      content = e.target.textContent.trim();
-    }
-
-    if (!content) {
-      content = "Informasi";
-    }
-
-    const rect = e.target.getBoundingClientRect();
-    setTooltip({
-      visible: true,
-      content,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 10,
-    });
-  };
-
-  const hideTooltip = () => {
-    setTooltip({
-      ...tooltip,
-      visible: false,
-    });
-  };
 
   const handleButtonHover = (e, isHover, type) => {
     if (!e || !e.target) return;
@@ -893,16 +706,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       setSelectedRowId(null);
     } else {
       setSelectedRowId(partId);
-    }
-  };
-
-  const handleTabHover = (e, isHover, isActive) => {
-    if (!e || !e.target) return;
-
-    if (!isActive) {
-      e.target.style.color = isHover
-        ? styles.tabButtonHover.color
-        : styles.tabButton.color;
     }
   };
 
@@ -1052,7 +855,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     },
     tabButton: {
       padding: "12px 24px",
-      backgroundColor: "transparent",
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
       border: "none",
       borderBottom: "2px solid transparent",
       cursor: "pointer",
@@ -1264,7 +1067,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       gap: "8px",
     },
     paginationButton: {
-      backgroundColor: "transparent",
+      backgroundColor: "rgba(0, 0, 0, 0)",
       border: "0.5px solid #9fa8da",
       borderRadius: "4px",
       padding: "4px 8px",
@@ -1482,7 +1285,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: "rgba(55, 65, 81, 0.6)",
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
@@ -1495,18 +1298,17 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       maxWidth: "95vw",
       maxHeight: "92vh",
       overflowY: "auto",
-      boxShadow:
-        "0 8px 32px rgba(99, 102, 241, 0.18), 0 2px 8px rgba(0,0,0,0.12)",
-      border: "1.5px solid #9fa8da",
+      boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+      border: "1px solid #e5e7eb",
     },
     popupEditHeader: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      backgroundColor: "#e0e7ff",
-      borderBottom: "1.5px solid #9fa8da",
-      padding: "12px 20px",
-      borderRadius: "6px 6px 0 0",
+      backgroundColor: "white",
+      borderBottom: "2px solid #e5e7eb",
+      padding: "16px 24px",
+      borderRadius: "8px 8px 0 0",
     },
     popupEditTitle: {
       fontSize: "14px",
@@ -1521,13 +1323,13 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       cursor: "pointer",
       padding: "4px",
       borderRadius: "4px",
-      color: "#2563eb",
+      color: "#6b7280",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
     },
     popupEditCloseButtonHover: {
-      backgroundColor: "#bfdbfe",
+      backgroundColor: "#f3f4f6",
       color: "#374151",
     },
     popupEditForm: {
@@ -1539,12 +1341,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     popupEditSectionTitle: {
       fontSize: "11px",
       fontWeight: "700",
-      color: "#2563eb",
+      color: "#374151",
       textTransform: "uppercase",
       letterSpacing: "0.08em",
       marginBottom: "10px",
       paddingBottom: "5px",
-      borderBottom: "1px solid #e0e7ff",
+      borderBottom: "1px solid #e5e7eb",
     },
     popupEditGrid3: {
       display: "grid",
@@ -1569,7 +1371,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     popupEditInput: {
       width: "100%",
       height: "30px",
-      border: "1px solid #9fa8da",
+      border: "2px solid #e5e7eb",
       borderRadius: "4px",
       padding: "0 8px",
       fontSize: "12px",
@@ -1580,12 +1382,12 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       boxSizing: "border-box",
     },
     popupEditInputFocus: {
-      borderColor: "#2563eb",
+      borderColor: "#6366f1",
     },
     popupEditSelect: {
       width: "100%",
       height: "30px",
-      border: "1px solid #9fa8da",
+      border: "2px solid #e5e7eb",
       borderRadius: "4px",
       padding: "0 8px",
       fontSize: "12px",
@@ -1599,7 +1401,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
     popupEditTextarea: {
       width: "100%",
       minHeight: "60px",
-      border: "1px solid #9fa8da",
+      border: "2px solid #e5e7eb",
       borderRadius: "4px",
       padding: "6px 8px",
       fontSize: "12px",
@@ -1624,16 +1426,16 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       justifyContent: "flex-end",
       gap: "8px",
       padding: "12px 24px",
-      backgroundColor: "#e0e7ff",
-      borderTop: "1.5px solid #9fa8da",
-      borderRadius: "0 0 6px 6px",
+      backgroundColor: "#f9fafb",
+      borderTop: "2px solid #e5e7eb",
+      borderRadius: "0 0 8px 8px",
       marginTop: "16px",
     },
     popupEditCancelButton: {
       backgroundColor: "white",
       color: "#374151",
       padding: "6px 16px",
-      border: "1px solid #9fa8da",
+      border: "1px solid #d1d5db",
       borderRadius: "4px",
       fontSize: "12px",
       fontWeight: "600",
@@ -1683,10 +1485,10 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       animation: "spin 1s linear infinite",
     },
     editButtonHover: {
-      backgroundColor: "#bfdbfe",
+      backgroundColor: "#e5e7eb",
     },
     deleteButtonHover: {
-      backgroundColor: "#bfdbfe",
+      backgroundColor: "#e5e7eb",
     },
     deactivateButton: {
       backgroundColor: "#fef9c3",
@@ -1782,7 +1584,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
               </select>
 
               {searchBy === "Vendor" ? (
-                // Dropdown untuk Vendor
+
                 <select
                   style={styles.input}
                   value={keyword}
@@ -1802,7 +1604,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                   ))}
                 </select>
               ) : searchBy === "Customers" ? (
-                // Dropdown untuk Customers
+
                 <select
                   style={styles.input}
                   value={keyword}
@@ -1812,7 +1614,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 >
                   <option value="">Select Customer</option>
                   <option value="all customers">All Customers</option>
-                  {/* Special Customers dari data yang ada */}
+                  
                   {[
                     ...new Set(
                       partsData
@@ -1915,9 +1717,6 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 border: "1px solid #fde68a",
               }}
               onClick={async () => {
-                const allActive = selectedIds.every(
-                  (id) => partsData.find((p) => p.id === id)?.is_active
-                );
                 await Promise.all(
                   selectedIds.map((id) => {
                     const part = partsData.find((p) => p.id === id);
@@ -2025,7 +1824,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     <tr></tr>
                   ) : (
                     currentData.map((part, index) => {
-                      // Cek apakah row ini sedang dipilih
+
                       const isSelected = selectedRowId === part.id;
 
                       const isChecked = selectedIds.includes(part.id);
@@ -2202,7 +2001,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             <button
                               style={styles.editButton}
                               onClick={(e) => {
-                                e.stopPropagation(); // Penting: mencegah trigger row click
+                                e.stopPropagation();
                                 handleEditClick(part);
                               }}
                               title="Edit"
@@ -2220,7 +2019,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                             <button
                               style={styles.deleteButton}
                               onClick={(e) => {
-                                e.stopPropagation(); // Penting: mencegah trigger row click
+                                e.stopPropagation();
                                 handleDeletePart(part.id, part.part_code);
                               }}
                               title="Delete"
@@ -2312,7 +2111,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       setCurrentPage(page);
                     }
                   }}
-                // disabled={filteredData.length === 0}
+
                 />
                 <span>of {totalPages}</span>
                 <button
@@ -2350,109 +2149,13 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             </div>
           </div>
         )}
-        {/* Popup Edit Vendor Detail (existing) */}
-        {addVendorDetail && (
-          <div style={styles.popupOverlay}>
-            <div style={styles.popupContainer}>
-              <div style={styles.popupHeader}>
-                <h3 style={styles.popupTitle}>Add Vendor Detail</h3>
-                <button
-                  style={styles.closeButton}
-                  onClick={() => setAddVendorDetail(false)}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <form onSubmit={handleAddVendorSubmit}>
-                <div style={styles.formGroup}>
-                  <label style={styles.labelPopUp}>Trip</label>
-                  <select
-                    style={styles.inputPopUp}
-                    value={addVendorFormData.partCode}
-                    onChange={(e) =>
-                      handleAddVendorInputChange("partCode", e.target.value)
-                    }
-                    required
-                  >
-                    <option value="">Select Trip</option>
-                    <option value="Trip-01">Trip-01</option>
-                    <option value="Trip-02">Trip-02</option>
-                    <option value="Trip-03">Trip-03</option>
-                    <option value="Trip-04">Trip-04</option>
-                    <option value="Trip-05">Trip-05</option>
-                  </select>
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.labelPopUp}>Vendor Name</label>
-                  <select
-                    style={styles.inputPopUp}
-                    value={addVendorFormData.partName}
-                    onChange={(e) =>
-                      handleAddVendorInputChange("partName", e.target.value)
-                    }
-                    required
-                  >
-                    <option value="">Select Vendor</option>
-                    <option value="188646 - PT. DAIHO INDONESIA">
-                      188646 - PT. DAIHO INDONESIA
-                    </option>
-                    <option value="188651 - PT SAT NUSAPERSADA TBK">
-                      188651 - PT SAT NUSAPERSADA TBK
-                    </option>
-                    <option value="199869 - PT PRIMA LABELING">
-                      199869 - PT PRIMA LABELING
-                    </option>
-                    <option value="192447 - SANSYU PRECISION SINGAPORE PTE LTD">
-                      192447 - SANSYU PRECISION SINGAPORE PTE LTD
-                    </option>
-                  </select>
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.labelPopUp}>DO Number</label>
-                  <input
-                    style={styles.inputPopUpDO}
-                    onChange={(e) =>
-                      handleAddVendorInputChange("", e.target.value)
-                    }
-                    placeholder=""
-                    min="1"
-                    required
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.labelPopUp}>Arrival Time</label>
-                  <input
-                    type="time"
-                    style={styles.input}
-                    value={addVendorFormData.quantity}
-                    onChange={(e) =>
-                      handleAddVendorInputChange("quantity", e.target.value)
-                    }
-                    placeholder=""
-                  />
-                </div>
-                <div style={styles.buttonGroup}>
-                  <button
-                    type="button"
-                    style={styles.cancelButton}
-                    onClick={() => setAddVendorDetail(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" style={styles.submitButton}>
-                    Add
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        
 
-        {/* Popup Edit Part */}
+        
         {showEditPopup && (
           <div style={styles.popupEditOverlay}>
             <div style={styles.popupEditContainer}>
-              {/* Header */}
+              
               <div style={styles.popupEditHeader}>
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "10px" }}
@@ -2509,7 +2212,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 }}
               >
                 <div style={styles.popupEditForm}>
-                  {/* ── Section 1: Part Information ── */}
+                  
                   <div style={styles.popupEditSection}>
                     <div style={styles.popupEditSectionTitle}>
                       Part Information
@@ -2615,7 +2318,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     </div>
                   </div>
 
-                  {/* ── Section 2: Specs & Vendor ── */}
+                  
                   <div style={styles.popupEditSection}>
                     <div style={styles.popupEditSectionTitle}>
                       Specs & Vendor
@@ -2759,7 +2462,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     </div>
                   </div>
 
-                  {/* ── Section 3: Placement & Assembly ── */}
+                  
                   <div style={styles.popupEditSection}>
                     <div style={styles.popupEditSectionTitle}>
                       Placement & Assembly
@@ -2888,13 +2591,13 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     </div>
                   </div>
 
-                  {/* Error */}
+                  
                   {editError && (
                     <div style={styles.popupEditError}>⚠ {editError}</div>
                   )}
                 </div>
 
-                {/* Footer Buttons */}
+                
                 <div style={styles.popupEditButtonGroup}>
                   <button
                     type="button"

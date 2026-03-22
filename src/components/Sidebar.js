@@ -575,6 +575,23 @@ const Sidebar = ({
     </svg>
   );
 
+  const AlertTriangleIcon = ({ size = 12 }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+
   const isPathActive = (basePath) => {
     return (
       location.pathname === basePath ||
@@ -733,7 +750,7 @@ const Sidebar = ({
             {
               title: "Shortage Monitoring",
               href: "/shortage-part",
-              icon: LayoutDashboardIcon,
+              icon: AlertTriangleIcon,
             },
             { title: "Part Details", href: "/part-details", icon: PackageIcon },
           ],
@@ -842,14 +859,8 @@ const Sidebar = ({
         {
           title: "Dashboard",
           icon: LayoutDashboardIcon,
+          href: "/system-dashboard",
           isActive: isPathActive("/system-dashboard"),
-          subItems: [
-            {
-              title: "System Overview",
-              href: "/system-dashboard",
-              icon: LayoutDashboardIcon,
-            },
-          ],
         },
         {
           title: "User Management",
@@ -1138,6 +1149,33 @@ const Sidebar = ({
               const expanded = expandedItems[0] === item.title;
               return (
                 <li key={item.title} style={styles.menuItem}>
+                  {item.href && !item.subItems ? (
+                    <Link
+                      to={item.href}
+                      style={{
+                        ...styles.menuButton,
+                        ...(item.isActive
+                          ? styles.menuButtonActive
+                          : styles.menuButtonInactive),
+                        textDecoration: "none",
+                        display: "flex",
+                        boxSizing: "border-box",
+                      }}
+                      onMouseEnter={(e) =>
+                        handleMenuButtonHover(e, true, item.isActive)
+                      }
+                      onMouseLeave={(e) =>
+                        handleMenuButtonHover(e, false, item.isActive)
+                      }
+                    >
+                      <div style={styles.menuButtonContent}>
+                        <span style={styles.icon}>
+                          <item.icon size={16} />
+                        </span>
+                        <span>{item.title}</span>
+                      </div>
+                    </Link>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => toggleExpanded(item.title)}
@@ -1170,6 +1208,7 @@ const Sidebar = ({
                       )}
                     </span>
                   </button>
+                  )}
 
                   {/* Submenu */}
                   <div
