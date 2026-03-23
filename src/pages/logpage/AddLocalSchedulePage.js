@@ -1463,7 +1463,7 @@ const AddLocalSchedulePage = () => {
               items: vendors.map((vendor) => ({
                 trip_id: vendor.trip_id,
                 vendor_id: vendor.vendor_id,
-                do_numbers: vendor.do_numbers || [],
+                do_number: vendor.do_number || [],
               })),
             };
 
@@ -1839,7 +1839,7 @@ const AddLocalSchedulePage = () => {
           {
             trip_id: Number(t.id),
             vendor_id: Number(v.id),
-            do_numbers: clean,
+            do_number: clean,
             parts: [],
           },
         ],
@@ -1871,7 +1871,7 @@ const AddLocalSchedulePage = () => {
       vendorIndex,
       vendorId: vendorData.vendor_id,
       vendorLabel,
-      doNumbers: vendorData.do_numbers || [],
+      doNumbers: vendorData.do_number || [],
     });
     const currentPartsInForm = vendorData.parts ? [...vendorData.parts] : [];
     const filteredParts = currentPartsInForm.filter(
@@ -1882,8 +1882,8 @@ const AddLocalSchedulePage = () => {
       trip: "",
       vendor: vendorLabel,
       doNumbers:
-        vendorData.do_numbers && vendorData.do_numbers.length
-          ? [...vendorData.do_numbers]
+        vendorData.do_number && vendorData.do_number.length
+          ? [...vendorData.do_number]
           : [""],
       arrivalTime: "",
       parts: filteredParts,
@@ -2233,7 +2233,7 @@ const AddLocalSchedulePage = () => {
             items: vendors.map((vendor) => ({
               trip_id: vendor.trip_id,
               vendor_id: vendor.vendor_id,
-              do_numbers: vendor.do_numbers || [],
+              do_number: vendor.do_number || [],
             })),
           };
 
@@ -4032,7 +4032,7 @@ const AddLocalSchedulePage = () => {
                                         ? `${vendor.vendor_code} - ${vendor.vendor_name}`
                                         : "-";
                                       const doJoined = (
-                                        vd.do_numbers || []
+                                        vd.do_number || []
                                       ).join(" | ");
                                       const arrival = trip?.arv_to || "-";
                                       const vendorRowId = `${hdr.id}_vendor_${idx + 1

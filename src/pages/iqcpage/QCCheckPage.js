@@ -400,10 +400,8 @@ const QCCheckPage = ({ sidebarVisible }) => {
           setToastType("success");
           setTimeout(() => setToastMessage(null), 3000);
         }
-        if (sourceTab === "M136 Part") {
-          setActiveTab("Complete");
-          setTimeout(() => fetchCompleteQCChecks(), 300);
-        }
+        setActiveTab("Complete");
+        setTimeout(() => fetchCompleteQCChecks(), 300);
       } else {
         throw new Error(result.message || "Failed to approve");
       }
@@ -605,9 +603,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
         fetchM101Parts();
       } else {
         setSelectedM136Ids(new Set());
-        setActiveTab("Complete");
-        setTimeout(() => fetchCompleteQCChecks(), 300);
       }
+      setActiveTab("Complete");
+      setTimeout(() => fetchCompleteQCChecks(), 300);
     } catch (error) {
       setToastMessage(`Failed to bulk approve: ${error.message}`);
       setToastType("error");

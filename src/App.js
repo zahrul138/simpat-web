@@ -47,7 +47,6 @@ import LOGTargetSchedulePage from "./pages/logpage/LOGTargetSchedulePage";
 import ShortagePartPage from "./pages/logpage/ShortagePartPage";
 
 // Halaman SCN-IQC (Quality Control)
-import IQCLocalPage from "./pages/iqcpage/IQCLocalPage";
 import QCLocalSchedulePage from "./pages/iqcpage/QCLocalSchedulePage";
 import QCCheckPage from "./pages/iqcpage/QCCheckPage";
 import AddQCCheckPage from "./pages/iqcpage/AddQCCheckPage";
@@ -126,7 +125,7 @@ const Protected = ({ children }) => {
 };
 
 const LayoutHandler = () => {
-  useActiveCheck(); // ── kick out jika akun di-nonaktifkan ──
+  useActiveCheck(); 
   const location = useLocation();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [currentApplication, setCurrentApplication] = useState("production");
@@ -283,7 +282,6 @@ const LayoutHandler = () => {
       {location.pathname === "/part-details" && <PartDetailsPage />}
       {location.pathname === "/part-details/add" && <AddPartsPage />}
       {location.pathname === "/received-local" && <ReceivedLocalSchedulePage />}
-      {location.pathname === "/iqc-local" && <IQCLocalPage />}
       {location.pathname === "/qc-part" && <QCCheckPage />}
       {location.pathname === "/qc-part/add" && <AddQCCheckPage />}
       {location.pathname === "/qc-return-parts" && <QCReturnPartsPage />}
