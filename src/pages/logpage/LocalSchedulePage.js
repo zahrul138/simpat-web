@@ -354,6 +354,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           "7%",
           "15%",
           "15%",
+          "20%",
         ],
       },
     },

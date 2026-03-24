@@ -142,7 +142,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       },
       partsTable: {
         marginLeft: "51px",
-        cols: ["2.8%", "10%", "22%", "7%", "7%", "6%", "18%", "12%", "7%"],
+        cols: ["2.8%", "10%", "22%", "7%", "7%", "6%", "14%", "18%", "7%"],
       },
     },
     Received: {
@@ -186,7 +186,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       },
       partsTable: {
         marginLeft: "51.8px",
-        cols: ["3%", "12%", "25%", "8%", "8%", "7%", "20%", "7%", "20%", "15%",],
+        cols: ["3%", "12%", "25%", "8%", "8%", "7%", "15%", "7%", "15%", "15%", "20%",],
       },
     },
     Pass: {
@@ -220,6 +220,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           "10%",
           "10%",
           "10%",
+          "10%",
         ],
       },
     },
@@ -242,7 +243,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       },
       partsTable: {
         marginLeft: "51.8px",
-        cols: ["3%", "12%", "25%", "8%", "8%", "7%", "20%", "7%", "20%", "15%",],
+        cols: ["3%", "12%", "25%", "8%", "8%", "7%", "20%", "7%", "10%", "10%", "15%",],
       },
     },
   };
@@ -1422,6 +1423,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         qty_box: part.qty_box || part.quantity_box || 0,
         unit: part.unit || "PCS",
         remark: part.remark || "",
+        status: part.status || "",
         prod_date: part.prod_date ? part.prod_date.split("T")[0] : "",
         prod_dates: existingDates.length > 0 ? existingDates : [""],
       });
@@ -1472,8 +1474,8 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         quantity: editPartData.qty,
         quantityBox: editPartData.qty_box,
         remark: editPartData.remark,
+        status: editPartData.status || undefined,
         prod_dates: validProdDates,
-
         updated_by_name: authUser?.emp_name || authUser?.name || "Unknown",
       };
 
@@ -3594,6 +3596,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                       <th style={styles.thirdLevelTh}>Prod Date</th>
                       <th style={styles.thirdLevelTh}>Status</th>
                       <th style={styles.thirdLevelTh}>Sample</th>
+                      <th style={styles.thirdLevelTh}>Pass</th>
                       <th style={styles.thirdLevelTh}>Remark</th>
                       <th style={styles.thirdLevelTh}>Action</th>
                     </tr>
@@ -3616,8 +3619,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                       vendor.parts.map((part, pIdx) => {
                         const { status: autoStatus, sampleDates } =
                           getPartSampleStatus(part);
-                        const displayStatus =
-                          part.status === "PASS" ? "PASS" : autoStatus;
+                        const displayStatus = autoStatus;
 
                         return (
                           <tr key={part.id}>
@@ -3805,6 +3807,23 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               ) : (
                                 "-"
                               )}
+                            </td>
+                            { }
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={(() => {
+                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                              })()}
+                            >
+                              {(() => {
+                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                return _pass.length > 0 ? (
+                                  <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
+                                ) : "-";
+                              })()}
                             </td>
                             { }
                             <td
@@ -3998,6 +4017,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                       <th style={styles.thirdLevelTh}>Prod Date</th>
                       <th style={styles.thirdLevelTh}>Status</th>
                       <th style={styles.thirdLevelTh}>Sample</th>
+                      <th style={styles.thirdLevelTh}>Pass</th>
                       <th style={styles.thirdLevelTh}>Remark</th>
                       <th style={styles.thirdLevelTh}>Action</th>
                     </tr>
@@ -4018,10 +4038,8 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                       </tr>
                     ) : (
                       vendor.parts.map((part, pIdx) => {
-                        const { status: autoStatus, sampleDates } =
-                          getPartSampleStatus(part);
-                        const displayStatus =
-                          part.status === "PASS" ? "PASS" : autoStatus;
+                        const { sampleDates } = getPartSampleStatus(part);
+                        const displayStatus = sampleDates.length > 0 ? "SAMPLE" : "PASS";
 
                         return (
                           <tr key={part.id}>
@@ -4094,10 +4112,10 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                             { }
                             <td
                               style={styles.thirdLevelTd}
-                              title={displayStatus || "-"}
+                              title={displayStatus}
                             >
                               <span style={styles.statusBadge}>
-                                {displayStatus || "-"}
+                                {displayStatus}
                               </span>
                             </td>
 
@@ -4122,26 +4140,83 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 "-"
                               )}
                             </td>
+                            { }
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={(() => {
+                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                              })()}
+                            >
+                              {(() => {
+                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                return _pass.length > 0 ? (
+                                  <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
+                                ) : "-";
+                              })()}
+                            </td>
 
                             { }
                             <td
                               style={styles.thirdLevelTd}
                               title={part.remark || "-"}
                             >
-                              <span style={styles.remarkText}>
-                                {part.remark || "-"}
-                              </span>
+                              {editingPartId === part.id ? (
+                                <input
+                                  type="text"
+                                  style={styles.inlineInput}
+                                  value={editPartData.remark || ""}
+                                  onChange={(e) =>
+                                    setEditPartData((p) => ({
+                                      ...p,
+                                      remark: e.target.value,
+                                    }))
+                                  }
+                                  title="Enter remark"
+                                />
+                              ) : (
+                                part.remark || "-"
+                              )}
                             </td>
-
                             { }
-                            <td style={styles.thirdLevelTd}>
-                              <button
-                                style={styles.editButton}
-                                onClick={() => handleEditPart(part, vendor.id)}
-                                title="Edit"
-                              >
-                                <Pencil size={10} />
-                              </button>
+                            <td style={styles.thirdLevelTd} title="Action">
+                              {editingPartId === part.id ? (
+                                <>
+                                  <button
+                                    style={styles.saveButton}
+                                    onClick={() => handleSaveEditPart(part.id)}
+                                    title="Save"
+                                  >
+                                    <Save size={10} />
+                                  </button>
+                                  <button
+                                    style={styles.cancelButton}
+                                    onClick={handleCancelEditPart}
+                                    title="Cancel"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    style={styles.editButton}
+                                    onClick={() => handleEditPart(part, vendor.id)}
+                                    title="Edit"
+                                  >
+                                    <Pencil size={10} />
+                                  </button>
+                                  <button
+                                    style={styles.deleteButton}
+                                    onClick={() => handleDeletePart(part.id)}
+                                    title="Delete"
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
+                                </>
+                              )}
                             </td>
                           </tr>
                         );
@@ -4293,6 +4368,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                       <th style={styles.thirdLevelTh}>Prod Date</th>
                       <th style={styles.thirdLevelTh}>Status</th>
                       <th style={styles.thirdLevelTh}>Sample</th>
+                      <th style={styles.thirdLevelTh}>Pass</th>
                       <th style={styles.thirdLevelTh}>Remark</th>
                       <th style={styles.thirdLevelTh}>Action</th>
                     </tr>
@@ -4368,11 +4444,30 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                             { }
                             <td
                               style={styles.thirdLevelTd}
-                              title={sampleStatus.status || "-"}
+                              title={part.status || "-"}
                             >
-                              <span style={styles.statusBadge}>
-                                {sampleStatus.status}
-                              </span>
+                              {editingPartId === part.id ? (
+                                <select
+                                  style={styles.inlineInput}
+                                  value={editPartData.status || ""}
+                                  onChange={(e) =>
+                                    setEditPartData((p) => ({
+                                      ...p,
+                                      status: e.target.value,
+                                    }))
+                                  }
+                                  title="Select status"
+                                >
+                                  <option value="">-</option>
+                                  <option value="PASS">PASS</option>
+                                  <option value="EQZD">EQZD</option>
+                                  <option value="SAMPLE">SAMPLE</option>
+                                </select>
+                              ) : (
+                                <span style={styles.statusBadge}>
+                                  {sampleStatus.status || "-"}
+                                </span>
+                              )}
                             </td>
 
                             { }
@@ -4396,26 +4491,83 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 "-"
                               )}
                             </td>
+                            { }
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={(() => {
+                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(d => !sampleStatus.sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                              })()}
+                            >
+                              {(() => {
+                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(d => !sampleStatus.sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                return _pass.length > 0 ? (
+                                  <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
+                                ) : "-";
+                              })()}
+                            </td>
 
                             { }
                             <td
                               style={styles.thirdLevelTd}
                               title={part.remark || "-"}
                             >
-                              <span style={styles.remarkText}>
-                                {part.remark || "-"}
-                              </span>
+                              {editingPartId === part.id ? (
+                                <input
+                                  type="text"
+                                  style={styles.inlineInput}
+                                  value={editPartData.remark || ""}
+                                  onChange={(e) =>
+                                    setEditPartData((p) => ({
+                                      ...p,
+                                      remark: e.target.value,
+                                    }))
+                                  }
+                                  title="Enter remark"
+                                />
+                              ) : (
+                                part.remark || "-"
+                              )}
                             </td>
-
                             { }
-                            <td style={styles.thirdLevelTd}>
-                              <button
-                                style={styles.editButton}
-                                onClick={() => handleEditPart(part, vendor.id)}
-                                title="Edit"
-                              >
-                                <Pencil size={10} />
-                              </button>
+                            <td style={styles.thirdLevelTd} title="Action">
+                              {editingPartId === part.id ? (
+                                <>
+                                  <button
+                                    style={styles.saveButton}
+                                    onClick={() => handleSaveEditPart(part.id)}
+                                    title="Save"
+                                  >
+                                    <Save size={10} />
+                                  </button>
+                                  <button
+                                    style={styles.cancelButton}
+                                    onClick={handleCancelEditPart}
+                                    title="Cancel"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    style={styles.editButton}
+                                    onClick={() => handleEditPart(part, vendor.id)}
+                                    title="Edit"
+                                  >
+                                    <Pencil size={10} />
+                                  </button>
+                                  <button
+                                    style={styles.deleteButton}
+                                    onClick={() => handleDeletePart(part.id)}
+                                    title="Delete"
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
+                                </>
+                              )}
                             </td>
                           </tr>
                         );

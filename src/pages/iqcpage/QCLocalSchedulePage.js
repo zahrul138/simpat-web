@@ -302,6 +302,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
           "7%",
           "15%",
           "15%",
+          "20%",
         ],
       },
     },
@@ -1318,12 +1319,11 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
     }
 
     const { status: autoStatus } = getPartSampleStatus(part);
-    const displayStatus = part.status || autoStatus || "";
 
     setEditIqcPartData({
       vendorId: vendorId,
       part_code: part.part_code,
-      status: displayStatus,
+      status: autoStatus || "",
       remark: part.remark || "",
       prod_dates: existingDates.length > 0 ? existingDates : [""],
     });
@@ -1353,10 +1353,6 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
         (date) => !isProductionDateComplete(editIqcPartData.part_code, date.split("T")[0]),
       );
 
-      const authUser = getAuthUser();
-      const approveByName = authUser?.emp_name || authUser?.name || "";
-      const approveById = authUser?.id || null;
-
       const response = await fetch(
         `${API_BASE}/api/local-schedules/parts/${partId}`,
         {
@@ -1368,26 +1364,12 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
             prod_date: validDates[0] || null,
             prod_dates: validDates,
             sample_dates: newSampleDates,
-            approve_by_id: approveById,
           }),
         },
       );
 
       const result = await response.json();
       if (response.ok && result.success) {
-
-        const vendorId = editIqcPartData.vendorId;
-        const nowIso = new Date().toISOString();
-
-        if (approveByName && vendorId) {
-          setIqcProgressVendors((prev) =>
-            prev.map((vendor) =>
-              vendor.id === vendorId
-                ? { ...vendor, approve_by_name: approveByName, approve_at: nowIso }
-                : vendor,
-            ),
-          );
-        }
 
         setEditingIqcPartId(null);
         setEditIqcPartData({});

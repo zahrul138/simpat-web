@@ -1363,9 +1363,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        title={item.qc_status || "-"}
+                        title="Sample"
                       >
-                        {item.qc_status || "-"}
+                        Sample
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
@@ -1618,9 +1618,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        title={item.qc_status || "-"}
+                        title="Sample"
                       >
-                        {item.qc_status || "-"}
+                        Sample
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
