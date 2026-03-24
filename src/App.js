@@ -17,7 +17,6 @@ import LoginPage from "./pages/LoginPage";
 
 import ComponentMasterPage from "./pages/mhpage/ComponentMasterPage";
 
-// Halaman SCN-MH (Production Management)
 import ProductionMonitoringPage from "./pages/mhpage/ProductionMonitoringPage";
 import TargetSchedulePage from "./pages/mhpage/TargetSchedulePage";
 import AddTargetSchedulePage from "./pages/mhpage/AddTargetSchedulePage";
@@ -27,7 +26,6 @@ import MHLocalSchedulePage from "./pages/mhpage/MHLocalSchedulePage";
 import TargetScanningPage from "./pages/mhpage/TargetScanningPage";
 import AddReturnPartsPage from "./pages/mhpage/AddReturnPartsPage";
 
-// Halaman SCN-LOG (Inventory Control)
 import LocalSchedulePage from "./pages/logpage/LocalSchedulePage";
 import AddLocalSchedulePage from "./pages/logpage/AddLocalSchedulePage";
 import ReceiveReqPartPage from "./pages/logpage/ReceiveReqPartPage";
@@ -46,20 +44,14 @@ import PartDisposalReportPage from "./pages/logpage/PartDisposalReportPage";
 import LOGTargetSchedulePage from "./pages/logpage/LOGTargetSchedulePage";
 import ShortagePartPage from "./pages/logpage/ShortagePartPage";
 
-// Halaman SCN-IQC (Quality Control)
 import QCLocalSchedulePage from "./pages/iqcpage/QCLocalSchedulePage";
 import QCCheckPage from "./pages/iqcpage/QCCheckPage";
 import AddQCCheckPage from "./pages/iqcpage/AddQCCheckPage";
 import QCOverseaPartSchedulePage from "./pages/iqcpage/QCOverseaPartSchedulePage";
 import QCReturnPartsPage from "./pages/iqcpage/QCReturnPartsPage";
-import QCDashboardPage from "./pages/iqcpage/QCDashboardPage";
 
-import PartsEnquiryIdPage from "./pages/mhpage/PartsEnquiryIdPage";
-import AddPartsEnquiryIdPage from "./pages/mhpage/AddPartsEnquiryIdPage";
-import AddPartsEnquiryNonIdPage from "./pages/mhpage/AddPartsEnquiryNonIdPage";
-import PartsEnquiryNonIdPage from "./pages/mhpage/PartsEnquiryNonIdPage";
-import UploadKanbanIdPage from "./pages/mhpage/UploadKanbanIdPage";
-import PartsReceivePage from "./pages/mhpage/PartsReceivePage";
+import AddRequestPartPage from "./pages/mhpage/AddRequestPartPage";
+import RequestPartPage from "./pages/mhpage/RequestPartPage";
 
 import UserControlPage from "./pages/admin/UserControlPage";
 import CreateUserPage from "./pages/admin/CreateUserPage";
@@ -171,7 +163,7 @@ const LayoutHandler = () => {
       "/control-part": { app: "production", dept: "SCN-MH" },
       "/component-master": { app: "production", dept: "SCN-MH" },
       "/part-enquiry-id": { app: "production", dept: "SCN-MH" },
-      "/part-enquiry-non-id": { app: "production", dept: "SCN-MH" },
+      "/request-part": { app: "production", dept: "SCN-MH" },
       "/part-receive": { app: "production", dept: "SCN-MH" },
       "/upload-kanban": { app: "production", dept: "SCN-MH" },
       "/return-parts": { app: "production", dept: "SCN-MH" },
@@ -268,7 +260,6 @@ const LayoutHandler = () => {
       {location.pathname === "/mh-local-schedule" && <MHLocalSchedulePage />}
       {location.pathname === "/qc-local-schedule" && <QCLocalSchedulePage />}
       {location.pathname === "/qc-oversea-schedule" && <QCOverseaPartSchedulePage />}
-      {location.pathname === "/quality-dashboard" && <QCDashboardPage />}
       {location.pathname === "/oversea-schedule" && <OverseaPartSchedulePage />}
       {location.pathname === "/oversea-schedule/add" && <AddOverseaPartSchedulePage />}
       {location.pathname === "/storage-inventory" && <StorageInventoryPage />}
@@ -289,21 +280,13 @@ const LayoutHandler = () => {
       {location.pathname === "/part-disposal-report" && <PartDisposalReportPage />}
       {location.pathname === "/production-schedule" && <LOGTargetSchedulePage />}
       {location.pathname === "/shortage-part" && <ShortagePartPage />}
+      {location.pathname === "/request-part/add" && (
+        <AddRequestPartPage />
+      )}
 
-      {location.pathname === "/part-enquiry-id" && <PartsEnquiryIdPage />}
-      {location.pathname === "/part-enquiry-id/add" && (
-        <AddPartsEnquiryIdPage />
+      {location.pathname === "/request-part" && (
+        <RequestPartPage />
       )}
-      {location.pathname === "/part-enquiry-non-id/add" && (
-        <AddPartsEnquiryNonIdPage />
-      )}
-      {location.pathname === "/part-enquiry-id/upload" && (
-        <UploadKanbanIdPage />
-      )}
-      {location.pathname === "/part-enquiry-non-id" && (
-        <PartsEnquiryNonIdPage />
-      )}
-      {location.pathname === "/part-receive" && <PartsReceivePage />}
       {location.pathname === "/receive-request" && <ReceiveReqPartPage />}
       {location.pathname === "/return-parts" && <ReturnPartsPage />}
       {location.pathname === "/return-parts/add" && <AddReturnPartsPage />}

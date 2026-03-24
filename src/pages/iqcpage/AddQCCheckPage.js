@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Save, Search } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -509,10 +510,14 @@ const AddQCCheckPage = () => {
 
   return (
     <div style={styles.pageContainer}>
+       <div>
+              <Helmet>
+                <title>Quality Parts/Add Quality Parts</title>
+              </Helmet>
+            </div>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
 
-          {/* ── Form Card ── */}
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
               <h2 style={styles.h2}>Add Quality Part Check</h2>

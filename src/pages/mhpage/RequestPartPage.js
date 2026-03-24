@@ -37,11 +37,12 @@ const formatDateTime = (rawStr) => {
   return `${day}/${month}/${year} ${hours}.${minutes}`;
 };
 
-const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
+const RequestPartPage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [partsData, setPartsData] = useState([]);
+  const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [remarks, setRemarks] = useState({});
   const [activeTab, setActiveTab] = useState("New");
@@ -51,6 +52,14 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
   const [filterPartCode, setFilterPartCode] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterSearchBy, setFilterSearchBy] = useState("part_code");
+  const [filterKeyword, setFilterKeyword] = useState("");
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchBy: "part_code",
+    keyword: "",
+    dateFrom: "",
+    dateTo: "",
+  });
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [tripsData, setTripsData] = useState([]);
@@ -316,15 +325,15 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id?status=${activeTab}`,
+        `${API_BASE}/api/request-part?status=${activeTab}`,
       );
       const result = await response.json();
-
       if (result.success) {
-        setPartsData(result.data);
-
+        const data = result.data;
+        setRawData(data);
+        setPartsData(data);
         const remarksObj = {};
-        result.data.forEach((item) => {
+        data.forEach((item) => {
           remarksObj[item.id] = item.remark || "";
         });
         setRemarks(remarksObj);
@@ -333,6 +342,45 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       console.error("Fetch error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const applyFilter = (data, filters) => {
+    return data.filter((item) => {
+      if (filters.dateFrom) {
+        const d = item.requested_at ? item.requested_at.split("T")[0] : "";
+        if (d < filters.dateFrom) return false;
+      }
+      if (filters.dateTo) {
+        const d = item.requested_at ? item.requested_at.split("T")[0] : "";
+        if (d > filters.dateTo) return false;
+      }
+      if (filters.keyword) {
+        const kw = filters.keyword.toLowerCase();
+        const field = (item[filters.searchBy] || "").toString().toLowerCase();
+        if (!field.includes(kw)) return false;
+      }
+      return true;
+    });
+  };
+
+  const handleSearch = () => {
+    const filters = {
+      searchBy: filterSearchBy,
+      keyword: filterKeyword,
+      dateFrom: filterDateFrom,
+      dateTo: filterDateTo,
+    };
+    setAppliedFilters(filters);
+    setPartsData(applyFilter(rawData, filters));
+    setCurrentPage(1);
+  };
+
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      fetchPartsEnquiry();
+    } else {
+      setActiveTab(tab);
     }
   };
 
@@ -345,7 +393,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
   const handleRemarkBlur = async (partId) => {
     try {
-      await fetch(`${API_BASE}/api/parts-enquiry-non-id/${partId}/remark`, {
+      await fetch(`${API_BASE}/api/request-part/${partId}/remark`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ remark: remarks[partId] || "" }),
@@ -390,7 +438,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/move-to-waiting`,
+        `${API_BASE}/api/request-part/move-to-waiting`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -403,10 +451,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (result.success) {
-        alert(result.message);
         setSelectedItems(new Set());
         setSelectAll(false);
-        fetchPartsEnquiry();
+        setActiveTab("Waiting");
       } else {
         alert("Failed: " + result.message);
       }
@@ -423,7 +470,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/move-to-rejected`,
+        `${API_BASE}/api/request-part/move-to-rejected`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -433,8 +480,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (result.success) {
-        alert("Part moved to Rejected");
-        fetchPartsEnquiry();
+        setActiveTab("Rejected");
       } else {
         alert("Failed: " + result.message);
       }
@@ -452,12 +498,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     }
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/${partId}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/request-part/${partId}`, {
+        method: "DELETE",
+      });
 
       const result = await response.json();
       if (result.success) {
@@ -479,7 +522,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/restore-to-waiting`,
+        `${API_BASE}/api/request-part/restore-to-waiting`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -489,8 +532,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (result.success) {
-        alert("Part restored to Waiting");
-        fetchPartsEnquiry();
+        setActiveTab("Waiting");
       } else {
         alert("Failed: " + result.message);
       }
@@ -511,24 +553,20 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     }
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/approve`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ids: Array.from(selectedItems),
-            approved_by_name: getAuthUserLocal()?.emp_name || null,
-          }),
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/request-part/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: Array.from(selectedItems),
+          approved_by_name: getAuthUserLocal()?.emp_name || null,
+        }),
+      });
 
       const result = await response.json();
       if (result.success) {
-        alert(result.message);
         setSelectedItems(new Set());
         setSelectAll(false);
-        fetchPartsEnquiry();
+        setActiveTab("Received");
       } else {
         alert("Failed: " + result.message);
       }
@@ -551,7 +589,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     const authUser = getAuthUserLocal();
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/move-to-intransit`,
+        `${API_BASE}/api/request-part/move-to-intransit`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -564,10 +602,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (result.success) {
-        alert(result.message);
         setSelectedItems(new Set());
         setSelectAll(false);
-        fetchPartsEnquiry();
+        setActiveTab("InTransit");
       } else {
         alert("Failed: " + result.message);
       }
@@ -588,7 +625,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     const authUser = getAuthUserLocal();
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/move-to-complete`,
+        `${API_BASE}/api/request-part/move-to-complete`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -600,10 +637,9 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       );
       const result = await response.json();
       if (result.success) {
-        alert(result.message);
         setSelectedItems(new Set());
         setSelectAll(false);
-        fetchPartsEnquiry();
+        setActiveTab("Complete");
       } else {
         alert("Failed: " + result.message);
       }
@@ -662,7 +698,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       return `
         <div class="page${pageIdx < tripKeys.length - 1 ? " page-break" : ""}">
           <div class="header">
-            <div class="title">Parts Enquiry Non-ID — Received</div>
+            <div class="title">Request Part — Received</div>
             <div class="meta">
               <span><b>Trip:</b> ${tripKey}</span>
               <span><b>Tanggal Cetak:</b> ${dateStr}</span>
@@ -685,7 +721,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             <tbody>${rowsHtml}</tbody>
           </table>
           <div class="footer">
-            Halaman ${pageIdx + 1} dari ${tripKeys.length} &nbsp;|&nbsp; SIMPAT — Parts Enquiry Non-ID
+            Halaman ${pageIdx + 1} dari ${tripKeys.length} &nbsp;|&nbsp; SIMPAT — Request Part
           </div>
         </div>`;
     });
@@ -695,7 +731,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
       <html>
       <head>
         <meta charset="UTF-8" />
-        <title>Parts Enquiry Non-ID - Received</title>
+        <title>Request Part - Received</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: Arial, sans-serif; font-size: 11px; color: #1f2937; background: white; }
@@ -756,6 +792,16 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
   }, [searchParams]);
 
   useEffect(() => {
+    setFilterSearchBy("part_code");
+    setFilterKeyword("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setAppliedFilters({
+      searchBy: "part_code",
+      keyword: "",
+      dateFrom: "",
+      dateTo: "",
+    });
     fetchPartsEnquiry();
     setSelectedItems(new Set());
     setSelectAll(false);
@@ -767,13 +813,6 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
     const interval = setInterval(() => fetchPartsEnquiry(), 30 * 1000);
     return () => clearInterval(interval);
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
-  };
 
   const styles = {
     pageContainer: {
@@ -1125,10 +1164,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder}>
+        <td style={styles.tdWithLeftBorder} title="Select">
           <input
             type="checkbox"
             checked={selectedItems.has(part.id)}
@@ -1163,7 +1203,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
         >
           {getActiveTripInfo(currentTime).label}
         </td>
-        <td style={styles.tdWithLeftBorder}>
+        <td style={styles.tdWithLeftBorder} title={remarks[part.id] || ""}>
           <input
             type="text"
             value={remarks[part.id] || ""}
@@ -1185,10 +1225,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           {part.requested_by_name || "Unknown"} |{" "}
           {formatDateTime(part.requested_at)}
         </td>
-        <td style={styles.tdWithLeftBorder}>
+        <td style={styles.tdWithLeftBorder} title="Action">
           <button
             style={styles.deleteButton}
             onClick={() => handleRejectPart(part.id)}
+            title="Delete"
           >
             <Trash2 size={10} />
           </button>
@@ -1227,6 +1268,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
@@ -1306,10 +1348,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder} />
+        <td style={styles.tdWithLeftBorder} title="-" />
         <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
           {part.label_id || "-"}
         </td>
@@ -1384,10 +1427,11 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder}>
+        <td style={styles.tdWithLeftBorder} title="Select">
           <input
             type="checkbox"
             checked={selectedItems.has(part.id)}
@@ -1467,6 +1511,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
@@ -1514,7 +1559,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           <button
             style={styles.deleteButton}
             onClick={() => handleDeletePermanent(part.id)}
-            title="Delete permanently"
+            title="Delete"
           >
             <Trash2 size={10} />
           </button>
@@ -1553,6 +1598,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
@@ -1613,26 +1659,61 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Date Filter</span>
-              <select style={styles.select}>
-                <option style={optionStyle}>Search Date</option>
-              </select>
-              <input type="date" style={styles.input} placeholder="Date From" />
+              <input
+                type="date"
+                style={styles.input}
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+              />
               <span style={styles.label}>To</span>
-              <input type="date" style={styles.input} placeholder="Date To" />
+              <input
+                type="date"
+                style={styles.input}
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+              />
             </div>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
-              <select style={styles.select}>
-                <option style={optionStyle}>Customer</option>
-                <option style={optionStyle}>Product Code</option>
-                <option style={optionStyle}>Product Description</option>
+              <select
+                style={styles.select}
+                value={filterSearchBy}
+                onChange={(e) => setFilterSearchBy(e.target.value)}
+              >
+                <option value="part_code">Part Code</option>
+                <option value="part_name">Part Name</option>
+                <option value="label_id">Label ID</option>
+                <option value="model">Model</option>
+                <option value="trip">Trip</option>
+                {(activeTab === "New" ||
+                  activeTab === "Waiting" ||
+                  activeTab === "History" ||
+                  activeTab === "Rejected") && (
+                  <option value="requested_by_name">Request By</option>
+                )}
+                {activeTab === "Received" && (
+                  <option value="approved_by_name">Received By</option>
+                )}
+                {(activeTab === "InTransit" || activeTab === "Arrived") && (
+                  <option value="intransit_by_name">Moved By</option>
+                )}
+                {activeTab === "Complete" && (
+                  <option value="complete_by_name">Completed By</option>
+                )}
               </select>
               <input
                 type="text"
                 style={styles.input}
                 placeholder="Input Keyword"
+                value={filterKeyword}
+                onChange={(e) => setFilterKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                }}
               />
-              <button style={styles.button}>Search</button>
+              <button style={styles.button} onClick={handleSearch}>
+                Search
+              </button>
             </div>
           </div>
         </div>
@@ -1642,7 +1723,10 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
             style={{ ...styles.button, ...styles.primaryButton }}
             onMouseEnter={(e) => handleButtonHover(e, true, "primary")}
             onMouseLeave={(e) => handleButtonHover(e, false, "primary")}
-            onClick={() => navigate("/part-enquiry-non-id/add")}
+            onClick={() => {
+              document.title = "Request Parts/Add Request Parts";
+              navigate("/request-part/add");
+            }}
           >
             <Plus size={16} />
             Create
@@ -1657,7 +1741,7 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab && styles.tabButtonActive),
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               onMouseEnter={(e) => handleTabHover(e, true, activeTab === tab)}
               onMouseLeave={(e) => handleTabHover(e, false, activeTab === tab)}
             >
@@ -1966,4 +2050,4 @@ const PartsEnquiryNonIdPage = ({ sidebarVisible }) => {
   );
 };
 
-export default PartsEnquiryNonIdPage;
+export default RequestPartPage;

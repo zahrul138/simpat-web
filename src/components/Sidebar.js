@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 
 const Sidebar = ({
   isVisible,
@@ -12,6 +12,7 @@ const Sidebar = ({
   const [subMenuHeights, setSubMenuHeights] = useState({});
   const [prevPathname, setPrevPathname] = useState("");
   const location = useLocation();
+  const navigate = useNavigate();
 
   const PackageIcon = ({ size = 12 }) => (
     <svg
@@ -657,12 +658,12 @@ const Sidebar = ({
           title: "Part Enquiry",
           icon: SearchIcon,
           isActive:
-            location.pathname.startsWith("/part-enquiry-non-id") ||
+            location.pathname.startsWith("/request-part") ||
             isPathActive("/stock-overview-mh"),
           subItems: [
             {
               title: "Request Parts",
-              href: "/part-enquiry-non-id",
+              href: "/request-part",
               icon: QuestionIcon,
             },
             {
@@ -672,18 +673,7 @@ const Sidebar = ({
             },
           ],
         },
-        // {
-        //   title: "Part Receiving",
-        //   icon: InboxIcon,
-        //   isActive: location.pathname.startsWith("/part-receive"),
-        //   subItems: [
-        //     {
-        //       title: "Receive Picking List",
-        //       href: "/part-receive",
-        //       icon: PackageIcon,
-        //     },
-        //   ],
-        // },
+
         {
           title: "Quality Control",
           icon: ShieldIcon,
@@ -1176,41 +1166,39 @@ const Sidebar = ({
                       </div>
                     </Link>
                   ) : (
-                  <button
-                    type="button"
-                    onClick={() => toggleExpanded(item.title)}
-                    style={{
-                      ...styles.menuButton,
-                      ...(item.isActive
-                        ? styles.menuButtonActive
-                        : styles.menuButtonInactive),
-                    }}
-                    onMouseEnter={(e) =>
-                      handleMenuButtonHover(e, true, item.isActive)
-                    }
-                    onMouseLeave={(e) =>
-                      handleMenuButtonHover(e, false, item.isActive)
-                    }
-                    aria-expanded={expanded}
-                    aria-controls={`submenu-${item.title}`}
-                  >
-                    <div style={styles.menuButtonContent}>
-                      <span style={styles.icon}>
-                        <item.icon size={16} />
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(item.title)}
+                      style={{
+                        ...styles.menuButton,
+                        ...(item.isActive
+                          ? styles.menuButtonActive
+                          : styles.menuButtonInactive),
+                      }}
+                      onMouseEnter={(e) =>
+                        handleMenuButtonHover(e, true, item.isActive)
+                      }
+                      onMouseLeave={(e) =>
+                        handleMenuButtonHover(e, false, item.isActive)
+                      }
+                      aria-expanded={expanded}
+                      aria-controls={`submenu-${item.title}`}
+                    >
+                      <div style={styles.menuButtonContent}>
+                        <span style={styles.icon}>
+                          <item.icon size={16} />
+                        </span>
+                        <span>{item.title}</span>
+                      </div>
+                      <span style={styles.chevron}>
+                        {expanded ? (
+                          <ChevronDownIcon size={14} />
+                        ) : (
+                          <ChevronRightIcon size={14} />
+                        )}
                       </span>
-                      <span>{item.title}</span>
-                    </div>
-                    <span style={styles.chevron}>
-                      {expanded ? (
-                        <ChevronDownIcon size={14} />
-                      ) : (
-                        <ChevronRightIcon size={14} />
-                      )}
-                    </span>
-                  </button>
+                    </button>
                   )}
-
-                  {/* Submenu */}
                   <div
                     id={`submenu-${item.title}`}
                     style={{
@@ -1222,8 +1210,9 @@ const Sidebar = ({
                     }}
                   >
                     {item.subItems?.map((subItem) => {
+                      const exactActive = location.pathname === subItem.href;
                       const active =
-                        location.pathname === subItem.href ||
+                        exactActive ||
                         location.pathname === subItem.href + "/add";
                       return (
                         <div key={subItem.title} style={styles.subMenuItem}>
@@ -1233,6 +1222,14 @@ const Sidebar = ({
                             style={{
                               ...styles.subMenuButton,
                               ...(active ? styles.subMenuButtonActive : null),
+                            }}
+                            onClick={(e) => {
+                              if (exactActive) {
+                                e.preventDefault();
+                                navigate(0);
+                              } else {
+                                document.title = subItem.title;
+                              }
                             }}
                             onMouseEnter={(e) =>
                               handleSubMenuButtonHover(e, true)

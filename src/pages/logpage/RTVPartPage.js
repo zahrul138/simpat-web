@@ -28,25 +28,23 @@ const RTVPartPage = ({ sidebarVisible }) => {
   const empName =
     getAuthUserLocal()?.emp_name || getAuthUserLocal()?.name || null;
 
-  // STATE UNTUK DATA
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab") || "Waiting LOG";
     return TABS.includes(t) ? t : "Waiting LOG";
   });
   const [tableData, setTableData] = useState([]);
+  const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
 
-  // STATE UNTUK FILTER
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterSearchBy, setFilterSearchBy] = useState("part_code");
   const [filterKeyword, setFilterKeyword] = useState("");
 
-  // STATE UNTUK REMARK
   const [remarks, setRemarks] = useState({});
 
   const itemsPerPage = 10;
@@ -67,20 +65,41 @@ const RTVPartPage = ({ sidebarVisible }) => {
       minWidth: "1080px",
     },
     "RTV Progress": {
-     cols: ["2.8%", "10%", "18%", "7%", "20%", "7%", "7%", "20%", "28%", "7%"],
+      cols: ["2.8%", "10%", "18%", "7%", "20%", "7%", "7%", "20%", "28%", "7%"],
       minWidth: "1080px",
     },
     "Stock Replaced": {
-      cols: ["3%", "12%", "15%", "20%", "8%", "20%", "8%", "8%", "20%", "25%", "7%"],
+      cols: [
+        "3%",
+        "12%",
+        "15%",
+        "20%",
+        "8%",
+        "20%",
+        "8%",
+        "8%",
+        "20%",
+        "25%",
+        "7%",
+      ],
       minWidth: "1140px",
     },
     Complete: {
-      cols: ["2.7%", "10%", "13%", "20%", "8%", "20%", "8%", "8%", "20%",  "31%"],
+      cols: [
+        "2.7%",
+        "10%",
+        "13%",
+        "20%",
+        "8%",
+        "20%",
+        "8%",
+        "8%",
+        "20%",
+        "31%",
+      ],
       minWidth: "1140px",
     },
   };
-
-  // ====== UTILITY FUNCTIONS ======
 
   const showToast = (msg, type = "success") => {
     setToastMessage(msg);
@@ -93,8 +112,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
     return `${name} | ${datetime || "-"}`;
   };
 
-  // ====== USE EFFECTS ======
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab") || "Waiting LOG";
@@ -102,12 +119,13 @@ const RTVPartPage = ({ sidebarVisible }) => {
   }, [location.search]);
 
   useEffect(() => {
+    setFilterSearchBy("part_code");
+    setFilterKeyword("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
     fetchData();
     setCurrentPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
-
-  // ====== API FUNCTIONS ======
 
   const fetchData = async () => {
     setLoading(true);
@@ -115,15 +133,23 @@ const RTVPartPage = ({ sidebarVisible }) => {
       let url = `${API_BASE}/api/rtv-parts?status=${encodeURIComponent(activeTab)}`;
       if (filterDateFrom) url += `&date_from=${filterDateFrom}`;
       if (filterDateTo) url += `&date_to=${filterDateTo}`;
-      if (filterKeyword.trim())
-        url += `&${filterSearchBy}=${encodeURIComponent(filterKeyword.trim())}`;
       const res = await fetch(url);
       const result = await res.json();
       if (result.success) {
-        setTableData(result.data);
-        // Populate remarks for Received LOG
+        const data = result.data;
+        setRawData(data);
+        if (filterKeyword.trim()) {
+          const kw = filterKeyword.trim().toLowerCase();
+          setTableData(
+            data.filter((r) =>
+              (r[filterSearchBy] || "").toLowerCase().includes(kw),
+            ),
+          );
+        } else {
+          setTableData(data);
+        }
         const rem = {};
-        result.data.forEach((row) => {
+        data.forEach((row) => {
           rem[row.id] = row.remark || "";
         });
         setRemarks(rem);
@@ -136,8 +162,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
       setLoading(false);
     }
   };
-
-  // ====== HANDLER FUNCTIONS ======
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -153,6 +177,14 @@ const RTVPartPage = ({ sidebarVisible }) => {
   const handleSearch = () => {
     setCurrentPage(1);
     fetchData();
+  };
+
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      fetchData();
+    } else {
+      handleTabChange(tab);
+    }
   };
 
   const handleRemarkChange = (id, value) => {
@@ -171,7 +203,7 @@ const RTVPartPage = ({ sidebarVisible }) => {
     }
   };
 
-  const callAction = async (id, endpoint, bodyKey, successMsg) => {
+  const callAction = async (id, endpoint, bodyKey, targetTab) => {
     try {
       const res = await fetch(`${API_BASE}/api/rtv-parts/${id}/${endpoint}`, {
         method: "POST",
@@ -180,8 +212,7 @@ const RTVPartPage = ({ sidebarVisible }) => {
       });
       const result = await res.json();
       if (result.success) {
-        showToast(successMsg);
-        await fetchData();
+        handleTabChange(targetTab);
       } else {
         showToast(result.message || "Gagal", "error");
       }
@@ -191,40 +222,13 @@ const RTVPartPage = ({ sidebarVisible }) => {
   };
 
   const handleReceive = (id) =>
-    callAction(
-      id,
-      "receive",
-      "received_by_name",
-      "Berhasil dipindahkan ke Received LOG",
-    );
+    callAction(id, "receive", "received_by_name", "Received LOG");
   const handleProgress = (id) =>
-    callAction(
-      id,
-      "progress",
-      "progress_by_name",
-      "Berhasil dipindahkan ke RTV Progress",
-    );
+    callAction(id, "progress", "progress_by_name", "RTV Progress");
   const handleReplace = (id) =>
-    callAction(
-      id,
-      "replace",
-      "replaced_by_name",
-      "Berhasil dipindahkan ke Stock Replaced",
-    );
+    callAction(id, "replace", "replaced_by_name", "Stock Replaced");
   const handleComplete = (id) =>
-    callAction(
-      id,
-      "complete",
-      "complete_by_name",
-      "Berhasil diselesaikan (Complete)",
-    );
-
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
-  };
+    callAction(id, "complete", "complete_by_name", "Complete");
 
   const styles = {
     pageContainer: {
@@ -462,7 +466,7 @@ const RTVPartPage = ({ sidebarVisible }) => {
       textAlign: "center",
       fontFamily: "inherit",
     },
-    // Action buttons
+
     receivedButton: {
       backgroundColor: "#e0e7ff",
       color: "black",
@@ -508,8 +512,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
       alignItems: "center",
     },
   };
-
-  // ====== RENDER HELPER FUNCTIONS ======
 
   const trProps = {
     onMouseEnter: (e) =>
@@ -588,7 +590,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
     </div>
   );
 
-  // Render shared base columns: No, Part Code, Part Name, Model, Vendor, Types, Qty, Remark
   const renderBaseRow = (row, index, skipRemark = false) => {
     const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
     return (
@@ -629,7 +630,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render Waiting LOG Tab
   const renderWaitingTab = () => {
     const pageData = getCurrentPageData();
     const cfg = tableConfig["Waiting LOG"];
@@ -703,7 +703,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render Received LOG Tab
   const renderReceivedTab = () => {
     const pageData = getCurrentPageData();
     const cfg = tableConfig["Received LOG"];
@@ -792,7 +791,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render RTV Progress Tab
   const renderProgressTab = () => {
     const pageData = getCurrentPageData();
     const cfg = tableConfig["RTV Progress"];
@@ -869,7 +867,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render Stock Replaced Tab
   const renderReplacedTab = () => {
     const pageData = getCurrentPageData();
     const cfg = tableConfig["Stock Replaced"];
@@ -910,22 +907,88 @@ const RTVPartPage = ({ sidebarVisible }) => {
                   ? emptyRow(11)
                   : pageData.map((row, index) => (
                       <tr key={row.id} {...trProps}>
-                        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.part_code}>{row.part_code}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.label_id || "-"}>{row.label_id || "-"}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.part_name}>{row.part_name}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.model || "-"}>{row.model || "-"}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.vendor_name || "-"}>{row.vendor_name || "-"}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.vendor_type || "-"}>{row.vendor_type || "-"}</td>
-                        <td style={styles.tdWithLeftBorder} title={String(row.qty_return)}>{row.qty_return}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.remark || "-"}>
-                          <span style={styles.remarkReadonly}>{row.remark || "-"}</span>
+                        <td
+                          style={{
+                            ...styles.expandedTd,
+                            ...styles.expandedWithLeftBorder,
+                            ...styles.emptyColumn,
+                          }}
+                        >
+                          {(currentPage - 1) * itemsPerPage + index + 1}
                         </td>
-                        <td style={styles.tdWithLeftBorder} title={formatBy(row.replaced_by_name, row.replaced_at)}>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.part_code}
+                        >
+                          {row.part_code}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.label_id || "-"}
+                        >
+                          {row.label_id || "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.part_name}
+                        >
+                          {row.part_name}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.model || "-"}
+                        >
+                          {row.model || "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.vendor_name || "-"}
+                        >
+                          {row.vendor_name || "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.vendor_type || "-"}
+                        >
+                          {row.vendor_type || "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={String(row.qty_return)}
+                        >
+                          {row.qty_return}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.remark || "-"}
+                        >
+                          <span style={styles.remarkReadonly}>
+                            {row.remark || "-"}
+                          </span>
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={formatBy(
+                            row.replaced_by_name,
+                            row.replaced_at,
+                          )}
+                        >
                           {formatBy(row.replaced_by_name, row.replaced_at)}
                         </td>
-                        <td style={{ ...styles.tdWithLeftBorder, display: "flex", gap: "3px", alignItems: "center", height: "25px" }}>
-                          <button style={styles.completeButton} title="Move to Complete" onClick={() => handleComplete(row.id)}>
+                        <td
+                          style={{
+                            ...styles.tdWithLeftBorder,
+                            display: "flex",
+                            gap: "3px",
+                            alignItems: "center",
+                            height: "25px",
+                          }}
+                        >
+                          <button
+                            style={styles.completeButton}
+                            title="Move to Complete"
+                            onClick={() => handleComplete(row.id)}
+                          >
                             <BadgeCheck size={10} />
                           </button>
                         </td>
@@ -939,7 +1002,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
     );
   };
 
-  // Render Complete Tab
   const renderCompleteTab = () => {
     const pageData = getCurrentPageData();
     const cfg = tableConfig["Complete"];
@@ -979,18 +1041,72 @@ const RTVPartPage = ({ sidebarVisible }) => {
                   ? emptyRow(10)
                   : pageData.map((row, index) => (
                       <tr key={row.id} {...trProps}>
-                        <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.part_code}>{row.part_code}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.label_id || "-"}>{row.label_id || "-"}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.part_name}>{row.part_name}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.model || "-"}>{row.model || "-"}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.vendor_name || "-"}>{row.vendor_name || "-"}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.vendor_type || "-"}>{row.vendor_type || "-"}</td>
-                        <td style={styles.tdWithLeftBorder} title={String(row.qty_return)}>{row.qty_return}</td>
-                        <td style={styles.tdWithLeftBorder} title={row.remark || "-"}>
-                          <span style={styles.remarkReadonly}>{row.remark || "-"}</span>
+                        <td
+                          style={{
+                            ...styles.expandedTd,
+                            ...styles.expandedWithLeftBorder,
+                            ...styles.emptyColumn,
+                          }}
+                        >
+                          {(currentPage - 1) * itemsPerPage + index + 1}
                         </td>
-                        <td style={styles.tdWithLeftBorder} title={formatBy(row.complete_by_name, row.complete_at)}>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.part_code}
+                        >
+                          {row.part_code}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.label_id || "-"}
+                        >
+                          {row.label_id || "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.part_name}
+                        >
+                          {row.part_name}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.model || "-"}
+                        >
+                          {row.model || "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.vendor_name || "-"}
+                        >
+                          {row.vendor_name || "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.vendor_type || "-"}
+                        >
+                          {row.vendor_type || "-"}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={String(row.qty_return)}
+                        >
+                          {row.qty_return}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={row.remark || "-"}
+                        >
+                          <span style={styles.remarkReadonly}>
+                            {row.remark || "-"}
+                          </span>
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={formatBy(
+                            row.complete_by_name,
+                            row.complete_at,
+                          )}
+                        >
                           {formatBy(row.complete_by_name, row.complete_at)}
                         </td>
                       </tr>
@@ -1038,7 +1154,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
       )}
 
       <div style={styles.welcomeCard}>
-        {/* Header + Filter */}
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
             <h1 style={styles.title}>RTV Control</h1>
@@ -1067,12 +1182,26 @@ const RTVPartPage = ({ sidebarVisible }) => {
                 value={filterSearchBy}
                 onChange={(e) => setFilterSearchBy(e.target.value)}
               >
-                <option style={optionStyle} value="part_code">
-                  Part Code
-                </option>
-                <option style={optionStyle} value="part_name">
-                  Part Name
-                </option>
+                <option value="part_code">Part Code</option>
+                <option value="part_name">Part Name</option>
+                <option value="vendor_name">Vendor</option>
+                <option value="model">Model</option>
+                <option value="vendor_type">Types</option>
+                {activeTab === "Waiting LOG" && (
+                  <option value="rtv_by_name">RTV By</option>
+                )}
+                {activeTab === "Received LOG" && (
+                  <option value="received_by_name">Received By</option>
+                )}
+                {activeTab === "RTV Progress" && (
+                  <option value="progress_by_name">Progress By</option>
+                )}
+                {activeTab === "Stock Replaced" && (
+                  <option value="replaced_by_name">Replaced By</option>
+                )}
+                {activeTab === "Complete" && (
+                  <option value="complete_by_name">Complete By</option>
+                )}
               </select>
               <input
                 type="text"
@@ -1091,7 +1220,6 @@ const RTVPartPage = ({ sidebarVisible }) => {
           </div>
         </div>
 
-        {/* Tabs */}
         <div style={styles.tabsContainer}>
           {TABS.map((tab) => (
             <button
@@ -1100,14 +1228,13 @@ const RTVPartPage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab ? styles.tabButtonActive : {}),
               }}
-              onClick={() => handleTabChange(tab)}
+              onClick={() => handleTabClick(tab)}
             >
               {tab}
             </button>
           ))}
         </div>
 
-        {/* Table */}
         {renderActiveTab()}
       </div>
     </div>

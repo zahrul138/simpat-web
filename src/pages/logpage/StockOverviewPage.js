@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown, MdArrowDropUp } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, Search, Upload } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -468,6 +469,9 @@ const StockOverviewPage = () => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Stock Overview</title>
+      </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
           <div style={styles.card}>
@@ -827,7 +831,7 @@ const StockOverviewPage = () => {
                         >
                           {movement.model || "-"}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td style={styles.tdWithLeftBorder} title={getFromDisplay(movement)}>
                           {getFromDisplay(movement)}
                         </td>
                         <td
@@ -839,6 +843,7 @@ const StockOverviewPage = () => {
                                 ? "#10B981"
                                 : "#EF4444",
                           }}
+                          title={`${movement.movement_type === "IN" ? "+" : "-"}${movement.quantity}`}
                         >
                           {movement.movement_type === "IN" ? "+" : "-"}
                           {movement.quantity}
@@ -864,7 +869,7 @@ const StockOverviewPage = () => {
                               : movement.remark
                             : "-"}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td style={styles.tdWithLeftBorder} title={movement.moved_by_name || movement.emp_name ? `${movement.moved_by_name || movement.emp_name} | ${formatDateTime(movement.moved_at)}` : formatDateTime(movement.moved_at)}>
                           {movement.moved_by_name || movement.emp_name ? `${movement.moved_by_name || movement.emp_name} | ${formatDateTime(movement.moved_at)}` : formatDateTime(movement.moved_at)}
                         </td>
                       </tr>

@@ -124,7 +124,6 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   const [cPage, setCPage] = useState(1);
   const cItemsPerPage = 20;
 
-
   const tableConfig = {
     OnProgress: {
       mainTable: {
@@ -146,7 +145,18 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     },
     Complete: {
       mainTable: {
-        cols: ["7px", "7px", "17%", "10%", "13%", "7%", "8.5%", "8%", "8%", "22%"],
+        cols: [
+          "7px",
+          "7px",
+          "17%",
+          "10%",
+          "13%",
+          "7%",
+          "8.5%",
+          "8%",
+          "8%",
+          "22%",
+        ],
       },
       expandedTable: {
         marginLeft: "66px",
@@ -184,12 +194,16 @@ const TargetScanningPage = ({ sidebarVisible }) => {
             `/api/production-schedules/${active.id}/scan-approvals`,
           );
           const map = {};
-          (rows || []).forEach((r) => { map[r.unit_no] = r; });
+          (rows || []).forEach((r) => {
+            map[r.unit_no] = r;
+          });
           setApprovals(map);
         } catch {}
         // Load detail breakdown untuk tampilkan customer di semua row (termasuk Pending)
         try {
-          const detailResp = await http(`/api/production-schedules/${active.id}`);
+          const detailResp = await http(
+            `/api/production-schedules/${active.id}`,
+          );
           const details = detailResp?.details || [];
           let cum = 0;
           const bd = details.map((d) => {
@@ -253,8 +267,15 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     let firstPending = null;
     for (let u = 1; u <= total; u++) {
       const appr = approvals[u];
-      const status = appr ? (appr.status === "skipped" ? "skipped" : "approved") : "pending";
-      if (status === "pending") { firstPending = u; break; }
+      const status = appr
+        ? appr.status === "skipped"
+          ? "skipped"
+          : "approved"
+        : "pending";
+      if (status === "pending") {
+        firstPending = u;
+        break;
+      }
     }
 
     // Kalau semua sudah done, lompat ke halaman terakhir
@@ -262,7 +283,13 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     const targetPage = Math.max(1, Math.ceil(targetUnit / itemsPerPage));
     setCurrentPage(targetPage);
     lastJumpedScheduleId.current = schedule.id;
-  }, [schedule?.id, schedule?.total_input, schedule?.actual_input, approvals, itemsPerPage]);
+  }, [
+    schedule?.id,
+    schedule?.total_input,
+    schedule?.actual_input,
+    approvals,
+    itemsPerPage,
+  ]);
 
   useEffect(() => {
     if (activeTab === "Complete") loadCompleteSchedules();
@@ -311,7 +338,11 @@ const TargetScanningPage = ({ sidebarVisible }) => {
         const appr = approvals[unitNo];
         return {
           unitNo,
-          status: appr ? (appr.status === "skipped" ? "Skipped" : "Approved") : "Pending",
+          status: appr
+            ? appr.status === "skipped"
+              ? "Skipped"
+              : "Approved"
+            : "Pending",
           scheduleCode: schedule?.code || "-",
           date: schedule?.target_date || null,
           shiftTime: schedule?.shift_time || "-",
@@ -402,7 +433,11 @@ const TargetScanningPage = ({ sidebarVisible }) => {
         for (let u = 1; u <= totalUnits && filled < count; u++) {
           const ex = next[u];
           if (!ex || (ex.status !== "approved" && ex.status !== "skipped")) {
-            next[u] = { status: "approved", remark: remark || "", approved_by_name: displayName };
+            next[u] = {
+              status: "approved",
+              remark: remark || "",
+              approved_by_name: displayName,
+            };
             filled++;
           }
         }
@@ -419,7 +454,8 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   };
 
   const handleApproveOne = (unitNo) => {
-    const nextPending = allRows.find((r) => r.status === "Pending")?.unitNo ?? null;
+    const nextPending =
+      allRows.find((r) => r.status === "Pending")?.unitNo ?? null;
     if (unitNo !== nextPending) return;
     const remark = remarkInputs[unitNo] || "";
     doApprove(1, remark);
@@ -436,9 +472,13 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     try {
       const result = await http(
         `/api/production-schedules/${schedule.id}/skip-unit`,
-        { method: "PATCH", body: { unit_no: unitNo, remark } }
+        { method: "PATCH", body: { unit_no: unitNo, remark } },
       );
-      setSchedule((prev) => prev ? { ...prev, actual_input: result.new_actual_input ?? actualInput } : prev);
+      setSchedule((prev) =>
+        prev
+          ? { ...prev, actual_input: result.new_actual_input ?? actualInput }
+          : prev,
+      );
       setApprovals((prev) => ({
         ...prev,
         [unitNo]: { ...(prev[unitNo] || {}), status: "skipped", remark },
@@ -453,24 +493,39 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   const handleApproveSkipped = async (unitNo) => {
     if (!schedule?.id) return;
     const user = getAuthUser();
-    const approvedById = user?.id || user?.emp_id || user?.employeeId || user?.employee_id || null;
+    const approvedById =
+      user?.id || user?.emp_id || user?.employeeId || user?.employee_id || null;
     const remark = remarkInputs[unitNo] || "";
     setApproveLoading(true);
     try {
       const result = await http(
         `/api/production-schedules/${schedule.id}/approve-single`,
-        { method: "PATCH", body: { unit_no: unitNo, approved_by_id: approvedById, remark: remark || null } }
+        {
+          method: "PATCH",
+          body: {
+            unit_no: unitNo,
+            approved_by_id: approvedById,
+            remark: remark || null,
+          },
+        },
       );
       const dt = new Date(result.approved_at);
       const p = (n) => String(n).padStart(2, "0");
       const displayName = result.approved_by_name
-        ? `${result.approved_by_name} | ${p(dt.getDate())}/${p(dt.getMonth()+1)}/${dt.getFullYear()} ${p(dt.getHours())}.${p(dt.getMinutes())}`
+        ? `${result.approved_by_name} | ${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()} ${p(dt.getHours())}.${p(dt.getMinutes())}`
         : "";
       setApprovals((prev) => ({
         ...prev,
         [unitNo]: { status: "approved", remark, approved_by_name: displayName },
       }));
-      setSchedule((prev) => prev ? { ...prev, actual_input: result.new_actual_input ?? actualInput + 1 } : prev);
+      setSchedule((prev) =>
+        prev
+          ? {
+              ...prev,
+              actual_input: result.new_actual_input ?? actualInput + 1,
+            }
+          : prev,
+      );
     } catch (err) {
       alert(`Gagal approve: ${err.message}`);
     } finally {
@@ -481,19 +536,24 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   const handleSaveRemark = async (unitNo) => {
     if (!schedule?.id) return;
     const user = getAuthUser();
-    const approvedById = user?.id || user?.emp_id || user?.employeeId || user?.employee_id || null;
+    const approvedById =
+      user?.id || user?.emp_id || user?.employeeId || user?.employee_id || null;
     const remark = remarkInputs[unitNo] || "";
     setApproveLoading(true);
     try {
-      await http(
-        `/api/production-schedules/${schedule.id}/update-approval`,
-        { method: "PATCH", body: { unit_no: unitNo, remark, approved_by_id: approvedById } }
-      );
+      await http(`/api/production-schedules/${schedule.id}/update-approval`, {
+        method: "PATCH",
+        body: { unit_no: unitNo, remark, approved_by_id: approvedById },
+      });
       setApprovals((prev) => ({
         ...prev,
         [unitNo]: { ...(prev[unitNo] || {}), remark },
       }));
-      setRemarkInputs((p) => { const n = { ...p }; delete n[unitNo]; return n; });
+      setRemarkInputs((p) => {
+        const n = { ...p };
+        delete n[unitNo];
+        return n;
+      });
     } catch (err) {
       alert(`Gagal simpan remark: ${err.message}`);
     } finally {
@@ -505,12 +565,20 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   const handleApproveSingle = async (schedId, unitNo, remark) => {
     const key = `${schedId}_${unitNo}`;
     const user = getAuthUser();
-    const approvedById = user?.id || user?.emp_id || user?.employeeId || user?.employee_id || null;
+    const approvedById =
+      user?.id || user?.emp_id || user?.employeeId || user?.employee_id || null;
     setCompleteActionLoading((p) => ({ ...p, [key]: true }));
     try {
       const result = await http(
         `/api/production-schedules/${schedId}/approve-single`,
-        { method: "PATCH", body: { unit_no: unitNo, approved_by_id: approvedById, remark: remark || null } }
+        {
+          method: "PATCH",
+          body: {
+            unit_no: unitNo,
+            approved_by_id: approvedById,
+            remark: remark || null,
+          },
+        },
       );
       const approvedAt = result.approved_at;
       const approvedByName = result.approved_by_name;
@@ -527,7 +595,11 @@ const TargetScanningPage = ({ sidebarVisible }) => {
         ...prev,
         [schedId]: {
           ...(prev[schedId] || {}),
-          [unitNo]: { remark: remark || "", approved_by_name: displayName, unit_no: unitNo },
+          [unitNo]: {
+            remark: remark || "",
+            approved_by_name: displayName,
+            unit_no: unitNo,
+          },
         },
       }));
     } catch (err) {
@@ -543,12 +615,20 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     const editKey = key;
     const newRemark = editingApproval[editKey];
     const user = getAuthUser();
-    const approvedById = user?.id || user?.emp_id || user?.employeeId || user?.employee_id || null;
+    const approvedById =
+      user?.id || user?.emp_id || user?.employeeId || user?.employee_id || null;
     setCompleteActionLoading((p) => ({ ...p, [key]: true }));
     try {
       const result = await http(
         `/api/production-schedules/${schedId}/update-approval`,
-        { method: "PATCH", body: { unit_no: unitNo, remark: newRemark, approved_by_id: approvedById } }
+        {
+          method: "PATCH",
+          body: {
+            unit_no: unitNo,
+            remark: newRemark,
+            approved_by_id: approvedById,
+          },
+        },
       );
       const approvedAt = result.approved_at;
       const approvedByName = result.approved_by_name;
@@ -594,7 +674,9 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   };
 
   const toggleRow = (unitNo) => {
-    const pendingList = allRows.filter((r) => r.status === "Pending").map((r) => r.unitNo);
+    const pendingList = allRows
+      .filter((r) => r.status === "Pending")
+      .map((r) => r.unitNo);
     setSelectedRows((prev) => {
       const next = new Set(prev);
       if (next.has(unitNo)) {
@@ -617,7 +699,9 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     if (e.target.checked) {
       setSelectedRows((prev) => {
         const next = new Set(prev);
-        const pendingList = allRows.filter((r) => r.status === "Pending").map((r) => r.unitNo);
+        const pendingList = allRows
+          .filter((r) => r.status === "Pending")
+          .map((r) => r.unitNo);
         for (const row of pendingOnPage) {
           const idx = pendingList.indexOf(row.unitNo);
           if (idx === next.size) next.add(row.unitNo);
@@ -660,7 +744,6 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   const handleInputBlur = (e) => {
     e.target.style.borderColor = "#d1d5db";
   };
-
 
   const optionStyle = {
     backgroundColor: "#d1d5db",
@@ -1067,18 +1150,10 @@ const TargetScanningPage = ({ sidebarVisible }) => {
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
             >
-              <option value="All" style={optionStyle}>
-                All
-              </option>
-              <option value="Pending" style={optionStyle}>
-                Pending
-              </option>
-              <option value="Skipped" style={optionStyle}>
-                Skipped
-              </option>
-              <option value="Approved" style={optionStyle}>
-                Approved
-              </option>
+              <option value="All">All</option>
+              <option value="Pending">Pending</option>
+              <option value="Skipped">Skipped</option>
+              <option value="Approved">Approved</option>
             </select>
             <span style={styles.label}>Search By</span>
             <select
@@ -1088,15 +1163,9 @@ const TargetScanningPage = ({ sidebarVisible }) => {
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
             >
-              <option value="Unit" style={optionStyle}>
-                Unit No
-              </option>
-              <option value="Status" style={optionStyle}>
-                Status
-              </option>
-              <option value="Line" style={optionStyle}>
-                Line
-              </option>
+              <option value="Unit">Unit No</option>
+              <option value="Status">Status</option>
+              <option value="Line">Line</option>
             </select>
             <input
               type="text"
@@ -1204,13 +1273,28 @@ const TargetScanningPage = ({ sidebarVisible }) => {
 
   const renderStatusBadge = (status) => {
     const isApproved = status === true || status === "Approved";
-    const isSkipped  = status === "Skipped";
-    const bg    = isApproved ? "#dcfce7" : isSkipped ? "#fee2e2" : "#fef9c3";
+    const isSkipped = status === "Skipped";
+    const bg = isApproved ? "#dcfce7" : isSkipped ? "#fee2e2" : "#fef9c3";
     const color = isApproved ? "#166534" : isSkipped ? "#991b1b" : "#854d0e";
-    const bdr   = isApproved ? "1px solid #bbf7d0" : isSkipped ? "1px solid #fca5a5" : "1px solid #fef08a";
+    const bdr = isApproved
+      ? "1px solid #bbf7d0"
+      : isSkipped
+        ? "1px solid #fca5a5"
+        : "1px solid #fef08a";
     const label = isApproved ? "Approved" : isSkipped ? "Skipped" : "Pending";
     return (
-      <span style={{ display:"inline-block", padding:"1px 8px", borderRadius:"10px", fontSize:"11px", fontWeight:"600", backgroundColor:bg, color, border:bdr }}>
+      <span
+        style={{
+          display: "inline-block",
+          padding: "1px 8px",
+          borderRadius: "10px",
+          fontSize: "11px",
+          fontWeight: "600",
+          backgroundColor: bg,
+          color,
+          border: bdr,
+        }}
+      >
         {label}
       </span>
     );
@@ -1244,9 +1328,8 @@ const TargetScanningPage = ({ sidebarVisible }) => {
             {renderColgroup(tableConfig.OnProgress.mainTable.cols)}
             <thead>
               <tr style={styles.tableHeader}>
-               
                 <th style={styles.thWithLeftBorder}>No</th>
-                 <th style={{ ...styles.thWithLeftBorder, textAlign: "center" }}>
+                <th style={{ ...styles.thWithLeftBorder, textAlign: "center" }}>
                   <input
                     type="checkbox"
                     checked={allPagePendingSelected}
@@ -1278,18 +1361,24 @@ const TargetScanningPage = ({ sidebarVisible }) => {
             </thead>
             <tbody>
               {currentData.length === 0 ? (
-                <tr>
-                </tr>
+                <tr></tr>
               ) : (
                 currentData.map((row, index) => {
-                  const isApproved     = row.status === "Approved";
-                  const isSkipped      = row.status === "Skipped";
-                  const nextPendingUnit = allRows.find((r) => r.status === "Pending")?.unitNo ?? null;
-                  const isNextPend     = row.unitNo === nextPendingUnit;
-                  const isSelected     = selectedRows.has(row.unitNo);
-                  const pendingList    = allRows.filter((r) => r.status === "Pending").map((r) => r.unitNo);
-                  const pendingIdx     = pendingList.indexOf(row.unitNo);
-                  const isSelectable   = pendingIdx >= 0 && pendingIdx <= selectedRows.size && !isApproved && !isSkipped;
+                  const isApproved = row.status === "Approved";
+                  const isSkipped = row.status === "Skipped";
+                  const nextPendingUnit =
+                    allRows.find((r) => r.status === "Pending")?.unitNo ?? null;
+                  const isNextPend = row.unitNo === nextPendingUnit;
+                  const isSelected = selectedRows.has(row.unitNo);
+                  const pendingList = allRows
+                    .filter((r) => r.status === "Pending")
+                    .map((r) => r.unitNo);
+                  const pendingIdx = pendingList.indexOf(row.unitNo);
+                  const isSelectable =
+                    pendingIdx >= 0 &&
+                    pendingIdx <= selectedRows.size &&
+                    !isApproved &&
+                    !isSkipped;
                   return (
                     <tr
                       key={row.unitNo}
@@ -1304,14 +1393,15 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                       }}
                       onMouseEnter={(e) => {
                         if (!isApproved && !isSkipped && !isSelected)
-                          e.target.closest("tr").style.backgroundColor = "#c7cde8";
+                          e.target.closest("tr").style.backgroundColor =
+                            "#c7cde8";
                       }}
                       onMouseLeave={(e) => {
                         if (!isApproved && !isSkipped && !isSelected)
-                          e.target.closest("tr").style.backgroundColor = "transparent";
+                          e.target.closest("tr").style.backgroundColor =
+                            "transparent";
                       }}
                     >
-                      
                       <td
                         style={{
                           ...styles.expandedTd,
@@ -1361,21 +1451,11 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                       >
                         {row.scheduleCode}
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                      >
+                      <td style={styles.tdWithLeftBorder}>
                         {toDDMMYYYY(row.date)}
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                      >
-                        {row.customer}
-                      </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                      >
-                        {row.shiftTime}
-                      </td>
+                      <td style={styles.tdWithLeftBorder}>{row.customer}</td>
+                      <td style={styles.tdWithLeftBorder}>{row.shiftTime}</td>
                       <td
                         style={{
                           ...styles.tdWithLeftBorder,
@@ -1393,42 +1473,118 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                         {renderStatusBadge(row.status)}
                       </td>
                       <td style={styles.tdWithLeftBorder}>
-                        {(isNextPend || isSkipped || isApproved) ? (
+                        {isNextPend || isSkipped || isApproved ? (
                           <input
                             type="text"
                             style={styles.remarkInput}
-                            placeholder={isSkipped ? "Remark (wajib untuk skip)..." : "Remark..."}
+                            placeholder={
+                              isSkipped
+                                ? "Remark (wajib untuk skip)..."
+                                : "Remark..."
+                            }
                             value={remarkInputs[row.unitNo] ?? row.remark ?? ""}
-                            onChange={(e) => setRemarkInputs((p) => ({ ...p, [row.unitNo]: e.target.value }))}
+                            onChange={(e) =>
+                              setRemarkInputs((p) => ({
+                                ...p,
+                                [row.unitNo]: e.target.value,
+                              }))
+                            }
                           />
                         ) : (
-                          <span style={styles.cellContent} title={row.remark}>{row.remark}</span>
+                          <span style={styles.cellContent} title={row.remark}>
+                            {row.remark}
+                          </span>
                         )}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={row.approvedByName}>
-                        <span style={styles.cellContent}>{row.approvedByName}</span>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.approvedByName}
+                      >
+                        <span style={styles.cellContent}>
+                          {row.approvedByName}
+                        </span>
                       </td>
-                      <td style={{ ...styles.tdWithLeftBorder, textAlign: "center" }}>
+                      <td
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          textAlign: "center",
+                        }}
+                      >
                         {isNextPend ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                            <button style={approveLoading ? styles.approveButtonDisabled : styles.approveButton} onClick={() => handleApproveOne(row.unitNo)} disabled={approveLoading}>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <button
+                              style={
+                                approveLoading
+                                  ? styles.approveButtonDisabled
+                                  : styles.approveButton
+                              }
+                              onClick={() => handleApproveOne(row.unitNo)}
+                              disabled={approveLoading}
+                            >
                               <Check size={11} /> Approve
                             </button>
-                            <button style={approveLoading ? styles.approveButtonDisabled : styles.skipButton} onClick={() => handleSkipUnit(row.unitNo)} disabled={approveLoading} title="Skip">
+                            <button
+                              style={
+                                approveLoading
+                                  ? styles.approveButtonDisabled
+                                  : styles.skipButton
+                              }
+                              onClick={() => handleSkipUnit(row.unitNo)}
+                              disabled={approveLoading}
+                              title="Skip"
+                            >
                               <SkipForward size={11} /> Skip
                             </button>
                           </span>
                         ) : isApproved ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                            <button style={approveLoading ? styles.approveButtonDisabled : styles.saveButton} onClick={() => handleSaveRemark(row.unitNo)} disabled={approveLoading}  title="Save remark">
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <button
+                              style={
+                                approveLoading
+                                  ? styles.approveButtonDisabled
+                                  : styles.saveButton
+                              }
+                              onClick={() => handleSaveRemark(row.unitNo)}
+                              disabled={approveLoading}
+                              title="Save remark"
+                            >
                               <Save size={11} /> Save
                             </button>
-                            <button style={approveLoading ? styles.approveButtonDisabled : styles.skipButton} onClick={() => handleSkipUnit(row.unitNo)} disabled={approveLoading} title="Skip">
+                            <button
+                              style={
+                                approveLoading
+                                  ? styles.approveButtonDisabled
+                                  : styles.skipButton
+                              }
+                              onClick={() => handleSkipUnit(row.unitNo)}
+                              disabled={approveLoading}
+                              title="Skip"
+                            >
                               <SkipForward size={11} /> Skip
                             </button>
                           </span>
                         ) : isSkipped ? (
-                          <button style={approveLoading ? styles.approveButtonDisabled : styles.approveButton} onClick={() => handleApproveSkipped(row.unitNo)} disabled={approveLoading}>
+                          <button
+                            style={
+                              approveLoading
+                                ? styles.approveButtonDisabled
+                                : styles.approveButton
+                            }
+                            onClick={() => handleApproveSkipped(row.unitNo)}
+                            disabled={approveLoading}
+                          >
                             <Check size={11} /> Approve
                           </button>
                         ) : null}
@@ -1530,19 +1686,13 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           )}
                         </button>
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                      >
+                      <td style={styles.tdWithLeftBorder}>
                         {sched.code || "-"}
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                      >
+                      <td style={styles.tdWithLeftBorder}>
                         {toDDMMYYYY(sched.target_date)}
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                      >
+                      <td style={styles.tdWithLeftBorder}>
                         {sched.shift_time || "-"}
                       </td>
                       <td
@@ -1577,9 +1727,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                       >
                         {sched.actual_input || 0}
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                      >
+                      <td style={styles.tdWithLeftBorder}>
                         {sched.created_by_name || "-"}
                       </td>
                     </tr>
@@ -1615,7 +1763,9 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                     <th style={styles.expandedTh}>Unit #</th>
                                     <th style={styles.expandedTh}>Status</th>
                                     <th style={styles.expandedTh}>Remark</th>
-                                    <th style={styles.expandedTh}>Approved By</th>
+                                    <th style={styles.expandedTh}>
+                                      Approved By
+                                    </th>
                                     <th style={styles.expandedTh}>Action</th>
                                   </tr>
                                 </thead>
@@ -1624,34 +1774,62 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                     { length: sched.total_input || 0 },
                                     (_, i) => {
                                       const unitNo = i + 1;
-                                      const appMap = completeApprovals[sched.id] || {};
+                                      const appMap =
+                                        completeApprovals[sched.id] || {};
                                       const appr = appMap[unitNo];
                                       const isApp = !!appr;
                                       const actionKey = `${sched.id}_${unitNo}`;
-                                      const isEditMode = editingApproval.hasOwnProperty(actionKey);
-                                      const isActLoading = !!completeActionLoading[actionKey];
+                                      const isEditMode =
+                                        editingApproval.hasOwnProperty(
+                                          actionKey,
+                                        );
+                                      const isActLoading =
+                                        !!completeActionLoading[actionKey];
                                       return (
                                         <tr
                                           key={unitNo}
                                           style={{
-                                            backgroundColor: isApp ? "#f0fdf4" : "transparent",
+                                            backgroundColor: isApp
+                                              ? "#f0fdf4"
+                                              : "transparent",
                                           }}
                                           onMouseEnter={(e) =>
-                                            (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+                                            (e.target.closest(
+                                              "tr",
+                                            ).style.backgroundColor = "#c7cde8")
                                           }
                                           onMouseLeave={(e) =>
-                                            (e.target.closest("tr").style.backgroundColor = isApp
+                                            (e.target.closest(
+                                              "tr",
+                                            ).style.backgroundColor = isApp
                                               ? "#f0fdf4"
                                               : "transparent")
                                           }
                                         >
-                                          <td style={{ ...styles.expandedTd, ...styles.expandedWithLeftBorder, ...styles.emptyColumn }}>
+                                          <td
+                                            style={{
+                                              ...styles.expandedTd,
+                                              ...styles.expandedWithLeftBorder,
+                                              ...styles.emptyColumn,
+                                            }}
+                                          >
                                             {unitNo}
                                           </td>
-                                          <td style={{ ...styles.expandedTd, textAlign: "center", fontWeight: "600" }}>
+                                          <td
+                                            style={{
+                                              ...styles.expandedTd,
+                                              textAlign: "center",
+                                              fontWeight: "600",
+                                            }}
+                                          >
                                             {unitNo}
                                           </td>
-                                          <td style={{ ...styles.expandedTd, textAlign: "center" }}>
+                                          <td
+                                            style={{
+                                              ...styles.expandedTd,
+                                              textAlign: "center",
+                                            }}
+                                          >
                                             {renderStatusBadge(isApp)}
                                           </td>
                                           <td style={styles.expandedTd}>
@@ -1659,9 +1837,14 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                               <input
                                                 type="text"
                                                 style={styles.remarkInput}
-                                                value={editingApproval[actionKey]}
+                                                value={
+                                                  editingApproval[actionKey]
+                                                }
                                                 onChange={(e) =>
-                                                  setEditingApproval((p) => ({ ...p, [actionKey]: e.target.value }))
+                                                  setEditingApproval((p) => ({
+                                                    ...p,
+                                                    [actionKey]: e.target.value,
+                                                  }))
                                                 }
                                                 autoFocus
                                               />
@@ -1671,17 +1854,36 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                               </span>
                                             )}
                                           </td>
-                                          <td style={styles.expandedTd} title={appr?.approved_by_name || ""}>
+                                          <td
+                                            style={styles.expandedTd}
+                                            title={appr?.approved_by_name || ""}
+                                          >
                                             {appr?.approved_by_name || ""}
                                           </td>
-                                          <td style={{ ...styles.expandedTd, textAlign: "center", whiteSpace: "nowrap" }}>
+                                          <td
+                                            style={{
+                                              ...styles.expandedTd,
+                                              textAlign: "center",
+                                              whiteSpace: "nowrap",
+                                            }}
+                                          >
                                             {isApp ? (
                                               isEditMode ? (
-                                                <span style={{ display: "inline-flex", gap: "3px" }}>
+                                                <span
+                                                  style={{
+                                                    display: "inline-flex",
+                                                    gap: "3px",
+                                                  }}
+                                                >
                                                   <button
                                                     style={styles.saveButton}
                                                     disabled={isActLoading}
-                                                    onClick={() => handleUpdateApproval(sched.id, unitNo)}
+                                                    onClick={() =>
+                                                      handleUpdateApproval(
+                                                        sched.id,
+                                                        unitNo,
+                                                      )
+                                                    }
                                                     title="Simpan perubahan"
                                                   >
                                                     <Save size={10} /> Save
@@ -1690,11 +1892,13 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                                     style={styles.cancelButton}
                                                     disabled={isActLoading}
                                                     onClick={() =>
-                                                      setEditingApproval((p) => {
-                                                        const n = { ...p };
-                                                        delete n[actionKey];
-                                                        return n;
-                                                      })
+                                                      setEditingApproval(
+                                                        (p) => {
+                                                          const n = { ...p };
+                                                          delete n[actionKey];
+                                                          return n;
+                                                        },
+                                                      )
                                                     }
                                                     title="Batal edit"
                                                   >
@@ -1708,7 +1912,8 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                                   onClick={() =>
                                                     setEditingApproval((p) => ({
                                                       ...p,
-                                                      [actionKey]: appr?.remark || "",
+                                                      [actionKey]:
+                                                        appr?.remark || "",
                                                     }))
                                                   }
                                                   title="Edit remark"
@@ -1718,9 +1923,19 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                               )
                                             ) : (
                                               <button
-                                                style={isActLoading ? styles.approveButtonDisabled : styles.approveButton}
+                                                style={
+                                                  isActLoading
+                                                    ? styles.approveButtonDisabled
+                                                    : styles.approveButton
+                                                }
                                                 disabled={isActLoading}
-                                                onClick={() => handleApproveSingle(sched.id, unitNo, "")}
+                                                onClick={() =>
+                                                  handleApproveSingle(
+                                                    sched.id,
+                                                    unitNo,
+                                                    "",
+                                                  )
+                                                }
                                                 title="Approve unit ini"
                                               >
                                                 <Check size={10} /> Approve

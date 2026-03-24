@@ -26,12 +26,12 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
   const [activeTab, setActiveTab] = useState("Off System");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [searchBy, setSearchBy] = useState("Customer");
+  const [searchBy, setSearchBy] = useState("part_code");
   const [keyword, setKeyword] = useState("");
   const [labelId, setLabelId] = useState("");
   const [appliedDateFrom, setAppliedDateFrom] = useState("");
   const [appliedDateTo, setAppliedDateTo] = useState("");
-  const [appliedSearchBy, setAppliedSearchBy] = useState("Customer");
+  const [appliedSearchBy, setAppliedSearchBy] = useState("part_code");
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
@@ -311,19 +311,19 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       setLoadingInventory(true);
       setError(null);
       try {
-        let statusParam = activeTab;
+        const statusParam = activeTab === "Out System" ? "OutSystem" : activeTab;
 
         let url = `${API_BASE}/api/storage-inventory?status_tab=${encodeURIComponent(statusParam)}`;
         if (dateFrom) url += `&date_from=${dateFrom}`;
         if (dateTo) url += `&date_to=${dateTo}`;
         if (keyword) {
-          if (searchBy === "Customer")
+          if (searchBy === "vendor_name")
             url += `&vendor_name=${encodeURIComponent(keyword)}`;
-          else if (searchBy === "Product Code")
+          else if (searchBy === "part_code")
             url += `&part_code=${encodeURIComponent(keyword)}`;
-          else if (searchBy === "Product Description")
+          else if (searchBy === "part_name")
             url += `&part_name=${encodeURIComponent(keyword)}`;
-          else if (searchBy === "Label ID")
+          else if (searchBy === "label_id")
             url += `&label_id=${encodeURIComponent(keyword)}`;
         }
 
@@ -360,6 +360,14 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
     }
   }, [keyword]);
 
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      fetchInventory();
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   const getColSpanCount = () => {
     if (activeTab === "Off System") {
       return 12;
@@ -369,13 +377,6 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
       return 12;
     }
     return 12;
-  };
-
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
   };
 
   const styles = {
@@ -865,6 +866,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
+            title={startIndex + idx + 1}
           >
             {startIndex + idx + 1}
           </td>
@@ -882,18 +884,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               }}
             />
           </td>
-          {/* <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}>
-            <button
-              style={styles.arrowButton}
-              onClick={() => toggleRowExpansion(item.id)}
-            >
-              {expandedRows[item.id] ? (
-                <MdArrowDropDown style={styles.arrowIcon} />
-              ) : (
-                <MdArrowRight style={styles.arrowIcon} />
-              )}
-            </button>
-          </td> */}
+          {}
           <td style={styles.tdWithLeftBorder} title={item.label_id}>
             {item.label_id}
           </td>
@@ -1003,10 +994,11 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 ...styles.expandedWithLeftBorder,
                 ...styles.emptyColumn,
               }}
+              title={startIndex + idx + 1}
             >
               {startIndex + idx + 1}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title="Select">
               <input
                 type="checkbox"
                 checked={selectedItemIds.has(item.id)}
@@ -1033,7 +1025,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               {item.model || "-"}
             </td>
 
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={isEditing ? "" : String(item.qty)}>
               {isEditing ? (
                 <input
                   type="number"
@@ -1059,10 +1051,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
             <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
               {item.vendor_name || "-"}
             </td>
-            <td style={styles.tdWithLeftBorder}>{item.stock_level || "-"}</td>
+            <td style={styles.tdWithLeftBorder} title={item.stock_level || "-"}>{item.stock_level || "-"}</td>
 
-            {/* STATUS - Editable saat mode edit */}
-            <td style={styles.tdWithLeftBorder}>
+            {}
+            <td style={styles.tdWithLeftBorder} title={isEditing ? "" : (item.status_part || "OK")}>
               {isEditing ? (
                 <select
                   value={editM136Data.status_part}
@@ -1097,10 +1089,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               )}
             </td>
 
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(item.schedule_date)}>
               {toDDMMYYYY(item.schedule_date)}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={isEditing ? "" : (item.remark || "-")}>
               {isEditing ? (
                 <input
                   type="text"
@@ -1121,14 +1113,14 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 <span title={item.remark || "-"}>{item.remark || "-"}</span>
               )}
             </td>
-            <td style={styles.tdWithLeftBorder}>
+            <td style={styles.tdWithLeftBorder} title={item.received_by_name ? `${item.received_by_name} | ${formatDateTime(item.received_at)}` : "-"}>
               {item.received_by_name
                 ? `${item.received_by_name} | ${formatDateTime(item.received_at)}`
                 : "-"}
             </td>
 
-            {/* ACTION BUTTONS */}
-            <td style={styles.tdWithLeftBorder}>
+            {}
+            <td style={styles.tdWithLeftBorder} title="Action">
               {isEditing ? (
                 <div
                   style={{
@@ -1213,6 +1205,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
+            title={startIndex + idx + 1}
           >
             {startIndex + idx + 1}
           </td>
@@ -1230,18 +1223,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               }}
             />
           </td>
-          {/* <td style={styles.tdWithLeftBorder}>
-            <button
-              style={styles.arrowButton}
-              onClick={() => toggleRowExpansion(item.id)}
-            >
-              {expandedRows[item.id] ? (
-                <MdArrowDropDown style={styles.arrowIcon} />
-              ) : (
-                <MdArrowRight style={styles.arrowIcon} />
-              )}
-            </button>
-          </td> */}
+          {}
           <td style={styles.tdWithLeftBorder} title={item.label_id}>
             {item.label_id}
           </td>
@@ -1254,15 +1236,15 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={item.model || "-"}>
             {item.model || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder}>{item.qty}</td>
+          <td style={styles.tdWithLeftBorder} title={String(item.qty)}>{item.qty}</td>
           <td style={styles.tdWithLeftBorder} title={item.vendor_name || "-"}>
             {item.vendor_name || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder}>M136</td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title="M136">M136</td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(item.schedule_date)}>
             {toDDMMYYYY(item.schedule_date)}
           </td>
-          <td style={styles.tdWithLeftBorder}>
+          <td style={styles.tdWithLeftBorder} title={item.moved_by_name ? `${item.moved_by_name} | ${formatDateTime(item.moved_at)}` : "-"}>
             {item.moved_by_name
               ? `${item.moved_by_name} | ${formatDateTime(item.moved_at)}`
               : "-"}
@@ -1321,13 +1303,9 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Date Filter</span>
-              <select style={styles.select}>
-                <option style={optionStyle}>Search Date</option>
-              </select>
               <input
                 type="date"
                 style={styles.input}
-                placeholder="Date From"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
               />
@@ -1335,7 +1313,6 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               <input
                 type="date"
                 style={styles.input}
-                placeholder="Date To"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
               />
@@ -1347,10 +1324,10 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 value={searchBy}
                 onChange={(e) => setSearchBy(e.target.value)}
               >
-                <option style={optionStyle}>Customer</option>
-                <option style={optionStyle}>Product Code</option>
-                <option style={optionStyle}>Product Description</option>
-                <option style={optionStyle}>Label ID</option>
+                <option value="part_code">Part Code</option>
+                <option value="part_name">Part Name</option>
+                <option value="vendor_name">Vendor</option>
+                <option value="label_id">Label ID</option>
               </select>
               <input
                 type="text"
@@ -1358,6 +1335,14 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 placeholder="Input Keyword"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setAppliedDateFrom(dateFrom);
+                    setAppliedDateTo(dateTo);
+                    setAppliedSearchBy(searchBy);
+                    setAppliedKeyword(keyword);
+                  }
+                }}
               />
               <button style={styles.button} onClick={() => { setAppliedDateFrom(dateFrom); setAppliedDateTo(dateTo); setAppliedSearchBy(searchBy); setAppliedKeyword(keyword); }}>
                 Search
@@ -1372,7 +1357,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               ...styles.tabButton,
               ...(activeTab === "Off System" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("Off System")}
+            onClick={() => handleTabClick("Off System")}
           >
             Off System
           </button>
@@ -1381,7 +1366,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               ...styles.tabButton,
               ...(activeTab === "M136 System" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("M136 System")}
+            onClick={() => handleTabClick("M136 System")}
           >
             M136 System
           </button>
@@ -1390,7 +1375,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
               ...styles.tabButton,
               ...(activeTab === "Out System" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("Out System")}
+            onClick={() => handleTabClick("Out System")}
           >
             Out System
           </button>
@@ -1426,7 +1411,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                         />
                       )}
                     </th>
-                    {/* <th style={styles.thWithLeftBorder}></th> */}
+                    {}
                     <th style={styles.thWithLeftBorder}>Label ID</th>
                     <th style={styles.thWithLeftBorder}>Part Code</th>
                     <th style={styles.thWithLeftBorder}>Part Name</th>
@@ -1470,7 +1455,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                         />
                       )}
                     </th>
-                    {/* <th style={styles.thWithLeftBorder}></th> */}
+                    {}
                     <th style={styles.thWithLeftBorder}>Label ID</th>
                     <th style={styles.thWithLeftBorder}>Part Code</th>
                     <th style={styles.thWithLeftBorder}>Part Name</th>
@@ -1516,7 +1501,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                         />
                       )}
                     </th>
-                    {/* <th style={styles.thWithLeftBorder}></th> */}
+                    {}
                     <th style={styles.thWithLeftBorder}>Label ID</th>
                     <th style={styles.thWithLeftBorder}>Part Code</th>
                     <th style={styles.thWithLeftBorder}>Part Name</th>

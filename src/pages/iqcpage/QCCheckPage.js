@@ -81,8 +81,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
   const [detailCache, setDetailCache] = useState({});
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [searchBy, setSearchBy] = useState("Customer");
+  const [searchBy, setSearchBy] = useState("part_code");
   const [keyword, setKeyword] = useState("");
+  const [appliedFilters, setAppliedFilters] = useState({ searchBy: "part_code", keyword: "", dateFrom: "", dateTo: "" });
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
 
@@ -261,9 +262,49 @@ const QCCheckPage = ({ sidebarVisible }) => {
     return Math.max(1, Math.ceil(data.length / itemsPerPage));
   };
 
+  const applyFilter = (data) => {
+    return data.filter((item) => {
+      if (appliedFilters.dateFrom) {
+        const prodDate = item.production_date ? item.production_date.split("T")[0] : "";
+        if (prodDate < appliedFilters.dateFrom) return false;
+      }
+      if (appliedFilters.dateTo) {
+        const prodDate = item.production_date ? item.production_date.split("T")[0] : "";
+        if (prodDate > appliedFilters.dateTo) return false;
+      }
+      if (appliedFilters.keyword) {
+        const kw = appliedFilters.keyword.toLowerCase();
+        const field = (item[appliedFilters.searchBy] || "").toString().toLowerCase();
+        if (!field.includes(kw)) return false;
+      }
+      return true;
+    });
+  };
+
+  const handleSearch = () => {
+    setAppliedFilters({ searchBy, keyword, dateFrom, dateTo });
+    setCurrentPage(1);
+  };
+
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      if (tab === "Complete") fetchCompleteQCChecks();
+      else if (tab === "M101 Part") fetchM101Parts();
+      else if (tab === "M136 Part") fetchM136Parts();
+      else if (tab === "Reject") fetchRejectQCChecks();
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
 
   useEffect(() => {
     setCurrentPage(1);
+    setSearchBy("part_code");
+    setAppliedFilters({ searchBy: "part_code", keyword: "", dateFrom: "", dateTo: "" });
+    setKeyword("");
+    setDateFrom("");
+    setDateTo("");
   }, [activeTab]);
 
 
@@ -1229,8 +1270,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
 
   const renderM101PartTable = () => {
-    const currentData = getCurrentPageData(m101Parts);
-    const totalPages = getTotalPages(m101Parts);
+    const filtered = applyFilter(m101Parts);
+    const currentData = getCurrentPageData(filtered);
+    const totalPages = getTotalPages(filtered);
     return (
       <div style={styles.tableContainer}>
         <div style={styles.tableBodyWrapper}>
@@ -1244,13 +1286,13 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <colgroup>
               <col style={{ width: "2.5%" }} />
               <col style={{ width: "2.5%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "18%" }} />
-              <col style={{ width: "15%" }} />
-              <col style={{ width: "8%" }} />
               <col style={{ width: "12%" }} />
               <col style={{ width: "10%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "5%" }} />
             </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
@@ -1394,17 +1436,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
                           >
                             <Check size={12} />
                           </button>
-                          <button
-                            style={{
-                              ...styles.editButton,
-                              backgroundColor: "#fee2e2",
-                              color: "#991b1b",
-                            }}
-                            onClick={() => handleRejectPartFromSample(item, "M101 Part")}
-                            title="Reject"
-                          >
-                            <X size={12} />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1485,8 +1516,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
 
   const renderM136PartTable = () => {
-    const currentData = getCurrentPageData(m136Parts);
-    const totalPages = getTotalPages(m136Parts);
+    const filtered = applyFilter(m136Parts);
+    const currentData = getCurrentPageData(filtered);
+    const totalPages = getTotalPages(filtered);
     return (
       <div style={styles.tableContainer}>
         <div style={styles.tableBodyWrapper}>
@@ -1506,7 +1538,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
               <col style={{ width: "20%" }} />
               <col style={{ width: "8%" }} />
               <col style={{ width: "20%" }} />
-              <col style={{ width: "8%" }} />
+              <col style={{ width: "5%" }} />
             </colgroup>
             <thead>
               <tr style={styles.tableHeader}>
@@ -1649,17 +1681,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
                           >
                             <Check size={12} />
                           </button>
-                          <button
-                            style={{
-                              ...styles.editButton,
-                              backgroundColor: "#fee2e2",
-                              color: "#991b1b",
-                            }}
-                            onClick={() => handleRejectPartFromSample(item, "M136 Part")}
-                            title="Reject"
-                          >
-                            <X size={12} />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1741,8 +1762,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
 
   const renderCompleteTable = () => {
-    const currentData = getCurrentPageData(completeQCChecks);
-    const totalPages = getTotalPages(completeQCChecks);
+    const filtered = applyFilter(completeQCChecks);
+    const currentData = getCurrentPageData(filtered);
+    const totalPages = getTotalPages(filtered);
     return (
       <div style={styles.tableContainer}>
         <div style={styles.tableBodyWrapper}>
@@ -1930,8 +1952,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
 
   const renderRejectTable = () => {
-    const currentData = getCurrentPageData(m101Parts);
-    const totalPages = getTotalPages(m101Parts);
+    const filtered = applyFilter(m101Parts);
+    const currentData = getCurrentPageData(filtered);
+    const totalPages = getTotalPages(filtered);
     return (
       <div style={styles.tableContainer}>
         <div style={styles.tableBodyWrapper}>
@@ -2275,7 +2298,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Quality Assurance | Quality Parts</title>
+          <title>Quality Parts</title>
         </Helmet>
       </div>
       {toastMessage && (
@@ -2305,13 +2328,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Date Filter</span>
-              <select
-                style={styles.select}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-              >
-                <option style={optionStyle}>Search Date</option>
-              </select>
               <input
                 type="date"
                 style={styles.input}
@@ -2341,9 +2357,18 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               >
-                <option style={optionStyle}>Customer</option>
-                <option style={optionStyle}>Product Code</option>
-                <option style={optionStyle}>Product Description</option>
+                <option value="part_code">Part Code</option>
+                <option value="part_name">Part Name</option>
+                <option value="vendor_name">Vendor Name</option>
+                {(activeTab === "M101 Part" || activeTab === "M136 Part") && (
+                  <option value="approve_by_name">Received By</option>
+                )}
+                {activeTab === "Complete" && (
+                  <option value="data_from">Data From</option>
+                )}
+                {activeTab === "Complete" && (
+                  <option value="approved_by">Approved By</option>
+                )}
               </select>
               <input
                 type="text"
@@ -2351,6 +2376,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 placeholder="Input Keyword"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               />
@@ -2358,6 +2384,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 style={styles.button}
                 onMouseEnter={(e) => handleButtonHover(e, true, "search")}
                 onMouseLeave={(e) => handleButtonHover(e, false, "search")}
+                onClick={handleSearch}
               >
                 Search
               </button>
@@ -2370,7 +2397,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
             style={{ ...styles.button, ...styles.primaryButton }}
             onMouseEnter={(e) => handleButtonHover(e, true, "search")}
             onMouseLeave={(e) => handleButtonHover(e, false, "search")}
-            onClick={() => navigate("/qc-part/add")}
+            onClick={() => { document.title = "Quality Parts/Add Quality Parts"; navigate("/qc-part/add"); }}
           >
             <Plus size={16} />
             Create
@@ -2401,7 +2428,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
               ...styles.tabButton,
               ...(activeTab === "M101 Part" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("M101 Part")}
+            onClick={() => handleTabClick("M101 Part")}
             onMouseEnter={(e) =>
               handleTabHover(e, true, activeTab === "M101 Part")
             }
@@ -2416,7 +2443,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
               ...styles.tabButton,
               ...(activeTab === "M136 Part" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("M136 Part")}
+            onClick={() => handleTabClick("M136 Part")}
             onMouseEnter={(e) =>
               handleTabHover(e, true, activeTab === "M136 Part")
             }
@@ -2431,7 +2458,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
               ...styles.tabButton,
               ...(activeTab === "Complete" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("Complete")}
+            onClick={() => handleTabClick("Complete")}
             onMouseEnter={(e) =>
               handleTabHover(e, true, activeTab === "Complete")
             }
@@ -2440,21 +2467,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
             }
           >
             Complete
-          </button>
-          <button
-            style={{
-              ...styles.tabButton,
-              ...(activeTab === "Reject" && styles.tabButtonActive),
-            }}
-            onClick={() => setActiveTab("Reject")}
-            onMouseEnter={(e) =>
-              handleTabHover(e, true, activeTab === "Reject")
-            }
-            onMouseLeave={(e) =>
-              handleTabHover(e, false, activeTab === "Reject")
-            }
-          >
-            Reject
           </button>
         </div>
 

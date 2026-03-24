@@ -1299,14 +1299,14 @@ const AddTargetSchedulePage = () => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Production | Target Schedule/Add</title>
+          <title>Target Schedule/Add Target Schedule</title>
         </Helmet>
       </div>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
-              <h1 style={styles.title}>Create Schedule</h1>
+              <h1 style={styles.title}>Add Target Schedule</h1>
             </div>
             <div style={{ display: "flex" }}>
               <div style={{ flex: "1", display: "grid", gap: "20px" }}>
@@ -1472,10 +1472,11 @@ const AddTargetSchedulePage = () => {
                               ...styles.expandedWithLeftBorder,
                               ...styles.emptyColumn,
                             }}
+                            title={idx + 1}
                           >
                             {idx + 1}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title="Select">
                             <input
                               type="checkbox"
                               checked={selectedHeaderIds.has(h.id)}
@@ -1496,6 +1497,7 @@ const AddTargetSchedulePage = () => {
                               ...styles.tdWithLeftBorder,
                               ...styles.emptyColumn,
                             }}
+                            title="Expand"
                           >
                             <button
                               style={styles.arrowButton}
@@ -1558,7 +1560,7 @@ const AddTargetSchedulePage = () => {
                           >
                             {h.createdByDisplay || h.createdBy}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title="Action">
                             <button
                               style={styles.addButton}
                               onClick={() => openThirdLevelPopup(h.id)}
@@ -1647,6 +1649,7 @@ const AddTargetSchedulePage = () => {
                                             ...styles.expandedWithLeftBorder,
                                             ...styles.emptyColumn,
                                           }}
+                                          title={i + 1}
                                         >
                                           {i + 1}
                                         </td>
@@ -1698,7 +1701,10 @@ const AddTargetSchedulePage = () => {
                                         >
                                           {d.palletUse}
                                         </td>
-                                        <td style={styles.expandedTd}>
+                                        <td
+                                          style={styles.expandedTd}
+                                          title="Action"
+                                        >
                                           <button
                                             style={styles.deleteButton}
                                             onClick={() =>

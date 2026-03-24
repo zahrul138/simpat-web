@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Save } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -493,6 +494,9 @@ const AddReturnPartsPage = () => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Return Parts/Add Return Parts</title>
+      </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.card}>
           <h2 style={styles.h2}>Return Parts</h2>

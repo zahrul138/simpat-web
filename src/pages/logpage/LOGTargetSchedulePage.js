@@ -33,7 +33,7 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch {}
+  } catch { }
   if (!res.ok) {
     const msg = data?.message || text || `HTTP ${res.status}`;
     const err = new Error(msg);
@@ -82,7 +82,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("OnProgress");
+  const [activeTab, setActiveTab] = useState("New");
   const [autoCompleteLoading, setAutoCompleteLoading] = useState(false);
 
   const [lastDataUpdate, setLastDataUpdate] = useState(Date.now());
@@ -90,7 +90,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
 
   const filteredSchedules = (() => {
     const list = productionSchedules.filter(
-      (schedule) => activeTab === "All" || schedule.status === activeTab
+      (schedule) => activeTab === "All" || schedule.status === activeTab,
     );
 
     if (activeTab === "Complete") {
@@ -106,6 +106,8 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
   const [dateTo, setDateTo] = useState("");
   const [searchBy, setSearchBy] = useState("Customer");
   const [keyword, setKeyword] = useState("");
+  const [rawData, setRawData] = useState([]);
+  const [filterSearchBy, setFilterSearchBy] = useState("line");
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
@@ -116,7 +118,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
   const buildListQuery = useCallback(() => {
     const q = {};
     const resolvedStatus = ["New", "OnProgress", "Complete", "Reject"].includes(
-      activeTab
+      activeTab,
     )
       ? activeTab
       : undefined;
@@ -154,6 +156,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
           status: r.status || "New",
         }));
 
+        setRawData(mapped);
         setProductionSchedules((prev) => {
           const newSelected = new Set(selectedHeaderIdsRef.current);
           const existingIds = new Set(prev.map((s) => s.id));
@@ -168,11 +171,11 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
           setSelectedHeaderIds(newSelected);
 
           const currentFiltered = mapped.filter(
-            (schedule) => activeTab === "All" || schedule.status === activeTab
+            (schedule) => activeTab === "All" || schedule.status === activeTab,
           );
           setSelectAll(
             newSelected.size === currentFiltered.length &&
-              currentFiltered.length > 0
+            currentFiltered.length > 0,
           );
 
           return mapped;
@@ -193,7 +196,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
         }
       }
     },
-    [buildListQuery, activeTab]
+    [buildListQuery, activeTab],
   );
 
   const performBackgroundRefresh = useCallback(async () => {
@@ -260,7 +263,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     } catch (err) {
       console.log(
         "Silent background refresh failed, will retry later:",
-        err.message
+        err.message,
       );
     }
   }, [
@@ -276,12 +279,12 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
       await http("/api/production-schedules/auto-progress", {
         method: "PATCH",
       });
-    } catch (_) {}
+    } catch (_) { }
     try {
       await http("/api/production-schedules/auto-complete", {
         method: "PATCH",
       });
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   useEffect(() => {
@@ -289,7 +292,6 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
   }, [loadSchedulesFromServer]);
 
   useEffect(() => {
-
     const patchInterval = setInterval(() => {
       runAutoStatusPatches();
     }, 60000);
@@ -361,7 +363,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
 
     if (
       !window.confirm(
-        `Apakah Anda yakin ingin menyimpan ${selectedHeaderIds.size} schedule ke OnProgress?`
+        `Apakah Anda yakin ingin menyimpan ${selectedHeaderIds.size} schedule ke OnProgress?`,
       )
     ) {
       return;
@@ -373,7 +375,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
         http(API.schedules.updateStatus(id), {
           method: "PATCH",
           body: { status: "OnProgress" },
-        })
+        }),
       );
 
       await Promise.all(updatePromises);
@@ -384,7 +386,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
       setSelectAll(false);
 
       setToastMessage(
-        `${selectedHeaderIds.size} schedule berhasil dipindahkan ke OnProgress`
+        `${selectedHeaderIds.size} schedule berhasil dipindahkan ke OnProgress`,
       );
       setToastType("success");
     } catch (err) {
@@ -440,7 +442,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
         err.data?.error === "Foreign key constraint violation"
       ) {
         alert(
-          `Cannot delete schedule: ${err.data.message}\n\nSchedule still has relations with other data.`
+          `Cannot delete schedule: ${err.data.message}\n\nSchedule still has relations with other data.`,
         );
       } else if (err.status === 404) {
         alert("Schedule not found. Maybe already deleted.");
@@ -551,7 +553,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
 
     if (
       !window.confirm(
-        `Apakah Anda yakin ingin menandai ${selectedHeaderIds.size} schedule sebagai Complete?`
+        `Apakah Anda yakin ingin menandai ${selectedHeaderIds.size} schedule sebagai Complete?`,
       )
     ) {
       return;
@@ -563,7 +565,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
         http(API.schedules.updateStatus(id), {
           method: "PATCH",
           body: { status: "Complete" },
-        })
+        }),
       );
 
       await Promise.all(updatePromises);
@@ -573,12 +575,12 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
       setSelectAll(false);
 
       setToastMessage(
-        `${selectedHeaderIds.size} schedule berhasil ditandai sebagai Complete`
+        `${selectedHeaderIds.size} schedule berhasil ditandai sebagai Complete`,
       );
       setToastType("success");
     } catch (err) {
       alert(
-        "Gagal menyelesaikan schedule: " + (err.message || "Unknown error")
+        "Gagal menyelesaikan schedule: " + (err.message || "Unknown error"),
       );
     } finally {
       setSaveLoading(false);
@@ -644,8 +646,33 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     setAddCustomerDetail(true);
   };
 
+  const applyLocalFilter = (data, searchBy, kw) => {
+    if (!kw.trim()) return data;
+    const lower = kw.toLowerCase();
+    return data.filter((h) => {
+      const val = (h[searchBy] || "").toString().toLowerCase();
+      return val.includes(lower);
+    });
+  };
+
   const handleSearchClick = () => {
-    loadSchedulesFromServer();
+    if (keyword.trim()) {
+      setProductionSchedules(
+        applyLocalFilter(rawData, filterSearchBy, keyword),
+      );
+    } else {
+      loadSchedulesFromServer();
+    }
+  };
+
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      loadSchedulesFromServer();
+    } else {
+      setKeyword("");
+      setFilterSearchBy("line");
+      setActiveTab(tab);
+    }
   };
 
   useEffect(() => {
@@ -715,15 +742,8 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
   };
 
   const hasNewSchedules = productionSchedules.some(
-    (schedule) => schedule.status === "New"
+    (schedule) => schedule.status === "New",
   );
-
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
-  };
 
   const getColgroup = () => {
     if (activeTab === "New") {
@@ -1297,8 +1317,8 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     },
 
     completeButton: {
-      backgroundColor: "#10b981",
-      color: "white",
+      backgroundColor: "#e0e7ff",
+      color: "black",
       padding: "4px 8px",
       fontSize: "12px",
       borderRadius: "4px",
@@ -1424,7 +1444,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Production | Target Schedule</title>
+          <title>Production Schedules</title>
         </Helmet>
       </div>
 
@@ -1449,23 +1469,15 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Target Production Schedules</h1>
+            <h1 style={styles.title}>Production Schedules</h1>
           </div>
 
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Date Filter</span>
-              <select
-                style={styles.select}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-              >
-                <option style={optionStyle}>Search Date</option>
-              </select>
               <input
                 type="date"
                 style={styles.input}
-                placeholder="Date From"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
                 onFocus={handleInputFocus}
@@ -1475,7 +1487,6 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
               <input
                 type="date"
                 style={styles.input}
-                placeholder="Date To"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
                 onFocus={handleInputFocus}
@@ -1486,14 +1497,14 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
               <span style={styles.label}>Search By</span>
               <select
                 style={styles.select}
-                value={searchBy}
-                onChange={(e) => setSearchBy(e.target.value)}
+                value={filterSearchBy}
+                onChange={(e) => setFilterSearchBy(e.target.value)}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               >
-                <option style={optionStyle}>Customer</option>
-                <option style={optionStyle}>Product Code</option>
-                <option style={optionStyle}>Product Description</option>
+                <option value="line">Line</option>
+                <option value="shiftTime">Shift Time</option>
+                <option value="createdBy">Created By</option>
               </select>
               <input
                 type="text"
@@ -1501,6 +1512,9 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                 placeholder="Input Keyword"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearchClick();
+                }}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               />
@@ -1541,9 +1555,20 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
           <button
             style={{
               ...styles.tabButton,
+              ...(activeTab === "New" && styles.tabButtonActive),
+            }}
+            onClick={() => handleTabClick("New")}
+            onMouseEnter={(e) => handleTabHover(e, true, activeTab === "New")}
+            onMouseLeave={(e) => handleTabHover(e, false, activeTab === "New")}
+          >
+            New
+          </button>
+          <button
+            style={{
+              ...styles.tabButton,
               ...(activeTab === "OnProgress" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("OnProgress")}
+            onClick={() => handleTabClick("OnProgress")}
             onMouseEnter={(e) =>
               handleTabHover(e, true, activeTab === "OnProgress")
             }
@@ -1558,7 +1583,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
               ...styles.tabButton,
               ...(activeTab === "Complete" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("Complete")}
+            onClick={() => handleTabClick("Complete")}
             onMouseEnter={(e) =>
               handleTabHover(e, true, activeTab === "Complete")
             }
@@ -1573,7 +1598,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
               ...styles.tabButton,
               ...(activeTab === "Reject" && styles.tabButtonActive),
             }}
-            onClick={() => setActiveTab("Reject")}
+            onClick={() => handleTabClick("Reject")}
             onMouseEnter={(e) =>
               handleTabHover(e, true, activeTab === "Reject")
             }
@@ -1666,12 +1691,12 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                     <FragmentLike key={h.id}>
                       <tr
                         onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8")
                         }
                         onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "transparent")
                         }
                       >
                         <td
@@ -1680,11 +1705,12 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                             ...styles.expandedWithLeftBorder,
                             ...styles.emptyColumn,
                           }}
+                          title={idx + 1}
                         >
                           {idx + 1}
                         </td>
                         {activeTab === "New" && (
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title="Select">
                             <input
                               type="checkbox"
                               checked={selectedHeaderIds.has(h.id)}
@@ -1706,6 +1732,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                             ...styles.tdWithLeftBorder,
                             ...styles.emptyColumn,
                           }}
+                          title="Expand"
                         >
                           <button
                             style={styles.arrowButton}
@@ -1757,7 +1784,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                         <td
                           style={styles.tdWithLeftBorder}
                           title={String(h.total_pallet || 0)}
-                          >
+                        >
                           {h.total_pallet || 0}
                         </td>
                         <td
@@ -1768,36 +1795,36 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                         </td>
                         {(activeTab === "New" ||
                           activeTab === "OnProgress") && (
-                          <td style={styles.tdWithLeftBorder}>
-                            <button
-                              style={styles.addButton}
-                              onClick={openThirdLevelPopup}
-                              title="Add Detail"
-                            >
-                              <Plus size={10} />
-                            </button>
-
-                            {h.status === "OnProgress" && (
+                            <td style={styles.tdWithLeftBorder} title="Action">
                               <button
-                                style={styles.completeButton}
-                                onClick={() => handleCompleteSchedule(h.id)}
-                                title="Mark as Complete"
+                                style={styles.addButton}
+                                onClick={openThirdLevelPopup}
+                                title="Add Detail"
+                              >
+                                <Plus size={10} />
+                              </button>
+
+                              {h.status === "OnProgress" && (
+                                <button
+                                  style={styles.completeButton}
+                                  onClick={() => handleCompleteSchedule(h.id)}
+                                  title="Mark as Complete"
+                                  disabled={loadingDetail[h.id]}
+                                >
+                                  <Check size={10} />
+                                </button>
+                              )}
+
+                              <button
+                                style={styles.deleteButton}
+                                onClick={() => handleDeleteSchedule(h.id, h.code)}
+                                title="Delete"
                                 disabled={loadingDetail[h.id]}
                               >
-                                <Check size={10} />
+                                <Trash2 size={10} />
                               </button>
-                            )}
-
-                            <button
-                              style={styles.deleteButton}
-                              onClick={() => handleDeleteSchedule(h.id, h.code)}
-                              title="Delete"
-                              disabled={loadingDetail[h.id]}
-                            >
-                              <Trash2 size={10} />
-                            </button>
-                          </td>
-                        )}
+                            </td>
+                          )}
                       </tr>
 
                       {expandedRows[h.id] && (
@@ -1878,15 +1905,15 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                                         <tr
                                           key={`${h.id}-${d.id || i}`}
                                           onMouseEnter={(e) =>
-                                            (e.target.closest(
-                                              "tr"
-                                            ).style.backgroundColor = "#c7cde8")
+                                          (e.target.closest(
+                                            "tr",
+                                          ).style.backgroundColor = "#c7cde8")
                                           }
                                           onMouseLeave={(e) =>
-                                            (e.target.closest(
-                                              "tr"
-                                            ).style.backgroundColor =
-                                              "transparent")
+                                          (e.target.closest(
+                                            "tr",
+                                          ).style.backgroundColor =
+                                            "transparent")
                                           }
                                         >
                                           <td
@@ -1895,6 +1922,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                                               ...styles.expandedWithLeftBorder,
                                               ...styles.emptyColumn,
                                             }}
+                                            title={i + 1}
                                           >
                                             {i + 1}
                                           </td>
@@ -1950,7 +1978,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
 
                                           <td
                                             style={styles.expandedTd}
-                                            title="Edit"
+                                            title="Action"
                                           >
                                             <button style={styles.editButton}>
                                               <Pencil size={10} />
@@ -1961,14 +1989,14 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                                               onClick={() => {
                                                 if (!d.id) {
                                                   alert(
-                                                    "Error: Detail ID tidak valid. Tidak dapat menghapus."
+                                                    "Error: Detail ID tidak valid. Tidak dapat menghapus.",
                                                   );
                                                   return;
                                                 }
 
                                                 if (!h.id) {
                                                   alert(
-                                                    "Error: Schedule ID tidak valid."
+                                                    "Error: Schedule ID tidak valid.",
                                                   );
                                                   return;
                                                 }
@@ -2155,7 +2183,6 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

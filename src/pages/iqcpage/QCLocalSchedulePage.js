@@ -5230,7 +5230,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Quality Assurance | Local Schedule</title>
+          <title>Local Part Schedule</title>
         </Helmet>
       </div>
 
@@ -5267,19 +5267,11 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
                 value={filters.searchBy}
                 onChange={(e) => handleFilterChange("searchBy", e.target.value)}
               >
-                <option style={optionStyle} value="vendor_name">
-                  Vendor Name
-                </option>
-                <option style={optionStyle} value="stock_level">
-                  Stock Level
-                </option>
-                <option style={optionStyle} value="model_name">
-                  Model
-                </option>
-                <option style={optionStyle} value="do_number">
-                  DO Number
-                </option>
-                <option style={optionStyle} value="by_name">
+                <option value="vendor_name">Vendor Name</option>
+                <option value="stock_level">Stock Level</option>
+                <option value="model_name">Model</option>
+                <option value="do_number">DO Number</option>
+                <option value="by_name">
                   {activeTab === "Schedule" || activeTab === "Today"
                     ? "Upload By"
                     : activeTab === "Received"

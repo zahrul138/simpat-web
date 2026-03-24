@@ -11,6 +11,7 @@ import {
   RotateCcw,
   BadgeCheck,
 } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -51,6 +52,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
   });
 
   const [tableData, setTableData] = useState([]);
+  const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
@@ -107,19 +109,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
       minWidth: "1060px",
     },
     Complete: {
-      cols: [
-        "3%",
-        "8%",
-        "12%",
-        "7%",
-        "10%",
-        "5%",
-        "5%",
-        "6%",
-        "10%",
-        "28%",
-        "6%",
-      ],
+      cols: ["3%", "8%", "15%", "7%", "15%", "5%", "7%", "7%", "20%", "25%"],
       minWidth: "1060px",
     },
   };
@@ -138,6 +128,10 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
   }, [location.search]);
 
   useEffect(() => {
+    setFilterSearchBy("part_code");
+    setFilterKeyword("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
     fetchData(activeTab);
   }, [activeTab]);
 
@@ -147,17 +141,26 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
       const params = new URLSearchParams({ status: tab });
       if (filterDateFrom) params.append("date_from", filterDateFrom);
       if (filterDateTo) params.append("date_to", filterDateTo);
-      if (filterKeyword.trim())
-        params.append(filterSearchBy, filterKeyword.trim());
       const res = await fetch(
         `${API_BASE}/api/return-parts?${params.toString()}`,
       );
       const result = await res.json();
       if (result.success) {
-        setTableData(result.data);
+        const data = result.data;
+        setRawData(data);
+        if (filterKeyword.trim()) {
+          const kw = filterKeyword.trim().toLowerCase();
+          setTableData(data.filter((r) => (r[filterSearchBy] || "").toLowerCase().includes(kw)));
+        } else {
+          setTableData(data);
+        }
         setCurrentPage(1);
-      } else setTableData([]);
+      } else {
+        setRawData([]);
+        setTableData([]);
+      }
     } catch {
+      setRawData([]);
       setTableData([]);
     } finally {
       setLoading(false);
@@ -201,6 +204,14 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
   };
 
   const handleSearch = () => fetchData(activeTab);
+
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      fetchData(tab);
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
@@ -830,6 +841,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={globalIndex}
                       >
                         {globalIndex}
                       </td>
@@ -1024,6 +1036,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={globalIndex}
                       >
                         {globalIndex}
                       </td>
@@ -1218,6 +1231,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={globalIndex}
                       >
                         {globalIndex}
                       </td>
@@ -1443,6 +1457,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={globalIndex}
                       >
                         {globalIndex}
                       </td>
@@ -1481,6 +1496,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title="Scrap"
                       >
                         <span
                           style={{
@@ -1658,6 +1674,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={globalIndex}
                       >
                         {globalIndex}
                       </td>
@@ -1696,6 +1713,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title="RTV"
                       >
                         <span
                           style={{ ...styles.statusBadge, ...styles.badgeRTV }}
@@ -1824,7 +1842,6 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                 <th style={styles.thWithLeftBorder}>Status</th>
                 <th style={styles.thWithLeftBorder}>Remark</th>
                 <th style={styles.thWithLeftBorder}>Complete By</th>
-                <th style={styles.thWithLeftBorder}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1874,6 +1891,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={globalIndex}
                       >
                         {globalIndex}
                       </td>
@@ -1912,6 +1930,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title={conditionLabel}
                       >
                         <span style={{ ...styles.statusBadge, ...badgeStyle }}>
                           {conditionLabel}
@@ -1934,7 +1953,6 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                       >
                         {formatReturnBy(row.complete_by_name, row.complete_at)}
                       </td>
-                      <td style={styles.tdWithLeftBorder} />
                     </tr>
                   );
                 })
@@ -2085,6 +2103,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={globalIndex}
                       >
                         {globalIndex}
                       </td>
@@ -2247,6 +2266,9 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Return Parts</title>
+      </Helmet>
       {moveModal && (
         <div style={styles.overlay} onClick={() => setMoveModal(null)}>
           <div style={styles.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -2330,12 +2352,29 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                 value={filterSearchBy}
                 onChange={(e) => setFilterSearchBy(e.target.value)}
               >
-                <option style={optionStyle} value="part_code">
-                  Part Code
-                </option>
-                <option style={optionStyle} value="part_name">
-                  Part Name
-                </option>
+                <option value="part_code">Part Code</option>
+                <option value="part_name">Part Name</option>
+                <option value="vendor_name">Vendor</option>
+                <option value="model">Model</option>
+                <option value="vendor_type">Types</option>
+                {activeTab === "Waiting IQC" && (
+                  <option value="return_by_name">Return By</option>
+                )}
+                {activeTab === "Received IQC" && (
+                  <option value="received_by_name">Received By</option>
+                )}
+                {activeTab === "IQC Inspect" && (
+                  <option value="inspected_by_name">Inspected By</option>
+                )}
+                {activeTab === "Scrap" && (
+                  <option value="scrap_by_name">Scrap By</option>
+                )}
+                {activeTab === "RTV" && (
+                  <option value="rtv_by_name">RTV By</option>
+                )}
+                {activeTab === "Complete" && (
+                  <option value="complete_by_name">Complete By</option>
+                )}
               </select>
               <input
                 type="text"
@@ -2362,7 +2401,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab && styles.tabButtonActive),
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               onMouseEnter={(e) => handleTabHover(e, true, activeTab === tab)}
               onMouseLeave={(e) => handleTabHover(e, false, activeTab === tab)}
             >

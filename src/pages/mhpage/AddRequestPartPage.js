@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, Search, RefreshCw } from "lucide-react";
+import { Helmet } from "react-helmet";
 import timerService from "../../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
@@ -19,7 +20,7 @@ const getAuthUserLocal = () => {
   }
 };
 
-const AddPartsEnquiryNonIdPage = () => {
+const AddRequestPartPage = () => {
   const navigate = useNavigate();
   const [selectedStockLevel, setSelectedStockLevel] = useState("M101");
   const [selectedModel, setSelectedModel] = useState("Veronicas");
@@ -70,7 +71,6 @@ const AddPartsEnquiryNonIdPage = () => {
     return `${year}-${month}-${day}`;
   });
 
-  // ── Real-time clock ────────────────────────────────────────────────────────
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -80,10 +80,9 @@ const AddPartsEnquiryNonIdPage = () => {
     });
     return () => unsubscribe();
   }, []);
-  // ────────────────────────────────────────────────────────────────────────────
 
-  // ── Trip dari DB ───────────────────────────────────────────────────────────
   const [tripsData, setTripsData] = useState([]);
+  const [showTripInfo, setShowTripInfo] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/trips`)
@@ -127,7 +126,6 @@ const AddPartsEnquiryNonIdPage = () => {
     }
     return { label: "-", timeRange: "-" };
   };
-  // ────────────────────────────────────────────────────────────────────────────
 
   const [addVendorPartDetail, setAddVendorPartDetail] = useState(false);
   const [addVendorPartFormData, setAddVendorPartFormData] = useState({
@@ -226,7 +224,6 @@ const AddPartsEnquiryNonIdPage = () => {
         });
         setStorageInventoryData(sortedData);
 
-        // Hitung serverRequestedIds dari data yang baru
         const requestedIds = new Set(
           sortedData.filter(item => item.is_requested).map(item => item.id)
         );
@@ -303,7 +300,6 @@ const AddPartsEnquiryNonIdPage = () => {
     const item = storageInventoryData.find(i => i.id === id);
     if (!item) return;
 
-    // Cek apakah item sudah ada di addedStorageIds atau serverRequestedIds
     const isDisabled = addedStorageIds.has(id) || serverRequestedIds.has(id);
     if (isDisabled) return;
 
@@ -319,7 +315,7 @@ const AddPartsEnquiryNonIdPage = () => {
   };
 
   const handleAddSelectedStorageItems = () => {
-    // Cek HOLD dulu
+
     const holdItems = storageInventoryData.filter(
       (item) => selectedStorageItems.has(item.id) && item.status_part === "HOLD"
     );
@@ -328,7 +324,6 @@ const AddPartsEnquiryNonIdPage = () => {
       return;
     }
 
-    // Ambil item yang dipilih dan belum ada di mana pun
     const selectedItems = storageInventoryData.filter(
       (item) =>
         selectedStorageItems.has(item.id) &&
@@ -564,7 +559,7 @@ const AddPartsEnquiryNonIdPage = () => {
         remark: part.remark || "",
       }));
 
-      const response = await fetch(`${API_BASE}/api/parts-enquiry-non-id`, {
+      const response = await fetch(`${API_BASE}/api/request-part`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -576,7 +571,8 @@ const AddPartsEnquiryNonIdPage = () => {
       const result = await response.json();
       if (result.success) {
         alert("Parts enquiry saved successfully!");
-        navigate("/part-enquiry-non-id?tab=new");
+        document.title = "Request Part - Received";
+        navigate("/request-part?tab=new");
       } else {
         alert("Failed to save: " + result.message);
       }
@@ -657,6 +653,74 @@ const AddPartsEnquiryNonIdPage = () => {
       fontFamily: "inherit",
       margin: 0,
       marginBottom: "65px",
+    },
+    tripInfoButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      fontSize: "11px",
+      fontWeight: "700",
+      padding: "0",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "16px",
+      height: "16px",
+      borderRadius: "50%",
+      backgroundColor: "#e0e7ff",
+      color: "#6366f1",
+      marginLeft: "6px",
+      flexShrink: 0,
+    },
+    tripInfoOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    },
+    tripInfoContainer: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
+      border: "1px solid #e0e7ff",
+      width: "560px",
+      maxHeight: "80vh",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+    },
+    tripInfoHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "14px 20px",
+      backgroundColor: "#e0e7ff",
+      borderBottom: "1.5px solid #9fa8da",
+    },
+    tripInfoTitle: {
+      fontSize: "14px",
+      fontWeight: "600",
+      color: "#1f2937",
+      margin: 0,
+    },
+    tripInfoClose: {
+      background: "none",
+      border: "none",
+      fontSize: "20px",
+      cursor: "pointer",
+      color: "#6b7280",
+      lineHeight: 1,
+      padding: 0,
+    },
+    tripInfoBody: {
+      overflowY: "auto",
+      padding: "16px",
     },
     tripDisplay: {
       display: "flex",
@@ -1189,18 +1253,18 @@ const AddPartsEnquiryNonIdPage = () => {
       boxShadow: "0 50px 25px rgba(0, 0, 0, 0.1)",
       width: "100%",
       maxWidth: "900px",
-      height: "70vh", // Tinggi tetap
+      height: "70vh", 
       display: "flex",
       flexDirection: "column",
       margin: "20px 0",
-      overflow: "hidden", // Mencegah scroll di luar container
+      overflow: "hidden", 
     },
     popupHeader: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: "16px",
-      flexShrink: 0, // Header tidak mengecil
+      flexShrink: 0, 
     },
     popupTitle: {
       margin: 0,
@@ -1303,7 +1367,7 @@ const AddPartsEnquiryNonIdPage = () => {
     form: {
       display: "flex",
       flexDirection: "column",
-      flex: 1, // Mengisi sisa ruang setelah header
+      flex: 1, 
       minHeight: 0,
     },
     partDetailsSection: {
@@ -1392,7 +1456,7 @@ const AddPartsEnquiryNonIdPage = () => {
       display: "flex",
       justifyContent: "flex-end",
       gap: "8px",
-      marginTop: "16px", // ← jarak konsisten antara pagination dan tombol
+      marginTop: "16px", 
       flexShrink: 0,
     },
     cancelButton: {
@@ -1424,7 +1488,7 @@ const AddPartsEnquiryNonIdPage = () => {
       fontSize: "12px",
       color: "#374151",
       height: "20px",
-      flexShrink: 0, // Pagination tetap di bawah tabel
+      flexShrink: 0, 
     },
     paginationControls: {
       display: "flex",
@@ -1461,6 +1525,9 @@ const AddPartsEnquiryNonIdPage = () => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Request Parts/Add Request Parts</title>
+      </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
           <div style={styles.card}>
@@ -1545,9 +1612,17 @@ const AddPartsEnquiryNonIdPage = () => {
               </div>
               <div style={{ flex: "3", display: "grid" }}>
                 <div>
-                  <label htmlFor="tripDisplay" style={styles.label}>
-                    Trip
-                  </label>
+                  <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                    <label htmlFor="tripDisplay" style={{ ...styles.label, margin: 0 }}>Trip</label>
+                    <button
+                      style={styles.tripInfoButton}
+                      onClick={() => setShowTripInfo(true)}
+                      title="Trip Information"
+                      type="button"
+                    >
+                      i
+                    </button>
+                  </div>
                   <p style={styles.tripDisplay}>{getActiveTripInfo(currentTime).label}</p>
                 </div>
                 <div>
@@ -1652,6 +1727,7 @@ const AddPartsEnquiryNonIdPage = () => {
                               ...styles.expandedWithLeftBorder,
                               ...styles.emptyColumn,
                             }}
+                            title={index + 1}
                           >
                             {index + 1}
                           </td>
@@ -1675,27 +1751,27 @@ const AddPartsEnquiryNonIdPage = () => {
                                 />
                               )}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.labelId || "-"}>
                             {part.labelId || "-"}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.partCode}>
                             {part.partCode}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.partName}>
                             {part.partName}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.model || "-"}>
                             {part.model || "-"}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>{part.reqQty}</td>
-                          <td style={styles.tdWithLeftBorder}>M136</td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={String(part.reqQty)}>{part.reqQty}</td>
+                          <td style={styles.tdWithLeftBorder} title="M136">M136</td>
+                          <td style={styles.tdWithLeftBorder} title={getActiveTripInfo(currentTime).label}>
                             {getActiveTripInfo(currentTime).label}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.status || "-"}>
                             {part.status || "-"}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.remark || ""}>
                             <input
                               type="text"
                               value={part.remark || ""}
@@ -1710,6 +1786,7 @@ const AddPartsEnquiryNonIdPage = () => {
                             <button
                               onClick={() => handleDeleteFromMainTable(part.id)}
                               style={styles.deleteButton}
+                              title="Delete"
                             >
                               <Trash2 size={10} />
                             </button>
@@ -1810,12 +1887,11 @@ const AddPartsEnquiryNonIdPage = () => {
                         <col style={{ width: "2.5%" }} />
                         <col style={{ width: "12%" }} />
                         <col style={{ width: "10%" }} />
-                        <col style={{ width: "25%" }} />
+                        <col style={{ width: "30%" }} />
                         <col style={{ width: "8%" }} />
                         <col style={{ width: "8%" }} />
                         <col style={{ width: "8%" }} />
                         <col style={{ width: "6%" }} />
-                        <col style={{ width: "12%" }} />
                       </colgroup>
                       <thead>
                         <tr style={vendorPartStyles.tableHeader}>
@@ -1864,7 +1940,6 @@ const AddPartsEnquiryNonIdPage = () => {
                           <th style={styles.thWithLeftBorder}>Stock Level</th>
                           <th style={styles.thWithLeftBorder}>Status</th>
                           <th style={styles.thWithLeftBorder}>M136 Remark</th>
-                          <th style={styles.thWithLeftBorder}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1908,7 +1983,7 @@ const AddPartsEnquiryNonIdPage = () => {
                                   e.target.closest("tr").style.backgroundColor = backgroundColor;
                                 }}
                               >
-                                <td style={vendorPartStyles.tdNumber}>{actualIndex}</td>
+                                <td style={vendorPartStyles.tdNumber} title={actualIndex}>{actualIndex}</td>
                                 <td style={vendorPartStyles.td}>
                                   <input
                                     type="checkbox"
@@ -1925,25 +2000,25 @@ const AddPartsEnquiryNonIdPage = () => {
                                     }}
                                   />
                                 </td>
-                                <td style={vendorPartStyles.td}>{item.label_id}</td>
-                                <td style={vendorPartStyles.td}>{item.part_code}</td>
-                                <td style={vendorPartStyles.td}>{item.part_name}</td>
-                                <td style={vendorPartStyles.td}>{item.model}</td>
-                                <td style={vendorPartStyles.td}>{item.qty}</td>
-                                <td style={vendorPartStyles.td}>M136</td>
+                                <td style={vendorPartStyles.td} title={item.label_id}>{item.label_id}</td>
+                                <td style={vendorPartStyles.td} title={item.part_code}>{item.part_code}</td>
+                                <td style={vendorPartStyles.td} title={item.part_name}>{item.part_name}</td>
+                                <td style={vendorPartStyles.td} title={item.model}>{item.model}</td>
+                                <td style={vendorPartStyles.td} title={String(item.qty)}>{item.qty}</td>
+                                <td style={vendorPartStyles.td} title="M136">M136</td>
                                 <td
                                   style={{
                                     ...vendorPartStyles.td,
                                     color: item.status_part === "HOLD" ? "#dc2626" : "inherit",
                                     fontWeight: item.status_part === "HOLD" ? "600" : "normal",
                                   }}
+                                  title={item.status_part}
                                 >
                                   {item.status_part}
                                 </td>
-                                <td style={{ ...vendorPartStyles.td,  fontWeight: 500 }}>
+                                <td style={{ ...vendorPartStyles.td, fontWeight: 500 }} title={item.remark || "-"}>
                                   {item.remark || "-"}
                                 </td>
-                                <td style={vendorPartStyles.td}>-</td>
                               </tr>
                             );
                           })
@@ -2032,7 +2107,62 @@ const AddPartsEnquiryNonIdPage = () => {
           </div>
         </div>
       )}
+
+      {showTripInfo && (
+        <div style={styles.tripInfoOverlay} onClick={() => setShowTripInfo(false)}>
+          <div style={styles.tripInfoContainer} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.tripInfoHeader}>
+              <h3 style={styles.tripInfoTitle}>Trip Information</h3>
+              <button style={styles.tripInfoClose} onClick={() => setShowTripInfo(false)}>×</button>
+            </div>
+            <div style={styles.tripInfoBody}>
+              <div style={styles.tableContainer}>
+                <div style={styles.tableBodyWrapper}>
+                  <table style={{ ...styles.table, minWidth: "100%", tableLayout: "fixed" }}>
+                    <colgroup>
+                      <col style={{ width: "20%" }} />
+                      <col style={{ width: "20%" }} />
+                      <col style={{ width: "20%" }} />
+                      <col style={{ width: "20%" }} />
+                      <col style={{ width: "20%" }} />
+                    </colgroup>
+                    <thead>
+                      <tr style={styles.tableHeader}>
+                        <th style={styles.thWithLeftBorder}>Trip Code</th>
+                        <th style={styles.thWithLeftBorder}>Req From</th>
+                        <th style={styles.thWithLeftBorder}>Req To</th>
+                        <th style={styles.thWithLeftBorder}>Arv From</th>
+                        <th style={styles.thWithLeftBorder}>Arv To</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tripsData.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" style={{ ...styles.tdWithLeftBorder, textAlign: "center", padding: "20px", color: "#6b7280" }}>
+                            No trip data
+                          </td>
+                        </tr>
+                      ) : (
+                        tripsData.map((trip) => (
+                          <tr key={trip.id}>
+                            <td style={styles.tdWithLeftBorder} title={trip.trip_code}>{trip.trip_code}</td>
+                            <td style={styles.tdWithLeftBorder} title={trip.req_from}>{trip.req_from}</td>
+                            <td style={styles.tdWithLeftBorder} title={trip.req_to}>{trip.req_to}</td>
+                            <td style={styles.tdWithLeftBorder} title={trip.arv_from || "-"}>{trip.arv_from || "-"}</td>
+                            <td style={styles.tdWithLeftBorder} title={trip.arv_to || "-"}>{trip.arv_to || "-"}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-export default AddPartsEnquiryNonIdPage;
+
+export default AddRequestPartPage;

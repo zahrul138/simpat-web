@@ -20,6 +20,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
   const [searchParams] = useSearchParams();
 
   const [partsData, setPartsData] = useState([]);
+  const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [remarks, setRemarks] = useState({});
   const [activeTab, setActiveTab] = useState("Waiting");
@@ -29,6 +30,8 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
   const [filterPartCode, setFilterPartCode] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterSearchBy, setFilterSearchBy] = useState("part_code");
+  const [filterKeyword, setFilterKeyword] = useState("");
 
   const [tripsData, setTripsData] = useState([]);
 
@@ -45,7 +48,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       cols: [
         "3%",
         "3%",
-        "13%",
+        "15%",
         "11%",
         "22%",
         "9%",
@@ -85,7 +88,8 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
         "7%",
         "13%",
         "18%",
-        "35%",
+        "30%",
+        "8%",
       ],
       headers: [
         "No",
@@ -99,9 +103,10 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
         "Remark",
         "M136 Remark",
         "Received By",
+        "Action",
       ],
       showCheckbox: true,
-      showAction: false,
+      showAction: true,
     },
     InTransit: {
       cols: ["3%", "13%", "11%", "22%", "9%", "8%", "7%", "13%", "18%", "30%"],
@@ -276,15 +281,15 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id?status=${activeTab}`,
+        `${API_BASE}/api/request-part?status=${activeTab}`,
       );
       const result = await response.json();
-
       if (result.success) {
-        setPartsData(result.data);
-
+        const data = result.data;
+        setRawData(data);
+        setPartsData(data);
         const remarksObj = {};
-        result.data.forEach((item) => {
+        data.forEach((item) => {
           remarksObj[item.id] = item.remark || "";
         });
         setRemarks(remarksObj);
@@ -293,6 +298,44 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       console.error("Fetch error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const applyFilter = (data, filters) => {
+    return data.filter((item) => {
+      if (filters.dateFrom) {
+        const d = item.requested_at ? item.requested_at.split("T")[0] : "";
+        if (d < filters.dateFrom) return false;
+      }
+      if (filters.dateTo) {
+        const d = item.requested_at ? item.requested_at.split("T")[0] : "";
+        if (d > filters.dateTo) return false;
+      }
+      if (filters.keyword) {
+        const kw = filters.keyword.toLowerCase();
+        const field = (item[filters.searchBy] || "").toString().toLowerCase();
+        if (!field.includes(kw)) return false;
+      }
+      return true;
+    });
+  };
+
+  const handleSearch = () => {
+    const filters = {
+      searchBy: filterSearchBy,
+      keyword: filterKeyword,
+      dateFrom: filterDateFrom,
+      dateTo: filterDateTo,
+    };
+    setPartsData(applyFilter(rawData, filters));
+    setCurrentPage(1);
+  };
+
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      fetchPartsEnquiry();
+    } else {
+      setActiveTab(tab);
     }
   };
 
@@ -305,7 +348,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
   const handleRemarkBlur = async (partId) => {
     try {
-      await fetch(`${API_BASE}/api/parts-enquiry-non-id/${partId}/remark`, {
+      await fetch(`${API_BASE}/api/request-part/${partId}/remark`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ remark: remarks[partId] || "" }),
@@ -342,7 +385,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     }
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/move-to-rejected`,
+        `${API_BASE}/api/request-part/move-to-rejected`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -351,8 +394,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       );
       const result = await response.json();
       if (result.success) {
-        alert("Part moved to Rejected");
-        fetchPartsEnquiry();
+        setActiveTab("Rejected");
       } else {
         alert("Failed: " + result.message);
       }
@@ -363,21 +405,15 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
   };
 
   const handleDeletePermanent = async (partId) => {
-    if (
-      !window.confirm("Permanently delete this part? This cannot be undone.")
-    ) {
+    if (!window.confirm("Delete this part ?")) {
       return;
     }
     try {
-      const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/${partId}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/request-part/${partId}`, {
+        method: "DELETE",
+      });
       const result = await response.json();
       if (result.success) {
-        alert("Part deleted permanently");
         fetchPartsEnquiry();
       } else {
         alert("Failed to delete: " + result.message);
@@ -394,7 +430,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     }
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/restore-to-waiting`,
+        `${API_BASE}/api/request-part/restore-to-waiting`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -403,8 +439,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       );
       const result = await response.json();
       if (result.success) {
-        alert("Part restored to Waiting");
-        fetchPartsEnquiry();
+        setActiveTab("Waiting");
       } else {
         alert("Failed: " + result.message);
       }
@@ -425,24 +460,20 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     }
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/approve`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ids: Array.from(selectedItems),
-            approved_by_name: getAuthUserLocal()?.emp_name || null,
-          }),
-        },
-      );
+      const response = await fetch(`${API_BASE}/api/request-part/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: Array.from(selectedItems),
+          approved_by_name: getAuthUserLocal()?.emp_name || null,
+        }),
+      });
 
       const result = await response.json();
       if (result.success) {
-        alert(result.message);
         setSelectedItems(new Set());
         setSelectAll(false);
-        fetchPartsEnquiry();
+        setActiveTab("Received");
       } else {
         alert("Failed: " + result.message);
       }
@@ -465,7 +496,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     const authUser = getAuthUserLocal();
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/move-to-intransit`,
+        `${API_BASE}/api/request-part/move-to-intransit`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -478,10 +509,9 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (result.success) {
-        alert(result.message);
         setSelectedItems(new Set());
         setSelectAll(false);
-        fetchPartsEnquiry();
+        setActiveTab("InTransit");
       } else {
         alert("Failed: " + result.message);
       }
@@ -502,7 +532,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     const authUser = getAuthUserLocal();
     try {
       const response = await fetch(
-        `${API_BASE}/api/parts-enquiry-non-id/move-to-complete`,
+        `${API_BASE}/api/request-part/move-to-complete`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -514,10 +544,9 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       );
       const result = await response.json();
       if (result.success) {
-        alert(result.message);
         setSelectedItems(new Set());
         setSelectAll(false);
-        fetchPartsEnquiry();
+        setActiveTab("Complete");
       } else {
         alert("Failed: " + result.message);
       }
@@ -661,6 +690,10 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
   }, [searchParams]);
 
   useEffect(() => {
+    setFilterSearchBy("part_code");
+    setFilterKeyword("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
     fetchPartsEnquiry();
     setSelectedItems(new Set());
     setSelectAll(false);
@@ -672,13 +705,6 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     const interval = setInterval(() => fetchPartsEnquiry(), 30 * 1000);
     return () => clearInterval(interval);
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
-  };
 
   const styles = {
     pageContainer: {
@@ -1030,10 +1056,11 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder}>
+        <td style={styles.tdWithLeftBorder} title="Select">
           <input
             type="checkbox"
             checked={selectedItems.has(part.id)}
@@ -1079,16 +1106,17 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
         >
           {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
-        <td style={styles.tdWithLeftBorder}>
+        <td style={styles.tdWithLeftBorder} title="Action">
           <button
             style={styles.approveButton}
+            title="Approve"
             onClick={async () => {
               const tempSelected = new Set([part.id]);
               try {
                 if (!window.confirm("Approve this item?")) return;
 
                 const response = await fetch(
-                  `${API_BASE}/api/parts-enquiry-non-id/approve`,
+                  `${API_BASE}/api/request-part/approve`,
                   {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -1101,8 +1129,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
                 const result = await response.json();
                 if (result.success) {
-                  alert("Item approved successfully");
-                  fetchPartsEnquiry();
+                  setActiveTab("Received");
                 } else {
                   alert("Failed: " + result.message);
                 }
@@ -1116,6 +1143,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
           </button>
           <button
             style={styles.deleteButton}
+            title="Delete"
             onClick={() => handleRejectPart(part.id)}
           >
             <Trash2 size={10} />
@@ -1164,6 +1192,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
@@ -1213,6 +1242,15 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
         >
           {part.approved_by_name || "-"} | {part.approved_at || "-"}
         </td>
+        <td style={styles.tdWithLeftBorder} title="Action">
+          <button
+            style={styles.deleteButton}
+            title="Delete"
+            onClick={() => handleDeletePermanent(part.id)}
+          >
+            <Trash2 size={10} />
+          </button>
+        </td>
       </tr>
     ));
   };
@@ -1255,10 +1293,11 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder} />
+        <td style={styles.tdWithLeftBorder} title="-" />
         <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
           {part.label_id || "-"}
         </td>
@@ -1324,6 +1363,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
@@ -1359,7 +1399,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
         >
           {part.requested_by_name || "Unknown"} | {part.requested_at || "-"}
         </td>
-        <td style={styles.tdWithLeftBorder}>
+        <td style={styles.tdWithLeftBorder} title="Action">
           <button
             style={styles.restoreButton}
             onClick={() => handleRestoreToWaiting(part.id)}
@@ -1409,6 +1449,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             ...styles.expandedWithLeftBorder,
             ...styles.emptyColumn,
           }}
+          title={startIndex + idx + 1}
         >
           {startIndex + idx + 1}
         </td>
@@ -1469,26 +1510,60 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Date Filter</span>
-              <select style={styles.select}>
-                <option style={optionStyle}>Search Date</option>
-              </select>
-              <input type="date" style={styles.input} placeholder="Date From" />
+              <input
+                type="date"
+                style={styles.input}
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+              />
               <span style={styles.label}>To</span>
-              <input type="date" style={styles.input} placeholder="Date To" />
+              <input
+                type="date"
+                style={styles.input}
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+              />
             </div>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
-              <select style={styles.select}>
-                <option style={optionStyle}>Customer</option>
-                <option style={optionStyle}>Product Code</option>
-                <option style={optionStyle}>Product Description</option>
+              <select
+                style={styles.select}
+                value={filterSearchBy}
+                onChange={(e) => setFilterSearchBy(e.target.value)}
+              >
+                <option value="part_code">Part Code</option>
+                <option value="part_name">Part Name</option>
+                <option value="label_id">Label ID</option>
+                <option value="model">Model</option>
+                <option value="trip">Trip</option>
+                {(activeTab === "Waiting" ||
+                  activeTab === "History" ||
+                  activeTab === "Rejected") && (
+                  <option value="requested_by_name">Request By</option>
+                )}
+                {activeTab === "Received" && (
+                  <option value="approved_by_name">Received By</option>
+                )}
+                {(activeTab === "InTransit" || activeTab === "Arrived") && (
+                  <option value="intransit_by_name">Moved By</option>
+                )}
+                {activeTab === "Complete" && (
+                  <option value="complete_by_name">Completed By</option>
+                )}
               </select>
               <input
                 type="text"
                 style={styles.input}
                 placeholder="Input Keyword"
+                value={filterKeyword}
+                onChange={(e) => setFilterKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                }}
               />
-              <button style={styles.button}>Search</button>
+              <button style={styles.button} onClick={handleSearch}>
+                Search
+              </button>
             </div>
           </div>
         </div>
@@ -1501,7 +1576,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab && styles.tabButtonActive),
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               onMouseEnter={(e) => handleTabHover(e, true, activeTab === tab)}
               onMouseLeave={(e) => handleTabHover(e, false, activeTab === tab)}
             >
