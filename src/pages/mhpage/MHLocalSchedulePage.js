@@ -98,12 +98,14 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     keyword: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [appliedKeyword, setAppliedKeyword] = useState({ searchBy: "vendor_name", keyword: "" });
+  const [appliedKeyword, setAppliedKeyword] = useState({
+    searchBy: "vendor_name",
+    keyword: "",
+  });
   const ROWS_PER_PAGE = 10;
 
   const fetchQcChecksComplete = async () => {
     try {
-
       const response = await fetch(`${API_BASE}/api/qc-checks?status=Complete`);
       const result = await response.json();
       if (result.success) {
@@ -140,7 +142,9 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     }
 
     const sampleDates = Array.isArray(part.sample_dates)
-      ? part.sample_dates.map((d) => (typeof d === "string" ? d.split("T")[0] : d)).filter(Boolean)
+      ? part.sample_dates
+          .map((d) => (typeof d === "string" ? d.split("T")[0] : d))
+          .filter(Boolean)
       : [];
 
     if (sampleDates.length === 0) {
@@ -283,7 +287,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     },
     Complete: {
       mainTable: {
-
         cols: [
           "26px",
           "26px",
@@ -302,18 +305,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       partsTable: {
         marginLeft: "51px",
 
-        cols: [
-          "2%",
-          "12%",
-          "25%",
-          "8%",
-          "8%",
-          "7%",
-          "15%",
-          "7%",
-          "15%",
-          "15%",
-        ],
+        cols: ["2%", "12%", "25%", "8%", "8%", "7%", "15%", "7%", "15%", "15%"],
       },
     },
   };
@@ -329,6 +321,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   const getCurrentConfig = () => tableConfig[activeTab] || tableConfig.Today;
   useEffect(() => {
     fetchQcChecksComplete();
+    setExpandedRows({});
+    setExpandedVendorRows({});
     if (activeTab === "Received") {
       fetchReceivedVendors();
     } else if (activeTab === "IQC Progress") {
@@ -350,8 +344,9 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   useEffect(() => {
     const autoMoveOnMount = async () => {
       try {
-
-        const response = await fetch(`${API_BASE}/api/local-schedules?status=Schedule`);
+        const response = await fetch(
+          `${API_BASE}/api/local-schedules?status=Schedule`,
+        );
         if (!response.ok) return;
         const result = await response.json();
         if (!result.success || !result.data || result.data.length === 0) return;
@@ -360,7 +355,10 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
         const toMove = result.data.filter((s) => {
-          const d = typeof s.schedule_date === "string" ? s.schedule_date.split("T")[0] : "";
+          const d =
+            typeof s.schedule_date === "string"
+              ? s.schedule_date.split("T")[0]
+              : "";
           return d === todayStr;
         });
 
@@ -369,14 +367,16 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
         await fetch(`${API_BASE}/api/local-schedules/bulk/status`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scheduleIds: toMove.map((s) => s.id), targetTab: "Today" }),
+          body: JSON.stringify({
+            scheduleIds: toMove.map((s) => s.id),
+            targetTab: "Today",
+          }),
         });
 
         if (activeTab === "Schedule" || activeTab === "Today") fetchSchedules();
       } catch (_) {}
     };
     autoMoveOnMount();
-
   }, []);
 
   useEffect(() => {
@@ -473,7 +473,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   const fetchIqcProgressVendors = async () => {
     setLoading(true);
     try {
-
       await fetch(`${API_BASE}/api/local-schedules/check-iqc-to-pass`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -700,6 +699,18 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     else fetchSchedules();
   };
 
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      if (tab === "Received") fetchReceivedVendors();
+      else if (tab === "IQC Progress") fetchIqcProgressVendors();
+      else if (tab === "Pass") fetchPassVendors();
+      else if (tab === "Complete") fetchCompleteVendors();
+      else fetchSchedules();
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   const handleEditSchedule = (schedule) => {
     setEditingScheduleId(schedule.id);
     setEditScheduleData({
@@ -798,7 +809,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditPart = async (partId) => {
     try {
-
       const validDates = (editPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== "",
       );
@@ -828,7 +838,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-
         const vendorId = editPartData.vendorId;
         const nowIso = new Date().toISOString();
 
@@ -1015,7 +1024,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleDeleteVendor = async (vendorId) => {
-    if (!window.confirm("Are you sure you want to delete this schedule?")) return;
+    if (!window.confirm("Are you sure you want to delete this schedule?"))
+      return;
 
     try {
       const response = await fetch(
@@ -1156,7 +1166,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleMovePartToPass = async (part, vendor) => {
-
     const vendorName = vendor.vendor_name || "";
     const vendorType = "Local";
 
@@ -1321,13 +1330,16 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditIqcPart = async (partId) => {
     try {
-
       const validDates = (editIqcPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== "",
       );
 
       const newSampleDates = validDates.filter(
-        (date) => !isProductionDateComplete(editIqcPartData.part_code, date.split("T")[0]),
+        (date) =>
+          !isProductionDateComplete(
+            editIqcPartData.part_code,
+            date.split("T")[0],
+          ),
       );
 
       const response = await fetch(
@@ -2670,13 +2682,11 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     },
 
     statusPass: {
-
       backgroundColor: "transparent",
       color: "#374151",
     },
 
     statusPass: {
-
       backgroundColor: "transparent",
       color: "#374151",
     },
@@ -3105,7 +3115,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const getByFieldLS_MHL = (item) => {
-    if (activeTab === "Schedule" || activeTab === "Today") return item.upload_by_name || "";
+    if (activeTab === "Schedule" || activeTab === "Today")
+      return item.upload_by_name || "";
     if (activeTab === "Received") return item.move_by_name || "";
     if (activeTab === "IQC Progress") return item.approve_by_name || "";
     if (activeTab === "Pass") return item.sample_by_name || "";
@@ -3117,24 +3128,37 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     if (!appliedKeyword.keyword || !appliedKeyword.keyword.trim()) return arr;
     const kw = appliedKeyword.keyword.trim().toLowerCase();
     const by = appliedKeyword.searchBy;
-    return arr.filter(item => {
+    return arr.filter((item) => {
       if (by === "vendor_name") {
-        if (isSchedule) return (item.vendors || []).some(v => (v.vendor_name || "").toLowerCase().includes(kw));
+        if (isSchedule)
+          return (item.vendors || []).some((v) =>
+            (v.vendor_name || "").toLowerCase().includes(kw),
+          );
         return (item.vendor_name || "").toLowerCase().includes(kw);
       }
       if (by === "stock_level") {
-        if (isSchedule) return (item.stock_level || "").toLowerCase().includes(kw);
-        return (item.stock_level || item.stock_level_ref || "").toLowerCase().includes(kw);
+        if (isSchedule)
+          return (item.stock_level || "").toLowerCase().includes(kw);
+        return (item.stock_level || item.stock_level_ref || "")
+          .toLowerCase()
+          .includes(kw);
       }
       if (by === "model_name") {
-        if (isSchedule) return (item.model_name || "").toLowerCase().includes(kw);
-        return (item.model_name || item.model_name_ref || "").toLowerCase().includes(kw);
+        if (isSchedule)
+          return (item.model_name || "").toLowerCase().includes(kw);
+        return (item.model_name || item.model_name_ref || "")
+          .toLowerCase()
+          .includes(kw);
       }
       if (by === "do_number") {
-        if (isSchedule) return (item.vendors || []).some(v => (v.do_number || "").toLowerCase().includes(kw));
+        if (isSchedule)
+          return (item.vendors || []).some((v) =>
+            (v.do_number || "").toLowerCase().includes(kw),
+          );
         return (item.do_number || "").toLowerCase().includes(kw);
       }
-      if (by === "by_name") return getByFieldLS_MHL(item).toLowerCase().includes(kw);
+      if (by === "by_name")
+        return getByFieldLS_MHL(item).toLowerCase().includes(kw);
       return true;
     });
   };
@@ -3154,8 +3178,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fR = applyFilterLS_MHL(receivedVendors);
-    const _sR = (currentPage-1)*ROWS_PER_PAGE;
-    return _fR.slice(_sR,_sR+ROWS_PER_PAGE).map((vendor, index) => (
+    const _sR = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fR.slice(_sR, _sR + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -3168,7 +3192,10 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           >
             {index + 1}
           </td>
-          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }} title="Toggle details">
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Toggle details"
+          >
             <button
               style={styles.arrowButton}
               onClick={() =>
@@ -3369,8 +3396,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fI = applyFilterLS_MHL(iqcProgressVendors);
-    const _sI = (currentPage-1)*ROWS_PER_PAGE;
-    return _fI.slice(_sI,_sI+ROWS_PER_PAGE).map((vendor, index) => (
+    const _sI = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fI.slice(_sI, _sI + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -3665,28 +3692,62 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             </td>
                             <td
                               style={styles.thirdLevelTd}
-                              title={sampleDates.length > 0 ? sampleDates.map(d => formatDate(d)).join(", ") : "-"}
+                              title={
+                                sampleDates.length > 0
+                                  ? sampleDates
+                                      .map((d) => formatDate(d))
+                                      .join(", ")
+                                  : "-"
+                              }
                             >
                               {sampleDates.length > 0 ? (
                                 <span style={{ fontSize: "10px" }}>
-                                  {sampleDates.map(d => formatDate(d)).join(", ")}
+                                  {sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")}
                                 </span>
-                              ) : "-"}
+                              ) : (
+                                "-"
+                              )}
                             </td>
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                                return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
+                                return _pass.length > 0
+                                  ? _pass.map((d) => formatDate(d)).join(", ")
+                                  : "-";
                               })()}
                             >
                               {(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                                ) : "-";
+                                  <span style={{ fontSize: "10px" }}>
+                                    {_pass.map((d) => formatDate(d)).join(", ")}
+                                  </span>
+                                ) : (
+                                  "-"
+                                );
                               })()}
                             </td>
                             <td
@@ -3753,8 +3814,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fP = applyFilterLS_MHL(passVendors);
-    const _sP = (currentPage-1)*ROWS_PER_PAGE;
-    return _fP.slice(_sP,_sP+ROWS_PER_PAGE).map((vendor, index) => (
+    const _sP = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fP.slice(_sP, _sP + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -4008,32 +4069,62 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              return sampleDates.length > 0 ? sampleDates.map(d => formatDate(d)).join(", ") : "-";
+                              return sampleDates.length > 0
+                                ? sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>{sampleDates.map(d => formatDate(d)).join(", ")}</span>
-                              ) : "-";
+                                <span style={{ fontSize: "10px" }}>
+                                  {sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              );
                             })()}
                           </td>
                           <td
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                              const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                              return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                              const _prod =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              const _pass = _prod.filter(
+                                (d) =>
+                                  !sampleDates.includes(
+                                    typeof d === "string" ? d.split("T")[0] : d,
+                                  ),
+                              );
+                              return _pass.length > 0
+                                ? _pass.map((d) => formatDate(d)).join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                              const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                              const _prod =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              const _pass = _prod.filter(
+                                (d) =>
+                                  !sampleDates.includes(
+                                    typeof d === "string" ? d.split("T")[0] : d,
+                                  ),
+                              );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                              ) : "-";
+                                <span style={{ fontSize: "10px" }}>
+                                  {_pass.map((d) => formatDate(d)).join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              );
                             })()}
                           </td>
                           <td
@@ -4129,8 +4220,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fC = applyFilterLS_MHL(completeVendors);
-    const _sC = (currentPage-1)*ROWS_PER_PAGE;
-    return _fC.slice(_sC,_sC+ROWS_PER_PAGE).map((vendor, index) => (
+    const _sC = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fC.slice(_sC, _sC + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -4354,32 +4445,62 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              return sampleDates.length > 0 ? sampleDates.map(d => formatDate(d)).join(", ") : "-";
+                              return sampleDates.length > 0
+                                ? sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>{sampleDates.map(d => formatDate(d)).join(", ")}</span>
-                              ) : "-";
+                                <span style={{ fontSize: "10px" }}>
+                                  {sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              );
                             })()}
                           </td>
                           <td
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                              const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                              return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                              const _prod =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              const _pass = _prod.filter(
+                                (d) =>
+                                  !sampleDates.includes(
+                                    typeof d === "string" ? d.split("T")[0] : d,
+                                  ),
+                              );
+                              return _pass.length > 0
+                                ? _pass.map((d) => formatDate(d)).join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                              const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                              const _prod =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              const _pass = _prod.filter(
+                                (d) =>
+                                  !sampleDates.includes(
+                                    typeof d === "string" ? d.split("T")[0] : d,
+                                  ),
+                              );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                              ) : "-";
+                                <span style={{ fontSize: "10px" }}>
+                                  {_pass.map((d) => formatDate(d)).join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              );
                             })()}
                           </td>
                           <td
@@ -4430,8 +4551,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fS = applyFilterLS_MHL(schedules, true);
-    const _sS = (currentPage-1)*ROWS_PER_PAGE;
-    return _fS.slice(_sS,_sS+ROWS_PER_PAGE).map((schedule, index) => (
+    const _sS = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fS.slice(_sS, _sS + ROWS_PER_PAGE).map((schedule, index) => (
       <React.Fragment key={`schedule-${schedule.id}`}>
         <tr>
           <td
@@ -4462,8 +4583,11 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
               />
             </td>
           )}
-          
-          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }} title="Toggle details">
+
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Toggle details"
+          >
             {activeTab === "Today" ? null : (
               <button
                 style={styles.arrowButton}
@@ -4477,7 +4601,14 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
               </button>
             )}
           </td>
-          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Date" : formatDate(schedule.schedule_date)}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              editingScheduleId === schedule.id
+                ? "Edit Date"
+                : formatDate(schedule.schedule_date)
+            }
+          >
             {editingScheduleId === schedule.id ? (
               <input
                 type="date"
@@ -4494,7 +4625,14 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
               formatDate(schedule.schedule_date)
             )}
           </td>
-          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Stock Level" : schedule.stock_level || "-"}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              editingScheduleId === schedule.id
+                ? "Edit Stock Level"
+                : schedule.stock_level || "-"
+            }
+          >
             {editingScheduleId === schedule.id ? (
               <input
                 type="text"
@@ -4511,7 +4649,14 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
               schedule.stock_level
             )}
           </td>
-          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Model" : schedule.model_name || "-"}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              editingScheduleId === schedule.id
+                ? "Edit Model"
+                : schedule.model_name || "-"
+            }
+          >
             {editingScheduleId === schedule.id ? (
               <input
                 type="text"
@@ -4528,14 +4673,32 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
               schedule.model_name
             )}
           </td>
-          <td style={styles.tdWithLeftBorder} title={schedule.total_vendor?.toString() || "0"}>{schedule.total_vendor || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={schedule.total_pallet?.toString() || "0"}>{schedule.total_pallet || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={schedule.total_item?.toString() || "0"}>{schedule.total_item || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={`${schedule.upload_by_name || "-"} | ${formatDateTime(schedule.updated_at || schedule.created_at)}`}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={schedule.total_vendor?.toString() || "0"}
+          >
+            {schedule.total_vendor || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={schedule.total_pallet?.toString() || "0"}
+          >
+            {schedule.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={schedule.total_item?.toString() || "0"}
+          >
+            {schedule.total_item || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={`${schedule.upload_by_name || "-"} | ${formatDateTime(schedule.updated_at || schedule.created_at)}`}
+          >
             {schedule.upload_by_name} |{" "}
             {formatDateTime(schedule.updated_at || schedule.created_at)}
           </td>
-          
+
           {activeTab !== "Schedule" && (
             <td style={styles.tdWithLeftBorder} title="Action">
               {editingScheduleId === schedule.id ? (
@@ -4557,7 +4720,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                 </>
               ) : (
                 <>
-                  
                   {(activeTab === "Today" || activeTab === "Schedule") &&
                     canEditSchedule && (
                       <button
@@ -4577,7 +4739,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                       <Trash2 size={10} />
                     </button>
                   )}
-                  
+
                   {activeTab === "Today" && (
                     <button
                       style={styles.addButton}
@@ -5062,7 +5224,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                                   </span>
                                                 )
                                               ) : (
-
                                                 "-"
                                               )}
                                             </td>
@@ -5225,20 +5386,28 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                 value={filters.searchBy}
                 onChange={(e) => handleFilterChange("searchBy", e.target.value)}
               >
-                <option style={optionStyle} value="vendor_name">Vendor Name</option>
-                <option style={optionStyle} value="stock_level">Stock Level</option>
-                <option style={optionStyle} value="model_name">Model</option>
-                <option style={optionStyle} value="do_number">DO Number</option>
+                <option style={optionStyle} value="vendor_name">
+                  Vendor Name
+                </option>
+                <option style={optionStyle} value="stock_level">
+                  Stock Level
+                </option>
+                <option style={optionStyle} value="model_name">
+                  Model
+                </option>
+                <option style={optionStyle} value="do_number">
+                  DO Number
+                </option>
                 <option style={optionStyle} value="by_name">
                   {activeTab === "Schedule" || activeTab === "Today"
                     ? "Upload By"
                     : activeTab === "Received"
-                    ? "Received By"
-                    : activeTab === "IQC Progress"
-                    ? "Approve By"
-                    : activeTab === "Pass"
-                    ? "Pass By"
-                    : "Complete By"}
+                      ? "Received By"
+                      : activeTab === "IQC Progress"
+                        ? "Approve By"
+                        : activeTab === "Pass"
+                          ? "Pass By"
+                          : "Complete By"}
                 </option>
               </select>
               <input
@@ -5247,13 +5416,29 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                 placeholder="Input Keyword"
                 value={filters.keyword}
                 onChange={(e) => handleFilterChange("keyword", e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { setAppliedKeyword({ searchBy: filters.searchBy, keyword: filters.keyword }); setCurrentPage(1); handleSearch(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setAppliedKeyword({
+                      searchBy: filters.searchBy,
+                      keyword: filters.keyword,
+                    });
+                    setCurrentPage(1);
+                    handleSearch();
+                  }
+                }}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               />
               <button
                 style={styles.button}
-                onClick={() => { setAppliedKeyword({ searchBy: filters.searchBy, keyword: filters.keyword }); setCurrentPage(1); handleSearch(); }}
+                onClick={() => {
+                  setAppliedKeyword({
+                    searchBy: filters.searchBy,
+                    keyword: filters.keyword,
+                  });
+                  setCurrentPage(1);
+                  handleSearch();
+                }}
                 onMouseEnter={(e) => handleButtonHover(e, true, "primary")}
                 onMouseLeave={(e) => handleButtonHover(e, false, "primary")}
               >
@@ -5278,7 +5463,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab && styles.tabButtonActive),
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               onMouseEnter={(e) => handleTabHover(e, true, activeTab === tab)}
               onMouseLeave={(e) => handleTabHover(e, false, activeTab === tab)}
             >
@@ -5418,23 +5603,60 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
             )}
           </div>
           {(() => {
-            const _raw = activeTab === "Received" ? receivedVendors
-              : activeTab === "IQC Progress" ? iqcProgressVendors
-              : activeTab === "Pass" ? passVendors
-              : activeTab === "Complete" ? completeVendors
-              : schedules;
-            const _af = applyFilterLS_MHL(_raw, ["New","Schedule","Today"].includes(activeTab));
+            const _raw =
+              activeTab === "Received"
+                ? receivedVendors
+                : activeTab === "IQC Progress"
+                  ? iqcProgressVendors
+                  : activeTab === "Pass"
+                    ? passVendors
+                    : activeTab === "Complete"
+                      ? completeVendors
+                      : schedules;
+            const _af = applyFilterLS_MHL(
+              _raw,
+              ["New", "Schedule", "Today"].includes(activeTab),
+            );
             const _tp = Math.max(1, Math.ceil(_af.length / ROWS_PER_PAGE));
             return (
               <div style={styles.paginationBar}>
                 <div style={styles.paginationControls}>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>{"<<"}</button>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage === 1}>{"<"}</button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    {"<<"}
+                  </button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    {"<"}
+                  </button>
                   <span>Page</span>
-                  <input type="text" value={currentPage} style={styles.paginationInput} readOnly />
+                  <input
+                    type="text"
+                    value={currentPage}
+                    style={styles.paginationInput}
+                    readOnly
+                  />
                   <span>of {_tp}</span>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(p => Math.min(_tp, p+1))} disabled={currentPage === _tp}>{">"}</button>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(_tp)} disabled={currentPage === _tp}>{">>"}</button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage((p) => Math.min(_tp, p + 1))}
+                    disabled={currentPage === _tp}
+                  >
+                    {">"}
+                  </button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage(_tp)}
+                    disabled={currentPage === _tp}
+                  >
+                    {">>"}
+                  </button>
                 </div>
               </div>
             );
@@ -5473,7 +5695,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
             </div>
           )}
 
-        
         {addVendorDetail && (
           <div style={vendorDetailStyles.popupOverlay}>
             <div style={vendorDetailStyles.popupContainer}>
@@ -5619,7 +5840,6 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        
         {addVendorPartDetail && (
           <div style={vendorPartStyles.popupOverlay}>
             <div style={vendorPartStyles.popupContainer}>
@@ -5751,10 +5971,16 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                   ).style.backgroundColor = "transparent")
                                 }
                               >
-                                <td style={vendorPartStyles.tdNumber} title={index + 1}>
+                                <td
+                                  style={vendorPartStyles.tdNumber}
+                                  title={index + 1}
+                                >
                                   {index + 1}
                                 </td>
-                                <td style={styles.tdWithLeftBorder} title="Select">
+                                <td
+                                  style={styles.tdWithLeftBorder}
+                                  title="Select"
+                                >
                                   <input
                                     type="checkbox"
                                     checked={selectedPartsInPopup.includes(
@@ -5784,7 +6010,10 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                 >
                                   {part.partName || "—"}
                                 </td>
-                                <td style={vendorPartStyles.td} title={part.qty?.toString() || "0"}>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={part.qty?.toString() || "0"}
+                                >
                                   <input
                                     type="number"
                                     value={part.qty || ""}
@@ -5825,7 +6054,10 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                     placeholder="0"
                                   />
                                 </td>
-                                <td style={vendorPartStyles.td} title={part.qtyBox?.toString() || "0"}>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={part.qtyBox?.toString() || "0"}
+                                >
                                   <div>
                                     <div>{part.qtyBox || ""}</div>
                                     {part.qtyPerBoxFromMaster &&
@@ -5906,7 +6138,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           </div>
         )}
       </div>
-      
+
       {showProdDatesPopup && activeProdDatesPart && (
         <div style={styles.popupOverlayDates}>
           <div style={styles.popupContainerDates}>

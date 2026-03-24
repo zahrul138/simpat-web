@@ -105,10 +105,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     keyword: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [appliedKeyword, setAppliedKeyword] = useState({ searchBy: "vendor_name", keyword: "" });
+  const [appliedKeyword, setAppliedKeyword] = useState({
+    searchBy: "vendor_name",
+    keyword: "",
+  });
   const ROWS_PER_PAGE = 10;
   const filtersRef = React.useRef(filters);
-  React.useEffect(() => { filtersRef.current = filters; }, [filters]);
+  React.useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
 
   const fetchQcChecksComplete = async () => {
     try {
@@ -147,7 +152,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     }
 
     const sampleDates = Array.isArray(part.sample_dates)
-      ? part.sample_dates.map((d) => (typeof d === "string" ? d.split("T")[0] : d)).filter(Boolean)
+      ? part.sample_dates
+          .map((d) => (typeof d === "string" ? d.split("T")[0] : d))
+          .filter(Boolean)
       : [];
 
     if (sampleDates.length === 0) {
@@ -309,7 +316,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       },
       partsTable: {
         marginLeft: "51px",
-       cols: [
+        cols: [
           "2.5%",
           "10%",
           "25%",
@@ -372,6 +379,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   useEffect(() => {
     fetchQcChecksComplete();
     setCurrentPage(1);
+    setExpandedRows({});
+    setExpandedVendorRows({});
     if (activeTab === "Received") {
       fetchReceivedVendors();
     } else if (activeTab === "IQC Progress") {
@@ -393,8 +402,9 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   useEffect(() => {
     const autoMoveOnMount = async () => {
       try {
-
-        const response = await fetch(`${API_BASE}/api/local-schedules?status=Schedule`);
+        const response = await fetch(
+          `${API_BASE}/api/local-schedules?status=Schedule`,
+        );
         if (!response.ok) return;
         const result = await response.json();
         if (!result.success || !result.data || result.data.length === 0) return;
@@ -403,7 +413,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
         const toMove = result.data.filter((s) => {
-          const d = typeof s.schedule_date === "string" ? s.schedule_date.split("T")[0] : "";
+          const d =
+            typeof s.schedule_date === "string"
+              ? s.schedule_date.split("T")[0]
+              : "";
           return d === todayStr;
         });
 
@@ -412,11 +425,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
         await fetch(`${API_BASE}/api/local-schedules/bulk/status`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scheduleIds: toMove.map((s) => s.id), targetTab: "Today" }),
+          body: JSON.stringify({
+            scheduleIds: toMove.map((s) => s.id),
+            targetTab: "Today",
+          }),
         });
 
         if (activeTab === "Schedule" || activeTab === "Today") fetchSchedules();
-      } catch (_) { }
+      } catch (_) {}
     };
     autoMoveOnMount();
   }, []);
@@ -515,11 +531,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   const fetchIqcProgressVendors = async () => {
     setLoading(true);
     try {
-
       await fetch(`${API_BASE}/api/local-schedules/check-iqc-to-pass`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-      }).catch(() => { });
+      }).catch(() => {});
 
       const response = await fetch(
         `${API_BASE}/api/local-schedules/iqc-progress-vendors`,
@@ -706,17 +721,31 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           const q = appliedKeyword.keyword.toLowerCase();
           const sb = appliedKeyword.searchBy;
           filteredData = filteredData.filter((s) => {
-            if (sb === "vendor_name") return s.vendors?.some(v => v.vendor_name?.toLowerCase().includes(q));
-            if (sb === "stock_level") return (s.stock_level || "").toLowerCase().includes(q);
-            if (sb === "model_name") return (s.model_name || "").toLowerCase().includes(q);
-            if (sb === "do_number") return s.vendors?.some(v => (v.do_number || "").toLowerCase().includes(q));
+            if (sb === "vendor_name")
+              return s.vendors?.some((v) =>
+                v.vendor_name?.toLowerCase().includes(q),
+              );
+            if (sb === "stock_level")
+              return (s.stock_level || "").toLowerCase().includes(q);
+            if (sb === "model_name")
+              return (s.model_name || "").toLowerCase().includes(q);
+            if (sb === "do_number")
+              return s.vendors?.some((v) =>
+                (v.do_number || "").toLowerCase().includes(q),
+              );
             if (sb === "by_name") {
-              const byField = activeTab === "New" || activeTab === "Schedule" || activeTab === "Today"
-                ? s.upload_by_name
-                : activeTab === "Received" ? s.move_by_name
-                : activeTab === "IQC Progress" ? s.approve_by_name
-                : activeTab === "Pass" ? s.sample_by_name
-                : s.complete_by_name;
+              const byField =
+                activeTab === "New" ||
+                activeTab === "Schedule" ||
+                activeTab === "Today"
+                  ? s.upload_by_name
+                  : activeTab === "Received"
+                    ? s.move_by_name
+                    : activeTab === "IQC Progress"
+                      ? s.approve_by_name
+                      : activeTab === "Pass"
+                        ? s.sample_by_name
+                        : s.complete_by_name;
               return (byField || "").toLowerCase().includes(q);
             }
             return true;
@@ -746,6 +775,18 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     else if (activeTab === "Pass") fetchPassVendors();
     else if (activeTab === "Complete") fetchCompleteVendors();
     else fetchSchedules();
+  };
+
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      if (tab === "Received") fetchReceivedVendors();
+      else if (tab === "IQC Progress") fetchIqcProgressVendors();
+      else if (tab === "Pass") fetchPassVendors();
+      else if (tab === "Complete") fetchCompleteVendors();
+      else fetchSchedules();
+    } else {
+      setActiveTab(tab);
+    }
   };
 
   const handleEditSchedule = (schedule) => {
@@ -846,7 +887,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditPart = async (partId) => {
     try {
-
       const validDates = (editPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== "",
       );
@@ -876,7 +916,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-
         const vendorId = editPartData.vendorId;
         const nowIso = new Date().toISOString();
 
@@ -1063,7 +1102,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleDeleteVendor = async (vendorId) => {
-    if (!window.confirm("Are you sure you want to delete this schedule?")) return;
+    if (!window.confirm("Are you sure you want to delete this schedule?"))
+      return;
 
     try {
       const response = await fetch(
@@ -1162,12 +1202,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleApproveVendor = async (vendorId) => {
-    if (
-      !window.confirm(
-        "Approve this schedule?",
-      )
-    )
-      return;
+    if (!window.confirm("Approve this schedule?")) return;
 
     try {
       const authUser = getAuthUser();
@@ -1204,7 +1239,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleApproveVendorWithStockChoice = async (vendorId, vendor) => {
-
     const stockLevel = window.prompt(
       "Approve vendor and add parts to stock.\n\nSelect stock level:\n- M101 (MH Scanner)\n- M136 (Logistic)\n\nEnter M101 or M136:",
       "M136",
@@ -1260,7 +1294,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleMovePartToPass = async (part, vendor) => {
-
     const vendorName = vendor.vendor_name || "";
     const vendorType = "Local";
 
@@ -1426,13 +1459,16 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditIqcPart = async (partId) => {
     try {
-
       const validDates = (editIqcPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== "",
       );
 
       const newSampleDates = validDates.filter(
-        (date) => !isProductionDateComplete(editIqcPartData.part_code, date.split("T")[0]),
+        (date) =>
+          !isProductionDateComplete(
+            editIqcPartData.part_code,
+            date.split("T")[0],
+          ),
       );
 
       const authUser = getAuthUser();
@@ -1457,7 +1493,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-
         const vendorId = editIqcPartData.vendorId;
         const nowIso = new Date().toISOString();
 
@@ -1465,7 +1500,11 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           setIqcProgressVendors((prev) =>
             prev.map((vendor) =>
               vendor.id === vendorId
-                ? { ...vendor, approve_by_name: approveByName, approve_at: nowIso }
+                ? {
+                    ...vendor,
+                    approve_by_name: approveByName,
+                    approve_at: nowIso,
+                  }
                 : vendor,
             ),
           );
@@ -2798,13 +2837,11 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     },
 
     statusPass: {
-
       backgroundColor: "transparent",
       color: "#374151",
     },
 
     statusPass: {
-
       backgroundColor: "transparent",
       color: "#374151",
     },
@@ -3233,7 +3270,12 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
   };
 
   const getByFieldLS = (item) => {
-    if (activeTab === "New" || activeTab === "Schedule" || activeTab === "Today") return item.upload_by_name || "";
+    if (
+      activeTab === "New" ||
+      activeTab === "Schedule" ||
+      activeTab === "Today"
+    )
+      return item.upload_by_name || "";
     if (activeTab === "Received") return item.move_by_name || "";
     if (activeTab === "IQC Progress") return item.approve_by_name || "";
     if (activeTab === "Pass") return item.sample_by_name || "";
@@ -3245,24 +3287,37 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     if (!appliedKeyword.keyword || !appliedKeyword.keyword.trim()) return arr;
     const kw = appliedKeyword.keyword.trim().toLowerCase();
     const by = appliedKeyword.searchBy;
-    return arr.filter(item => {
+    return arr.filter((item) => {
       if (by === "vendor_name") {
-        if (isSchedule) return (item.vendors || []).some(v => (v.vendor_name || "").toLowerCase().includes(kw));
+        if (isSchedule)
+          return (item.vendors || []).some((v) =>
+            (v.vendor_name || "").toLowerCase().includes(kw),
+          );
         return (item.vendor_name || "").toLowerCase().includes(kw);
       }
       if (by === "stock_level") {
-        if (isSchedule) return (item.stock_level || "").toLowerCase().includes(kw);
-        return (item.stock_level || item.stock_level_ref || "").toLowerCase().includes(kw);
+        if (isSchedule)
+          return (item.stock_level || "").toLowerCase().includes(kw);
+        return (item.stock_level || item.stock_level_ref || "")
+          .toLowerCase()
+          .includes(kw);
       }
       if (by === "model_name") {
-        if (isSchedule) return (item.model_name || "").toLowerCase().includes(kw);
-        return (item.model_name || item.model_name_ref || "").toLowerCase().includes(kw);
+        if (isSchedule)
+          return (item.model_name || "").toLowerCase().includes(kw);
+        return (item.model_name || item.model_name_ref || "")
+          .toLowerCase()
+          .includes(kw);
       }
       if (by === "do_number") {
-        if (isSchedule) return (item.vendors || []).some(v => (v.do_number || "").toLowerCase().includes(kw));
+        if (isSchedule)
+          return (item.vendors || []).some((v) =>
+            (v.do_number || "").toLowerCase().includes(kw),
+          );
         return (item.do_number || "").toLowerCase().includes(kw);
       }
-      if (by === "by_name") return getByFieldLS(item).toLowerCase().includes(kw);
+      if (by === "by_name")
+        return getByFieldLS(item).toLowerCase().includes(kw);
       return true;
     });
   };
@@ -3274,7 +3329,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="13"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
-          
             title="Loading"
           >
             Loading...
@@ -3283,8 +3337,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fR = applyFilterLS(receivedVendors);
-    const _sR = (currentPage-1)*ROWS_PER_PAGE;
-    return _fR.slice(_sR,_sR+ROWS_PER_PAGE).map((vendor, index) => (
+    const _sR = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fR.slice(_sR, _sR + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -3297,7 +3351,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           >
             {index + 1}
           </td>
-          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }} title="Toggle details">
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Toggle details"
+          >
             <button
               style={styles.arrowButton}
               onClick={() =>
@@ -3403,7 +3460,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                    tableConfig.Received.partsTable.cols,
+                      tableConfig.Received.partsTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -3513,7 +3570,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="13"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
-          
             title="Loading"
           >
             Loading...
@@ -3522,8 +3578,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fI = applyFilterLS(iqcProgressVendors);
-    const _sI = (currentPage-1)*ROWS_PER_PAGE;
-    return _fI.slice(_sI,_sI+ROWS_PER_PAGE).map((vendor, index) => (
+    const _sI = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fI.slice(_sI, _sI + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -3606,15 +3662,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             title={
               vendor.approve_by_name
                 ? `${vendor.approve_by_name} | ${formatDateTime(
-                  vendor.approve_at,
-                )}`
+                    vendor.approve_at,
+                  )}`
                 : "-"
             }
           >
             {vendor.approve_by_name
               ? `${vendor.approve_by_name} | ${formatDateTime(
-                vendor.approve_at,
-              )}`
+                  vendor.approve_at,
+                )}`
               : "-"}
           </td>
           <td style={styles.tdWithLeftBorder} title="Move to Pass">
@@ -3639,7 +3695,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                    tableConfig["IQC Progress"].partsTable.cols,
+                      tableConfig["IQC Progress"].partsTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -3746,25 +3802,25 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                         />
                                         {(editIqcPartData.prod_dates || [])
                                           .length > 1 && (
-                                            <button
-                                              style={styles.inlineProdDateRemove}
-                                              onClick={() => {
-                                                const newDates = (
-                                                  editIqcPartData.prod_dates || []
-                                                ).filter((_, i) => i !== dateIdx);
-                                                setEditIqcPartData((p) => ({
-                                                  ...p,
-                                                  prod_dates:
-                                                    newDates.length > 0
-                                                      ? newDates
-                                                      : [""],
-                                                }));
-                                              }}
-                                              title="Remove date"
-                                            >
-                                              <X size={12} />
-                                            </button>
-                                          )}
+                                          <button
+                                            style={styles.inlineProdDateRemove}
+                                            onClick={() => {
+                                              const newDates = (
+                                                editIqcPartData.prod_dates || []
+                                              ).filter((_, i) => i !== dateIdx);
+                                              setEditIqcPartData((p) => ({
+                                                ...p,
+                                                prod_dates:
+                                                  newDates.length > 0
+                                                    ? newDates
+                                                    : [""],
+                                              }));
+                                            }}
+                                            title="Remove date"
+                                          >
+                                            <X size={12} />
+                                          </button>
+                                        )}
                                       </div>
                                     ),
                                   )}
@@ -3828,28 +3884,62 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             </td>
                             <td
                               style={styles.thirdLevelTd}
-                              title={sampleDates.length > 0 ? sampleDates.map(d => formatDate(d)).join(", ") : "-"}
+                              title={
+                                sampleDates.length > 0
+                                  ? sampleDates
+                                      .map((d) => formatDate(d))
+                                      .join(", ")
+                                  : "-"
+                              }
                             >
                               {sampleDates.length > 0 ? (
                                 <span style={{ fontSize: "10px" }}>
-                                  {sampleDates.map(d => formatDate(d)).join(", ")}
+                                  {sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")}
                                 </span>
-                              ) : "-"}
+                              ) : (
+                                "-"
+                              )}
                             </td>
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                                return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
+                                return _pass.length > 0
+                                  ? _pass.map((d) => formatDate(d)).join(", ")
+                                  : "-";
                               })()}
                             >
                               {(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                                ) : "-";
+                                  <span style={{ fontSize: "10px" }}>
+                                    {_pass.map((d) => formatDate(d)).join(", ")}
+                                  </span>
+                                ) : (
+                                  "-"
+                                );
                               })()}
                             </td>
                             <td
@@ -3895,16 +3985,16 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 </>
                               ) : (
                                 <>
-                                  
                                   <button
                                     style={styles.editButton}
-                                    onClick={() => handleEditIqcPart(part, vendor.id)}
+                                    onClick={() =>
+                                      handleEditIqcPart(part, vendor.id)
+                                    }
                                     title="Edit"
                                   >
                                     <Pencil size={10} />
                                   </button>
 
-                                  
                                   <button
                                     style={styles.deleteButton}
                                     onClick={() => handleDeletePart(part.id)}
@@ -3950,7 +4040,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="13"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
-          
             title="Loading"
           >
             Loading...
@@ -3959,8 +4048,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fP = applyFilterLS(passVendors);
-    const _sP = (currentPage-1)*ROWS_PER_PAGE;
-    return _fP.slice(_sP,_sP+ROWS_PER_PAGE).map((vendor, index) => (
+    const _sP = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fP.slice(_sP, _sP + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -4044,8 +4133,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             title={
               vendor.sample_by_name
                 ? `${vendor.sample_by_name} | ${formatDateTime(
-                  vendor.sample_at,
-                )}`
+                    vendor.sample_at,
+                  )}`
                 : "-"
             }
           >
@@ -4075,7 +4164,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.thirdLevelTable}>
                   {renderColgroup(
                     getCurrentConfig().partsTable?.cols ||
-                    tableConfig.Pass.partsTable.cols,
+                      tableConfig.Pass.partsTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -4214,32 +4303,62 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              return sampleDates.length > 0 ? sampleDates.map(d => formatDate(d)).join(", ") : "-";
+                              return sampleDates.length > 0
+                                ? sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>{sampleDates.map(d => formatDate(d)).join(", ")}</span>
-                              ) : "-";
+                                <span style={{ fontSize: "10px" }}>
+                                  {sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              );
                             })()}
                           </td>
                           <td
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                              const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                              return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                              const _prod =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              const _pass = _prod.filter(
+                                (d) =>
+                                  !sampleDates.includes(
+                                    typeof d === "string" ? d.split("T")[0] : d,
+                                  ),
+                              );
+                              return _pass.length > 0
+                                ? _pass.map((d) => formatDate(d)).join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                              const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                              const _prod =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              const _pass = _prod.filter(
+                                (d) =>
+                                  !sampleDates.includes(
+                                    typeof d === "string" ? d.split("T")[0] : d,
+                                  ),
+                              );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                              ) : "-";
+                                <span style={{ fontSize: "10px" }}>
+                                  {_pass.map((d) => formatDate(d)).join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              );
                             })()}
                           </td>
                           <td
@@ -4327,7 +4446,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="12"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
-          
             title="Loading"
           >
             Loading...
@@ -4336,8 +4454,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fC = applyFilterLS(completeVendors);
-    const _sC = (currentPage-1)*ROWS_PER_PAGE;
-    return _fC.slice(_sC,_sC+ROWS_PER_PAGE).map((vendor, index) => (
+    const _sC = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fC.slice(_sC, _sC + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
         <tr>
           <td
@@ -4421,15 +4539,15 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             title={
               vendor.complete_by_name
                 ? `${vendor.complete_by_name} | ${formatDateTime(
-                  vendor.complete_at,
-                )}`
+                    vendor.complete_at,
+                  )}`
                 : "-"
             }
           >
             {vendor.complete_by_name
               ? `${vendor.complete_by_name} | ${formatDateTime(
-                vendor.complete_at,
-              )}`
+                  vendor.complete_at,
+                )}`
               : "-"}
           </td>
         </tr>
@@ -4561,32 +4679,62 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              return sampleDates.length > 0 ? sampleDates.map(d => formatDate(d)).join(", ") : "-";
+                              return sampleDates.length > 0
+                                ? sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>{sampleDates.map(d => formatDate(d)).join(", ")}</span>
-                              ) : "-";
+                                <span style={{ fontSize: "10px" }}>
+                                  {sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              );
                             })()}
                           </td>
                           <td
                             style={styles.thirdLevelTd}
                             title={(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                              const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                              return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                              const _prod =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              const _pass = _prod.filter(
+                                (d) =>
+                                  !sampleDates.includes(
+                                    typeof d === "string" ? d.split("T")[0] : d,
+                                  ),
+                              );
+                              return _pass.length > 0
+                                ? _pass.map((d) => formatDate(d)).join(", ")
+                                : "-";
                             })()}
                           >
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
-                              const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                              const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                              const _prod =
+                                part.prod_dates ||
+                                (part.prod_date ? [part.prod_date] : []);
+                              const _pass = _prod.filter(
+                                (d) =>
+                                  !sampleDates.includes(
+                                    typeof d === "string" ? d.split("T")[0] : d,
+                                  ),
+                              );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                              ) : "-";
+                                <span style={{ fontSize: "10px" }}>
+                                  {_pass.map((d) => formatDate(d)).join(", ")}
+                                </span>
+                              ) : (
+                                "-"
+                              );
                             })()}
                           </td>
                           <td
@@ -4629,7 +4777,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           <td
             colSpan="11"
             style={{ textAlign: "center", padding: "20px", color: "#6b7280" }}
-          
             title="Loading"
           >
             Loading...
@@ -4638,8 +4785,8 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
       );
 
     const _fS = applyFilterLS(schedules, true);
-    const _sS = (currentPage-1)*ROWS_PER_PAGE;
-    return _fS.slice(_sS,_sS+ROWS_PER_PAGE).map((schedule, index) => (
+    const _sS = (currentPage - 1) * ROWS_PER_PAGE;
+    return _fS.slice(_sS, _sS + ROWS_PER_PAGE).map((schedule, index) => (
       <React.Fragment key={`schedule-${schedule.id}`}>
         <tr>
           <td
@@ -4670,8 +4817,11 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               />
             </td>
           )}
-          
-          <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }} title="Toggle details">
+
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Toggle details"
+          >
             {activeTab === "Today" ? null : (
               <button
                 style={styles.arrowButton}
@@ -4685,7 +4835,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               </button>
             )}
           </td>
-          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Date" : formatDate(schedule.schedule_date)}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              editingScheduleId === schedule.id
+                ? "Edit Date"
+                : formatDate(schedule.schedule_date)
+            }
+          >
             {editingScheduleId === schedule.id ? (
               <input
                 type="date"
@@ -4702,7 +4859,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               formatDate(schedule.schedule_date)
             )}
           </td>
-          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Stock Level" : schedule.stock_level || "-"}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              editingScheduleId === schedule.id
+                ? "Edit Stock Level"
+                : schedule.stock_level || "-"
+            }
+          >
             {editingScheduleId === schedule.id ? (
               <input
                 type="text"
@@ -4719,7 +4883,14 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               schedule.stock_level
             )}
           </td>
-          <td style={styles.tdWithLeftBorder} title={editingScheduleId === schedule.id ? "Edit Model" : schedule.model_name || "-"}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              editingScheduleId === schedule.id
+                ? "Edit Model"
+                : schedule.model_name || "-"
+            }
+          >
             {editingScheduleId === schedule.id ? (
               <input
                 type="text"
@@ -4736,14 +4907,32 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
               schedule.model_name
             )}
           </td>
-          <td style={styles.tdWithLeftBorder} title={schedule.total_vendor?.toString() || "0"}>{schedule.total_vendor || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={schedule.total_pallet?.toString() || "0"}>{schedule.total_pallet || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={schedule.total_item?.toString() || "0"}>{schedule.total_item || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={`${schedule.upload_by_name || "-"} | ${formatDateTime(schedule.updated_at || schedule.created_at)}`}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={schedule.total_vendor?.toString() || "0"}
+          >
+            {schedule.total_vendor || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={schedule.total_pallet?.toString() || "0"}
+          >
+            {schedule.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={schedule.total_item?.toString() || "0"}
+          >
+            {schedule.total_item || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={`${schedule.upload_by_name || "-"} | ${formatDateTime(schedule.updated_at || schedule.created_at)}`}
+          >
             {schedule.upload_by_name} |{" "}
             {formatDateTime(schedule.updated_at || schedule.created_at)}
           </td>
-          
+
           <td style={styles.tdWithLeftBorder} title="Action">
             {editingScheduleId === schedule.id ? (
               <>
@@ -4782,7 +4971,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                     <Trash2 size={10} />
                   </button>
                 )}
-                
+
                 {(activeTab === "Today" || activeTab === "Schedule") && (
                   <button
                     style={styles.addButton}
@@ -4809,7 +4998,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 <table style={styles.expandedTable}>
                   {renderColgroup(
                     getCurrentConfig().vendorTable?.cols ||
-                    tableConfig.Today.vendorTable.cols,
+                      tableConfig.Today.vendorTable.cols,
                   )}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
@@ -4909,452 +5098,451 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             </td>
                             {(activeTab === "Today" ||
                               activeTab === "Schedule") && (
-                                <td style={styles.expandedTd} title="Action">
+                              <td style={styles.expandedTd} title="Action">
+                                <button
+                                  style={styles.addButton}
+                                  onClick={() =>
+                                    handleOpenAddPart(vendor.id, vendor)
+                                  }
+                                  title="Add Part"
+                                >
+                                  <Plus size={10} />
+                                </button>
+                                {canDeleteSchedule && (
                                   <button
-                                    style={styles.addButton}
+                                    style={styles.deleteButton}
                                     onClick={() =>
-                                      handleOpenAddPart(vendor.id, vendor)
+                                      handleDeleteVendor(vendor.id)
                                     }
-                                    title="Add Part"
+                                    title="Delete"
                                   >
-                                    <Plus size={10} />
+                                    <Trash2 size={10} />
                                   </button>
-                                  {canDeleteSchedule && (
-                                    <button
-                                      style={styles.deleteButton}
-                                      onClick={() =>
-                                        handleDeleteVendor(vendor.id)
-                                      }
-                                      title="Delete"
-                                    >
-                                      <Trash2 size={10} />
-                                    </button>
-                                  )}
-                                </td>
-                              )}
+                                )}
+                              </td>
+                            )}
                           </tr>
                           {expandedVendorRows[
                             `vendor_${schedule.id}_${vi}`
                           ] && (
-                              <tr>
-                                <td
-                                  colSpan={
-                                    activeTab === "Today" ||
-                                      activeTab === "Schedule"
-                                      ? "9"
-                                      : "8"
-                                  }
-                                  style={{ padding: 0, border: "none" }}
+                            <tr>
+                              <td
+                                colSpan={
+                                  activeTab === "Today" ||
+                                  activeTab === "Schedule"
+                                    ? "9"
+                                    : "8"
+                                }
+                                style={{ padding: 0, border: "none" }}
+                              >
+                                <div
+                                  style={{
+                                    ...styles.thirdLevelTableContainer,
+                                    marginLeft:
+                                      getCurrentConfig().partsTable?.marginLeft,
+                                  }}
                                 >
-                                  <div
-                                    style={{
-                                      ...styles.thirdLevelTableContainer,
-                                      marginLeft:
-                                        getCurrentConfig().partsTable?.marginLeft,
-                                    }}
-                                  >
-                                    <table style={styles.thirdLevelTable}>
-                                      {renderColgroup(
-                                        getCurrentConfig().partsTable?.cols ||
+                                  <table style={styles.thirdLevelTable}>
+                                    {renderColgroup(
+                                      getCurrentConfig().partsTable?.cols ||
                                         tableConfig.Today.partsTable.cols,
-                                      )}
-                                      <thead>
-                                        <tr style={styles.expandedTableHeader}>
-                                          <th style={styles.expandedTh}>No</th>
+                                    )}
+                                    <thead>
+                                      <tr style={styles.expandedTableHeader}>
+                                        <th style={styles.expandedTh}>No</th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Part Code
+                                        </th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Part Name
+                                        </th>
+                                        <th style={styles.thirdLevelTh}>Qty</th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Qty Box
+                                        </th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Unit
+                                        </th>
+                                        <th style={styles.thirdLevelTh}>
+                                          Prod Date
+                                        </th>
+                                        {activeTab === "Today" && (
                                           <th style={styles.thirdLevelTh}>
-                                            Part Code
+                                            Remark
                                           </th>
-                                          <th style={styles.thirdLevelTh}>
-                                            Part Name
-                                          </th>
-                                          <th style={styles.thirdLevelTh}>Qty</th>
-                                          <th style={styles.thirdLevelTh}>
-                                            Qty Box
-                                          </th>
-                                          <th style={styles.thirdLevelTh}>
-                                            Unit
-                                          </th>
-                                          <th style={styles.thirdLevelTh}>
-                                            Prod Date
-                                          </th>
-                                          {activeTab === "Today" && (
-                                            <th style={styles.thirdLevelTh}>
-                                              Remark
-                                            </th>
-                                          )}
-                                          <th style={styles.thirdLevelTh}>
-                                            Action
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {vendor.parts?.length > 0 ? (
-                                          vendor.parts.map((part, pi) => (
-                                            <tr key={part.id}>
-                                              <td
-                                                style={{
-                                                  ...styles.expandedTd,
-                                                  ...styles.expandedWithLeftBorder,
-                                                  ...styles.emptyColumn,
-                                                }}
-                                                title={pi + 1}
-                                              >
-                                                {pi + 1}
-                                              </td>
-                                              <td
-                                                style={styles.thirdLevelTd}
-                                                title={part.part_code || "-"}
-                                              >
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="text"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.part_code || ""
+                                        )}
+                                        <th style={styles.thirdLevelTh}>
+                                          Action
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {vendor.parts?.length > 0 ? (
+                                        vendor.parts.map((part, pi) => (
+                                          <tr key={part.id}>
+                                            <td
+                                              style={{
+                                                ...styles.expandedTd,
+                                                ...styles.expandedWithLeftBorder,
+                                                ...styles.emptyColumn,
+                                              }}
+                                              title={pi + 1}
+                                            >
+                                              {pi + 1}
+                                            </td>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={part.part_code || "-"}
+                                            >
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="text"
+                                                  style={styles.inlineInput}
+                                                  value={
+                                                    editPartData.part_code || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    setEditPartData((p) => ({
+                                                      ...p,
+                                                      part_code: e.target.value,
+                                                    }))
+                                                  }
+                                                />
+                                              ) : (
+                                                part.part_code || "-"
+                                              )}
+                                            </td>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={part.part_name || "-"}
+                                            >
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="text"
+                                                  style={styles.inlineInput}
+                                                  value={
+                                                    editPartData.part_name || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    setEditPartData((p) => ({
+                                                      ...p,
+                                                      part_name: e.target.value,
+                                                    }))
+                                                  }
+                                                />
+                                              ) : (
+                                                part.part_name || "-"
+                                              )}
+                                            </td>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={
+                                                part.qty?.toString() || "0"
+                                              }
+                                            >
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="number"
+                                                  style={styles.inlineInput}
+                                                  value={editPartData.qty || ""}
+                                                  onChange={(e) =>
+                                                    handleQtyChangeInEdit(
+                                                      e.target.value,
+                                                    )
+                                                  }
+                                                />
+                                              ) : (
+                                                part.qty || 0
+                                              )}
+                                            </td>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={
+                                                part.qty_box?.toString() || "0"
+                                              }
+                                            >
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="number"
+                                                  style={styles.inlineInput}
+                                                  value={
+                                                    editPartData.qty_box || ""
+                                                  }
+                                                  readOnly
+                                                />
+                                              ) : (
+                                                part.qty_box || 0
+                                              )}
+                                            </td>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={part.unit || "PCS"}
+                                            >
+                                              {editingPartId === part.id ? (
+                                                <input
+                                                  type="text"
+                                                  style={styles.inlineInput}
+                                                  value={
+                                                    editPartData.unit || "PCS"
+                                                  }
+                                                  onChange={(e) =>
+                                                    setEditPartData((p) => ({
+                                                      ...p,
+                                                      unit: e.target.value,
+                                                    }))
+                                                  }
+                                                />
+                                              ) : (
+                                                part.unit || "PCS"
+                                              )}
+                                            </td>
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title={(() => {
+                                                const prodDates =
+                                                  part.prod_dates ||
+                                                  (part.prod_date
+                                                    ? [part.prod_date]
+                                                    : []);
+                                                if (prodDates.length === 0)
+                                                  return "-";
+                                                return prodDates
+                                                  .map((d) => formatDate(d))
+                                                  .join(", ");
+                                              })()}
+                                            >
+                                              {activeTab === "Today" ? (
+                                                editingPartId === part.id ? (
+                                                  <div
+                                                    style={
+                                                      styles.inlineProdDatesContainer
                                                     }
-                                                    onChange={(e) =>
-                                                      setEditPartData((p) => ({
-                                                        ...p,
-                                                        part_code: e.target.value,
-                                                      }))
-                                                    }
-                                                  />
-                                                ) : (
-                                                  part.part_code || "-"
-                                                )}
-                                              </td>
-                                              <td
-                                                style={styles.thirdLevelTd}
-                                                title={part.part_name || "-"}
-                                              >
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="text"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.part_name || ""
-                                                    }
-                                                    onChange={(e) =>
-                                                      setEditPartData((p) => ({
-                                                        ...p,
-                                                        part_name: e.target.value,
-                                                      }))
-                                                    }
-                                                  />
-                                                ) : (
-                                                  part.part_name || "-"
-                                                )}
-                                              </td>
-                                              <td
-                                                style={styles.thirdLevelTd}
-                                                title={
-                                                  part.qty?.toString() || "0"
-                                                }
-                                              >
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="number"
-                                                    style={styles.inlineInput}
-                                                    value={editPartData.qty || ""}
-                                                    onChange={(e) =>
-                                                      handleQtyChangeInEdit(
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                  />
-                                                ) : (
-                                                  part.qty || 0
-                                                )}
-                                              </td>
-                                              <td
-                                                style={styles.thirdLevelTd}
-                                                title={
-                                                  part.qty_box?.toString() || "0"
-                                                }
-                                              >
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="number"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.qty_box || ""
-                                                    }
-                                                    readOnly
-                                                  />
-                                                ) : (
-                                                  part.qty_box || 0
-                                                )}
-                                              </td>
-                                              <td
-                                                style={styles.thirdLevelTd}
-                                                title={part.unit || "PCS"}
-                                              >
-                                                {editingPartId === part.id ? (
-                                                  <input
-                                                    type="text"
-                                                    style={styles.inlineInput}
-                                                    value={
-                                                      editPartData.unit || "PCS"
-                                                    }
-                                                    onChange={(e) =>
-                                                      setEditPartData((p) => ({
-                                                        ...p,
-                                                        unit: e.target.value,
-                                                      }))
-                                                    }
-                                                  />
-                                                ) : (
-                                                  part.unit || "PCS"
-                                                )}
-                                              </td>
-                                              <td
-                                                style={styles.thirdLevelTd}
-                                                title={(() => {
-                                                  const prodDates =
-                                                    part.prod_dates ||
-                                                    (part.prod_date
-                                                      ? [part.prod_date]
-                                                      : []);
-                                                  if (prodDates.length === 0)
-                                                    return "-";
-                                                  return prodDates
-                                                    .map((d) => formatDate(d))
-                                                    .join(", ");
-                                                })()}
-                                              >
-                                                {activeTab === "Today" ? (
-                                                  editingPartId === part.id ? (
-                                                    <div
-                                                      style={
-                                                        styles.inlineProdDatesContainer
-                                                      }
-                                                    >
-                                                      {(
-                                                        editPartData.prod_dates || [
-                                                          "",
-                                                        ]
-                                                      ).map((date, dateIdx) => (
-                                                        <div
-                                                          key={dateIdx}
+                                                  >
+                                                    {(
+                                                      editPartData.prod_dates || [
+                                                        "",
+                                                      ]
+                                                    ).map((date, dateIdx) => (
+                                                      <div
+                                                        key={dateIdx}
+                                                        style={
+                                                          styles.inlineProdDateItem
+                                                        }
+                                                      >
+                                                        <input
+                                                          type="date"
                                                           style={
-                                                            styles.inlineProdDateItem
+                                                            styles.inlineProdDateInput
                                                           }
-                                                        >
-                                                          <input
-                                                            type="date"
+                                                          value={date || ""}
+                                                          onChange={(e) => {
+                                                            const newDates = [
+                                                              ...(editPartData.prod_dates || [
+                                                                "",
+                                                              ]),
+                                                            ];
+                                                            newDates[dateIdx] =
+                                                              e.target.value;
+                                                            setEditPartData(
+                                                              (p) => ({
+                                                                ...p,
+                                                                prod_dates:
+                                                                  newDates,
+                                                                prod_date:
+                                                                  newDates[0] ||
+                                                                  null,
+                                                              }),
+                                                            );
+                                                          }}
+                                                        />
+                                                        {(
+                                                          editPartData.prod_dates ||
+                                                          []
+                                                        ).length > 1 && (
+                                                          <button
                                                             style={
-                                                              styles.inlineProdDateInput
+                                                              styles.inlineProdDateRemove
                                                             }
-                                                            value={date || ""}
-                                                            onChange={(e) => {
-                                                              const newDates = [
-                                                                ...(editPartData.prod_dates || [
-                                                                  "",
-                                                                ]),
-                                                              ];
-                                                              newDates[dateIdx] =
-                                                                e.target.value;
+                                                            onClick={() => {
+                                                              const newDates = (
+                                                                editPartData.prod_dates ||
+                                                                []
+                                                              ).filter(
+                                                                (_, i) =>
+                                                                  i !== dateIdx,
+                                                              );
                                                               setEditPartData(
                                                                 (p) => ({
                                                                   ...p,
                                                                   prod_dates:
-                                                                    newDates,
+                                                                    newDates.length >
+                                                                    0
+                                                                      ? newDates
+                                                                      : [""],
                                                                   prod_date:
                                                                     newDates[0] ||
                                                                     null,
                                                                 }),
                                                               );
                                                             }}
-                                                          />
-                                                          {(
-                                                            editPartData.prod_dates ||
-                                                            []
-                                                          ).length > 1 && (
-                                                              <button
-                                                                style={
-                                                                  styles.inlineProdDateRemove
-                                                                }
-                                                                onClick={() => {
-                                                                  const newDates = (
-                                                                    editPartData.prod_dates ||
-                                                                    []
-                                                                  ).filter(
-                                                                    (_, i) =>
-                                                                      i !== dateIdx,
-                                                                  );
-                                                                  setEditPartData(
-                                                                    (p) => ({
-                                                                      ...p,
-                                                                      prod_dates:
-                                                                        newDates.length >
-                                                                          0
-                                                                          ? newDates
-                                                                          : [""],
-                                                                      prod_date:
-                                                                        newDates[0] ||
-                                                                        null,
-                                                                    }),
-                                                                  );
-                                                                }}
-                                                                title="Remove date"
-                                                              >
-                                                                <X size={12} />
-                                                              </button>
-                                                            )}
-                                                        </div>
-                                                      ))}
-                                                      <button
-                                                        style={
-                                                          styles.inlineProdDateAdd
-                                                        }
-                                                        onClick={() => {
-                                                          const newDates = [
-                                                            ...(editPartData.prod_dates || [
-                                                              "",
-                                                            ]),
-                                                            "",
-                                                          ];
-                                                          setEditPartData(
-                                                            (p) => ({
-                                                              ...p,
-                                                              prod_dates:
-                                                                newDates,
-                                                            }),
-                                                          );
-                                                        }}
-                                                        title="Add date"
-                                                      >
-                                                        <Plus size={10} />
-                                                      </button>
-                                                    </div>
-                                                  ) : (
-                                                    <span
+                                                            title="Remove date"
+                                                          >
+                                                            <X size={12} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    ))}
+                                                    <button
                                                       style={
-                                                        styles.prodDatesBadge
+                                                        styles.inlineProdDateAdd
                                                       }
+                                                      onClick={() => {
+                                                        const newDates = [
+                                                          ...(editPartData.prod_dates || [
+                                                            "",
+                                                          ]),
+                                                          "",
+                                                        ];
+                                                        setEditPartData(
+                                                          (p) => ({
+                                                            ...p,
+                                                            prod_dates:
+                                                              newDates,
+                                                          }),
+                                                        );
+                                                      }}
+                                                      title="Add date"
                                                     >
-                                                      {(() => {
-                                                        const prodDates =
-                                                          part.prod_dates ||
-                                                          (part.prod_date
-                                                            ? [part.prod_date]
-                                                            : []);
-                                                        if (
-                                                          prodDates.length === 0
-                                                        )
-                                                          return "-";
-                                                        return prodDates
-                                                          .map((d) =>
-                                                            formatDate(d),
-                                                          )
-                                                          .join(", ");
-                                                      })()}
-                                                    </span>
-                                                  )
+                                                      <Plus size={10} />
+                                                    </button>
+                                                  </div>
                                                 ) : (
-
-                                                  "-"
-                                                )}
-                                              </td>
-                                              {activeTab === "Today" && (
-                                                <td
-                                                  style={styles.thirdLevelTd}
-                                                  title={part.remark || "-"}
-                                                >
-                                                  {editingPartId === part.id ? (
-                                                    <input
-                                                      type="text"
-                                                      style={styles.inlineInput}
-                                                      value={
-                                                        editPartData.remark || ""
-                                                      }
-                                                      onChange={(e) =>
-                                                        setEditPartData((p) => ({
-                                                          ...p,
-                                                          remark: e.target.value,
-                                                        }))
-                                                      }
-                                                    />
-                                                  ) : (
-                                                    part.remark || "-"
-                                                  )}
-                                                </td>
+                                                  <span
+                                                    style={
+                                                      styles.prodDatesBadge
+                                                    }
+                                                  >
+                                                    {(() => {
+                                                      const prodDates =
+                                                        part.prod_dates ||
+                                                        (part.prod_date
+                                                          ? [part.prod_date]
+                                                          : []);
+                                                      if (
+                                                        prodDates.length === 0
+                                                      )
+                                                        return "-";
+                                                      return prodDates
+                                                        .map((d) =>
+                                                          formatDate(d),
+                                                        )
+                                                        .join(", ");
+                                                    })()}
+                                                  </span>
+                                                )
+                                              ) : (
+                                                "-"
                                               )}
+                                            </td>
+                                            {activeTab === "Today" && (
                                               <td
                                                 style={styles.thirdLevelTd}
-                                                title="Action"
+                                                title={part.remark || "-"}
                                               >
                                                 {editingPartId === part.id ? (
-                                                  <>
+                                                  <input
+                                                    type="text"
+                                                    style={styles.inlineInput}
+                                                    value={
+                                                      editPartData.remark || ""
+                                                    }
+                                                    onChange={(e) =>
+                                                      setEditPartData((p) => ({
+                                                        ...p,
+                                                        remark: e.target.value,
+                                                      }))
+                                                    }
+                                                  />
+                                                ) : (
+                                                  part.remark || "-"
+                                                )}
+                                              </td>
+                                            )}
+                                            <td
+                                              style={styles.thirdLevelTd}
+                                              title="Action"
+                                            >
+                                              {editingPartId === part.id ? (
+                                                <>
+                                                  <button
+                                                    style={styles.saveButton}
+                                                    onClick={() =>
+                                                      handleSaveEditPart(
+                                                        part.id,
+                                                      )
+                                                    }
+                                                    title="Save"
+                                                  >
+                                                    <Save size={10} />
+                                                  </button>
+                                                  <button
+                                                    style={styles.cancelButton}
+                                                    onClick={
+                                                      handleCancelEditPart
+                                                    }
+                                                    title="Cancel"
+                                                  >
+                                                    <X size={10} />
+                                                  </button>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  {activeTab === "Today" &&
+                                                    canEditPartsInToday && (
+                                                      <button
+                                                        style={
+                                                          styles.editButton
+                                                        }
+                                                        onClick={() =>
+                                                          handleEditPart(
+                                                            part,
+                                                            vendor.id,
+                                                          )
+                                                        }
+                                                        title="Edit"
+                                                      >
+                                                        <Pencil size={10} />
+                                                      </button>
+                                                    )}
+                                                  {canDeleteSchedule && (
                                                     <button
-                                                      style={styles.saveButton}
+                                                      style={
+                                                        styles.deleteButton
+                                                      }
                                                       onClick={() =>
-                                                        handleSaveEditPart(
+                                                        handleDeletePart(
                                                           part.id,
                                                         )
                                                       }
-                                                      title="Save"
+                                                      title="Delete"
                                                     >
-                                                      <Save size={10} />
+                                                      <Trash2 size={10} />
                                                     </button>
-                                                    <button
-                                                      style={styles.cancelButton}
-                                                      onClick={
-                                                        handleCancelEditPart
-                                                      }
-                                                      title="Cancel"
-                                                    >
-                                                      <X size={10} />
-                                                    </button>
-                                                  </>
-                                                ) : (
-                                                  <>
-                                                    {activeTab === "Today" &&
-                                                      canEditPartsInToday && (
-                                                        <button
-                                                          style={
-                                                            styles.editButton
-                                                          }
-                                                          onClick={() =>
-                                                            handleEditPart(
-                                                              part,
-                                                              vendor.id,
-                                                            )
-                                                          }
-                                                          title="Edit"
-                                                        >
-                                                          <Pencil size={10} />
-                                                        </button>
-                                                      )}
-                                                    {canDeleteSchedule && (
-                                                      <button
-                                                        style={
-                                                          styles.deleteButton
-                                                        }
-                                                        onClick={() =>
-                                                          handleDeletePart(
-                                                            part.id,
-                                                          )
-                                                        }
-                                                        title="Delete"
-                                                      >
-                                                        <Trash2 size={10} />
-                                                      </button>
-                                                    )}
-                                                  </>
-                                                )}
-                                              </td>
-                                            </tr>
-                                          ))
-                                        ) : (
-                                          <tr></tr>
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
+                                                  )}
+                                                </>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr></tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
                         </React.Fragment>
                       ))
                     ) : (
@@ -5411,20 +5599,30 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 value={filters.searchBy}
                 onChange={(e) => handleFilterChange("searchBy", e.target.value)}
               >
-                <option style={optionStyle} value="vendor_name">Vendor Name</option>
-                <option style={optionStyle} value="stock_level">Stock Level</option>
-                <option style={optionStyle} value="model_name">Model</option>
-                <option style={optionStyle} value="do_number">DO Number</option>
+                <option style={optionStyle} value="vendor_name">
+                  Vendor Name
+                </option>
+                <option style={optionStyle} value="stock_level">
+                  Stock Level
+                </option>
+                <option style={optionStyle} value="model_name">
+                  Model
+                </option>
+                <option style={optionStyle} value="do_number">
+                  DO Number
+                </option>
                 <option style={optionStyle} value="by_name">
-                  {activeTab === "New" || activeTab === "Schedule" || activeTab === "Today"
+                  {activeTab === "New" ||
+                  activeTab === "Schedule" ||
+                  activeTab === "Today"
                     ? "Upload By"
                     : activeTab === "Received"
-                    ? "Received By"
-                    : activeTab === "IQC Progress"
-                    ? "Approve By"
-                    : activeTab === "Pass"
-                    ? "Pass By"
-                    : "Complete By"}
+                      ? "Received By"
+                      : activeTab === "IQC Progress"
+                        ? "Approve By"
+                        : activeTab === "Pass"
+                          ? "Pass By"
+                          : "Complete By"}
                 </option>
               </select>
               <input
@@ -5433,11 +5631,29 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 placeholder="Input Keyword"
                 value={filters.keyword}
                 onChange={(e) => handleFilterChange("keyword", e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { setAppliedKeyword({ searchBy: filters.searchBy, keyword: filters.keyword }); setCurrentPage(1); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setAppliedKeyword({
+                      searchBy: filters.searchBy,
+                      keyword: filters.keyword,
+                    });
+                    setCurrentPage(1);
+                  }
+                }}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               />
-              <button style={styles.button} onClick={() => { setAppliedKeyword({ searchBy: filters.searchBy, keyword: filters.keyword }); setCurrentPage(1); handleSearch(); }}>
+              <button
+                style={styles.button}
+                onClick={() => {
+                  setAppliedKeyword({
+                    searchBy: filters.searchBy,
+                    keyword: filters.keyword,
+                  });
+                  setCurrentPage(1);
+                  handleSearch();
+                }}
+              >
                 Search
               </button>
             </div>
@@ -5474,7 +5690,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab && styles.tabButtonActive),
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               onMouseEnter={(e) => handleTabHover(e, true, activeTab === tab)}
               onMouseLeave={(e) => handleTabHover(e, false, activeTab === tab)}
             >
@@ -5614,23 +5830,63 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             )}
           </div>
           {(() => {
-            const _raw = activeTab === "Received" ? receivedVendors
-              : activeTab === "IQC Progress" ? iqcProgressVendors
-              : activeTab === "Pass" ? passVendors
-              : activeTab === "Complete" ? completeVendors
-              : schedules;
-            const _filtered = applyFilterLS(_raw, ["New","Schedule","Today"].includes(activeTab));
-            const _tp = Math.max(1, Math.ceil(_filtered.length / ROWS_PER_PAGE));
+            const _raw =
+              activeTab === "Received"
+                ? receivedVendors
+                : activeTab === "IQC Progress"
+                  ? iqcProgressVendors
+                  : activeTab === "Pass"
+                    ? passVendors
+                    : activeTab === "Complete"
+                      ? completeVendors
+                      : schedules;
+            const _filtered = applyFilterLS(
+              _raw,
+              ["New", "Schedule", "Today"].includes(activeTab),
+            );
+            const _tp = Math.max(
+              1,
+              Math.ceil(_filtered.length / ROWS_PER_PAGE),
+            );
             return (
               <div style={styles.paginationBar}>
                 <div style={styles.paginationControls}>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(1)} disabled={currentPage===1}>{"<<"}</button>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(p=>Math.max(1,p-1))} disabled={currentPage===1}>{"<"}</button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    {"<<"}
+                  </button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    {"<"}
+                  </button>
                   <span>Page</span>
-                  <input type="text" value={currentPage} style={styles.paginationInput} readOnly />
+                  <input
+                    type="text"
+                    value={currentPage}
+                    style={styles.paginationInput}
+                    readOnly
+                  />
                   <span>of {_tp}</span>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(p=>Math.min(_tp,p+1))} disabled={currentPage===_tp}>{">"}</button>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(_tp)} disabled={currentPage===_tp}>{">>"}</button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage((p) => Math.min(_tp, p + 1))}
+                    disabled={currentPage === _tp}
+                  >
+                    {">"}
+                  </button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage(_tp)}
+                    disabled={currentPage === _tp}
+                  >
+                    {">>"}
+                  </button>
                 </div>
               </div>
             );
@@ -5669,7 +5925,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
             </div>
           )}
 
-        
         {addVendorDetail && (
           <div style={vendorDetailStyles.popupOverlay}>
             <div style={vendorDetailStyles.popupContainer}>
@@ -5815,7 +6070,6 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        
         {addVendorPartDetail && (
           <div style={vendorPartStyles.popupOverlay}>
             <div style={vendorPartStyles.popupContainer}>
@@ -5911,7 +6165,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   checked={
                                     addVendorPartFormData.parts.length > 0 &&
                                     selectedPartsInPopup.length ===
-                                    addVendorPartFormData.parts.length
+                                      addVendorPartFormData.parts.length
                                   }
                                   style={{
                                     cursor: "pointer",
@@ -5937,20 +6191,26 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                               <tr
                                 key={part.id || index}
                                 onMouseEnter={(e) =>
-                                (e.target.closest(
-                                  "tr",
-                                ).style.backgroundColor = "#c7cde8")
+                                  (e.target.closest(
+                                    "tr",
+                                  ).style.backgroundColor = "#c7cde8")
                                 }
                                 onMouseLeave={(e) =>
-                                (e.target.closest(
-                                  "tr",
-                                ).style.backgroundColor = "transparent")
+                                  (e.target.closest(
+                                    "tr",
+                                  ).style.backgroundColor = "transparent")
                                 }
                               >
-                                <td style={vendorPartStyles.tdNumber} title={index + 1}>
+                                <td
+                                  style={vendorPartStyles.tdNumber}
+                                  title={index + 1}
+                                >
                                   {index + 1}
                                 </td>
-                                <td style={styles.tdWithLeftBorder} title="Select">
+                                <td
+                                  style={styles.tdWithLeftBorder}
+                                  title="Select"
+                                >
                                   <input
                                     type="checkbox"
                                     checked={selectedPartsInPopup.includes(
@@ -5980,7 +6240,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                 >
                                   {part.partName || "—"}
                                 </td>
-                                <td style={vendorPartStyles.td} title={part.qty?.toString() || "0"}>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={part.qty?.toString() || "0"}
+                                >
                                   <input
                                     type="number"
                                     value={part.qty || ""}
@@ -6021,7 +6284,10 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                     placeholder="0"
                                   />
                                 </td>
-                                <td style={vendorPartStyles.td} title={part.qtyBox?.toString() || "0"}>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={part.qtyBox?.toString() || "0"}
+                                >
                                   <div>
                                     <div>{part.qtyBox || ""}</div>
                                     {part.qtyPerBoxFromMaster &&
@@ -6102,7 +6368,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
           </div>
         )}
       </div>
-      
+
       {showProdDatesPopup && activeProdDatesPart && (
         <div style={styles.popupOverlayDates}>
           <div style={styles.popupContainerDates}>

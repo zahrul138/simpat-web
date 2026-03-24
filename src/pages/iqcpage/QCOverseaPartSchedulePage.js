@@ -3,13 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
-import {
-  Plus,
-  Trash2,
-  Pencil,
-  Save,
-  X,
-} from "lucide-react";
+import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
 import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
@@ -23,7 +17,6 @@ const getAuthUserLocal = () => {
 };
 
 const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
-
   const canCreateSchedule = true;
   const canDeleteSchedule = true;
 
@@ -41,7 +34,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   const [editPartData, setEditPartData] = useState({});
 
   const [addVendorDetail, setAddVendorDetail] = useState(false);
-  const [activeHeaderIdForVendorForm, setActiveHeaderIdForVendorForm] = useState(null);
+  const [activeHeaderIdForVendorForm, setActiveHeaderIdForVendorForm] =
+    useState(null);
   const [activeVendorContext, setActiveVendorContext] = useState(null);
   const [tripOptions, setTripOptions] = useState([]);
   const [vendorOptions, setVendorOptions] = useState([]);
@@ -81,9 +75,14 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     keyword: "",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [appliedKeyword, setAppliedKeyword] = useState({ searchBy: "vendor_name", keyword: "" });
+  const [appliedKeyword, setAppliedKeyword] = useState({
+    searchBy: "vendor_name",
+    keyword: "",
+  });
   const filtersRef = React.useRef(filters);
-  React.useEffect(() => { filtersRef.current = filters; }, [filters]);
+  React.useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
   const ROWS_PER_PAGE = 10;
 
   const tableConfig = {
@@ -134,12 +133,25 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           "10%",
           "10%",
           "12%",
-          "25%"
+          "25%",
         ],
       },
       partsTable: {
         marginLeft: "51.8px",
-        cols: ["3.3%", "12%", "25%", "8%", "8%", "7%", "18%", "8%", "15%", "15%", "20%", "9%"],
+        cols: [
+          "3.3%",
+          "12%",
+          "25%",
+          "8%",
+          "8%",
+          "7%",
+          "18%",
+          "8%",
+          "15%",
+          "15%",
+          "20%",
+          "9%",
+        ],
       },
     },
     Pass: {
@@ -190,12 +202,24 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           "10%",
           "10%",
           "12%",
-          "25%"
+          "25%",
         ],
       },
       partsTable: {
         marginLeft: "51.8px",
-        cols: ["3%", "12%", "25%", "8%", "8%", "7%", "20%", "7%", "10%", "10%", "15%",],
+        cols: [
+          "3%",
+          "12%",
+          "25%",
+          "8%",
+          "8%",
+          "7%",
+          "20%",
+          "7%",
+          "10%",
+          "10%",
+          "15%",
+        ],
       },
     },
   };
@@ -243,7 +267,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
     return {
       status: sampleDates.length > 0 ? "SAMPLE" : "PASS",
-      sampleDates: sampleDates
+      sampleDates: sampleDates,
     };
   };
 
@@ -269,19 +293,19 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     const config =
       palletType === "large"
         ? {
-          length: 110,
-          width: 110,
-          maxHeight: 170,
-          baseHeight: 15,
-          maxWeight: 150,
-        }
+            length: 110,
+            width: 110,
+            maxHeight: 170,
+            baseHeight: 15,
+            maxWeight: 150,
+          }
         : {
-          length: 96,
-          width: 76,
-          maxHeight: 150,
-          baseHeight: 15,
-          maxWeight: 60,
-        };
+            length: 96,
+            width: 76,
+            maxHeight: 150,
+            baseHeight: 15,
+            maxWeight: 60,
+          };
 
     const availableHeight = config.maxHeight - config.baseHeight;
 
@@ -348,7 +372,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         const combinedBoxes = palletA.boxesCount + palletB.boxesCount;
 
         if (combinedWeight <= maxWeight && combinedBoxes <= palletA.capacity) {
-
           palletA.boxesCount = combinedBoxes;
           palletA.totalWeight = combinedWeight;
 
@@ -412,7 +435,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       }
 
       console.log(
-        `Total box: ${totalBoxesAll}, Total berat: ${totalWeightAll.toFixed(2)}kg`
+        `Total box: ${totalBoxesAll}, Total berat: ${totalWeightAll.toFixed(2)}kg`,
       );
       console.log(`Kelompok box:`, Object.keys(boxGroups).length);
 
@@ -444,14 +467,14 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
             height: group.height,
             weight: weightPerBox,
           },
-          palletType
+          palletType,
         );
 
         console.log(`  ${palletType} pallet capacity:`);
         console.log(`    Max boxes per pallet: ${capacity.maxBoxesPerPallet}`);
 
         const palletsNeeded = Math.ceil(
-          group.totalBoxes / capacity.maxBoxesPerPallet
+          group.totalBoxes / capacity.maxBoxesPerPallet,
         );
 
         console.log(`  Pallets needed: ${palletsNeeded}`);
@@ -460,7 +483,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         for (let i = 0; i < palletsNeeded; i++) {
           const boxesInThisPallet = Math.min(
             remainingBoxes,
-            capacity.maxBoxesPerPallet
+            capacity.maxBoxesPerPallet,
           );
           const weightInThisPallet = boxesInThisPallet * weightPerBox;
 
@@ -595,11 +618,11 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           height: group.height,
           weight: avgWeightPerBox,
         },
-        palletType
+        palletType,
       );
 
       const palletsNeeded = Math.ceil(
-        group.totalBoxes / capacity.maxBoxesPerPallet
+        group.totalBoxes / capacity.maxBoxesPerPallet,
       );
 
       if (palletType === "large") {
@@ -637,7 +660,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   const fetchBoxDimensions = async (partCode) => {
     try {
       const response = await fetch(
-        `${API_BASE}/api/kanban-master/placement-details?part_code=${encodeURIComponent(partCode)}`
+        `${API_BASE}/api/kanban-master/placement-details?part_code=${encodeURIComponent(partCode)}`,
       );
       if (response.ok) {
         const result = await response.json();
@@ -661,7 +684,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
   const recalculatePalletForVendor = async (vendorId, parts) => {
     try {
-      console.log(`[Recalc] Starting for vendor ${vendorId} with ${parts.length} parts`);
+      console.log(
+        `[Recalc] Starting for vendor ${vendorId} with ${parts.length} parts`,
+      );
 
       if (!parts || parts.length === 0) {
         setPalletCalculations((prev) => ({
@@ -704,12 +729,19 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           let boxHeight = 30;
           let boxWeight = 0.5;
 
-          if (dimensions && dimensions.length > 0 && dimensions.width > 0 && dimensions.height > 0) {
+          if (
+            dimensions &&
+            dimensions.length > 0 &&
+            dimensions.width > 0 &&
+            dimensions.height > 0
+          ) {
             boxLength = dimensions.length;
             boxWidth = dimensions.width;
             boxHeight = dimensions.height;
             boxWeight = dimensions.weight || 0.5;
-            console.log(`[Recalc] ${partCode}: ${boxLength}x${boxWidth}x${boxHeight}cm, ${boxWeight}kg`);
+            console.log(
+              `[Recalc] ${partCode}: ${boxLength}x${boxWidth}x${boxHeight}cm, ${boxWeight}kg`,
+            );
           } else {
             console.log(`[Recalc] ${partCode}: Using default dimensions`);
           }
@@ -730,7 +762,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         }
       }
 
-      console.log(`[Recalc] Total boxes: ${boxData.length}, Total weight: ${totalWeight.toFixed(2)}kg`);
+      console.log(
+        `[Recalc] Total boxes: ${boxData.length}, Total weight: ${totalWeight.toFixed(2)}kg`,
+      );
 
       const result = await calculateOptimizedMixedPallet(boxData);
 
@@ -771,7 +805,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   };
 
   const getVendorTotalPallet = (vendor) => {
-
     if (vendor.total_pallet !== undefined && vendor.total_pallet !== null) {
       return vendor.total_pallet;
     }
@@ -876,7 +909,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
         console.log("Setting receivedVendors from data.vendors:", data.vendors);
         setReceivedVendors(data.vendors || []);
       } else if (data.success && data.data) {
-
         console.log("Setting receivedVendors from data.data:", data.data);
         setReceivedVendors(data.data || []);
       } else {
@@ -1015,6 +1047,18 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      if (tab === "Received") fetchReceivedVendors();
+      else if (tab === "IQC Progress") fetchIqcProgressVendors();
+      else if (tab === "Pass") fetchPassVendors();
+      else if (tab === "Complete") fetchCompleteVendors();
+      else fetchSchedules();
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   const handleMoveToSchedule = async () => {
     if (selectedScheduleIds.size === 0) {
       alert("Please select at least one schedule to move.");
@@ -1061,7 +1105,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleApproveVendor = async (vendorId) => {
-
     return;
   };
 
@@ -1120,7 +1163,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
   const handleSaveEditIqcPart = async (partId) => {
     try {
-
       const validDates = (editIqcPartData.prod_dates || []).filter(
         (d) => d && d.trim() !== "",
       );
@@ -1177,22 +1219,18 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleDeleteSchedule = async (scheduleId) => {
-
     return;
   };
 
   const handleDeleteVendor = async (vendorId, scheduleId) => {
-
     return;
   };
 
   const handleDeletePart = async (partId) => {
-
     return;
   };
 
   const handleEditPart = (part, vendorId) => {
-
     return;
   };
 
@@ -1217,7 +1255,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleReturnVendor = async (vendorId) => {
-
     return;
   };
 
@@ -1303,7 +1340,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   };
 
   const handleOpenAddVendor = (scheduleId) => {
-
     return;
   };
 
@@ -1349,7 +1385,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       const data = await response.json();
 
       if (data.success && data.data) {
-
         const existsInList = addVendorPartFormData.parts.some(
           (p) => p.partCode === data.data.part_code,
         );
@@ -2378,7 +2413,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     if (activeTab === "Schedule") return item.upload_by_name || "";
     if (activeTab === "Received") return item.move_by_name || "";
     if (activeTab === "IQC Progress") return item.approve_by_name || "";
-    if (activeTab === "Pass") return item.sample_by_name || item.approve_by_name || "";
+    if (activeTab === "Pass")
+      return item.sample_by_name || item.approve_by_name || "";
     if (activeTab === "Complete") return item.complete_by_name || "";
     return "";
   };
@@ -2387,24 +2423,37 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     if (!appliedKeyword.keyword || !appliedKeyword.keyword.trim()) return arr;
     const kw = appliedKeyword.keyword.trim().toLowerCase();
     const by = appliedKeyword.searchBy;
-    return arr.filter(item => {
+    return arr.filter((item) => {
       if (by === "vendor_name") {
-        if (isSchedule) return (item.vendors || []).some(v => (v.vendor_name || "").toLowerCase().includes(kw));
+        if (isSchedule)
+          return (item.vendors || []).some((v) =>
+            (v.vendor_name || "").toLowerCase().includes(kw),
+          );
         return (item.vendor_name || "").toLowerCase().includes(kw);
       }
       if (by === "stock_level") {
-        if (isSchedule) return (item.stock_level || "").toLowerCase().includes(kw);
-        return (item.stock_level || item.stock_level_ref || "").toLowerCase().includes(kw);
+        if (isSchedule)
+          return (item.stock_level || "").toLowerCase().includes(kw);
+        return (item.stock_level || item.stock_level_ref || "")
+          .toLowerCase()
+          .includes(kw);
       }
       if (by === "model_name") {
-        if (isSchedule) return (item.model_name || "").toLowerCase().includes(kw);
-        return (item.model_name || item.model_name_ref || "").toLowerCase().includes(kw);
+        if (isSchedule)
+          return (item.model_name || "").toLowerCase().includes(kw);
+        return (item.model_name || item.model_name_ref || "")
+          .toLowerCase()
+          .includes(kw);
       }
       if (by === "do_number") {
-        if (isSchedule) return (item.vendors || []).some(v => (v.do_number || "").toLowerCase().includes(kw));
+        if (isSchedule)
+          return (item.vendors || []).some((v) =>
+            (v.do_number || "").toLowerCase().includes(kw),
+          );
         return (item.do_number || "").toLowerCase().includes(kw);
       }
-      if (by === "by_name") return getByFieldValueQC(item).toLowerCase().includes(kw);
+      if (by === "by_name")
+        return getByFieldValueQC(item).toLowerCase().includes(kw);
       return true;
     });
   };
@@ -2456,21 +2505,42 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           <td style={styles.tdWithLeftBorder} title={vendor.do_number || "-"}>
             {vendor.do_number || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.total_pallet || 0}>{vendor.total_pallet || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={vendor.total_item || 0}>{vendor.total_item || 0}</td>
-          <td style={styles.tdWithLeftBorder} title={formatDate(vendor.schedule_date_ref || vendor.schedule_date)}>
+          <td style={styles.tdWithLeftBorder} title={vendor.total_pallet || 0}>
+            {vendor.total_pallet || 0}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={vendor.total_item || 0}>
+            {vendor.total_item || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={formatDate(vendor.schedule_date_ref || vendor.schedule_date)}
+          >
             {formatDate(vendor.schedule_date_ref || vendor.schedule_date)}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.stock_level_ref || vendor.stock_level || "-"}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={vendor.stock_level_ref || vendor.stock_level || "-"}
+          >
             {vendor.stock_level_ref || vendor.stock_level || "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={vendor.model_name_ref || vendor.schedule_model_name || vendor.model_name || "-"}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={
+              vendor.model_name_ref ||
+              vendor.schedule_model_name ||
+              vendor.model_name ||
+              "-"
+            }
+          >
             {vendor.model_name_ref ||
               vendor.schedule_model_name ||
               vendor.model_name ||
               "-"}
           </td>
-          <td style={styles.tdWithLeftBorder} title={`${vendor.move_by_name || "-"} | ${formatDateTime(vendor.move_at)}`}>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={`${vendor.move_by_name || "-"} | ${formatDateTime(vendor.move_at)}`}
+          >
             {vendor.move_by_name || "-"} | {formatDateTime(vendor.move_at)}
           </td>
           {}
@@ -2525,14 +2595,28 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                           >
                             {pIdx + 1}
                           </td>
-                          <td style={styles.thirdLevelTd} title={part.part_code}>{part.part_code}</td>
-                          <td style={styles.thirdLevelTd} title={part.part_name || "-"}>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={part.part_code}
+                          >
+                            {part.part_code}
+                          </td>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={part.part_name || "-"}
+                          >
                             {part.part_name || "-"}
                           </td>
-                          <td style={styles.thirdLevelTd} title={part.qty || part.quantity || 0}>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={part.qty || part.quantity || 0}
+                          >
                             {part.qty || part.quantity || 0}
                           </td>
-                          <td style={styles.thirdLevelTd} title={part.qty_box || part.quantity_box || 0}>
+                          <td
+                            style={styles.thirdLevelTd}
+                            title={part.qty_box || part.quantity_box || 0}
+                          >
                             {part.qty_box || part.quantity_box || 0}
                           </td>
                           <td
@@ -2825,25 +2909,25 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                         />
                                         {(editIqcPartData.prod_dates || [])
                                           .length > 1 && (
-                                            <button
-                                              style={styles.inlineProdDateRemove}
-                                              onClick={() => {
-                                                const newDates = (
-                                                  editIqcPartData.prod_dates || []
-                                                ).filter((_, i) => i !== dateIdx);
-                                                setEditIqcPartData((p) => ({
-                                                  ...p,
-                                                  prod_dates:
-                                                    newDates.length > 0
-                                                      ? newDates
-                                                      : [""],
-                                                }));
-                                              }}
-                                              title="Remove date"
-                                            >
-                                              <X size={12} />
-                                            </button>
-                                          )}
+                                          <button
+                                            style={styles.inlineProdDateRemove}
+                                            onClick={() => {
+                                              const newDates = (
+                                                editIqcPartData.prod_dates || []
+                                              ).filter((_, i) => i !== dateIdx);
+                                              setEditIqcPartData((p) => ({
+                                                ...p,
+                                                prod_dates:
+                                                  newDates.length > 0
+                                                    ? newDates
+                                                    : [""],
+                                              }));
+                                            }}
+                                            title="Remove date"
+                                          >
+                                            <X size={12} />
+                                          </button>
+                                        )}
                                       </div>
                                     ),
                                   )}
@@ -2912,8 +2996,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               title={
                                 sampleDates.length > 0
                                   ? sampleDates
-                                    .map((d) => formatDate(d))
-                                    .join(", ")
+                                      .map((d) => formatDate(d))
+                                      .join(", ")
                                   : "-"
                               }
                             >
@@ -2931,17 +3015,41 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                                return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
+                                return _pass.length > 0
+                                  ? _pass.map((d) => formatDate(d)).join(", ")
+                                  : "-";
                               })()}
                             >
                               {(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                                ) : "-";
+                                  <span style={{ fontSize: "10px" }}>
+                                    {_pass.map((d) => formatDate(d)).join(", ")}
+                                  </span>
+                                ) : (
+                                  "-"
+                                );
                               })()}
                             </td>
                             {}
@@ -3150,9 +3258,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                 }}
               >
                 <table style={styles.thirdLevelTable}>
-                  {renderColgroup(
-                    tableConfig["Pass"].partsTable?.cols || []
-                  )}
+                  {renderColgroup(tableConfig["Pass"].partsTable?.cols || [])}
                   <thead>
                     <tr style={styles.expandedTableHeader}>
                       <th style={styles.thirdLevelTh}>No</th>
@@ -3185,7 +3291,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                     ) : (
                       vendor.parts.map((part, pIdx) => {
                         const { sampleDates } = getPartSampleStatus(part);
-                        const displayStatus = sampleDates.length > 0 ? "SAMPLE" : "PASS";
+                        const displayStatus =
+                          sampleDates.length > 0 ? "SAMPLE" : "PASS";
 
                         return (
                           <tr key={part.id}>
@@ -3237,7 +3344,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   part.prod_dates ||
                                   (part.prod_date ? [part.prod_date] : []);
                                 if (prodDates.length === 0) return "-";
-                                return prodDates.map((d) => formatDate(d)).join(", ");
+                                return prodDates
+                                  .map((d) => formatDate(d))
+                                  .join(", ");
                               })()}
                             >
                               <span style={styles.prodDatesList}>
@@ -3246,7 +3355,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     part.prod_dates ||
                                     (part.prod_date ? [part.prod_date] : []);
                                   if (prodDates.length === 0) return "-";
-                                  return prodDates.map((d) => formatDate(d)).join(", ");
+                                  return prodDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ");
                                 })()}
                               </span>
                             </td>
@@ -3264,13 +3375,17 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               style={styles.thirdLevelTd}
                               title={
                                 sampleDates.length > 0
-                                  ? sampleDates.map((d) => formatDate(d)).join(", ")
+                                  ? sampleDates
+                                      .map((d) => formatDate(d))
+                                      .join(", ")
                                   : "-"
                               }
                             >
                               {sampleDates.length > 0 ? (
                                 <span>
-                                  {sampleDates.map((d) => formatDate(d)).join(", ")}
+                                  {sampleDates
+                                    .map((d) => formatDate(d))
+                                    .join(", ")}
                                 </span>
                               ) : (
                                 "-"
@@ -3280,17 +3395,41 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                                return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
+                                return _pass.length > 0
+                                  ? _pass.map((d) => formatDate(d)).join(", ")
+                                  : "-";
                               })()}
                             >
                               {(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                                ) : "-";
+                                  <span style={{ fontSize: "10px" }}>
+                                    {_pass.map((d) => formatDate(d)).join(", ")}
+                                  </span>
+                                ) : (
+                                  "-"
+                                );
                               })()}
                             </td>
                             {}
@@ -3321,7 +3460,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 <>
                                   <button
                                     style={styles.saveButton}
-                                    onClick={() => handleSaveEditIqcPart(part.id)}
+                                    onClick={() =>
+                                      handleSaveEditIqcPart(part.id)
+                                    }
                                     title="Save"
                                   >
                                     <Save size={10} />
@@ -3537,17 +3678,34 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                             >
                               {pIdx + 1}
                             </td>
-                            <td style={styles.thirdLevelTd} title={part.part_code}>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.part_code}
+                            >
                               {part.part_code}
                             </td>
-                            <td style={styles.thirdLevelTd} title={part.part_name || "-"}>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.part_name || "-"}
+                            >
                               {part.part_name || "-"}
                             </td>
-                            <td style={styles.thirdLevelTd} title={part.qty || 0}>{part.qty || 0}</td>
-                            <td style={styles.thirdLevelTd} title={part.qty_box || 0}>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.qty || 0}
+                            >
+                              {part.qty || 0}
+                            </td>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.qty_box || 0}
+                            >
                               {part.qty_box || 0}
                             </td>
-                            <td style={styles.thirdLevelTd} title={part.unit || "PCS"}>
+                            <td
+                              style={styles.thirdLevelTd}
+                              title={part.unit || "PCS"}
+                            >
                               {part.unit || "PCS"}
                             </td>
 
@@ -3611,8 +3769,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               title={
                                 sampleStatus.sampleDates.length > 0
                                   ? sampleStatus.sampleDates
-                                    .map((d) => formatDate(d))
-                                    .join(", ")
+                                      .map((d) => formatDate(d))
+                                      .join(", ")
                                   : "-"
                               }
                             >
@@ -3630,17 +3788,41 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleStatus.sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
-                                return _pass.length > 0 ? _pass.map(d => formatDate(d)).join(", ") : "-";
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleStatus.sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
+                                return _pass.length > 0
+                                  ? _pass.map((d) => formatDate(d)).join(", ")
+                                  : "-";
                               })()}
                             >
                               {(() => {
-                                const _prod = part.prod_dates || (part.prod_date ? [part.prod_date] : []);
-                                const _pass = _prod.filter(d => !sampleStatus.sampleDates.includes(typeof d === "string" ? d.split("T")[0] : d));
+                                const _prod =
+                                  part.prod_dates ||
+                                  (part.prod_date ? [part.prod_date] : []);
+                                const _pass = _prod.filter(
+                                  (d) =>
+                                    !sampleStatus.sampleDates.includes(
+                                      typeof d === "string"
+                                        ? d.split("T")[0]
+                                        : d,
+                                    ),
+                                );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>{_pass.map(d => formatDate(d)).join(", ")}</span>
-                                ) : "-";
+                                  <span style={{ fontSize: "10px" }}>
+                                    {_pass.map((d) => formatDate(d)).join(", ")}
+                                  </span>
+                                ) : (
+                                  "-"
+                                );
                               })()}
                             </td>
                             {}
@@ -3671,7 +3853,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 <>
                                   <button
                                     style={styles.saveButton}
-                                    onClick={() => handleSaveEditIqcPart(part.id)}
+                                    onClick={() =>
+                                      handleSaveEditIqcPart(part.id)
+                                    }
                                     title="Save"
                                   >
                                     <Save size={10} />
@@ -3735,7 +3919,6 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     const _startS = (currentPage - 1) * ROWS_PER_PAGE;
     const _pagedS = _filteredS.slice(_startS, _startS + ROWS_PER_PAGE);
     return _pagedS.map((schedule, index) => {
-
       return (
         <React.Fragment key={schedule.id}>
           <tr>
@@ -3760,25 +3943,46 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                 )}
               </button>
             </td>
-            <td style={styles.tdWithLeftBorder} title={formatDate(schedule.schedule_date)}>
+            <td
+              style={styles.tdWithLeftBorder}
+              title={formatDate(schedule.schedule_date)}
+            >
               {formatDate(schedule.schedule_date)}
             </td>
-            <td style={styles.tdWithLeftBorder} title={schedule.stock_level || "-"}>
+            <td
+              style={styles.tdWithLeftBorder}
+              title={schedule.stock_level || "-"}
+            >
               {schedule.stock_level || "-"}
             </td>
-            <td style={styles.tdWithLeftBorder} title={schedule.model_name || "-"}>
+            <td
+              style={styles.tdWithLeftBorder}
+              title={schedule.model_name || "-"}
+            >
               {schedule.model_name || "-"}
             </td>
-            <td style={styles.tdWithLeftBorder} title={schedule.total_vendor || 0}>
+            <td
+              style={styles.tdWithLeftBorder}
+              title={schedule.total_vendor || 0}
+            >
               {schedule.total_vendor || 0}
             </td>
-            <td style={styles.tdWithLeftBorder} title={calculateScheduleTotalPallet(schedule)}>
+            <td
+              style={styles.tdWithLeftBorder}
+              title={calculateScheduleTotalPallet(schedule)}
+            >
               {calculateScheduleTotalPallet(schedule)}
             </td>
-            <td style={styles.tdWithLeftBorder} title={calculateScheduleTotalItem(schedule)}>
+            <td
+              style={styles.tdWithLeftBorder}
+              title={calculateScheduleTotalItem(schedule)}
+            >
               {calculateScheduleTotalItem(schedule)}
             </td>
-            <td style={styles.tdWithLeftBorder} title={`${schedule.upload_by_name} | ${formatDateTime(schedule.updated_at || schedule.created_at)}`}>
+            <td
+              style={styles.tdWithLeftBorder}
+              title={`${schedule.upload_by_name} | ${formatDateTime(schedule.updated_at || schedule.created_at)}`}
+            >
               {schedule.upload_by_name} |{" "}
               {formatDateTime(schedule.updated_at || schedule.created_at)}
             </td>
@@ -3868,36 +4072,68 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   )}
                                 </button>
                               </td>
-                              <td style={styles.expandedTd} title={vendor.trip_code || "-"}>
+                              <td
+                                style={styles.expandedTd}
+                                title={vendor.trip_code || "-"}
+                              >
                                 {vendor.trip_code || "-"}
                               </td>
-                              <td style={styles.expandedTd} title={vendor.vendor_name || (vendor.vendor_code ? `Vendor ${vendor.vendor_code}` : "-")}>
+                              <td
+                                style={styles.expandedTd}
+                                title={
+                                  vendor.vendor_name ||
+                                  (vendor.vendor_code
+                                    ? `Vendor ${vendor.vendor_code}`
+                                    : "-")
+                                }
+                              >
                                 {vendor.vendor_name ||
                                   (vendor.vendor_code
                                     ? `Vendor ${vendor.vendor_code}`
                                     : "-")}
                               </td>
-                              <td style={styles.expandedTd} title={vendor.do_number && vendor.do_number.length > 0 ? (Array.isArray(vendor.do_number) ? vendor.do_number.join(", ") : vendor.do_number) : "-"}>
-                                {vendor.do_number &&
+                              <td
+                                style={styles.expandedTd}
+                                title={
+                                  vendor.do_number &&
                                   vendor.do_number.length > 0
+                                    ? Array.isArray(vendor.do_number)
+                                      ? vendor.do_number.join(", ")
+                                      : vendor.do_number
+                                    : "-"
+                                }
+                              >
+                                {vendor.do_number && vendor.do_number.length > 0
                                   ? Array.isArray(vendor.do_number)
                                     ? vendor.do_number.join(", ")
                                     : vendor.do_number
                                   : "-"}
                               </td>
-                              <td style={styles.expandedTd} title={vendor.trip_arrival_time || vendor.arrival_time || "-"}>
+                              <td
+                                style={styles.expandedTd}
+                                title={
+                                  vendor.trip_arrival_time ||
+                                  vendor.arrival_time ||
+                                  "-"
+                                }
+                              >
                                 {vendor.trip_arrival_time ||
                                   vendor.arrival_time ||
                                   "-"}
                               </td>
-                              <td style={styles.expandedTd} title={String(getVendorTotalPallet(vendor))}>
+                              <td
+                                style={styles.expandedTd}
+                                title={String(getVendorTotalPallet(vendor))}
+                              >
                                 {" "}
                                 {getVendorTotalPallet(vendor)}
                               </td>
-                              <td style={styles.expandedTd} title={calculateVendorTotalItem(vendor)}>
+                              <td
+                                style={styles.expandedTd}
+                                title={calculateVendorTotalItem(vendor)}
+                              >
                                 {calculateVendorTotalItem(vendor)}
                               </td>
-
                             </tr>
 
                             {}
@@ -4117,37 +4353,37 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                                               "",
                                                             ]
                                                           ).length > 1 && (
-                                                              <button
-                                                                style={
-                                                                  styles.inlineProdDateRemove
-                                                                }
-                                                                onClick={() => {
-                                                                  const newDates =
-                                                                    (
-                                                                      editPartData.prod_dates || [
-                                                                        "",
-                                                                      ]
-                                                                    ).filter(
-                                                                      (_, i) =>
-                                                                        i !==
-                                                                        dateIdx,
-                                                                    );
-                                                                  setEditPartData(
-                                                                    (p) => ({
-                                                                      ...p,
-                                                                      prod_dates:
-                                                                        newDates,
-                                                                      prod_date:
-                                                                        newDates[0] ||
-                                                                        null,
-                                                                    }),
+                                                            <button
+                                                              style={
+                                                                styles.inlineProdDateRemove
+                                                              }
+                                                              onClick={() => {
+                                                                const newDates =
+                                                                  (
+                                                                    editPartData.prod_dates || [
+                                                                      "",
+                                                                    ]
+                                                                  ).filter(
+                                                                    (_, i) =>
+                                                                      i !==
+                                                                      dateIdx,
                                                                   );
-                                                                }}
-                                                                title="Remove date"
-                                                              >
-                                                                <X size={12} />
-                                                              </button>
-                                                            )}
+                                                                setEditPartData(
+                                                                  (p) => ({
+                                                                    ...p,
+                                                                    prod_dates:
+                                                                      newDates,
+                                                                    prod_date:
+                                                                      newDates[0] ||
+                                                                      null,
+                                                                  }),
+                                                                );
+                                                              }}
+                                                              title="Remove date"
+                                                            >
+                                                              <X size={12} />
+                                                            </button>
+                                                          )}
                                                         </div>
                                                       ))}
                                                       <button
@@ -4268,7 +4504,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                 style={styles.input}
                 placeholder="Date From"
                 value={filters.dateFrom}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, dateFrom: e.target.value }))
+                }
               />
               <span style={styles.label}>To</span>
               <input
@@ -4276,7 +4514,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                 style={styles.input}
                 placeholder="Date To"
                 value={filters.dateTo}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, dateTo: e.target.value }))
+                }
               />
             </div>
             <div style={styles.inputGroup}>
@@ -4284,7 +4524,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
               <select
                 style={styles.select}
                 value={filters.searchBy}
-                onChange={(e) => setFilters(prev => ({ ...prev, searchBy: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, searchBy: e.target.value }))
+                }
               >
                 <option value="vendor_name">Vendor Name</option>
                 <option value="stock_level">Stock Level</option>
@@ -4294,12 +4536,12 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                   {activeTab === "Schedule"
                     ? "Updated By"
                     : activeTab === "Received"
-                    ? "Received By"
-                    : activeTab === "IQC Progress"
-                    ? "Approve By"
-                    : activeTab === "Pass"
-                    ? "Pass By"
-                    : "Complete By"}
+                      ? "Received By"
+                      : activeTab === "IQC Progress"
+                        ? "Approve By"
+                        : activeTab === "Pass"
+                          ? "Pass By"
+                          : "Complete By"}
                 </option>
               </select>
               <input
@@ -4307,10 +4549,29 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                 style={styles.input}
                 placeholder="Input Keyword"
                 value={filters.keyword}
-                onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
-                onKeyDown={(e) => { if (e.key === "Enter") { setAppliedKeyword({ searchBy: filters.searchBy, keyword: filters.keyword }); setCurrentPage(1); } }}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, keyword: e.target.value }))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setAppliedKeyword({
+                      searchBy: filters.searchBy,
+                      keyword: filters.keyword,
+                    });
+                    setCurrentPage(1);
+                  }
+                }}
               />
-              <button style={styles.button} onClick={() => { setAppliedKeyword({ searchBy: filters.searchBy, keyword: filters.keyword }); setCurrentPage(1); }}>
+              <button
+                style={styles.button}
+                onClick={() => {
+                  setAppliedKeyword({
+                    searchBy: filters.searchBy,
+                    keyword: filters.keyword,
+                  });
+                  setCurrentPage(1);
+                }}
+              >
                 Search
               </button>
             </div>
@@ -4326,7 +4587,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab && styles.tabButtonActive),
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
             >
               {tab}
             </button>
@@ -4473,23 +4734,65 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
 
           {}
           {(() => {
-            const _rawData = activeTab === "Received" ? receivedVendors
-              : activeTab === "IQC Progress" ? iqcProgressVendors
-              : activeTab === "Pass" ? passVendors
-              : activeTab === "Complete" ? completeVendors
-              : schedules;
-            const _activeFiltered = applyFilterQC(_rawData, activeTab === "Schedule");
-            const _totalPages = Math.max(1, Math.ceil(_activeFiltered.length / ROWS_PER_PAGE));
+            const _rawData =
+              activeTab === "Received"
+                ? receivedVendors
+                : activeTab === "IQC Progress"
+                  ? iqcProgressVendors
+                  : activeTab === "Pass"
+                    ? passVendors
+                    : activeTab === "Complete"
+                      ? completeVendors
+                      : schedules;
+            const _activeFiltered = applyFilterQC(
+              _rawData,
+              activeTab === "Schedule",
+            );
+            const _totalPages = Math.max(
+              1,
+              Math.ceil(_activeFiltered.length / ROWS_PER_PAGE),
+            );
             return (
               <div style={styles.paginationBar}>
                 <div style={styles.paginationControls}>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>{"<<"}</button>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>{"<"}</button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    {"<<"}
+                  </button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    {"<"}
+                  </button>
                   <span>Page</span>
-                  <input type="text" value={currentPage} style={styles.paginationInput} readOnly />
+                  <input
+                    type="text"
+                    value={currentPage}
+                    style={styles.paginationInput}
+                    readOnly
+                  />
                   <span>of {_totalPages}</span>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(p => Math.min(_totalPages, p + 1))} disabled={currentPage === _totalPages}>{">"}</button>
-                  <button style={styles.paginationButton} onClick={() => setCurrentPage(_totalPages)} disabled={currentPage === _totalPages}>{">>"}</button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(_totalPages, p + 1))
+                    }
+                    disabled={currentPage === _totalPages}
+                  >
+                    {">"}
+                  </button>
+                  <button
+                    style={styles.paginationButton}
+                    onClick={() => setCurrentPage(_totalPages)}
+                    disabled={currentPage === _totalPages}
+                  >
+                    {">>"}
+                  </button>
                 </div>
               </div>
             );
@@ -4709,7 +5012,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                               type="checkbox"
                               checked={
                                 selectedPartsInPopup.length ===
-                                addVendorPartFormData.parts.length &&
+                                  addVendorPartFormData.parts.length &&
                                 addVendorPartFormData.parts.length > 0
                               }
                               onChange={() => {
@@ -4764,10 +5067,16 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   }
                                 />
                               </td>
-                              <td style={vendorPartStyles.td} title={part.partCode}>
+                              <td
+                                style={vendorPartStyles.td}
+                                title={part.partCode}
+                              >
                                 {part.partCode}
                               </td>
-                              <td style={vendorPartStyles.td} title={part.partName || "—"}>
+                              <td
+                                style={vendorPartStyles.td}
+                                title={part.partName || "—"}
+                              >
                                 {part.partName || "—"}
                               </td>
                               <td style={vendorPartStyles.td}>
@@ -4791,10 +5100,16 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   placeholder="0"
                                 />
                               </td>
-                              <td style={vendorPartStyles.td} title={part.qtyBox || ""}>
+                              <td
+                                style={vendorPartStyles.td}
+                                title={part.qtyBox || ""}
+                              >
                                 {part.qtyBox || ""}
                               </td>
-                              <td style={vendorPartStyles.td} title={part.unit || "PCS"}>
+                              <td
+                                style={vendorPartStyles.td}
+                                title={part.unit || "PCS"}
+                              >
                                 {part.unit || "PCS"}
                               </td>
                               <td style={vendorPartStyles.td}>
