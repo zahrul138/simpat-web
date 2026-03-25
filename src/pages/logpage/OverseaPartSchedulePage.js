@@ -5904,13 +5904,12 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Oversea Part Schedule</title>
+        <title>Oversea Schedule</title>
       </Helmet>
-
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Oversea Part Schedule</h1>
+            <h1 style={styles.title}>Oversea Schedule</h1>
           </div>
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
@@ -5998,7 +5997,10 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         <div style={styles.actionButtonsGroup}>
           <button
             style={{ ...styles.button, ...styles.primaryButton }}
-            onClick={() => navigate("/oversea-schedule/add")}
+             onClick={() => {
+              document.title = "Oversea Schedule/Add Oversea Schedule";
+              navigate("/oversea-schedule/add");
+            }}
           >
             <Plus size={16} />
             Create

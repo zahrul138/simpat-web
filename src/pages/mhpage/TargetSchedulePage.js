@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, Check } from "lucide-react";
@@ -15,6 +21,10 @@ const API = {
     updateStatus: (id) => `/api/production-schedules/${id}/status`,
     delete: (id) => `/api/production-schedules/${id}`,
     deleteDetail: (id) => `/api/production-schedules/details/${id}`,
+    addDetail: (id) => `/api/production-schedules/${id}/details`,
+  },
+  customers: {
+    activeMinimal: "/api/customers/active-minimal",
   },
 };
 
@@ -33,7 +43,7 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch { }
+  } catch {}
   if (!res.ok) {
     const msg = data?.message || text || `HTTP ${res.status}`;
     const err = new Error(msg);
@@ -72,6 +82,8 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   const [expandedRows, setExpandedRows] = useState({});
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
   const [addCustomerDetail, setAddCustomerDetail] = useState(false);
+  const [activeScheduleIdForDetail, setActiveScheduleIdForDetail] =
+    useState(null);
   const [addCustomerFormData, setAddCustomerFormData] = useState({
     partCode: "",
     partName: "",
@@ -80,7 +92,12 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     description: "",
   });
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
+  const [highlightedDetailRows, setHighlightedDetailRows] = useState({});
   const [selectAll, setSelectAll] = useState(false);
+  const [customerList, setCustomerList] = useState([]);
+  const [customerMap, setCustomerMap] = useState({});
+  const [customerLoading, setCustomerLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("New");
   const [autoCompleteLoading, setAutoCompleteLoading] = useState(false);
@@ -88,16 +105,6 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   const [lastDataUpdate, setLastDataUpdate] = useState(Date.now());
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
 
-  const filteredSchedules = (() => {
-    const list = productionSchedules.filter(
-      (schedule) => activeTab === "All" || schedule.status === activeTab,
-    );
-
-    if (activeTab === "Complete") {
-      return [...list].sort((a, b) => (b.id || 0) - (a.id || 0));
-    }
-    return list;
-  })();
   const [loading, setLoading] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState({});
   const [error, setError] = useState(null);
@@ -106,11 +113,55 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
   const [dateTo, setDateTo] = useState("");
   const [searchBy, setSearchBy] = useState("Customer");
   const [keyword, setKeyword] = useState("");
-  const [rawData, setRawData] = useState([]);
-  const [filterSearchBy, setFilterSearchBy] = useState("line");
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const [rawData, setRawData] = useState([]);
+  const [filterSearchBy, setFilterSearchBy] = useState("line");
+  const [filterKeyword, setFilterKeyword] = useState("");
+  const [appliedSearchBy, setAppliedSearchBy] = useState("line");
+  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const filteredSchedules = (() => {
+    let list = (
+      appliedKeyword.trim()
+        ? rawData.filter((h) => {
+            const val = (h[appliedSearchBy] || "").toString().toLowerCase();
+            return val.includes(appliedKeyword.toLowerCase());
+          })
+        : productionSchedules
+    ).filter(
+      (schedule) => activeTab === "All" || schedule.status === activeTab,
+    );
+    if (activeTab === "New") {
+      return [...list].sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+    if (activeTab === "OnProgress") {
+      return [...list].sort((a, b) => {
+        const da = new Date(a.date || 0).getTime();
+        const db = new Date(b.date || 0).getTime();
+        return db - da || (b.id || 0) - (a.id || 0);
+      });
+    }
+    if (activeTab === "Complete") {
+      return [...list].sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+    return list;
+  })();
+
+  const totalItems = filteredSchedules.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredSchedules.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
   const expandedRowsRef = useRef({});
   const detailCacheRef = useRef({});
   const selectedHeaderIdsRef = useRef(new Set());
@@ -175,7 +226,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
           );
           setSelectAll(
             newSelected.size === currentFiltered.length &&
-            currentFiltered.length > 0,
+              currentFiltered.length > 0,
           );
 
           return mapped;
@@ -279,17 +330,39 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       await http("/api/production-schedules/auto-progress", {
         method: "PATCH",
       });
-    } catch (_) { }
+    } catch (_) {}
     try {
       await http("/api/production-schedules/auto-complete", {
         method: "PATCH",
       });
-    } catch (_) { }
+    } catch (_) {}
   }, []);
 
   useEffect(() => {
     loadSchedulesFromServer();
   }, [loadSchedulesFromServer]);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      setCustomerLoading(true);
+      try {
+        const rows = await http(API.customers.activeMinimal);
+        if (Array.isArray(rows)) {
+          setCustomerList(rows.map((r) => r.cust_name).filter(Boolean));
+          const map = {};
+          rows.forEach((r) => {
+            if (r.cust_name) map[r.cust_name] = { mat_code: r.mat_code || "" };
+          });
+          setCustomerMap(map);
+        }
+      } catch (err) {
+        console.error("Failed to load customers:", err);
+      } finally {
+        setCustomerLoading(false);
+      }
+    };
+    fetchCustomers();
+  }, []);
 
   useEffect(() => {
     const patchInterval = setInterval(() => {
@@ -389,6 +462,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         `${selectedHeaderIds.size} schedule berhasil dipindahkan ke OnProgress`,
       );
       setToastType("success");
+      setActiveTab("OnProgress");
     } catch (err) {
       alert("Gagal menyimpan schedule: " + (err.message || "Unknown error"));
     } finally {
@@ -526,13 +600,13 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
           delete newCache[scheduleId];
           return newCache;
         });
-
         setExpandedRows((prev) => {
           const newExpanded = { ...prev };
           delete newExpanded[scheduleId];
           return newExpanded;
         });
         await loadSchedulesFromServer();
+        setActiveTab("Complete");
       } else {
         throw new Error("Failed to complete schedule");
       }
@@ -578,6 +652,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
         `${selectedHeaderIds.size} schedule berhasil ditandai sebagai Complete`,
       );
       setToastType("success");
+      setActiveTab("Complete");
     } catch (err) {
       alert(
         "Gagal menyelesaikan schedule: " + (err.message || "Unknown error"),
@@ -642,37 +717,50 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     }
   };
 
-  const openThirdLevelPopup = () => {
+  const openThirdLevelPopup = (scheduleId) => {
+    setActiveScheduleIdForDetail(scheduleId);
     setAddCustomerDetail(true);
   };
 
-  const applyLocalFilter = (data, searchBy, kw) => {
-    if (!kw.trim()) return data;
-    const lower = kw.toLowerCase();
-    return data.filter((h) => {
-      const val = (h[searchBy] || "").toString().toLowerCase();
-      return val.includes(lower);
-    });
-  };
-
   const handleSearchClick = () => {
-    if (keyword.trim()) {
-      setProductionSchedules(
-        applyLocalFilter(rawData, filterSearchBy, keyword),
-      );
-    } else {
-      loadSchedulesFromServer();
-    }
+    setAppliedSearchBy(filterSearchBy);
+    setAppliedKeyword(filterKeyword);
+    setCurrentPage(1);
   };
 
   const handleTabClick = (tab) => {
     if (activeTab === tab) {
       loadSchedulesFromServer();
     } else {
-      setKeyword("");
+      setFilterKeyword("");
+      setAppliedKeyword("");
       setFilterSearchBy("line");
+      setAppliedSearchBy("line");
+      setCurrentPage(1);
+      setExpandedRows({});
+      setHighlightedRows(new Set());
+      setHighlightedDetailRows({});
       setActiveTab(tab);
     }
+  };
+
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleDetailHighlight = (parentId, detailKey) => {
+    setHighlightedDetailRows((prev) => {
+      const next = { ...prev };
+      const key = `${parentId}_${detailKey}`;
+      if (next[key]) delete next[key];
+      else next[key] = true;
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -701,16 +789,75 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
-  const handleAddCustomerSubmit = (e) => {
+  const handleAddCustomerSubmit = async (e) => {
     e.preventDefault();
-    setAddCustomerDetail(false);
-    setAddCustomerFormData({
-      partCode: "",
-      partName: "",
-      quantity: "",
-      poNumber: "",
-      description: "",
-    });
+
+    if (!activeScheduleIdForDetail) {
+      alert("No schedule selected.");
+      return;
+    }
+    if (!addCustomerFormData.partCode) {
+      alert("Please select a customer.");
+      return;
+    }
+    if (
+      !addCustomerFormData.quantity ||
+      Number(addCustomerFormData.quantity) <= 0
+    ) {
+      alert("Input must be greater than 0.");
+      return;
+    }
+
+    try {
+      const result = await http(
+        API.schedules.addDetail(activeScheduleIdForDetail),
+        {
+          method: "POST",
+          body: {
+            customerName: addCustomerFormData.partCode,
+            materialCode: addCustomerFormData.partName || null,
+            input: Number(addCustomerFormData.quantity),
+            poNumber: addCustomerFormData.poNumber || null,
+            description: addCustomerFormData.description || null,
+          },
+        },
+      );
+
+      if (result.success) {
+        setAddCustomerDetail(false);
+        setAddCustomerFormData({
+          partCode: "",
+          partName: "",
+          quantity: "",
+          poNumber: "",
+          description: "",
+        });
+        const updatedDetails = await http(
+          API.schedules.detail(activeScheduleIdForDetail),
+        );
+        setDetailCache((prev) => ({
+          ...prev,
+          [activeScheduleIdForDetail]: (updatedDetails.details || []).map(
+            (d) => ({
+              id: d.id,
+              materialCode: d.material_code || "",
+              customer: d.customer || "",
+              model: d.model || "",
+              description: d.description || "",
+              input: d.input || 0,
+              poNumber: d.po_number || "",
+              palletType: d.pallet_type || "Pallet R",
+              palletUse: d.pallet_use || 1,
+            }),
+          ),
+        }));
+        await loadSchedulesFromServer();
+      } else {
+        alert("Failed: " + result.message);
+      }
+    } catch (err) {
+      alert("Error adding detail: " + (err.message || "Unknown error"));
+    }
   };
 
   const handleAddCustomerInputChange = (field, value) => {
@@ -718,15 +865,8 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       const updated = { ...prev, [field]: value };
 
       if (field === "partCode") {
-        if (value === "EEB") {
-          updated.partName = "B224401-1143";
-        } else if (value === "EHC") {
-          updated.partName = "B224401-1043";
-        } else if (value === "ECC") {
-          updated.partName = "B224401-1243";
-        } else {
-          updated.partName = "";
-        }
+        const meta = (customerMap && customerMap[value]) || {};
+        updated.partName = meta.mat_code || "";
       }
 
       return updated;
@@ -745,63 +885,132 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     (schedule) => schedule.status === "New",
   );
 
-  const getColgroup = () => {
-    if (activeTab === "New") {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "3.3%" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-        </colgroup>
-      );
-    } else if (activeTab === "OnProgress") {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-        </colgroup>
-      );
-    } else {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "18%" }} />
-        </colgroup>
-      );
-    }
+  const tableConfig = {
+    New: {
+      cols: [
+        "25px",
+        "3.3%",
+        "23px",
+        "15%",
+        "15%",
+        "15%",
+        "12%",
+        "12%",
+        "12%",
+        "12%",
+        "20%",
+        "10%",
+      ],
+      colSpan: 12,
+      expandedTable: {
+        cols: [
+          "25px",
+          "15%",
+          "15%",
+          "15%",
+          "20%",
+          "10%",
+          "15%",
+          "15%",
+          "10%",
+          "7%",
+        ],
+        colSpan: 10,
+        marginLeft: "77.8px",
+      },
+    },
+    OnProgress: {
+      cols: [
+        "25px",
+        "23px",
+        "16%",
+        "16%",
+        "16%",
+        "12%",
+        "12%",
+        "12%",
+        "12%",
+        "20%",
+        "10%",
+      ],
+      colSpan: 11,
+      expandedTable: {
+        cols: ["25px", "15%", "15%", "15%", "20%", "10%", "15%", "15%", "10%"],
+        colSpan: 9,
+        marginLeft: "47.5px",
+      },
+    },
+    Complete: {
+      cols: [
+        "25px",
+        "23px",
+        "16%",
+        "16%",
+        "16%",
+        "12%",
+        "12%",
+        "12%",
+        "12%",
+        "18%",
+      ],
+      colSpan: 10,
+      expandedTable: {
+        cols: [
+          "25px",
+          "15%",
+          "15%",
+          "15%",
+          "20%",
+          "10%",
+          "15%",
+          "15%",
+          "10%",
+          "10%",
+        ],
+        colSpan: 10,
+        marginLeft: "48px",
+      },
+    },
+    Reject: {
+      cols: [
+        "25px",
+        "23px",
+        "16%",
+        "16%",
+        "16%",
+        "12%",
+        "12%",
+        "12%",
+        "12%",
+        "18%",
+      ],
+      colSpan: 10,
+      expandedTable: {
+        cols: [
+          "25px",
+          "15%",
+          "15%",
+          "15%",
+          "20%",
+          "10%",
+          "15%",
+          "15%",
+          "10%",
+          "10%",
+        ],
+        colSpan: 10,
+        marginLeft: "48px",
+      },
+    },
   };
 
-  const getColSpanCount = () => {
-    if (activeTab === "New") return 12;
-    if (activeTab === "OnProgress") return 10;
-    return 9;
-  };
+  const renderColgroup = (cols) => (
+    <colgroup>
+      {cols.map((width, i) => (
+        <col key={i} style={{ width }} />
+      ))}
+    </colgroup>
+  );
 
   const styles = {
     pageContainer: {
@@ -1425,6 +1634,1282 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     },
   };
 
+  const renderNewTab = () => {
+    if (loading)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.New.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
+            Loading…
+          </td>
+        </tr>
+      );
+    if (error)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.New.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#ef4444",
+            }}
+          >
+            {error}
+          </td>
+        </tr>
+      );
+    return currentItems.map((h, idx) => (
+      <React.Fragment key={h.id}>
+        <tr
+          style={{
+            backgroundColor:
+              selectedHeaderIds.has(h.id) || expandedRows[h.id]
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (
+              !e.target.closest("input[type='checkbox']") &&
+              !e.target.closest("button")
+            )
+              toggleRowHighlight(h.id);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              selectedHeaderIds.has(h.id) || expandedRows[h.id]
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+            title={startIndex + idx + 1}
+          >
+            {startIndex + idx + 1}
+          </td>
+          <td style={styles.tdWithLeftBorder} title="Select">
+            <input
+              type="checkbox"
+              checked={selectedHeaderIds.has(h.id)}
+              onChange={(e) => toggleHeaderCheckbox(h.id, e.target.checked)}
+              style={{
+                margin: "0 auto",
+                display: "block",
+                cursor: "pointer",
+                width: "12px",
+                height: "12px",
+              }}
+            />
+          </td>
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Expand"
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() => {
+                toggleRowExpansion(h.id);
+                if (expandedRows[h.id]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(h.id);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((key) => {
+                      if (key.startsWith(`${h.id}_`)) delete next[key];
+                    });
+                    return next;
+                  });
+                }
+              }}
+            >
+              {expandedRows[h.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(h.date)}>
+            {toDDMMYYYY(h.date)}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.line || ""}>
+            {h.line}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.shiftTime || ""}>
+            {h.shiftTime}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_input || 0)}
+          >
+            {h.total_input || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_customer || 0)}
+          >
+            {h.total_customer || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_model || 0)}
+          >
+            {h.total_model || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_pallet || 0)}
+          >
+            {h.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.createdBy || "").toUpperCase()}
+          >
+            {String(h.createdBy || "").toUpperCase()}
+          </td>
+          <td style={styles.tdWithLeftBorder} title="Action">
+            <button
+              style={styles.addButton}
+              onClick={() => openThirdLevelPopup(h.id)}
+              title="Add Detail"
+            >
+              <Plus size={10} />
+            </button>
+            <button
+              style={styles.deleteButton}
+              onClick={() => handleDeleteSchedule(h.id, h.code)}
+              title="Delete"
+              disabled={loadingDetail[h.id]}
+            >
+              <Trash2 size={10} />
+            </button>
+          </td>
+        </tr>
+        {expandedRows[h.id] && (
+          <tr>
+            <td
+              colSpan={tableConfig.New.colSpan}
+              style={{ padding: 0, border: "none" }}
+            >
+              <div
+                style={{
+                  ...styles.expandedTableContainer,
+                  marginLeft: tableConfig.New.expandedTable.marginLeft,
+                  width: `calc(100% - ${tableConfig.New.expandedTable.marginLeft} - 14px)`,
+                }}
+              >
+                <table style={styles.expandedTable}>
+                  {renderColgroup(tableConfig.New.expandedTable.cols)}
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.expandedTh}>No</th>
+                      <th style={styles.expandedTh}>Material Code</th>
+                      <th style={styles.expandedTh}>Customer</th>
+                      <th style={styles.expandedTh}>Model</th>
+                      <th style={styles.expandedTh}>Description</th>
+                      <th style={styles.expandedTh}>Input</th>
+                      <th style={styles.expandedTh}>PO Number</th>
+                      <th style={styles.expandedTh}>Pallet Type</th>
+                      <th style={styles.expandedTh}>Pallet Use</th>
+                      <th style={styles.expandedTh}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingDetail[h.id] && (
+                      <tr>
+                        <td
+                          colSpan="10"
+                          style={{
+                            ...styles.expandedTd,
+                            textAlign: "center",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Loading…
+                        </td>
+                      </tr>
+                    )}
+                    {!loadingDetail[h.id] &&
+                      (!detailCache[h.id] ||
+                        detailCache[h.id].length === 0) && (
+                        <tr>
+                          <td
+                            colSpan="10"
+                            style={{
+                              ...styles.expandedTd,
+                              textAlign: "center",
+                            }}
+                          >
+                            Details not yet added.
+                          </td>
+                        </tr>
+                      )}
+                    {!loadingDetail[h.id] &&
+                      detailCache[h.id]?.map((d, i) => (
+                        <tr
+                          key={`${h.id}-${d.id || i}`}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.closest("input")
+                            )
+                              toggleDetailHighlight(h.id, d.id || i);
+                          }}
+                          style={{
+                            backgroundColor: highlightedDetailRows[
+                              `${h.id}_${d.id || i}`
+                            ]
+                              ? "#c7cde8"
+                              : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!highlightedDetailRows[`${h.id}_${d.id || i}`])
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!highlightedDetailRows[`${h.id}_${d.id || i}`])
+                              e.target.closest("tr").style.backgroundColor =
+                                "transparent";
+                          }}
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                            title={i + 1}
+                          >
+                            {i + 1}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.materialCode || ""}
+                          >
+                            {d.materialCode}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.customer || ""}
+                          >
+                            {d.customer}
+                          </td>
+                          <td style={styles.expandedTd} title={d.model || ""}>
+                            {d.model || ""}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.description || ""}
+                          >
+                            {d.description || ""}
+                          </td>
+                          <td style={styles.expandedTd} title={String(d.input)}>
+                            {d.input}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.poNumber || ""}
+                          >
+                            {d.poNumber}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.palletType || ""}
+                          >
+                            {d.palletType}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={String(d.palletUse)}
+                          >
+                            {d.palletUse}
+                          </td>
+                          <td style={styles.expandedTd} title="Action">
+                            <button
+                              style={styles.deleteButton}
+                              title="Delete"
+                              onClick={() => {
+                                if (!d.id) {
+                                  alert(
+                                    "Error: Detail ID tidak valid. Tidak dapat menghapus.",
+                                  );
+                                  return;
+                                }
+                                if (!h.id) {
+                                  alert("Error: Schedule ID tidak valid.");
+                                  return;
+                                }
+                                handleDeleteDetail(d.id, h.id);
+                              }}
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  const renderOnProgressTab = () => {
+    if (loading)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.OnProgress.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
+            Loading…
+          </td>
+        </tr>
+      );
+    if (error)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.OnProgress.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#ef4444",
+            }}
+          >
+            {error}
+          </td>
+        </tr>
+      );
+    return currentItems.map((h, idx) => (
+      <React.Fragment key={h.id}>
+        <tr
+          style={{
+            backgroundColor:
+              expandedRows[h.id] || highlightedRows.has(h.id)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("input") && !e.target.closest("button"))
+              toggleRowHighlight(h.id);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedRows[h.id] || highlightedRows.has(h.id)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+            title={startIndex + idx + 1}
+          >
+            {startIndex + idx + 1}
+          </td>
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Expand"
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() => {
+                toggleRowExpansion(h.id);
+                if (expandedRows[h.id]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(h.id);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((key) => {
+                      if (key.startsWith(`${h.id}_`)) delete next[key];
+                    });
+                    return next;
+                  });
+                }
+              }}
+            >
+              {expandedRows[h.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(h.date)}>
+            {toDDMMYYYY(h.date)}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.line || ""}>
+            {h.line}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.shiftTime || ""}>
+            {h.shiftTime}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_input || 0)}
+          >
+            {h.total_input || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_customer || 0)}
+          >
+            {h.total_customer || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_model || 0)}
+          >
+            {h.total_model || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_pallet || 0)}
+          >
+            {h.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.createdBy || "").toUpperCase()}
+          >
+            {String(h.createdBy || "").toUpperCase()}
+          </td>
+          <td style={styles.tdWithLeftBorder} title="Action">
+            <button
+              style={styles.completeButton}
+              onClick={() => handleCompleteSchedule(h.id)}
+              title="Mark as Complete"
+              disabled={loadingDetail[h.id]}
+            >
+              <Check size={10} />
+            </button>
+            <button
+              style={styles.deleteButton}
+              onClick={() => handleDeleteSchedule(h.id, h.code)}
+              title="Delete"
+              disabled={loadingDetail[h.id]}
+            >
+              <Trash2 size={10} />
+            </button>
+          </td>
+        </tr>
+        {expandedRows[h.id] && (
+          <tr>
+            <td
+              colSpan={tableConfig.OnProgress.colSpan}
+              style={{ padding: 0, border: "none" }}
+            >
+              <div
+                style={{
+                  ...styles.expandedTableContainer,
+                  marginLeft: tableConfig.OnProgress.expandedTable.marginLeft,
+                  width: `calc(100% - ${tableConfig.OnProgress.expandedTable.marginLeft} - 14px)`,
+                }}
+              >
+                <table style={styles.expandedTable}>
+                  {renderColgroup(tableConfig.OnProgress.expandedTable.cols)}
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.expandedTh}>No</th>
+                      <th style={styles.expandedTh}>Material Code</th>
+                      <th style={styles.expandedTh}>Customer</th>
+                      <th style={styles.expandedTh}>Model</th>
+                      <th style={styles.expandedTh}>Description</th>
+                      <th style={styles.expandedTh}>Input</th>
+                      <th style={styles.expandedTh}>PO Number</th>
+                      <th style={styles.expandedTh}>Pallet Type</th>
+                      <th style={styles.expandedTh}>Pallet Use</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingDetail[h.id] && (
+                      <tr>
+                        <td
+                          colSpan="10"
+                          style={{
+                            ...styles.expandedTd,
+                            textAlign: "center",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Loading…
+                        </td>
+                      </tr>
+                    )}
+                    {!loadingDetail[h.id] &&
+                      (!detailCache[h.id] ||
+                        detailCache[h.id].length === 0) && (
+                        <tr>
+                          <td
+                            colSpan="9"
+                            style={{
+                              ...styles.expandedTd,
+                              textAlign: "center",
+                            }}
+                          >
+                            Details not yet added.
+                          </td>
+                        </tr>
+                      )}
+                    {!loadingDetail[h.id] &&
+                      detailCache[h.id]?.map((d, i) => (
+                        <tr
+                          key={`${h.id}-${d.id || i}`}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.closest("input")
+                            )
+                              toggleDetailHighlight(h.id, d.id || i);
+                          }}
+                          style={{
+                            backgroundColor: highlightedDetailRows[
+                              `${h.id}_${d.id || i}`
+                            ]
+                              ? "#c7cde8"
+                              : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!highlightedDetailRows[`${h.id}_${d.id || i}`])
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!highlightedDetailRows[`${h.id}_${d.id || i}`])
+                              e.target.closest("tr").style.backgroundColor =
+                                "transparent";
+                          }}
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                            title={i + 1}
+                          >
+                            {i + 1}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.materialCode || ""}
+                          >
+                            {d.materialCode}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.customer || ""}
+                          >
+                            {d.customer}
+                          </td>
+                          <td style={styles.expandedTd} title={d.model || ""}>
+                            {d.model || ""}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.description || ""}
+                          >
+                            {d.description || ""}
+                          </td>
+                          <td style={styles.expandedTd} title={String(d.input)}>
+                            {d.input}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.poNumber || ""}
+                          >
+                            {d.poNumber}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.palletType || ""}
+                          >
+                            {d.palletType}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={String(d.palletUse)}
+                          >
+                            {d.palletUse}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  const renderCompleteTab = () => {
+    if (loading)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.Complete.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
+            Loading…
+          </td>
+        </tr>
+      );
+    if (error)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.Complete.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#ef4444",
+            }}
+          >
+            {error}
+          </td>
+        </tr>
+      );
+    return currentItems.map((h, idx) => (
+      <React.Fragment key={h.id}>
+        <tr
+          style={{
+            backgroundColor:
+              expandedRows[h.id] || highlightedRows.has(h.id)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("input") && !e.target.closest("button"))
+              toggleRowHighlight(h.id);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedRows[h.id] || highlightedRows.has(h.id)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+            title={startIndex + idx + 1}
+          >
+            {startIndex + idx + 1}
+          </td>
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Expand"
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() => {
+                toggleRowExpansion(h.id);
+                if (expandedRows[h.id]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(h.id);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((key) => {
+                      if (key.startsWith(`${h.id}_`)) delete next[key];
+                    });
+                    return next;
+                  });
+                }
+              }}
+            >
+              {expandedRows[h.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(h.date)}>
+            {toDDMMYYYY(h.date)}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.line || ""}>
+            {h.line}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.shiftTime || ""}>
+            {h.shiftTime}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_input || 0)}
+          >
+            {h.total_input || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_customer || 0)}
+          >
+            {h.total_customer || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_model || 0)}
+          >
+            {h.total_model || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_pallet || 0)}
+          >
+            {h.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.createdBy || "").toUpperCase()}
+          >
+            {String(h.createdBy || "").toUpperCase()}
+          </td>
+        </tr>
+        {expandedRows[h.id] && (
+          <tr>
+            <td
+              colSpan={tableConfig.Complete.colSpan}
+              style={{ padding: 0, border: "none" }}
+            >
+              <div
+                style={{
+                  ...styles.expandedTableContainer,
+                  marginLeft: tableConfig.Complete.expandedTable.marginLeft,
+                  width: `calc(100% - ${tableConfig.Complete.expandedTable.marginLeft} - 14px)`,
+                }}
+              >
+                <table style={styles.expandedTable}>
+                  {renderColgroup(tableConfig.Complete.expandedTable.cols)}
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.expandedTh}>No</th>
+                      <th style={styles.expandedTh}>Material Code</th>
+                      <th style={styles.expandedTh}>Customer</th>
+                      <th style={styles.expandedTh}>Model</th>
+                      <th style={styles.expandedTh}>Description</th>
+                      <th style={styles.expandedTh}>Input</th>
+                      <th style={styles.expandedTh}>PO Number</th>
+                      <th style={styles.expandedTh}>Pallet Type</th>
+                      <th style={styles.expandedTh}>Pallet Use</th>
+                      <th style={styles.expandedTh}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingDetail[h.id] && (
+                      <tr>
+                        <td
+                          colSpan={tableConfig.Complete.expandedTable.colSpan}
+                          style={{
+                            ...styles.expandedTd,
+                            textAlign: "center",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Loading…
+                        </td>
+                      </tr>
+                    )}
+                    {!loadingDetail[h.id] &&
+                      (!detailCache[h.id] ||
+                        detailCache[h.id].length === 0) && (
+                        <tr>
+                          <td
+                            colSpan="10"
+                            style={{
+                              ...styles.expandedTd,
+                              textAlign: "center",
+                            }}
+                          >
+                            Details not yet added.
+                          </td>
+                        </tr>
+                      )}
+                    {!loadingDetail[h.id] &&
+                      detailCache[h.id]?.map((d, i) => (
+                        <tr
+                          key={`${h.id}-${d.id || i}`}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.closest("input")
+                            )
+                              toggleDetailHighlight(h.id, d.id || i);
+                          }}
+                          style={{
+                            backgroundColor: highlightedDetailRows[
+                              `${h.id}_${d.id || i}`
+                            ]
+                              ? "#c7cde8"
+                              : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!highlightedDetailRows[`${h.id}_${d.id || i}`])
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!highlightedDetailRows[`${h.id}_${d.id || i}`])
+                              e.target.closest("tr").style.backgroundColor =
+                                "transparent";
+                          }}
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                            title={i + 1}
+                          >
+                            {i + 1}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.materialCode || ""}
+                          >
+                            {d.materialCode}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.customer || ""}
+                          >
+                            {d.customer}
+                          </td>
+                          <td style={styles.expandedTd} title={d.model || ""}>
+                            {d.model || ""}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.description || ""}
+                          >
+                            {d.description || ""}
+                          </td>
+                          <td style={styles.expandedTd} title={String(d.input)}>
+                            {d.input}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.poNumber || ""}
+                          >
+                            {d.poNumber}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.palletType || ""}
+                          >
+                            {d.palletType}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={String(d.palletUse)}
+                          >
+                            {d.palletUse}
+                          </td>
+                          <td style={styles.expandedTd} title="Action">
+                            <button style={styles.editButton}>
+                              <Pencil size={10} />
+                            </button>
+                            <button
+                              style={styles.deleteButton}
+                              title="Delete"
+                              onClick={() => {
+                                if (!d.id) {
+                                  alert(
+                                    "Error: Detail ID tidak valid. Tidak dapat menghapus.",
+                                  );
+                                  return;
+                                }
+                                if (!h.id) {
+                                  alert("Error: Schedule ID tidak valid.");
+                                  return;
+                                }
+                                handleDeleteDetail(d.id, h.id);
+                              }}
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  const renderRejectTab = () => {
+    if (loading)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.Reject.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
+            Loading…
+          </td>
+        </tr>
+      );
+    if (error)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.Reject.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#ef4444",
+            }}
+          >
+            {error}
+          </td>
+        </tr>
+      );
+    return currentItems.map((h, idx) => (
+      <React.Fragment key={h.id}>
+        <tr
+          style={{
+            backgroundColor:
+              expandedRows[h.id] || highlightedRows.has(h.id)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("input") && !e.target.closest("button"))
+              toggleRowHighlight(h.id);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedRows[h.id] || highlightedRows.has(h.id)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+            title={startIndex + idx + 1}
+          >
+            {startIndex + idx + 1}
+          </td>
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Expand"
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() => {
+                toggleRowExpansion(h.id);
+                if (expandedRows[h.id]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(h.id);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((key) => {
+                      if (key.startsWith(`${h.id}_`)) delete next[key];
+                    });
+                    return next;
+                  });
+                }
+              }}
+            >
+              {expandedRows[h.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(h.date)}>
+            {toDDMMYYYY(h.date)}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.line || ""}>
+            {h.line}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.shiftTime || ""}>
+            {h.shiftTime}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_input || 0)}
+          >
+            {h.total_input || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_customer || 0)}
+          >
+            {h.total_customer || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_model || 0)}
+          >
+            {h.total_model || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_pallet || 0)}
+          >
+            {h.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.createdBy || "").toUpperCase()}
+          >
+            {String(h.createdBy || "").toUpperCase()}
+          </td>
+        </tr>
+        {expandedRows[h.id] && (
+          <tr>
+            <td
+              colSpan={tableConfig.Reject.colSpan}
+              style={{ padding: 0, border: "none" }}
+            >
+              <div
+                style={{
+                  ...styles.expandedTableContainer,
+                  marginLeft: tableConfig.Reject.expandedTable.marginLeft,
+                  width: `calc(100% - ${tableConfig.Reject.expandedTable.marginLeft} - 14px)`,
+                }}
+              >
+                <table style={styles.expandedTable}>
+                  {renderColgroup(tableConfig.Reject.expandedTable.cols)}
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.expandedTh}>No</th>
+                      <th style={styles.expandedTh}>Material Code</th>
+                      <th style={styles.expandedTh}>Customer</th>
+                      <th style={styles.expandedTh}>Model</th>
+                      <th style={styles.expandedTh}>Description</th>
+                      <th style={styles.expandedTh}>Input</th>
+                      <th style={styles.expandedTh}>PO Number</th>
+                      <th style={styles.expandedTh}>Pallet Type</th>
+                      <th style={styles.expandedTh}>Pallet Use</th>
+                      <th style={styles.expandedTh}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingDetail[h.id] && (
+                      <tr>
+                        <td
+                          colSpan={tableConfig.Complete.expandedTable.colSpan}
+                          style={{
+                            ...styles.expandedTd,
+                            textAlign: "center",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Loading…
+                        </td>
+                      </tr>
+                    )}
+                    {!loadingDetail[h.id] &&
+                      (!detailCache[h.id] ||
+                        detailCache[h.id].length === 0) && (
+                        <tr>
+                          <td
+                            colSpan="10"
+                            style={{
+                              ...styles.expandedTd,
+                              textAlign: "center",
+                            }}
+                          >
+                            Details not yet added.
+                          </td>
+                        </tr>
+                      )}
+                    {!loadingDetail[h.id] &&
+                      detailCache[h.id]?.map((d, i) => (
+                        <tr
+                          key={`${h.id}-${d.id || i}`}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.closest("input")
+                            )
+                              toggleDetailHighlight(h.id, d.id || i);
+                          }}
+                          style={{
+                            backgroundColor: highlightedDetailRows[
+                              `${h.id}_${d.id || i}`
+                            ]
+                              ? "#c7cde8"
+                              : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!highlightedDetailRows[`${h.id}_${d.id || i}`])
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!highlightedDetailRows[`${h.id}_${d.id || i}`])
+                              e.target.closest("tr").style.backgroundColor =
+                                "transparent";
+                          }}
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                            title={i + 1}
+                          >
+                            {i + 1}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.materialCode || ""}
+                          >
+                            {d.materialCode}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.customer || ""}
+                          >
+                            {d.customer}
+                          </td>
+                          <td style={styles.expandedTd} title={d.model || ""}>
+                            {d.model || ""}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.description || ""}
+                          >
+                            {d.description || ""}
+                          </td>
+                          <td style={styles.expandedTd} title={String(d.input)}>
+                            {d.input}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.poNumber || ""}
+                          >
+                            {d.poNumber}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.palletType || ""}
+                          >
+                            {d.palletType}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={String(d.palletUse)}
+                          >
+                            {d.palletUse}
+                          </td>
+                          <td style={styles.expandedTd} title="Action">
+                            <button style={styles.editButton}>
+                              <Pencil size={10} />
+                            </button>
+                            <button
+                              style={styles.deleteButton}
+                              title="Delete"
+                              onClick={() => {
+                                if (!d.id) {
+                                  alert(
+                                    "Error: Detail ID tidak valid. Tidak dapat menghapus.",
+                                  );
+                                  return;
+                                }
+                                if (!h.id) {
+                                  alert("Error: Schedule ID tidak valid.");
+                                  return;
+                                }
+                                handleDeleteDetail(d.id, h.id);
+                              }}
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
   const handleButtonHover = (e, isHover, type) => {
     if (type === "search") {
       e.target.style.backgroundColor = isHover ? "#1d4ed8" : "#2563eb";
@@ -1469,7 +2954,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Target Production Schedules</h1>
+            <h1 style={styles.title}>Target Schedule</h1>
           </div>
 
           <div style={styles.filterRow}>
@@ -1510,8 +2995,8 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                 type="text"
                 style={styles.input}
                 placeholder="Input Keyword"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
+                value={filterKeyword}
+                onChange={(e) => setFilterKeyword(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSearchClick();
                 }}
@@ -1624,18 +3109,18 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
 
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
-            <table
-              style={{
-                ...styles.table,
-                minWidth: "1200px",
-                tableLayout: "fixed",
-              }}
-            >
-              {getColgroup()}
-              <thead>
-                <tr style={styles.tableHeader}>
-                  <th style={styles.expandedTh}>No</th>
-                  {activeTab === "New" && (
+            {activeTab === "New" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig.New.cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
                     <th style={styles.thWithLeftBorder}>
                       {filteredSchedules.length > 1 && (
                         <input
@@ -1652,401 +3137,141 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                         />
                       )}
                     </th>
-                  )}
-                  <th style={styles.thWithLeftBorder}></th>
-                  <th style={styles.thWithLeftBorder}>Date</th>
-                  <th style={styles.thWithLeftBorder}>Line</th>
-                  <th style={styles.thWithLeftBorder}>Shift Time</th>
-                  <th style={styles.thWithLeftBorder}>Total Input</th>
-                  <th style={styles.thWithLeftBorder}>Total Customer</th>
-                  <th style={styles.thWithLeftBorder}>Total Model</th>
-                  <th style={styles.thWithLeftBorder}>Total Pallet</th>
-                  <th style={styles.thWithLeftBorder}>Created By</th>
-                  {(activeTab === "New" || activeTab === "OnProgress") && (
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Date</th>
+                    <th style={styles.thWithLeftBorder}>Line</th>
+                    <th style={styles.thWithLeftBorder}>Shift Time</th>
+                    <th style={styles.thWithLeftBorder}>Total Input</th>
+                    <th style={styles.thWithLeftBorder}>Total Customer</th>
+                    <th style={styles.thWithLeftBorder}>Total Model</th>
+                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                    <th style={styles.thWithLeftBorder}>Created By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td
-                      colSpan={getColSpanCount()}
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                        color: "#6b7280",
-                      }}
-                    >
-                      Loading…
-                    </td>
                   </tr>
-                )}
-                {!loading && error && (
-                  <tr>
-                    <td
-                      colSpan={getColSpanCount()}
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                        color: "#ef4444",
-                      }}
-                    >
-                      {error}
-                    </td>
+                </thead>
+                <tbody>{renderNewTab()}</tbody>
+              </table>
+            )}
+            {activeTab === "OnProgress" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig.OnProgress.cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Date</th>
+                    <th style={styles.thWithLeftBorder}>Line</th>
+                    <th style={styles.thWithLeftBorder}>Shift Time</th>
+                    <th style={styles.thWithLeftBorder}>Total Input</th>
+                    <th style={styles.thWithLeftBorder}>Total Customer</th>
+                    <th style={styles.thWithLeftBorder}>Total Model</th>
+                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                    <th style={styles.thWithLeftBorder}>Created By</th>
+                    <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
-                )}
-
-                {!loading &&
-                  !error &&
-                  filteredSchedules.map((h, idx) => (
-                    <FragmentLike key={h.id}>
-                      <tr
-                        onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                        }
-                      >
-                        <td
-                          style={{
-                            ...styles.expandedTd,
-                            ...styles.expandedWithLeftBorder,
-                            ...styles.emptyColumn,
-                          }}
-                          title={idx + 1}
-                        >
-                          {idx + 1}
-                        </td>
-                        {activeTab === "New" && (
-                          <td style={styles.tdWithLeftBorder} title="Select">
-                            <input
-                              type="checkbox"
-                              checked={selectedHeaderIds.has(h.id)}
-                              onChange={(e) =>
-                                toggleHeaderCheckbox(h.id, e.target.checked)
-                              }
-                              style={{
-                                margin: "0 auto",
-                                display: "block",
-                                cursor: "pointer",
-                                width: "12px",
-                                height: "12px",
-                              }}
-                            />
-                          </td>
-                        )}
-                        <td
-                          style={{
-                            ...styles.tdWithLeftBorder,
-                            ...styles.emptyColumn,
-                          }}
-                          title="Expand"
-                        >
-                          <button
-                            style={styles.arrowButton}
-                            onClick={() => toggleRowExpansion(h.id)}
-                          >
-                            {expandedRows[h.id] ? (
-                              <MdArrowDropDown style={styles.arrowIcon} />
-                            ) : (
-                              <MdArrowRight style={styles.arrowIcon} />
-                            )}
-                          </button>
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={toDDMMYYYY(h.date)}
-                        >
-                          {toDDMMYYYY(h.date)}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={h.line || ""}
-                        >
-                          {h.line}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={h.shiftTime || ""}
-                        >
-                          {h.shiftTime}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.total_input || 0)}
-                        >
-                          {h.total_input || 0}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.total_customer || 0)}
-                        >
-                          {h.total_customer || 0}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.total_model || 0)}
-                        >
-                          {h.total_model || 0}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.total_pallet || 0)}
-                        >
-                          {h.total_pallet || 0}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.createdBy).toUpperCase()}
-                        >
-                          {String(h.createdBy).toUpperCase()}
-                        </td>
-                        {(activeTab === "New" ||
-                          activeTab === "OnProgress") && (
-                            <td style={styles.tdWithLeftBorder} title="Action">
-                              <button
-                                style={styles.addButton}
-                                onClick={openThirdLevelPopup}
-                                title="Add Detail"
-                              >
-                                <Plus size={10} />
-                              </button>
-
-                              {h.status === "OnProgress" && (
-                                <button
-                                  style={styles.completeButton}
-                                  onClick={() => handleCompleteSchedule(h.id)}
-                                  title="Mark as Complete"
-                                  disabled={loadingDetail[h.id]}
-                                >
-                                  <Check size={10} />
-                                </button>
-                              )}
-
-                              <button
-                                style={styles.deleteButton}
-                                onClick={() => handleDeleteSchedule(h.id, h.code)}
-                                title="Delete"
-                                disabled={loadingDetail[h.id]}
-                              >
-                                <Trash2 size={10} />
-                              </button>
-                            </td>
-                          )}
-                      </tr>
-
-                      {expandedRows[h.id] && (
-                        <tr>
-                          <td
-                            colSpan={getColSpanCount()}
-                            style={{ padding: 0, border: "none" }}
-                          >
-                            <div style={styles.expandedTableContainer}>
-                              <table style={styles.expandedTable}>
-                                <colgroup>
-                                  <col style={{ width: "25px" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "20%" }} />
-                                  <col style={{ width: "10%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "10%" }} />
-                                  <col style={{ width: "10%" }} />
-                                </colgroup>
-                                <thead>
-                                  <tr style={styles.expandedTableHeader}>
-                                    <th style={styles.expandedTh}>No</th>
-                                    <th style={styles.expandedTh}>
-                                      Material Code
-                                    </th>
-                                    <th style={styles.expandedTh}>Customer</th>
-                                    <th style={styles.expandedTh}>Model</th>
-                                    <th style={styles.expandedTh}>
-                                      Description
-                                    </th>
-                                    <th style={styles.expandedTh}>Input</th>
-                                    <th style={styles.expandedTh}>PO Number</th>
-                                    <th style={styles.expandedTh}>
-                                      Pallet Type
-                                    </th>
-                                    <th style={styles.expandedTh}>
-                                      Pallet Use
-                                    </th>
-                                    <th style={styles.expandedTh}>Action</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {loadingDetail[h.id] && (
-                                    <tr>
-                                      <td
-                                        colSpan="10"
-                                        style={{
-                                          ...styles.expandedTd,
-                                          textAlign: "center",
-                                          color: "#6b7280",
-                                        }}
-                                      >
-                                        Loading…
-                                      </td>
-                                    </tr>
-                                  )}
-                                  {!loadingDetail[h.id] &&
-                                    (!detailCache[h.id] ||
-                                      detailCache[h.id].length === 0) && (
-                                      <tr>
-                                        <td
-                                          colSpan="10"
-                                          style={{
-                                            ...styles.expandedTd,
-                                            textAlign: "center",
-                                          }}
-                                        >
-                                          Details not yet added.
-                                        </td>
-                                      </tr>
-                                    )}
-                                  {!loadingDetail[h.id] &&
-                                    detailCache[h.id]?.map((d, i) => {
-                                      return (
-                                        <tr
-                                          key={`${h.id}-${d.id || i}`}
-                                          onMouseEnter={(e) =>
-                                          (e.target.closest(
-                                            "tr",
-                                          ).style.backgroundColor = "#c7cde8")
-                                          }
-                                          onMouseLeave={(e) =>
-                                          (e.target.closest(
-                                            "tr",
-                                          ).style.backgroundColor =
-                                            "transparent")
-                                          }
-                                        >
-                                          <td
-                                            style={{
-                                              ...styles.expandedTd,
-                                              ...styles.expandedWithLeftBorder,
-                                              ...styles.emptyColumn,
-                                            }}
-                                            title={i + 1}
-                                          >
-                                            {i + 1}
-                                          </td>
-
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.materialCode || ""}
-                                          >
-                                            {d.materialCode}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.customer || ""}
-                                          >
-                                            {d.customer}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.model || ""}
-                                          >
-                                            {d.model || ""}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.description || ""}
-                                          >
-                                            {d.description || ""}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={String(d.input)}
-                                          >
-                                            {d.input}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.poNumber || ""}
-                                          >
-                                            {d.poNumber}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.palletType || ""}
-                                          >
-                                            {d.palletType}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={String(d.palletUse)}
-                                          >
-                                            {d.palletUse}
-                                          </td>
-
-                                          <td
-                                            style={styles.expandedTd}
-                                            title="Action"
-                                          >
-                                            <button style={styles.editButton}>
-                                              <Pencil size={10} />
-                                            </button>
-                                            <button
-                                              style={styles.deleteButton}
-                                              title="Delete "
-                                              onClick={() => {
-                                                if (!d.id) {
-                                                  alert(
-                                                    "Error: Detail ID tidak valid. Tidak dapat menghapus.",
-                                                  );
-                                                  return;
-                                                }
-
-                                                if (!h.id) {
-                                                  alert(
-                                                    "Error: Schedule ID tidak valid.",
-                                                  );
-                                                  return;
-                                                }
-                                                handleDeleteDetail(d.id, h.id);
-                                              }}
-                                            >
-                                              <Trash2 size={10} />
-                                            </button>
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </FragmentLike>
-                  ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>{renderOnProgressTab()}</tbody>
+              </table>
+            )}
+            {activeTab === "Complete" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig.Complete.cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Date</th>
+                    <th style={styles.thWithLeftBorder}>Line</th>
+                    <th style={styles.thWithLeftBorder}>Shift Time</th>
+                    <th style={styles.thWithLeftBorder}>Total Input</th>
+                    <th style={styles.thWithLeftBorder}>Total Customer</th>
+                    <th style={styles.thWithLeftBorder}>Total Model</th>
+                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                    <th style={styles.thWithLeftBorder}>Created By</th>
+                  </tr>
+                </thead>
+                <tbody>{renderCompleteTab()}</tbody>
+              </table>
+            )}
+            {activeTab === "Reject" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig.Reject.cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Date</th>
+                    <th style={styles.thWithLeftBorder}>Line</th>
+                    <th style={styles.thWithLeftBorder}>Shift Time</th>
+                    <th style={styles.thWithLeftBorder}>Total Input</th>
+                    <th style={styles.thWithLeftBorder}>Total Customer</th>
+                    <th style={styles.thWithLeftBorder}>Total Model</th>
+                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                    <th style={styles.thWithLeftBorder}>Created By</th>
+                  </tr>
+                </thead>
+                <tbody>{renderRejectTab()}</tbody>
+              </table>
+            )}
           </div>
           <div style={styles.paginationBar}>
             <div style={styles.paginationControls}>
-              <button style={styles.paginationButton}>{"<<"}</button>
-              <button style={styles.paginationButton}>{"<"}</button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(1)}
+                disabled={currentPage === 1}
+              >
+                {"<<"}
+              </button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                {"<"}
+              </button>
               <span>Page</span>
               <input
                 type="text"
-                value="1"
+                value={currentPage}
                 style={styles.paginationInput}
                 readOnly
               />
-              <span>of 1</span>
-              <button style={styles.paginationButton}>{">"}</button>
-              <button style={styles.paginationButton}>{">>"}</button>
+              <span>of {totalPages}</span>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                {">"}
+              </button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                {">>"}
+              </button>
             </div>
+            <span>Total Row: {totalItems}</span>
           </div>
         </div>
 
@@ -2120,9 +3345,17 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                   required
                 >
                   <option value="">Select Customer</option>
-                  <option value="EEB">EEB</option>
-                  <option value="EHC">EHC</option>
-                  <option value="ECC">ECC</option>
+                  {customerLoading ? (
+                    <option value="" disabled>
+                      Loading...
+                    </option>
+                  ) : (
+                    customerList.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
@@ -2145,7 +3378,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
                   type="number"
                   value={addCustomerFormData.quantity}
                   onChange={(e) =>
-                    handleAddCustomerInputChange("input", e.target.value)
+                    handleAddCustomerInputChange("quantity", e.target.value)
                   }
                   placeholder="Enter Input"
                   style={customerDetailStyles.input}
@@ -2198,7 +3431,5 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     </div>
   );
 };
-
-const FragmentLike = ({ children }) => children;
 
 export default TargetSchedulePage;

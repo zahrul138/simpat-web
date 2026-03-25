@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, Check } from "lucide-react";
@@ -33,7 +39,7 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch { }
+  } catch {}
   if (!res.ok) {
     const msg = data?.message || text || `HTTP ${res.status}`;
     const err = new Error(msg);
@@ -82,22 +88,12 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("New");
+  const [activeTab, setActiveTab] = useState("OnProgress");
   const [autoCompleteLoading, setAutoCompleteLoading] = useState(false);
 
   const [lastDataUpdate, setLastDataUpdate] = useState(Date.now());
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
 
-  const filteredSchedules = (() => {
-    const list = productionSchedules.filter(
-      (schedule) => activeTab === "All" || schedule.status === activeTab,
-    );
-
-    if (activeTab === "Complete") {
-      return [...list].sort((a, b) => (b.id || 0) - (a.id || 0));
-    }
-    return list;
-  })();
   const [loading, setLoading] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState({});
   const [error, setError] = useState(null);
@@ -106,18 +102,62 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
   const [dateTo, setDateTo] = useState("");
   const [searchBy, setSearchBy] = useState("Customer");
   const [keyword, setKeyword] = useState("");
-  const [rawData, setRawData] = useState([]);
-  const [filterSearchBy, setFilterSearchBy] = useState("line");
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+  const [rawData, setRawData] = useState([]);
+  const [filterSearchBy, setFilterSearchBy] = useState("line");
+  const [filterKeyword, setFilterKeyword] = useState("");
+  const [appliedSearchBy, setAppliedSearchBy] = useState("line");
+  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const filteredSchedules = (() => {
+    let list = (
+      appliedKeyword.trim()
+        ? rawData.filter((h) => {
+            const val = (h[appliedSearchBy] || "").toString().toLowerCase();
+            return val.includes(appliedKeyword.toLowerCase());
+          })
+        : productionSchedules
+    ).filter(
+      (schedule) => activeTab === "All" || schedule.status === activeTab,
+    );
+    if (activeTab === "New") {
+      return [...list].sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+    if (activeTab === "OnProgress") {
+      return [...list].sort((a, b) => {
+        const da = new Date(a.date || 0).getTime();
+        const db = new Date(b.date || 0).getTime();
+        return db - da || (b.id || 0) - (a.id || 0);
+      });
+    }
+    if (activeTab === "Complete") {
+      return [...list].sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+    return list;
+  })();
+
+  const totalItems = filteredSchedules.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredSchedules.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
   const expandedRowsRef = useRef({});
   const detailCacheRef = useRef({});
   const selectedHeaderIdsRef = useRef(new Set());
 
   const buildListQuery = useCallback(() => {
     const q = {};
-    const resolvedStatus = ["New", "OnProgress", "Complete", "Reject"].includes(
+    const resolvedStatus = ["OnProgress", "Complete", "Reject"].includes(
       activeTab,
     )
       ? activeTab
@@ -175,7 +215,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
           );
           setSelectAll(
             newSelected.size === currentFiltered.length &&
-            currentFiltered.length > 0,
+              currentFiltered.length > 0,
           );
 
           return mapped;
@@ -279,12 +319,12 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
       await http("/api/production-schedules/auto-progress", {
         method: "PATCH",
       });
-    } catch (_) { }
+    } catch (_) {}
     try {
       await http("/api/production-schedules/auto-complete", {
         method: "PATCH",
       });
-    } catch (_) { }
+    } catch (_) {}
   }, []);
 
   useEffect(() => {
@@ -646,31 +686,22 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     setAddCustomerDetail(true);
   };
 
-  const applyLocalFilter = (data, searchBy, kw) => {
-    if (!kw.trim()) return data;
-    const lower = kw.toLowerCase();
-    return data.filter((h) => {
-      const val = (h[searchBy] || "").toString().toLowerCase();
-      return val.includes(lower);
-    });
-  };
-
   const handleSearchClick = () => {
-    if (keyword.trim()) {
-      setProductionSchedules(
-        applyLocalFilter(rawData, filterSearchBy, keyword),
-      );
-    } else {
-      loadSchedulesFromServer();
-    }
+    setAppliedSearchBy(filterSearchBy);
+    setAppliedKeyword(filterKeyword);
+    setCurrentPage(1);
   };
 
   const handleTabClick = (tab) => {
     if (activeTab === tab) {
       loadSchedulesFromServer();
     } else {
-      setKeyword("");
+      setFilterKeyword("");
+      setAppliedKeyword("");
       setFilterSearchBy("line");
+      setAppliedSearchBy("line");
+      setCurrentPage(1);
+      setExpandedRows({});
       setActiveTab(tab);
     }
   };
@@ -745,63 +776,61 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     (schedule) => schedule.status === "New",
   );
 
-  const getColgroup = () => {
-    if (activeTab === "New") {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "3.3%" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-        </colgroup>
-      );
-    } else if (activeTab === "OnProgress") {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "12%" }} />
-        </colgroup>
-      );
-    } else {
-      return (
-        <colgroup>
-          <col style={{ width: "25px" }} />
-          <col style={{ width: "23px" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "16%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "18%" }} />
-        </colgroup>
-      );
-    }
+  const tableConfig = {
+    OnProgress: {
+      cols: [
+        "25px",
+        "23px",
+        "16%",
+        "16%",
+        "16%",
+        "12%",
+        "12%",
+        "12%",
+        "12%",
+        "25%",
+      ],
+      colSpan: 10,
+    },
+    Complete: {
+      cols: [
+        "25px",
+        "23px",
+        "16%",
+        "16%",
+        "16%",
+        "12%",
+        "12%",
+        "12%",
+        "12%",
+        "25%",
+      ],
+      colSpan: 10,
+    },
+    Reject: {
+      cols: [
+        "25px",
+        "23px",
+        "16%",
+        "16%",
+        "16%",
+        "12%",
+        "12%",
+        "12%",
+        "12%",
+        "25%",
+      ],
+      colSpan: 10,
+    },
   };
 
-  const getColSpanCount = () => {
-    if (activeTab === "New") return 12;
-    if (activeTab === "OnProgress") return 10;
-    return 9;
-  };
+  const renderColgroup = (cols) => (
+    <colgroup>
+      {cols.map((width, i) => (
+        <col key={i} style={{ width }} />
+      ))}
+    </colgroup>
+  );
 
   const styles = {
     pageContainer: {
@@ -1425,6 +1454,741 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     },
   };
 
+  const renderOnProgressTab = () => {
+    if (loading)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.OnProgress.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
+            Loading…
+          </td>
+        </tr>
+      );
+    if (error)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.OnProgress.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#ef4444",
+            }}
+          >
+            {error}
+          </td>
+        </tr>
+      );
+    return currentItems.map((h, idx) => (
+      <React.Fragment key={h.id}>
+        <tr
+          onMouseEnter={(e) =>
+            (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+          }
+          onMouseLeave={(e) =>
+            (e.target.closest("tr").style.backgroundColor = "transparent")
+          }
+        >
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+            title={startIndex + idx + 1}
+          >
+            {startIndex + idx + 1}
+          </td>
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Expand"
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() => toggleRowExpansion(h.id)}
+            >
+              {expandedRows[h.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(h.date)}>
+            {toDDMMYYYY(h.date)}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.line || ""}>
+            {h.line}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.shiftTime || ""}>
+            {h.shiftTime}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_input || 0)}
+          >
+            {h.total_input || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_customer || 0)}
+          >
+            {h.total_customer || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_model || 0)}
+          >
+            {h.total_model || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_pallet || 0)}
+          >
+            {h.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.createdBy || "").toUpperCase()}
+          >
+            {String(h.createdBy || "").toUpperCase()}
+          </td>
+        </tr>
+        {expandedRows[h.id] && (
+          <tr>
+            <td
+              colSpan={tableConfig.OnProgress.colSpan}
+              style={{ padding: 0, border: "none" }}
+            >
+              <div style={styles.expandedTableContainer}>
+                <table style={styles.expandedTable}>
+                  <colgroup>
+                    <col style={{ width: "25px" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "10%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.expandedTh}>No</th>
+                      <th style={styles.expandedTh}>Material Code</th>
+                      <th style={styles.expandedTh}>Customer</th>
+                      <th style={styles.expandedTh}>Model</th>
+                      <th style={styles.expandedTh}>Description</th>
+                      <th style={styles.expandedTh}>Input</th>
+                      <th style={styles.expandedTh}>PO Number</th>
+                      <th style={styles.expandedTh}>Pallet Type</th>
+                      <th style={styles.expandedTh}>Pallet Use</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingDetail[h.id] && (
+                      <tr>
+                        <td
+                          colSpan="9"
+                          style={{
+                            ...styles.expandedTd,
+                            textAlign: "center",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Loading…
+                        </td>
+                      </tr>
+                    )}
+                    {!loadingDetail[h.id] &&
+                      (!detailCache[h.id] ||
+                        detailCache[h.id].length === 0) && (
+                        <tr>
+                          <td
+                            colSpan="9"
+                            style={{
+                              ...styles.expandedTd,
+                              textAlign: "center",
+                            }}
+                          >
+                            Details not yet added.
+                          </td>
+                        </tr>
+                      )}
+                    {!loadingDetail[h.id] &&
+                      detailCache[h.id]?.map((d, i) => (
+                        <tr
+                          key={`${h.id}-${d.id || i}`}
+                          onMouseEnter={(e) =>
+                            (e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.target.closest("tr").style.backgroundColor =
+                              "transparent")
+                          }
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                            title={i + 1}
+                          >
+                            {i + 1}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.materialCode || ""}
+                          >
+                            {d.materialCode}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.customer || ""}
+                          >
+                            {d.customer}
+                          </td>
+                          <td style={styles.expandedTd} title={d.model || ""}>
+                            {d.model || ""}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.description || ""}
+                          >
+                            {d.description || ""}
+                          </td>
+                          <td style={styles.expandedTd} title={String(d.input)}>
+                            {d.input}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.poNumber || ""}
+                          >
+                            {d.poNumber}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.palletType || ""}
+                          >
+                            {d.palletType}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={String(d.palletUse)}
+                          >
+                            {d.palletUse}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  const renderCompleteTab = () => {
+    if (loading)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.Complete.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
+            Loading…
+          </td>
+        </tr>
+      );
+    if (error)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.Complete.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#ef4444",
+            }}
+          >
+            {error}
+          </td>
+        </tr>
+      );
+    return currentItems.map((h, idx) => (
+      <React.Fragment key={h.id}>
+        <tr
+          onMouseEnter={(e) =>
+            (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+          }
+          onMouseLeave={(e) =>
+            (e.target.closest("tr").style.backgroundColor = "transparent")
+          }
+        >
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+            title={startIndex + idx + 1}
+          >
+            {startIndex + idx + 1}
+          </td>
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Expand"
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() => toggleRowExpansion(h.id)}
+            >
+              {expandedRows[h.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(h.date)}>
+            {toDDMMYYYY(h.date)}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.line || ""}>
+            {h.line}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.shiftTime || ""}>
+            {h.shiftTime}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_input || 0)}
+          >
+            {h.total_input || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_customer || 0)}
+          >
+            {h.total_customer || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_model || 0)}
+          >
+            {h.total_model || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_pallet || 0)}
+          >
+            {h.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.createdBy || "").toUpperCase()}
+          >
+            {String(h.createdBy || "").toUpperCase()}
+          </td>
+        </tr>
+        {expandedRows[h.id] && (
+          <tr>
+            <td
+              colSpan={tableConfig.Complete.colSpan}
+              style={{ padding: 0, border: "none" }}
+            >
+              <div style={styles.expandedTableContainer}>
+                <table style={styles.expandedTable}>
+                  <colgroup>
+                    <col style={{ width: "25px" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "10%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.expandedTh}>No</th>
+                      <th style={styles.expandedTh}>Material Code</th>
+                      <th style={styles.expandedTh}>Customer</th>
+                      <th style={styles.expandedTh}>Model</th>
+                      <th style={styles.expandedTh}>Description</th>
+                      <th style={styles.expandedTh}>Input</th>
+                      <th style={styles.expandedTh}>PO Number</th>
+                      <th style={styles.expandedTh}>Pallet Type</th>
+                      <th style={styles.expandedTh}>Pallet Use</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingDetail[h.id] && (
+                      <tr>
+                        <td
+                          colSpan="9"
+                          style={{
+                            ...styles.expandedTd,
+                            textAlign: "center",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Loading…
+                        </td>
+                      </tr>
+                    )}
+                    {!loadingDetail[h.id] &&
+                      (!detailCache[h.id] ||
+                        detailCache[h.id].length === 0) && (
+                        <tr>
+                          <td
+                            colSpan="9"
+                            style={{
+                              ...styles.expandedTd,
+                              textAlign: "center",
+                            }}
+                          >
+                            Details not yet added.
+                          </td>
+                        </tr>
+                      )}
+                    {!loadingDetail[h.id] &&
+                      detailCache[h.id]?.map((d, i) => (
+                        <tr
+                          key={`${h.id}-${d.id || i}`}
+                          onMouseEnter={(e) =>
+                            (e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.target.closest("tr").style.backgroundColor =
+                              "transparent")
+                          }
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                            title={i + 1}
+                          >
+                            {i + 1}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.materialCode || ""}
+                          >
+                            {d.materialCode}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.customer || ""}
+                          >
+                            {d.customer}
+                          </td>
+                          <td style={styles.expandedTd} title={d.model || ""}>
+                            {d.model || ""}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.description || ""}
+                          >
+                            {d.description || ""}
+                          </td>
+                          <td style={styles.expandedTd} title={String(d.input)}>
+                            {d.input}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.poNumber || ""}
+                          >
+                            {d.poNumber}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.palletType || ""}
+                          >
+                            {d.palletType}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={String(d.palletUse)}
+                          >
+                            {d.palletUse}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  const renderRejectTab = () => {
+    if (loading)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.Reject.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
+            Loading…
+          </td>
+        </tr>
+      );
+    if (error)
+      return (
+        <tr>
+          <td
+            colSpan={tableConfig.Reject.colSpan}
+            style={{
+              ...styles.tdWithLeftBorder,
+              textAlign: "center",
+              color: "#ef4444",
+            }}
+          >
+            {error}
+          </td>
+        </tr>
+      );
+    return currentItems.map((h, idx) => (
+      <React.Fragment key={h.id}>
+        <tr
+          onMouseEnter={(e) =>
+            (e.target.closest("tr").style.backgroundColor = "#c7cde8")
+          }
+          onMouseLeave={(e) =>
+            (e.target.closest("tr").style.backgroundColor = "transparent")
+          }
+        >
+          <td
+            style={{
+              ...styles.expandedTd,
+              ...styles.expandedWithLeftBorder,
+              ...styles.emptyColumn,
+            }}
+            title={startIndex + idx + 1}
+          >
+            {startIndex + idx + 1}
+          </td>
+          <td
+            style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
+            title="Expand"
+          >
+            <button
+              style={styles.arrowButton}
+              onClick={() => toggleRowExpansion(h.id)}
+            >
+              {expandedRows[h.id] ? (
+                <MdArrowDropDown style={styles.arrowIcon} />
+              ) : (
+                <MdArrowRight style={styles.arrowIcon} />
+              )}
+            </button>
+          </td>
+          <td style={styles.tdWithLeftBorder} title={toDDMMYYYY(h.date)}>
+            {toDDMMYYYY(h.date)}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.line || ""}>
+            {h.line}
+          </td>
+          <td style={styles.tdWithLeftBorder} title={h.shiftTime || ""}>
+            {h.shiftTime}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_input || 0)}
+          >
+            {h.total_input || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_customer || 0)}
+          >
+            {h.total_customer || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_model || 0)}
+          >
+            {h.total_model || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.total_pallet || 0)}
+          >
+            {h.total_pallet || 0}
+          </td>
+          <td
+            style={styles.tdWithLeftBorder}
+            title={String(h.createdBy || "").toUpperCase()}
+          >
+            {String(h.createdBy || "").toUpperCase()}
+          </td>
+        </tr>
+        {expandedRows[h.id] && (
+          <tr>
+            <td
+              colSpan={tableConfig.Reject.colSpan}
+              style={{ padding: 0, border: "none" }}
+            >
+              <div style={styles.expandedTableContainer}>
+                <table style={styles.expandedTable}>
+                  <colgroup>
+                    <col style={{ width: "25px" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "10%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr style={styles.expandedTableHeader}>
+                      <th style={styles.expandedTh}>No</th>
+                      <th style={styles.expandedTh}>Material Code</th>
+                      <th style={styles.expandedTh}>Customer</th>
+                      <th style={styles.expandedTh}>Model</th>
+                      <th style={styles.expandedTh}>Description</th>
+                      <th style={styles.expandedTh}>Input</th>
+                      <th style={styles.expandedTh}>PO Number</th>
+                      <th style={styles.expandedTh}>Pallet Type</th>
+                      <th style={styles.expandedTh}>Pallet Use</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingDetail[h.id] && (
+                      <tr>
+                        <td
+                          colSpan="9"
+                          style={{
+                            ...styles.expandedTd,
+                            textAlign: "center",
+                            color: "#6b7280",
+                          }}
+                        >
+                          Loading…
+                        </td>
+                      </tr>
+                    )}
+                    {!loadingDetail[h.id] &&
+                      (!detailCache[h.id] ||
+                        detailCache[h.id].length === 0) && (
+                        <tr>
+                          <td
+                            colSpan="9"
+                            style={{
+                              ...styles.expandedTd,
+                              textAlign: "center",
+                            }}
+                          >
+                            Details not yet added.
+                          </td>
+                        </tr>
+                      )}
+                    {!loadingDetail[h.id] &&
+                      detailCache[h.id]?.map((d, i) => (
+                        <tr
+                          key={`${h.id}-${d.id || i}`}
+                          onMouseEnter={(e) =>
+                            (e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.target.closest("tr").style.backgroundColor =
+                              "transparent")
+                          }
+                        >
+                          <td
+                            style={{
+                              ...styles.expandedTd,
+                              ...styles.expandedWithLeftBorder,
+                              ...styles.emptyColumn,
+                            }}
+                            title={i + 1}
+                          >
+                            {i + 1}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.materialCode || ""}
+                          >
+                            {d.materialCode}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.customer || ""}
+                          >
+                            {d.customer}
+                          </td>
+                          <td style={styles.expandedTd} title={d.model || ""}>
+                            {d.model || ""}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.description || ""}
+                          >
+                            {d.description || ""}
+                          </td>
+                          <td style={styles.expandedTd} title={String(d.input)}>
+                            {d.input}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.poNumber || ""}
+                          >
+                            {d.poNumber}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={d.palletType || ""}
+                          >
+                            {d.palletType}
+                          </td>
+                          <td
+                            style={styles.expandedTd}
+                            title={String(d.palletUse)}
+                          >
+                            {d.palletUse}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    ));
+  };
+
   const handleButtonHover = (e, isHover, type) => {
     if (type === "search") {
       e.target.style.backgroundColor = isHover ? "#1d4ed8" : "#2563eb";
@@ -1444,7 +2208,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Production Schedules</title>
+          <title>Production Schedule</title>
         </Helmet>
       </div>
 
@@ -1469,7 +2233,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Production Schedules</h1>
+            <h1 style={styles.title}>Production Schedule</h1>
           </div>
 
           <div style={styles.filterRow}>
@@ -1510,8 +2274,8 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                 type="text"
                 style={styles.input}
                 placeholder="Input Keyword"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
+                value={filterKeyword}
+                onChange={(e) => setFilterKeyword(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSearchClick();
                 }}
@@ -1530,7 +2294,6 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
           </div>
         </div>
         <div style={styles.actionButtonsGroup}>
-
           {activeTab === "OnProgress" && selectedHeaderIds.size > 0 && (
             <button
               style={{
@@ -1552,17 +2315,6 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
         </div>
 
         <div style={styles.tabsContainer}>
-          <button
-            style={{
-              ...styles.tabButton,
-              ...(activeTab === "New" && styles.tabButtonActive),
-            }}
-            onClick={() => handleTabClick("New")}
-            onMouseEnter={(e) => handleTabHover(e, true, activeTab === "New")}
-            onMouseLeave={(e) => handleTabHover(e, false, activeTab === "New")}
-          >
-            New
-          </button>
           <button
             style={{
               ...styles.tabButton,
@@ -1612,18 +2364,18 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
 
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
-            <table
-              style={{
-                ...styles.table,
-                minWidth: "1200px",
-                tableLayout: "fixed",
-              }}
-            >
-              {getColgroup()}
-              <thead>
-                <tr style={styles.tableHeader}>
-                  <th style={styles.expandedTh}>No</th>
-                  {activeTab === "New" && (
+            {activeTab === "New" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig.New.cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
                     <th style={styles.thWithLeftBorder}>
                       {filteredSchedules.length > 1 && (
                         <input
@@ -1640,401 +2392,138 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                         />
                       )}
                     </th>
-                  )}
-                  <th style={styles.thWithLeftBorder}></th>
-                  <th style={styles.thWithLeftBorder}>Date</th>
-                  <th style={styles.thWithLeftBorder}>Line</th>
-                  <th style={styles.thWithLeftBorder}>Shift Time</th>
-                  <th style={styles.thWithLeftBorder}>Total Input</th>
-                  <th style={styles.thWithLeftBorder}>Total Customer</th>
-                  <th style={styles.thWithLeftBorder}>Total Model</th>
-                  <th style={styles.thWithLeftBorder}>Total Pallet</th>
-                  <th style={styles.thWithLeftBorder}>Created By</th>
-                  {(activeTab === "New" || activeTab === "OnProgress") && (
-                    <th style={styles.thWithLeftBorder}>Action</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td
-                      colSpan={getColSpanCount()}
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                        color: "#6b7280",
-                      }}
-                    >
-                      Loading…
-                    </td>
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Date</th>
+                    <th style={styles.thWithLeftBorder}>Line</th>
+                    <th style={styles.thWithLeftBorder}>Shift Time</th>
+                    <th style={styles.thWithLeftBorder}>Total Input</th>
+                    <th style={styles.thWithLeftBorder}>Total Customer</th>
+                    <th style={styles.thWithLeftBorder}>Total Model</th>
+                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                    <th style={styles.thWithLeftBorder}>Created By</th>
                   </tr>
-                )}
-                {!loading && error && (
-                  <tr>
-                    <td
-                      colSpan={getColSpanCount()}
-                      style={{
-                        ...styles.tdWithLeftBorder,
-                        textAlign: "center",
-                        color: "#ef4444",
-                      }}
-                    >
-                      {error}
-                    </td>
+                </thead>
+              </table>
+            )}
+            {activeTab === "OnProgress" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig.OnProgress.cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Date</th>
+                    <th style={styles.thWithLeftBorder}>Line</th>
+                    <th style={styles.thWithLeftBorder}>Shift Time</th>
+                    <th style={styles.thWithLeftBorder}>Total Input</th>
+                    <th style={styles.thWithLeftBorder}>Total Customer</th>
+                    <th style={styles.thWithLeftBorder}>Total Model</th>
+                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                    <th style={styles.thWithLeftBorder}>Created By</th>
                   </tr>
-                )}
-
-                {!loading &&
-                  !error &&
-                  filteredSchedules.map((h, idx) => (
-                    <FragmentLike key={h.id}>
-                      <tr
-                        onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                        }
-                      >
-                        <td
-                          style={{
-                            ...styles.expandedTd,
-                            ...styles.expandedWithLeftBorder,
-                            ...styles.emptyColumn,
-                          }}
-                          title={idx + 1}
-                        >
-                          {idx + 1}
-                        </td>
-                        {activeTab === "New" && (
-                          <td style={styles.tdWithLeftBorder} title="Select">
-                            <input
-                              type="checkbox"
-                              checked={selectedHeaderIds.has(h.id)}
-                              onChange={(e) =>
-                                toggleHeaderCheckbox(h.id, e.target.checked)
-                              }
-                              style={{
-                                margin: "0 auto",
-                                display: "block",
-                                cursor: "pointer",
-                                width: "12px",
-                                height: "12px",
-                              }}
-                            />
-                          </td>
-                        )}
-                        <td
-                          style={{
-                            ...styles.tdWithLeftBorder,
-                            ...styles.emptyColumn,
-                          }}
-                          title="Expand"
-                        >
-                          <button
-                            style={styles.arrowButton}
-                            onClick={() => toggleRowExpansion(h.id)}
-                          >
-                            {expandedRows[h.id] ? (
-                              <MdArrowDropDown style={styles.arrowIcon} />
-                            ) : (
-                              <MdArrowRight style={styles.arrowIcon} />
-                            )}
-                          </button>
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={toDDMMYYYY(h.date)}
-                        >
-                          {toDDMMYYYY(h.date)}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={h.line || ""}
-                        >
-                          {h.line}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={h.shiftTime || ""}
-                        >
-                          {h.shiftTime}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.total_input || 0)}
-                        >
-                          {h.total_input || 0}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.total_customer || 0)}
-                        >
-                          {h.total_customer || 0}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.total_model || 0)}
-                        >
-                          {h.total_model || 0}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.total_pallet || 0)}
-                        >
-                          {h.total_pallet || 0}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(h.createdBy).toUpperCase()}
-                        >
-                          {String(h.createdBy).toUpperCase()}
-                        </td>
-                        {(activeTab === "New" ||
-                          activeTab === "OnProgress") && (
-                            <td style={styles.tdWithLeftBorder} title="Action">
-                              <button
-                                style={styles.addButton}
-                                onClick={openThirdLevelPopup}
-                                title="Add Detail"
-                              >
-                                <Plus size={10} />
-                              </button>
-
-                              {h.status === "OnProgress" && (
-                                <button
-                                  style={styles.completeButton}
-                                  onClick={() => handleCompleteSchedule(h.id)}
-                                  title="Mark as Complete"
-                                  disabled={loadingDetail[h.id]}
-                                >
-                                  <Check size={10} />
-                                </button>
-                              )}
-
-                              <button
-                                style={styles.deleteButton}
-                                onClick={() => handleDeleteSchedule(h.id, h.code)}
-                                title="Delete"
-                                disabled={loadingDetail[h.id]}
-                              >
-                                <Trash2 size={10} />
-                              </button>
-                            </td>
-                          )}
-                      </tr>
-
-                      {expandedRows[h.id] && (
-                        <tr>
-                          <td
-                            colSpan={getColSpanCount()}
-                            style={{ padding: 0, border: "none" }}
-                          >
-                            <div style={styles.expandedTableContainer}>
-                              <table style={styles.expandedTable}>
-                                <colgroup>
-                                  <col style={{ width: "25px" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "20%" }} />
-                                  <col style={{ width: "10%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "15%" }} />
-                                  <col style={{ width: "10%" }} />
-                                  <col style={{ width: "10%" }} />
-                                </colgroup>
-                                <thead>
-                                  <tr style={styles.expandedTableHeader}>
-                                    <th style={styles.expandedTh}>No</th>
-                                    <th style={styles.expandedTh}>
-                                      Material Code
-                                    </th>
-                                    <th style={styles.expandedTh}>Customer</th>
-                                    <th style={styles.expandedTh}>Model</th>
-                                    <th style={styles.expandedTh}>
-                                      Description
-                                    </th>
-                                    <th style={styles.expandedTh}>Input</th>
-                                    <th style={styles.expandedTh}>PO Number</th>
-                                    <th style={styles.expandedTh}>
-                                      Pallet Type
-                                    </th>
-                                    <th style={styles.expandedTh}>
-                                      Pallet Use
-                                    </th>
-                                    <th style={styles.expandedTh}>Action</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {loadingDetail[h.id] && (
-                                    <tr>
-                                      <td
-                                        colSpan="10"
-                                        style={{
-                                          ...styles.expandedTd,
-                                          textAlign: "center",
-                                          color: "#6b7280",
-                                        }}
-                                      >
-                                        Loading…
-                                      </td>
-                                    </tr>
-                                  )}
-                                  {!loadingDetail[h.id] &&
-                                    (!detailCache[h.id] ||
-                                      detailCache[h.id].length === 0) && (
-                                      <tr>
-                                        <td
-                                          colSpan="10"
-                                          style={{
-                                            ...styles.expandedTd,
-                                            textAlign: "center",
-                                          }}
-                                        >
-                                          Details not yet added.
-                                        </td>
-                                      </tr>
-                                    )}
-                                  {!loadingDetail[h.id] &&
-                                    detailCache[h.id]?.map((d, i) => {
-                                      return (
-                                        <tr
-                                          key={`${h.id}-${d.id || i}`}
-                                          onMouseEnter={(e) =>
-                                          (e.target.closest(
-                                            "tr",
-                                          ).style.backgroundColor = "#c7cde8")
-                                          }
-                                          onMouseLeave={(e) =>
-                                          (e.target.closest(
-                                            "tr",
-                                          ).style.backgroundColor =
-                                            "transparent")
-                                          }
-                                        >
-                                          <td
-                                            style={{
-                                              ...styles.expandedTd,
-                                              ...styles.expandedWithLeftBorder,
-                                              ...styles.emptyColumn,
-                                            }}
-                                            title={i + 1}
-                                          >
-                                            {i + 1}
-                                          </td>
-
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.materialCode || ""}
-                                          >
-                                            {d.materialCode}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.customer || ""}
-                                          >
-                                            {d.customer}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.model || ""}
-                                          >
-                                            {d.model || ""}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.description || ""}
-                                          >
-                                            {d.description || ""}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={String(d.input)}
-                                          >
-                                            {d.input}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.poNumber || ""}
-                                          >
-                                            {d.poNumber}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={d.palletType || ""}
-                                          >
-                                            {d.palletType}
-                                          </td>
-                                          <td
-                                            style={styles.expandedTd}
-                                            title={String(d.palletUse)}
-                                          >
-                                            {d.palletUse}
-                                          </td>
-
-                                          <td
-                                            style={styles.expandedTd}
-                                            title="Action"
-                                          >
-                                            <button style={styles.editButton}>
-                                              <Pencil size={10} />
-                                            </button>
-                                            <button
-                                              style={styles.deleteButton}
-                                              title="Delete "
-                                              onClick={() => {
-                                                if (!d.id) {
-                                                  alert(
-                                                    "Error: Detail ID tidak valid. Tidak dapat menghapus.",
-                                                  );
-                                                  return;
-                                                }
-
-                                                if (!h.id) {
-                                                  alert(
-                                                    "Error: Schedule ID tidak valid.",
-                                                  );
-                                                  return;
-                                                }
-                                                handleDeleteDetail(d.id, h.id);
-                                              }}
-                                            >
-                                              <Trash2 size={10} />
-                                            </button>
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </FragmentLike>
-                  ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>{renderOnProgressTab()}</tbody>
+              </table>
+            )}
+            {activeTab === "Complete" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig.Complete.cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Date</th>
+                    <th style={styles.thWithLeftBorder}>Line</th>
+                    <th style={styles.thWithLeftBorder}>Shift Time</th>
+                    <th style={styles.thWithLeftBorder}>Total Input</th>
+                    <th style={styles.thWithLeftBorder}>Total Customer</th>
+                    <th style={styles.thWithLeftBorder}>Total Model</th>
+                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                    <th style={styles.thWithLeftBorder}>Created By</th>
+                  </tr>
+                </thead>
+                <tbody>{renderCompleteTab()}</tbody>
+              </table>
+            )}
+            {activeTab === "Reject" && (
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "1200px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig.Reject.cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.expandedTh}>No</th>
+                    <th style={styles.thWithLeftBorder}></th>
+                    <th style={styles.thWithLeftBorder}>Date</th>
+                    <th style={styles.thWithLeftBorder}>Line</th>
+                    <th style={styles.thWithLeftBorder}>Shift Time</th>
+                    <th style={styles.thWithLeftBorder}>Total Input</th>
+                    <th style={styles.thWithLeftBorder}>Total Customer</th>
+                    <th style={styles.thWithLeftBorder}>Total Model</th>
+                    <th style={styles.thWithLeftBorder}>Total Pallet</th>
+                    <th style={styles.thWithLeftBorder}>Created By</th>
+                  </tr>
+                </thead>
+                <tbody>{renderRejectTab()}</tbody>
+              </table>
+            )}
           </div>
           <div style={styles.paginationBar}>
             <div style={styles.paginationControls}>
-              <button style={styles.paginationButton}>{"<<"}</button>
-              <button style={styles.paginationButton}>{"<"}</button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(1)}
+                disabled={currentPage === 1}
+              >
+                {"<<"}
+              </button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                {"<"}
+              </button>
               <span>Page</span>
               <input
                 type="text"
-                value="1"
+                value={currentPage}
                 style={styles.paginationInput}
                 readOnly
               />
-              <span>of 1</span>
-              <button style={styles.paginationButton}>{">"}</button>
-              <button style={styles.paginationButton}>{">>"}</button>
+              <span>of {totalPages}</span>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                {">"}
+              </button>
+              <button
+                style={styles.paginationButton}
+                onClick={() => goToPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                {">>"}
+              </button>
             </div>
+            <span>Total Row: {totalItems}</span>
           </div>
         </div>
 
@@ -2186,7 +2675,5 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
     </div>
   );
 };
-
-const FragmentLike = ({ children }) => children;
 
 export default LOGTargetSchedulePage;

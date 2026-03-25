@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import {
-  Plus,
-  Trash2,
-  Eye,
-  Settings,
-  AlertTriangle,
-} from "lucide-react";
+import { Plus, Trash2, Eye, Settings, AlertTriangle } from "lucide-react";
 import timerService from "../../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
@@ -196,7 +190,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const [manualRefreshCount, setManualRefreshCount] = useState(0);
   const partsRefreshTimerRef = useRef(null);
 
-  // ── Shortage state ────────────────────────────────────────
   const [planningUnits, setPlanningUnits] = useState(() => {
     const s = localStorage.getItem("pm_planning_units");
     return s ? parseInt(s) || 0 : 0;
@@ -210,7 +203,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const shiftEndTriggeredRef = useRef(false);
   const fetchPartsRef = useRef(null);
 
-  // Sync refs — agar interval tidak perlu di-recreate setiap render
   useEffect(() => {
     currentScheduleRef.current = currentSchedule;
   }, [currentSchedule]);
@@ -325,18 +317,14 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       let activeSchedule = null;
 
       for (const schedule of items) {
-        // 3. Gunakan target_date_display jika ada, jika tidak gunakan target_date
         const scheduleDateToCheck =
           schedule.target_date_display || schedule.target_date;
 
-        // 4. Normalisasi tanggal schedule untuk perbandingan
         let scheduleDateNormalized;
         if (scheduleDateToCheck) {
-          // Jika target_date sudah dalam format string ISO (dengan timezone)
           scheduleDateNormalized = toLocalYMD(new Date(scheduleDateToCheck));
         }
 
-        // 5. Cek apakah schedule untuk hari ini atau kemarin
         const isToday = scheduleDateNormalized === today;
         const isYesterday = scheduleDateNormalized === yesterdayStr;
 
@@ -344,7 +332,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           continue;
         }
 
-        // 6. Cek apakah shift time-nya sedang berjalan
         if (!schedule.shift_time) {
           continue;
         }
@@ -354,7 +341,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           continue;
         }
 
-        // Convert time to minutes for comparison
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
         const [startHour, startMinute] = startTime.split(":").map(Number);
         const [endHour, endMinute] = endTime.split(":").map(Number);
@@ -364,13 +350,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
         let isActive = false;
 
-        // Shift normal (contoh: 08:00 - 16:00)
         if (endMinutes > startMinutes) {
           isActive =
             currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-        }
-        // Shift malam (contoh: 22:00 - 06:00) - melewati midnight
-        else {
+        } else {
           isActive =
             currentMinutes >= startMinutes || currentMinutes <= endMinutes;
         }
@@ -512,9 +495,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     };
   }, [currentSchedule, currentTime]);
 
-  // ── Expected Output Calculation ─────────────────────────────
-  // Menghitung berapa unit seharusnya sudah diproduksi sampai saat ini,
-  // dengan memperhitungkan waktu istirahat (warning periods).
   const calculateCurrentTarget = useCallback(() => {
     if (!currentSchedule?.shiftTime || !currentSchedule?.total_input) return 0;
 
@@ -526,11 +506,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
     const shiftStartMins = startH * 60 + startM;
     let shiftEndMins = endH * 60 + endM;
-    if (shiftEndMins <= shiftStartMins) shiftEndMins += 24 * 60; // overnight
+    if (shiftEndMins <= shiftStartMins) shiftEndMins += 24 * 60;
 
     const shiftDuration = shiftEndMins - shiftStartMins;
 
-    // Total break minutes within shift hours
     let totalBreakMins = 0;
     for (const ws of activeWarningConfig) {
       const [wsH, wsM] = ws.start.split(":").map(Number);
@@ -546,13 +525,11 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
     const effectiveWorkMins = Math.max(1, shiftDuration - totalBreakMins);
 
-    // Elapsed minutes since shift start (capped at shift duration)
     const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
     let elapsed = nowMins - shiftStartMins;
     if (elapsed < 0) elapsed += 24 * 60;
     elapsed = Math.min(elapsed, shiftDuration);
 
-    // How many break minutes have already passed within elapsed time
     let elapsedBreakMins = 0;
     for (const ws of activeWarningConfig) {
       const [wsH, wsM] = ws.start.split(":").map(Number);
@@ -583,7 +560,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const currentWarningReason = getCurrentWarningPeriod();
   const isWarning = !!currentWarningReason;
 
-  // ── Customers map (id → name) ────────────────────────────────
   const [customersMap, setCustomersMap] = useState({});
 
   useEffect(() => {
@@ -591,44 +567,47 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       .then((data) => {
         if (Array.isArray(data)) {
           const map = {};
-          data.forEach((c) => { map[String(c.id)] = c.cust_name; });
+          data.forEach((c) => {
+            map[String(c.id)] = c.cust_name;
+          });
           setCustomersMap(map);
         }
       })
       .catch(() => {});
   }, []);
 
-  // currentCustomer: berdasarkan unit BERIKUTNYA yang akan diapprove
-  // actual_input=21 (EHC 21 unit habis) → checkUnit=22 → langsung tampil EAL
   const currentCustomer = useMemo(() => {
     const details = scheduleDetails?.details;
     if (!details || details.length === 0) return null;
     const actualInput = currentSchedule?.actual_input || 0;
-    // Gunakan unit berikutnya — kalau sudah semua approve, tetap tunjukkan customer terakhir
+
     const checkUnit = actualInput + 1;
     let cumulative = 0;
     for (const d of details) {
       cumulative += Number(d.input || 0);
       if (checkUnit <= cumulative) return d;
     }
-    // Semua unit sudah approve → tunjukkan customer terakhir
+
     return details[details.length - 1];
   }, [scheduleDetails, currentSchedule]);
 
-  // Daftar customers unik dari schedule yang sedang berjalan
   const scheduleCustomers = useMemo(() => {
     if (!scheduleDetails?.details) return [];
-    return [...new Set(scheduleDetails.details.map((d) => d.customer).filter(Boolean))];
+    return [
+      ...new Set(
+        scheduleDetails.details.map((d) => d.customer).filter(Boolean),
+      ),
+    ];
   }, [scheduleDetails]);
 
-  // Reverse map: cust_name → id (untuk matching filter)
   const customerNameToId = useMemo(() => {
     const map = {};
-    Object.entries(customersMap).forEach(([id, name]) => { map[name] = id; });
+    Object.entries(customersMap).forEach(([id, name]) => {
+      map[name] = id;
+    });
     return map;
   }, [customersMap]);
 
-  // 1. useEffect untuk inisialisasi
   useEffect(() => {
     const unsubscribe = timerService.subscribe((newTime) => {
       setCurrentTime(newTime);
@@ -636,12 +615,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
     loadCurrentSchedule();
 
-    // Refresh setiap 30 detik — ringan, cukup untuk data real-time
     const refreshInterval = setInterval(() => {
       performBackgroundRefresh();
     }, 30000);
 
-    // Setiap detik, cek shift end — gunakan ref agar tidak perlu re-create
     const preciseCheckInterval = setInterval(() => {
       const sched = currentScheduleRef.current;
       if (!sched?.shiftTime) return;
@@ -678,9 +655,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [loadCurrentSchedule, performBackgroundRefresh]);
-  // currentSchedule tidak ada di deps — akses via currentScheduleRef di dalam interval
 
-  // 2. shift berakhir → trigger SEKALI (bukan tiap detik!)
   useEffect(() => {
     if (
       currentSchedule &&
@@ -896,17 +871,21 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
   const [activeTab, setActiveTab] = useState("all");
 
-  // Reset page saat ganti tab
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setCurrentPage(1);
   };
 
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   const styles = {
@@ -971,10 +950,9 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     },
     filterRow: {
       display: "flex",
-      alignItems: "center",
-      gap: "16px",
+      flexDirection: "column",
+      gap: "10px",
       marginBottom: "16px",
-      flexWrap: "wrap",
     },
     inputGroup: {
       display: "flex",
@@ -1553,7 +1531,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       padding: "0",
       textAlign: "center",
     },
-     expandedTd: {
+    expandedTd: {
       padding: "2px 4px",
       border: "0.5px solid #9fa8da",
       fontSize: "12px",
@@ -1564,17 +1542,16 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
       verticalAlign: "middle",
       overflow: "hidden",
     },
-     expandedWithLeftBorder: {
+    expandedWithLeftBorder: {
       border: "0.5px solid #9fa8da",
       whiteSpace: "nowrap",
       backgroundColor: "#e0e7ff",
     },
   };
-  // ── Parts state ──────────────────────────────────────────────
+
   const [parts, setParts] = useState([]);
   const [partsLoading, setPartsLoading] = useState(false);
 
-  // Semua customers unik yang ada di data parts (untuk opsi dropdown)
   const allPartsCustomers = useMemo(() => {
     const nameSet = new Set();
     parts.forEach((p) => {
@@ -1601,7 +1578,9 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
   const fetchParts = useCallback(async (silent = false) => {
     if (!silent) setPartsLoading(true);
     try {
-      const data = await http(`/api/kanban-master/with-details?include_inactive=false`);
+      const data = await http(
+        `/api/kanban-master/with-details?include_inactive=false`,
+      );
       if (data?.success && Array.isArray(data.data)) {
         const mapped = data.data.map((p) => {
           const cs = parseCustomerSpecial(p.customer_special);
@@ -1623,13 +1602,11 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
         setParts(mapped);
       }
     } catch (err) {
-      // silent — halaman tetap bisa dipakai meski parts gagal fetch
     } finally {
       if (!silent) setPartsLoading(false);
     }
   }, []);
 
-  // Sync fetchPartsRef + initial load + auto-refresh stock setiap 60 detik
   useEffect(() => {
     fetchPartsRef.current = fetchParts;
   }, [fetchParts]);
@@ -1642,7 +1619,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     return () => clearInterval(partsRefreshTimerRef.current);
   }, [fetchParts]);
 
-  // ── Search state ─────────────────────────────────────────────
   const [searchBy, setSearchBy] = useState("Part Code");
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
@@ -1660,27 +1636,25 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     setCurrentPage(1);
   };
 
-  // ── Shortage helpers ─────────────────────────────────────────
-  // Sisa unit yang belum diproduksi (target - actual)
   const remainingToday = currentSchedule
-    ? Math.max(0, (currentSchedule.total_input || 0) - (currentSchedule.actual_input || 0))
+    ? Math.max(
+        0,
+        (currentSchedule.total_input || 0) -
+          (currentSchedule.actual_input || 0),
+      )
     : 0;
 
-  // Stock Target = kebutuhan pcs untuk sisa unit yang akan dijalankan
   const getStockTarget = (qtyPerAssembly) =>
     remainingToday * (qtyPerAssembly || 1);
 
-  // Kebutuhan pcs untuk planning units
   const getPlanningNeed = (qtyPerAssembly) =>
     planningUnits * (qtyPerAssembly || 1);
 
-  // Surplus = stock - kebutuhan planning
   const getSurplus = (stock, qtyPerAssembly) => {
     if (!planningUnits) return Infinity;
     return stock - getPlanningNeed(qtyPerAssembly);
   };
 
-  // Warna angka stock M101: hijau = cukup, kuning = pas, merah = kurang
   const getStockColor = (stock, qtyPerAssembly) => {
     const surplus = getSurplus(stock, qtyPerAssembly);
     if (surplus === Infinity) return "#374151";
@@ -1689,7 +1663,6 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     return "#dc2626";
   };
 
-  // Status badge
   const getShortageStatus = (m101, qtyPerAssembly) => {
     const surplus = getSurplus(m101, qtyPerAssembly);
     if (surplus === Infinity) return null;
@@ -1703,31 +1676,29 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     return getSurplus(p.m101, p.qty_per_assembly);
   };
 
-  // ── Filtered parts (tab + search) ────────────────────────────
   const filteredParts = parts.filter((p) => {
-    // Tab filter
     if (activeTab !== "all" && p.assembly_station !== activeTab) return false;
 
-    // Customer filter (shortage control)
     if (shortageCustomerFilter === "ALL") {
-      // auto: jika ada schedule berjalan, filter berdasarkan customers di schedule
       if (scheduleCustomers.length > 0) {
         const scheduleIds = scheduleCustomers
           .map((name) => customerNameToId[name])
           .filter(Boolean);
         const isGeneral = !p.customerSpecial;
-        const matchesSchedule = p.customerSpecial?.some((id) => scheduleIds.includes(id));
+        const matchesSchedule = p.customerSpecial?.some((id) =>
+          scheduleIds.includes(id),
+        );
         if (!isGeneral && !matchesSchedule) return false;
       }
     } else {
-      // customer spesifik dipilih user — "All Customers" (customerSpecial null) selalu lolos
       const filterId = customerNameToId[shortageCustomerFilter];
       const isGeneral = !p.customerSpecial;
-      const matchesCustomer = filterId ? p.customerSpecial?.includes(filterId) : false;
+      const matchesCustomer = filterId
+        ? p.customerSpecial?.includes(filterId)
+        : false;
       if (!isGeneral && !matchesCustomer) return false;
     }
 
-    // Search filter
     if (!appliedKeyword) return true;
     const kw = appliedKeyword.toLowerCase();
     switch (appliedSearchBy) {
@@ -1746,15 +1717,14 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
     }
   });
 
-  // Sort: parts with most critical shortage go to top
   const sortedFilteredParts =
     planningUnits > 0
       ? [...filteredParts].sort((a, b) => getSortScore(a) - getSortScore(b))
       : filteredParts;
 
-  // ── Pagination ───────────────────────────────────────────────
   const PAGE_SIZE = 10;
   const [currentPage, setCurrentPage] = useState(1);
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
 
   const totalPages = Math.max(
     1,
@@ -2013,7 +1983,9 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>Pallet Type</span>
                 <span style={styles.infoColon}>:</span>
-                <span style={styles.infoValue}>{currentCustomer.palletType}</span>
+                <span style={styles.infoValue}>
+                  {currentCustomer.palletType}
+                </span>
               </div>
             )}
           </div>
@@ -2115,26 +2087,52 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                             <tbody>
                               {scheduleDetails.details.map((detail, index) => (
                                 <tr key={index}>
-                                  <td style={styles.detailsTd}>{index + 1}</td>
-                                  <td style={styles.detailsTd}>
+                                  <td
+                                    style={styles.detailsTd}
+                                    title={index + 1}
+                                  >
+                                    {index + 1}
+                                  </td>
+                                  <td
+                                    style={styles.detailsTd}
+                                    title={detail.customer || "-"}
+                                  >
                                     {detail.customer || "-"}
                                   </td>
-                                  <td style={styles.detailsTd}>
+                                  <td
+                                    style={styles.detailsTd}
+                                    title={detail.material_code || "-"}
+                                  >
                                     {detail.material_code || "-"}
                                   </td>
-                                  <td style={styles.detailsTd}>
+                                  <td
+                                    style={styles.detailsTd}
+                                    title={detail.model || "-"}
+                                  >
                                     {detail.model || "-"}
                                   </td>
-                                  <td style={styles.detailsTd}>
+                                  <td
+                                    style={styles.detailsTd}
+                                    title={String(detail.input || 0)}
+                                  >
                                     {detail.input || 0}
                                   </td>
-                                  <td style={styles.detailsTd}>
+                                  <td
+                                    style={styles.detailsTd}
+                                    title={detail.po_number || "-"}
+                                  >
                                     {detail.po_number || "-"}
                                   </td>
-                                  <td style={styles.detailsTd}>
+                                  <td
+                                    style={styles.detailsTd}
+                                    title={detail.pallet_type || "-"}
+                                  >
                                     {detail.pallet_type || "-"}
                                   </td>
-                                  <td style={styles.detailsTd}>
+                                  <td
+                                    style={styles.detailsTd}
+                                    title={detail.description || "-"}
+                                  >
                                     {detail.description || "-"}
                                   </td>
                                 </tr>
@@ -2157,7 +2155,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        {/* Settings Popup */}
+        {}
         {showSettingsPopup && (
           <div style={styles.popupOverlay}>
             <div
@@ -2246,7 +2244,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                               }),
                             }}
                           >
-                            <td style={styles.settingsTableCell}>
+                            <td
+                              style={styles.settingsTableCell}
+                              title="Enabled"
+                            >
                               <input
                                 type="checkbox"
                                 checked={
@@ -2263,7 +2264,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                                 disabled={setting.markedForDeletion}
                               />
                             </td>
-                            <td style={styles.settingsTableCell}>
+                            <td
+                              style={styles.settingsTableCell}
+                              title={setting.start}
+                            >
                               <input
                                 type="time"
                                 value={setting.start}
@@ -2283,7 +2287,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                                 disabled={setting.markedForDeletion}
                               />
                             </td>
-                            <td style={styles.settingsTableCell}>
+                            <td
+                              style={styles.settingsTableCell}
+                              title={setting.end}
+                            >
                               <input
                                 type="time"
                                 value={setting.end}
@@ -2303,7 +2310,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                                 disabled={setting.markedForDeletion}
                               />
                             </td>
-                            <td style={styles.settingsTableCell}>
+                            <td
+                              style={styles.settingsTableCell}
+                              title={setting.reason}
+                            >
                               <input
                                 type="text"
                                 value={setting.reason}
@@ -2324,7 +2334,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                                 disabled={setting.markedForDeletion}
                               />
                             </td>
-                            <td style={styles.settingsTableCell}>
+                            <td style={styles.settingsTableCell} title="Action">
                               {setting.markedForDeletion ? (
                                 <button
                                   style={{
@@ -2386,52 +2396,36 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        {/* Search Bar */}
+        {}
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Parts List</h1>
-            <span style={{ fontSize: "11px", color: "#6b7280" }}>
-              {partsLoading
-                ? "Loading..."
-                : `${sortedFilteredParts.length} parts`}
-              {appliedKeyword && (
-                <span style={{ marginLeft: "6px", color: "#2563eb" }}>
-                  — filtered by "{appliedKeyword}"
-                </span>
-              )}
-            </span>
+            <h1 style={styles.title}>Planning Monitor</h1>
           </div>
 
           <div style={styles.filterRow}>
             <div style={styles.inputGroup}>
               <span style={styles.label}>Search By</span>
               <select
-                style={styles.select}
+                style={{
+                  ...styles.select,
+                  backgroundColor: "#e0e7ff",
+                  borderColor: "#9fa8da",
+                }}
                 value={searchBy}
                 onChange={(e) => setSearchBy(e.target.value)}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               >
-                <option value="Part Code" style={optionStyle}>
-                  Part Code
-                </option>
-                <option value="Part Name" style={optionStyle}>
-                  Part Name
-                </option>
-                <option value="Vendor" style={optionStyle}>
-                  Vendor
-                </option>
-                <option value="Part Type" style={optionStyle}>
-                  Part Type
-                </option>
-                <option value="Vendor Type" style={optionStyle}>
-                  Vendor Type
-                </option>
+                <option value="Part Code">Part Code</option>
+                <option value="Part Name">Part Name</option>
+                <option value="Vendor">Vendor</option>
+                <option value="Part Type">Part Type</option>
+                <option value="Vendor Type">Vendor Type</option>
               </select>
               <input
                 type="text"
                 style={styles.input}
-                placeholder={`Search ${searchBy}...`}
+                placeholder={`Input Keyword`}
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -2446,141 +2440,117 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
               >
                 Search
               </button>
-              {appliedKeyword && (
-                <button
-                  style={{
-                    ...styles.button,
-                    backgroundColor: "#f3f4f6",
-                    color: "#374151",
-                    border: "1px solid #d1d5db",
-                  }}
-                  onClick={handleClearSearch}
-                >
-                  Clear
-                </button>
-              )}
             </div>
-          </div>
-        </div>
-
-        {/* Shortage Controls */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "12px",
-            padding: "10px 14px",
-            backgroundColor: "white",
-            borderRadius: "8px",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <AlertTriangle
-              size={15}
-              color={planningUnits > 0 ? "#ca8a04" : "#9ca3af"}
-            />
-            <span style={{ fontSize: "12px", fontWeight: "600", color: "#374151" }}>
-              Planning Monitor
-            </span>
-            <span style={{ fontSize: "11px", color: "#6b7280" }}>
-              Planning Units:
-            </span>
-            <input
-              type="number"
-              min="0"
-              placeholder="Input number"
-              value={planningUnitsInput}
-              onChange={(e) => setPlanningUnitsInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
+            <div style={styles.inputGroup}>
+              <AlertTriangle
+                size={15}
+                color={planningUnits > 0 ? "#ca8a04" : "#9ca3af"}
+              />
+              <span style={{ fontSize: "11px", color: "#6b7280" }}>
+                Planning Units:
+              </span>
+              <input
+                type="number"
+                min="0"
+                placeholder="Input number"
+                value={planningUnitsInput}
+                onChange={(e) => setPlanningUnitsInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const v = parseInt(planningUnitsInput);
+                    if (!isNaN(v) && v >= 0) {
+                      setPlanningUnits(v);
+                      localStorage.setItem("pm_planning_units", String(v));
+                      setCurrentPage(1);
+                    }
+                  }
+                }}
+                style={{
+                  width: "88px",
+                  height: "32px",
+                  border: "2px solid #d1d5db",
+                  borderRadius: "4px",
+                  padding: "0 8px",
+                  fontSize: "12px",
+                  fontFamily: "inherit",
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={() => {
                   const v = parseInt(planningUnitsInput);
                   if (!isNaN(v) && v >= 0) {
                     setPlanningUnits(v);
                     localStorage.setItem("pm_planning_units", String(v));
                     setCurrentPage(1);
                   }
-                }
-              }}
-              style={{
-                width: "88px",
-                height: "28px",
-                border: "1px solid #9fa8da",
-                borderRadius: "4px",
-                padding: "0 8px",
-                fontSize: "12px",
-                fontFamily: "inherit",
-              }}
-            />
-            <button
-              onClick={() => {
-                const v = parseInt(planningUnitsInput);
-                if (!isNaN(v) && v >= 0) {
-                  setPlanningUnits(v);
-                  localStorage.setItem("pm_planning_units", String(v));
-                  setCurrentPage(1);
-                }
-              }}
-              style={{
-                height: "28px",
-                padding: "0 12px",
-                backgroundColor: "#2563eb",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                fontSize: "11px",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Set
-            </button>
-            {planningUnits > 0 && (
-              <>
-                <span style={{ fontSize: "11px", backgroundColor: "#e0e7ff", color: "#2563eb", padding: "2px 8px", borderRadius: "10px", fontWeight: "600" }}>
-                  {planningUnits} units
-                </span>
-                <button
-                  onClick={() => { setPlanningUnits(0); setPlanningUnitsInput(""); localStorage.setItem("pm_planning_units", "0"); }}
-                  style={{ height: "24px", padding: "0 8px", backgroundColor: "#f3f4f6", color: "#6b7280", border: "1px solid #d1d5db", borderRadius: "4px", fontSize: "11px", cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  Clear
-                </button>
-              </>
-            )}
-
-            {/* Customer filter */}
-            <span style={{ fontSize: "11px", color: "#6b7280", marginLeft: "8px", borderLeft: "1px solid #e5e7eb", paddingLeft: "12px" }}>
-              Customer:
-            </span>
-            <select
-              value={shortageCustomerFilter}
-              onChange={(e) => { setShortageCustomerFilter(e.target.value); setCurrentPage(1); }}
-              style={{
-                height: "28px",
-                border: "1px solid #9fa8da",
-                borderRadius: "4px",
-                padding: "0 8px",
-                fontSize: "11px",
-                fontFamily: "inherit",
-                cursor: "pointer",
-                backgroundColor: "white",
-              }}
-            >
-              <option value="ALL">
-                {scheduleCustomers.length > 0 ? "Auto (From Schedule)" : "All Customers"}
-              </option>
-              {allPartsCustomers.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            {shortageCustomerFilter !== "ALL" && (
-              <span style={{ fontSize: "11px", backgroundColor: "#e0e7ff", color: "#2563eb", padding: "2px 8px", borderRadius: "10px", fontWeight: "600" }}>
-                {shortageCustomerFilter}
+                }}
+                style={{ ...styles.button, ...styles.searchButton }}
+              >
+                Set
+              </button>
+              {planningUnits > 0 && (
+                <>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      backgroundColor: "#e0e7ff",
+                      color: "#2563eb",
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {planningUnits} units
+                  </span>
+                  <button
+                    onClick={() => {
+                      setPlanningUnits(0);
+                      setPlanningUnitsInput("");
+                      localStorage.setItem("pm_planning_units", "0");
+                    }}
+                    style={{
+                      ...styles.button,
+                      backgroundColor: "#f3f4f6",
+                      color: "#6b7280",
+                      border: "1px solid #d1d5db",
+                    }}
+                  >
+                    Clear
+                  </button>
+                </>
+              )}
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: "#6b7280",
+                  marginLeft: "8px",
+                  borderLeft: "1px solid #e5e7eb",
+                  paddingLeft: "12px",
+                }}
+              >
+                Customer:
               </span>
-            )}
+              <select
+                value={shortageCustomerFilter}
+                onChange={(e) => {
+                  setShortageCustomerFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                style={styles.select}
+              >
+                <option value="ALL">
+                  {scheduleCustomers.length > 0
+                    ? "Auto (From Schedule)"
+                    : "All Customers"}
+                </option>
+                {allPartsCustomers.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -2614,7 +2584,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           ))}
         </div>
 
-        {/* Parts Table */}
+        {}
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
             <table
@@ -2662,26 +2632,38 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                 {pagedParts.map((p, idx) => (
                   <tr
                     key={p.id || p.code}
-                    onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                    }
+                    onClick={() => toggleRowHighlight(p.id || p.code)}
+                    style={{
+                      backgroundColor: highlightedRows.has(p.id || p.code)
+                        ? "#c7cde8"
+                        : "transparent",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!highlightedRows.has(p.id || p.code))
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!highlightedRows.has(p.id || p.code))
+                        e.target.closest("tr").style.backgroundColor =
+                          "transparent";
+                    }}
                   >
                     <td
-                     style={{
-                          ...styles.expandedTd,
-                          ...styles.expandedWithLeftBorder,
-                          ...styles.emptyColumn,
-                        }}
+                      style={{
+                        ...styles.expandedTd,
+                        ...styles.expandedWithLeftBorder,
+                        ...styles.emptyColumn,
+                      }}
+                      title={startIndex + idx + 1}
                     >
                       {startIndex + idx + 1}
                     </td>
 
                     <td
                       style={styles.tdWithLeftBorder}
+                      title={p.code || "-"}
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
@@ -2690,6 +2672,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
                     <td
                       style={styles.tdWithLeftBorder}
+                      title={p.name || "-"}
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
@@ -2698,6 +2681,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
                     <td
                       style={styles.tdWithLeftBorder}
+                      title={p.type || "-"}
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
@@ -2706,6 +2690,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
                     <td
                       style={styles.tdWithLeftBorder}
+                      title={p.vendorType || "-"}
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
@@ -2714,6 +2699,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
                     <td
                       style={styles.tdWithLeftBorder}
+                      title={p.vendorName || "-"}
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
@@ -2737,14 +2723,20 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
                     <td
                       style={styles.tdWithLeftBorder}
-                      title={p.customerSpecial
-                        ? p.customerSpecial.map((id) => customersMap[id] || id).join(", ")
-                        : "All Customers"}
+                      title={
+                        p.customerSpecial
+                          ? p.customerSpecial
+                              .map((id) => customersMap[id] || id)
+                              .join(", ")
+                          : "All Customers"
+                      }
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
                       {p.customerSpecial
-                        ? p.customerSpecial.map((id) => customersMap[id] || id).join(", ")
+                        ? p.customerSpecial
+                            .map((id) => customersMap[id] || id)
+                            .join(", ")
                         : "All Customers"}
                     </td>
 
@@ -2757,7 +2749,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       {p.qty_per_assembly}
                     </td>
 
-                    {/* Stock Target */}
+                    {}
                     <td
                       style={{
                         ...styles.tdWithLeftBorder,
@@ -2768,25 +2760,38 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                           return p.m101 >= target ? "#2563eb" : "#dc2626";
                         })(),
                       }}
-                      title={currentSchedule
-                        ? `Sisa ${remainingToday} unit × ${p.qty_per_assembly} pcs/unit = ${getStockTarget(p.qty_per_assembly)} pcs`
-                        : "Tidak ada schedule aktif"}
+                      title={
+                        currentSchedule
+                          ? `Sisa ${remainingToday} unit × ${p.qty_per_assembly} pcs/unit = ${getStockTarget(p.qty_per_assembly)} pcs`
+                          : "Tidak ada schedule aktif"
+                      }
                     >
-                      {currentSchedule ? `${getStockTarget(p.qty_per_assembly)} pcs` : "-"}
+                      {currentSchedule
+                        ? `${getStockTarget(p.qty_per_assembly)} pcs`
+                        : "-"}
                     </td>
 
-                    {/* Stock Expected */}
+                    {}
                     <td
                       style={{
                         ...styles.tdWithLeftBorder,
                         fontWeight: 600,
                         color: (() => {
                           if (!currentSchedule) return "#ca8a04";
-                          const stockExp = p.m101 - expectedOutput * p.qty_per_assembly;
-                          return stockExp < 0 ? "#dc2626" : stockExp === 0 ? "#ca8a04" : "#16a34a";
+                          const stockExp =
+                            p.m101 - expectedOutput * p.qty_per_assembly;
+                          return stockExp < 0
+                            ? "#dc2626"
+                            : stockExp === 0
+                              ? "#ca8a04"
+                              : "#16a34a";
                         })(),
                       }}
-                      title={currentSchedule ? `Stock M101: ${p.m101} - (${expectedOutput} expected × ${p.qty_per_assembly}) = ${p.m101 - expectedOutput * p.qty_per_assembly} pcs` : ""}
+                      title={
+                        currentSchedule
+                          ? `Stock M101: ${p.m101} - (${expectedOutput} expected × ${p.qty_per_assembly}) = ${p.m101 - expectedOutput * p.qty_per_assembly} pcs`
+                          : ""
+                      }
                     >
                       {currentSchedule
                         ? `${p.m101 - expectedOutput * p.qty_per_assembly} pcs`
@@ -2810,16 +2815,31 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       >
                         {p.m101} pcs
                         {planningUnits > 0 && (
-                          <span style={{ fontSize: "10px", marginLeft: "4px", opacity: 0.8 }}>
-                            ({getSurplus(p.m101, p.qty_per_assembly) >= 0 ? "+" : ""}{getSurplus(p.m101, p.qty_per_assembly)})
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              marginLeft: "4px",
+                              opacity: 0.8,
+                            }}
+                          >
+                            (
+                            {getSurplus(p.m101, p.qty_per_assembly) >= 0
+                              ? "+"
+                              : ""}
+                            {getSurplus(p.m101, p.qty_per_assembly)})
                           </span>
                         )}
                       </span>
                     </td>
 
-                    {/* Stock M136 — plain, no shortage coloring */}
+                    {}
                     <td
-                      style={{ ...styles.tdWithLeftBorder, color: "#374151", fontWeight: 600 }}
+                      style={{
+                        ...styles.tdWithLeftBorder,
+                        color: "#374151",
+                        fontWeight: 600,
+                      }}
+                      title={`${p.m136} pcs`}
                       onMouseEnter={showTooltip}
                       onMouseLeave={hideTooltip}
                     >
@@ -2831,6 +2851,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                         ...styles.tdWithLeftBorder,
                         textAlign: "center",
                       }}
+                      title="Status"
                     >
                       {(() => {
                         const status = getShortageStatus(
@@ -2946,6 +2967,9 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                 {">>"}
               </button>
             </div>
+            <span style={{ fontSize: "12px", color: "#374151" }}>
+              Total Row: {sortedFilteredParts.length}
+            </span>
           </div>
         </div>
       </div>

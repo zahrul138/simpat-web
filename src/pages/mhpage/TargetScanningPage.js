@@ -98,17 +98,19 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   const [error, setError] = useState(null);
   const [approveLoading, setApproveLoading] = useState(false);
   const [selectedRows, setSelectedRows] = useState(new Set());
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
+  const [highlightedDetailRows, setHighlightedDetailRows] = useState({});
   const [bulkRemark, setBulkRemark] = useState("");
-  // State untuk edit remark dan approve di tab Complete
-  const [editingApproval, setEditingApproval] = useState({}); // {schedId_unitNo: remark}
-  const [completeActionLoading, setCompleteActionLoading] = useState({}); // {schedId_unitNo: true}
+
+  const [editingApproval, setEditingApproval] = useState({});
+  const [completeActionLoading, setCompleteActionLoading] = useState({});
 
   const [completeSchedules, setCompleteSchedules] = useState([]);
   const [completeLoading, setCompleteLoading] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
   const [completeApprovals, setCompleteApprovals] = useState({});
   const [completeAppLoading, setCompleteAppLoading] = useState({});
-  // Breakdown detail untuk hitung customer per unit (termasuk Pending)
+
   const [detailBreakdown, setDetailBreakdown] = useState([]);
 
   const [searchBy, setSearchBy] = useState("Unit");
@@ -199,7 +201,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
           });
           setApprovals(map);
         } catch {}
-        // Load detail breakdown untuk tampilkan customer di semua row (termasuk Pending)
+
         try {
           const detailResp = await http(
             `/api/production-schedules/${active.id}`,
@@ -250,8 +252,6 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     };
   }, [loadSchedule]);
 
-  // Auto-jump ke page yang berisi row Pending pertama
-  // Guard: tunggu approvals selesai load (approvals tidak kosong ATAU memang belum ada yang approve)
   const lastJumpedScheduleId = useRef(null);
   useEffect(() => {
     if (!schedule?.id) return;
@@ -260,10 +260,8 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     const actual = schedule.actual_input || 0;
     if (total === 0) return;
 
-    // Jika actual > 0 tapi approvals masih kosong → belum selesai load, tunggu
     if (actual > 0 && Object.keys(approvals).length === 0) return;
 
-    // Scan approvals map untuk cari unit Pending pertama (bukan approved/skipped)
     let firstPending = null;
     for (let u = 1; u <= total; u++) {
       const appr = approvals[u];
@@ -278,7 +276,6 @@ const TargetScanningPage = ({ sidebarVisible }) => {
       }
     }
 
-    // Kalau semua sudah done, lompat ke halaman terakhir
     const targetUnit = firstPending ?? total;
     const targetPage = Math.max(1, Math.ceil(targetUnit / itemsPerPage));
     setCurrentPage(targetPage);
@@ -318,7 +315,6 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   const totalUnits = schedule?.total_input || 0;
   const actualInput = schedule?.actual_input || 0;
 
-  // Hitung customer dari breakdown (untuk semua row, termasuk Pending)
   const getCustomerFromBreakdown = useCallback(
     (unitNo) => {
       for (const b of detailBreakdown) {
@@ -561,7 +557,6 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Approve unit spesifik di tab Complete
   const handleApproveSingle = async (schedId, unitNo, remark) => {
     const key = `${schedId}_${unitNo}`;
     const user = getAuthUser();
@@ -609,7 +604,6 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Update remark + approved_by di tab Complete
   const handleUpdateApproval = async (schedId, unitNo) => {
     const key = `${schedId}_${unitNo}`;
     const editKey = key;
@@ -652,7 +646,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
           },
         },
       }));
-      // Tutup edit mode
+
       setEditingApproval((p) => {
         const n = { ...p };
         delete n[editKey];
@@ -674,6 +668,12 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   };
 
   const toggleRow = (unitNo) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(unitNo)) next.delete(unitNo);
+      else next.add(unitNo);
+      return next;
+    });
     const pendingList = allRows
       .filter((r) => r.status === "Pending")
       .map((r) => r.unitNo);
@@ -724,6 +724,37 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     setCurrentPage(1);
   };
 
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      if (tab === "OnProgress") loadSchedule();
+      else loadCompleteSchedules();
+    } else {
+      setExpandedRows({});
+      setHighlightedRows(new Set());
+      setHighlightedDetailRows({});
+      setActiveTab(tab);
+    }
+  };
+
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleDetailHighlight = (parentId, detailKey) => {
+    setHighlightedDetailRows((prev) => {
+      const next = { ...prev };
+      const key = `${parentId}_${detailKey}`;
+      if (next[key]) delete next[key];
+      else next[key] = true;
+      return next;
+    });
+  };
+
   const handleButtonHover = (e, isHover, type) => {
     if (!e?.target) return;
     if (type === "search" || type === "primary") {
@@ -743,13 +774,6 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   };
   const handleInputBlur = (e) => {
     e.target.style.borderColor = "#d1d5db";
-  };
-
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
   };
 
   const styles = {
@@ -781,8 +805,8 @@ const TargetScanningPage = ({ sidebarVisible }) => {
     },
     title: { fontSize: "20px", fontWeight: "600", color: "#1f2937", margin: 0 },
     filterRow: {
-      display: "grid",
-      alignItems: "center",
+      display: "flex",
+      flexDirection: "column",
       gap: "12px",
       marginBottom: "16px",
     },
@@ -1136,86 +1160,74 @@ const TargetScanningPage = ({ sidebarVisible }) => {
 
   const renderFilterRow = () => (
     <div style={styles.filterRow}>
-      <div style={styles.inputGroup}>
-        {activeTab === "OnProgress" && (
-          <>
-            <span style={styles.label}>Status</span>
-            <select
-              style={styles.select}
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-            >
-              <option value="All">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Skipped">Skipped</option>
-              <option value="Approved">Approved</option>
-            </select>
-            <span style={styles.label}>Search By</span>
-            <select
-              style={styles.select}
-              value={searchBy}
-              onChange={(e) => setSearchBy(e.target.value)}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-            >
-              <option value="Unit">Unit No</option>
-              <option value="Status">Status</option>
-              <option value="Line">Line</option>
-            </select>
-            <input
-              type="text"
-              style={styles.input}
-              placeholder="Input keyword"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearchClick()}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-            />
-            <button
-              style={styles.button}
-              onClick={handleSearchClick}
-              onMouseEnter={(e) => handleButtonHover(e, true, "search")}
-              onMouseLeave={(e) => handleButtonHover(e, false, "search")}
-            >
-              Search
-            </button>
-          </>
-        )}
-        {activeTab === "Complete" && (
-          <>
-            <span style={styles.label}>Date From</span>
-            <input
-              type="date"
-              style={styles.input}
-              value={cDateFrom}
-              onChange={(e) => {
-                setCDateFrom(e.target.value);
-                setCPage(1);
-              }}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-            />
-            <span style={styles.label}>To</span>
-            <input
-              type="date"
-              style={styles.input}
-              value={cDateTo}
-              onChange={(e) => {
-                setCDateTo(e.target.value);
-                setCPage(1);
-              }}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-            />
-          </>
-        )}
-      </div>
+      {activeTab === "OnProgress" && (
+        <div style={styles.inputGroup}>
+          <span style={styles.label}>Status</span>
+          <select
+            style={styles.select}
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+          >
+            <option value="All">All</option>
+            <option value="Pending">Pending</option>
+            <option value="Skipped">Skipped</option>
+            <option value="Approved">Approved</option>
+          </select>
+          <span style={styles.label}>Search By</span>
+          <select
+            style={styles.select}
+            value={searchBy}
+            onChange={(e) => setSearchBy(e.target.value)}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+          >
+            <option value="Unit">Unit No</option>
+            <option value="Status">Status</option>
+            <option value="Line">Line</option>
+          </select>
+          <input
+            type="text"
+            style={styles.input}
+            placeholder="Input Keyword"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearchClick();
+            }}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+          />
+          <button
+            style={styles.button}
+            onClick={handleSearchClick}
+            onMouseEnter={(e) => handleButtonHover(e, true, "search")}
+            onMouseLeave={(e) => handleButtonHover(e, false, "search")}
+          >
+            Search
+          </button>
+        </div>
+      )}
+      {activeTab === "Complete" && (
+        <div style={styles.inputGroup}>
+          <span style={styles.label}>Date Filter</span>
+          <input
+            type="date"
+            style={styles.input}
+            value={cDateFrom}
+            onChange={(e) => {
+              setCDateFrom(e.target.value);
+              setCPage(1);
+            }}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -1408,6 +1420,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={(currentPage - 1) * itemsPerPage + index + 1}
                       >
                         {(currentPage - 1) * itemsPerPage + index + 1}
                       </td>
@@ -1416,6 +1429,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title="Select"
                       >
                         {!isApproved && (
                           <input
@@ -1442,6 +1456,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           textAlign: "center",
                           fontWeight: "600",
                         }}
+                        title={String(row.unitNo)}
                       >
                         {row.unitNo}
                       </td>
@@ -1451,16 +1466,30 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                       >
                         {row.scheduleCode}
                       </td>
-                      <td style={styles.tdWithLeftBorder}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={toDDMMYYYY(row.date)}
+                      >
                         {toDDMMYYYY(row.date)}
                       </td>
-                      <td style={styles.tdWithLeftBorder}>{row.customer}</td>
-                      <td style={styles.tdWithLeftBorder}>{row.shiftTime}</td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.customer || "-"}
+                      >
+                        {row.customer}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.shiftTime || "-"}
+                      >
+                        {row.shiftTime}
+                      </td>
                       <td
                         style={{
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title={String(row.line || "-")}
                       >
                         {row.line}
                       </td>
@@ -1469,10 +1498,14 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title={row.status || "-"}
                       >
                         {renderStatusBadge(row.status)}
                       </td>
-                      <td style={styles.tdWithLeftBorder}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.remark || ""}
+                      >
                         {isNextPend || isSkipped || isApproved ? (
                           <input
                             type="text"
@@ -1509,6 +1542,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title="Action"
                       >
                         {isNextPend ? (
                           <span
@@ -1651,14 +1685,32 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                   <>
                     <tr
                       key={sched.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
+                      style={{
+                        backgroundColor:
+                          expandedRows[sched.id] ||
+                          highlightedRows.has(sched.id)
+                            ? "#c7cde8"
+                            : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(sched.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          expandedRows[sched.id] ||
+                          highlightedRows.has(sched.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1666,6 +1718,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.expandedWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title={(cPage - 1) * cItemsPerPage + idx + 1}
                       >
                         {(cPage - 1) * cItemsPerPage + idx + 1}
                       </td>
@@ -1674,10 +1727,28 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           ...styles.emptyColumn,
                         }}
+                        title="Expand"
                       >
                         <button
                           style={styles.arrowButton}
-                          onClick={() => toggleExpandRow(sched.id)}
+                          onClick={() => {
+                            toggleExpandRow(sched.id);
+                            if (expandedRows[sched.id]) {
+                              setHighlightedRows((prev) => {
+                                const next = new Set(prev);
+                                next.delete(sched.id);
+                                return next;
+                              });
+                              setHighlightedDetailRows((prev) => {
+                                const next = { ...prev };
+                                Object.keys(next).forEach((key) => {
+                                  if (key.startsWith(`${sched.id}_`))
+                                    delete next[key];
+                                });
+                                return next;
+                              });
+                            }
+                          }}
                         >
                           {expandedRows[sched.id] ? (
                             <MdArrowDropDown style={styles.arrowIcon} />
@@ -1686,13 +1757,22 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           )}
                         </button>
                       </td>
-                      <td style={styles.tdWithLeftBorder}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={sched.code || "-"}
+                      >
                         {sched.code || "-"}
                       </td>
-                      <td style={styles.tdWithLeftBorder}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={toDDMMYYYY(sched.target_date)}
+                      >
                         {toDDMMYYYY(sched.target_date)}
                       </td>
-                      <td style={styles.tdWithLeftBorder}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={sched.shift_time || "-"}
+                      >
                         {sched.shift_time || "-"}
                       </td>
                       <td
@@ -1700,6 +1780,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title={sched.line_code || "-"}
                       >
                         {sched.line_code || "-"}
                       </td>
@@ -1708,6 +1789,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title={String(sched.total_customer || 0)}
                       >
                         {sched.total_customer || 0}
                       </td>
@@ -1716,6 +1798,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title={String(sched.total_input || 0)}
                       >
                         {sched.total_input || 0}
                       </td>
@@ -1724,10 +1807,14 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                           ...styles.tdWithLeftBorder,
                           textAlign: "center",
                         }}
+                        title={String(sched.actual_input || 0)}
                       >
                         {sched.actual_input || 0}
                       </td>
-                      <td style={styles.tdWithLeftBorder}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={sched.created_by_name || "-"}
+                      >
                         {sched.created_by_name || "-"}
                       </td>
                     </tr>
@@ -1788,23 +1875,50 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                       return (
                                         <tr
                                           key={unitNo}
-                                          style={{
-                                            backgroundColor: isApp
-                                              ? "#f0fdf4"
-                                              : "transparent",
+                                          onClick={(e) => {
+                                            if (
+                                              !e.target.closest("button") &&
+                                              !e.target.closest("input")
+                                            )
+                                              toggleDetailHighlight(
+                                                sched.id,
+                                                unitNo,
+                                              );
                                           }}
-                                          onMouseEnter={(e) =>
-                                            (e.target.closest(
-                                              "tr",
-                                            ).style.backgroundColor = "#c7cde8")
-                                          }
-                                          onMouseLeave={(e) =>
-                                            (e.target.closest(
-                                              "tr",
-                                            ).style.backgroundColor = isApp
-                                              ? "#f0fdf4"
-                                              : "transparent")
-                                          }
+                                          style={{
+                                            backgroundColor:
+                                              highlightedDetailRows[
+                                                `${sched.id}_${unitNo}`
+                                              ]
+                                                ? "#c7cde8"
+                                                : isApp
+                                                  ? "#f0fdf4"
+                                                  : "transparent",
+                                            cursor: "pointer",
+                                          }}
+                                          onMouseEnter={(e) => {
+                                            if (
+                                              !highlightedDetailRows[
+                                                `${sched.id}_${unitNo}`
+                                              ]
+                                            )
+                                              e.target.closest(
+                                                "tr",
+                                              ).style.backgroundColor =
+                                                "#c7cde8";
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            if (
+                                              !highlightedDetailRows[
+                                                `${sched.id}_${unitNo}`
+                                              ]
+                                            )
+                                              e.target.closest(
+                                                "tr",
+                                              ).style.backgroundColor = isApp
+                                                ? "#f0fdf4"
+                                                : "transparent";
+                                          }}
                                         >
                                           <td
                                             style={{
@@ -1812,6 +1926,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                               ...styles.expandedWithLeftBorder,
                                               ...styles.emptyColumn,
                                             }}
+                                            title={String(unitNo)}
                                           >
                                             {unitNo}
                                           </td>
@@ -1821,6 +1936,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                               textAlign: "center",
                                               fontWeight: "600",
                                             }}
+                                            title={String(unitNo)}
                                           >
                                             {unitNo}
                                           </td>
@@ -1829,10 +1945,16 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                               ...styles.expandedTd,
                                               textAlign: "center",
                                             }}
+                                            title={
+                                              isApp ? "Approved" : "Pending"
+                                            }
                                           >
                                             {renderStatusBadge(isApp)}
                                           </td>
-                                          <td style={styles.expandedTd}>
+                                          <td
+                                            style={styles.expandedTd}
+                                            title={appr?.remark || ""}
+                                          >
                                             {isEditMode ? (
                                               <input
                                                 type="text"
@@ -1866,6 +1988,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                               textAlign: "center",
                                               whiteSpace: "nowrap",
                                             }}
+                                            title="Action"
                                           >
                                             {isApp ? (
                                               isEditMode ? (
@@ -2033,7 +2156,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                 ...styles.tabButton,
                 ...(activeTab === tab ? styles.tabButtonActive : {}),
               }}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               onMouseEnter={(e) => handleTabHover(e, true, activeTab === tab)}
               onMouseLeave={(e) => handleTabHover(e, false, activeTab === tab)}
             >

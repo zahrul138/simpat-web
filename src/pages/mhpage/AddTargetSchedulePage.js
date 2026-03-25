@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Pencil, Save, Trash2, Plus } from "lucide-react";
 import { Helmet } from "react-helmet";
@@ -135,7 +135,7 @@ const buildScheduleBody = (header) => {
       inputQuantity: Number(d.input) || 0,
       palletType: toDbPalletType(d.palletType),
       isAutoSplit: false,
-      originalInput: null,
+      originalInput: d.originalInput ?? null,
       sequenceNumber: i + 1,
       poNumber: (d.poNumber || "").trim() || null,
       palletStatus: "Pending",
@@ -176,6 +176,8 @@ const AddTargetSchedulePage = () => {
   const [selectedHeaderIds, setSelectedHeaderIds] = useState(new Set());
   const [savedProductionSchedules, setSavedProductionSchedules] = useState([]);
   const [expandedRows, setExpandedRows] = useState({});
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
+  const [highlightedDetailRows, setHighlightedDetailRows] = useState({});
   const [addCustomerDetail, setAddCustomerDetail] = useState(false);
   const [activeHeaderId, setActiveHeaderId] = useState(null);
   const [selectAll, setSelectAll] = useState(false);
@@ -342,6 +344,25 @@ const AddTargetSchedulePage = () => {
 
   const toggleRowExpansion = (rowId) =>
     setExpandedRows((prev) => ({ ...prev, [rowId]: !prev[rowId] }));
+
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleDetailHighlight = (parentId, detailKey) => {
+    setHighlightedDetailRows((prev) => {
+      const next = { ...prev };
+      const key = `${parentId}_${detailKey}`;
+      if (next[key]) delete next[key];
+      else next[key] = true;
+      return next;
+    });
+  };
 
   const handleInsertHeader = async () => {
     console.log("targetDateFrom:", targetDateFrom);
@@ -594,6 +615,7 @@ const AddTargetSchedulePage = () => {
       } else {
         alert("Schedule successfully created");
       }
+      document.title = "Target Schedule";
       navigate("/target-schedule");
     } catch (err) {
       alert(err.message || "Failed to save schedule.");
@@ -606,12 +628,15 @@ const AddTargetSchedulePage = () => {
     const cap = Number(meta.pallet_capacity) || (defType === "W" ? 32 : 16);
     const minW = Number(meta.min_pallet_w_quantity ?? 5);
 
+    const originalInput = Number(payload.input) || 0;
+
     const cloneRow = (overrides) => ({
       materialCode: payload.materialCode,
       customer: payload.customer,
       model: payload.model,
       description: payload.description,
       input: overrides.input,
+      originalInput: originalInput,
       poNumber: payload.poNumber,
       palletType: overrides.palletType,
       palletUse: 1,
@@ -1455,16 +1480,36 @@ const AddTargetSchedulePage = () => {
                     <tr></tr>
                   ) : (
                     savedProductionSchedules.map((h, idx) => (
-                      <FragmentLike key={h.id}>
+                      <React.Fragment key={h.id}>
                         <tr
-                          onMouseEnter={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "#c7cde8")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "transparent")
-                          }
+                          style={{
+                            backgroundColor:
+                              selectedHeaderIds.has(h.id) ||
+                              expandedRows[h.id] ||
+                              highlightedRows.has(h.id)
+                                ? "#c7cde8"
+                                : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("input[type='checkbox']") &&
+                              !e.target.closest("button")
+                            )
+                              toggleRowHighlight(h.id);
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              selectedHeaderIds.has(h.id) ||
+                              expandedRows[h.id] ||
+                              highlightedRows.has(h.id)
+                                ? "#c7cde8"
+                                : "transparent";
+                          }}
                         >
                           <td
                             style={{
@@ -1501,7 +1546,24 @@ const AddTargetSchedulePage = () => {
                           >
                             <button
                               style={styles.arrowButton}
-                              onClick={() => toggleRowExpansion(h.id)}
+                              onClick={() => {
+                                toggleRowExpansion(h.id);
+                                if (expandedRows[h.id]) {
+                                  setHighlightedRows((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(h.id);
+                                    return next;
+                                  });
+                                  setHighlightedDetailRows((prev) => {
+                                    const next = { ...prev };
+                                    Object.keys(next).forEach((key) => {
+                                      if (key.startsWith(`${h.id}_`))
+                                        delete next[key];
+                                    });
+                                    return next;
+                                  });
+                                }
+                              }}
                             >
                               {expandedRows[h.id] ? (
                                 <MdArrowDropDown style={styles.arrowIcon} />
@@ -1631,17 +1693,37 @@ const AddTargetSchedulePage = () => {
                                     {h.details?.map((d, i) => (
                                       <tr
                                         key={`${h.id}-${i}`}
-                                        onMouseEnter={(e) =>
-                                          (e.target.closest(
+                                        onClick={(e) => {
+                                          if (
+                                            !e.target.closest("button") &&
+                                            !e.target.closest("input")
+                                          )
+                                            toggleDetailHighlight(h.id, i);
+                                        }}
+                                        style={{
+                                          backgroundColor:
+                                            highlightedDetailRows[
+                                              `${h.id}_${i}`
+                                            ]
+                                              ? "#c7cde8"
+                                              : "transparent",
+                                          cursor: "pointer",
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.target.closest(
                                             "tr",
-                                          ).style.backgroundColor = "#c7cde8")
-                                        }
-                                        onMouseLeave={(e) =>
-                                          (e.target.closest(
+                                          ).style.backgroundColor = "#c7cde8";
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.target.closest(
                                             "tr",
                                           ).style.backgroundColor =
-                                            "transparent")
-                                        }
+                                            highlightedDetailRows[
+                                              `${h.id}_${i}`
+                                            ]
+                                              ? "#c7cde8"
+                                              : "transparent";
+                                        }}
                                       >
                                         <td
                                           style={{
@@ -1722,7 +1804,7 @@ const AddTargetSchedulePage = () => {
                             </td>
                           </tr>
                         )}
-                      </FragmentLike>
+                      </React.Fragment>
                     ))
                   )}
                 </tbody>
@@ -1918,7 +2000,5 @@ const AddTargetSchedulePage = () => {
     </div>
   );
 };
-
-const FragmentLike = ({ children }) => children;
 
 export default AddTargetSchedulePage;

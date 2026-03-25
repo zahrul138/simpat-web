@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -104,19 +105,19 @@ const AddOverseaPartSchedulePage = () => {
     const config =
       palletType === "large"
         ? {
-            length: 110,
-            width: 110,
-            maxHeight: 170,
-            baseHeight: 15,
-            maxWeight: 150,
-          }
+          length: 110,
+          width: 110,
+          maxHeight: 170,
+          baseHeight: 15,
+          maxWeight: 150,
+        }
         : {
-            length: 96,
-            width: 76,
-            maxHeight: 150,
-            baseHeight: 15,
-            maxWeight: 60,
-          };
+          length: 96,
+          width: 76,
+          maxHeight: 150,
+          baseHeight: 15,
+          maxWeight: 60,
+        };
 
     const availableHeight = config.maxHeight - config.baseHeight;
 
@@ -1125,7 +1126,7 @@ const AddOverseaPartSchedulePage = () => {
             const errorData = await scheduleResponse.json();
             throw new Error(
               errorData.message ||
-                `Failed to create schedule: ${scheduleResponse.status}`,
+              `Failed to create schedule: ${scheduleResponse.status}`,
             );
           }
 
@@ -1178,7 +1179,7 @@ const AddOverseaPartSchedulePage = () => {
             if (!vendorResponse.ok) {
               throw new Error(
                 vendorData.message ||
-                  `Failed to add vendors: ${vendorResponse.status}`,
+                `Failed to add vendors: ${vendorResponse.status}`,
               );
             }
 
@@ -1225,7 +1226,7 @@ const AddOverseaPartSchedulePage = () => {
                   );
                   throw new Error(
                     partsResult.message ||
-                      `Failed to add parts: ${partsResponse.status}`,
+                    `Failed to add parts: ${partsResponse.status}`,
                   );
                 }
 
@@ -1261,8 +1262,8 @@ const AddOverseaPartSchedulePage = () => {
       if (errors.length > 0) {
         alert(
           `Successfully submitted ${results.length} schedule(s).\n` +
-            `Failed to submit ${errors.length} schedule(s):\n` +
-            errors.map((e) => `- ${e.scheduleDate}: ${e.error}`).join("\n"),
+          `Failed to submit ${errors.length} schedule(s):\n` +
+          errors.map((e) => `- ${e.scheduleDate}: ${e.error}`).join("\n"),
         );
       } else {
         alert(`Successfully submitted ${results.length} schedule(s).`);
@@ -1814,7 +1815,7 @@ const AddOverseaPartSchedulePage = () => {
   };
 
   useEffect(() => {
-    const syncLoadingState = () => {};
+    const syncLoadingState = () => { };
 
     syncLoadingState();
   }, [loadingParts]);
@@ -2873,6 +2874,9 @@ const AddOverseaPartSchedulePage = () => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Oversea Schedule/Add Oversea Schedule</title>
+      </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
           <div style={styles.card}>
@@ -3025,12 +3029,12 @@ const AddOverseaPartSchedulePage = () => {
                         <tr
                           key={`hdr-${hdr.id}`}
                           onMouseEnter={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "#c7cde8")
+                          (e.target.closest("tr").style.backgroundColor =
+                            "#c7cde8")
                           }
                           onMouseLeave={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "transparent")
+                          (e.target.closest("tr").style.backgroundColor =
+                            "transparent")
                           }
                         >
                           <td
@@ -3254,23 +3258,22 @@ const AddOverseaPartSchedulePage = () => {
                                         vd.do_number || []
                                       ).join(" | ");
                                       const arrival = trip?.arv_to || "-";
-                                      const vendorRowId = `${hdr.id}_vendor_${
-                                        idx + 1
-                                      }`;
+                                      const vendorRowId = `${hdr.id}_vendor_${idx + 1
+                                        }`;
 
                                       const vendorRow = (
                                         <tr
                                           key={`${vendorRowId}-row`}
                                           onMouseEnter={(e) =>
-                                            (e.target.closest(
-                                              "tr",
-                                            ).style.backgroundColor = "#c7cde8")
+                                          (e.target.closest(
+                                            "tr",
+                                          ).style.backgroundColor = "#c7cde8")
                                           }
                                           onMouseLeave={(e) =>
-                                            (e.target.closest(
-                                              "tr",
-                                            ).style.backgroundColor =
-                                              "transparent")
+                                          (e.target.closest(
+                                            "tr",
+                                          ).style.backgroundColor =
+                                            "transparent")
                                           }
                                         >
                                           <td
@@ -3481,24 +3484,23 @@ const AddOverseaPartSchedulePage = () => {
                                                 </thead>
                                                 <tbody>
                                                   {Array.isArray(vd.parts) &&
-                                                  vd.parts.length > 0 ? (
+                                                    vd.parts.length > 0 ? (
                                                     vd.parts.map(
                                                       (part, pIndex) => (
                                                         <tr
-                                                          key={`${vendorRowId}-part-${
-                                                            part.id || pIndex
-                                                          }`}
+                                                          key={`${vendorRowId}-part-${part.id || pIndex
+                                                            }`}
                                                           onMouseEnter={(e) =>
-                                                            (e.target.closest(
-                                                              "tr",
-                                                            ).style.backgroundColor =
-                                                              "#c7cde8")
+                                                          (e.target.closest(
+                                                            "tr",
+                                                          ).style.backgroundColor =
+                                                            "#c7cde8")
                                                           }
                                                           onMouseLeave={(e) =>
-                                                            (e.target.closest(
-                                                              "tr",
-                                                            ).style.backgroundColor =
-                                                              "transparent")
+                                                          (e.target.closest(
+                                                            "tr",
+                                                          ).style.backgroundColor =
+                                                            "transparent")
                                                           }
                                                         >
                                                           <td
@@ -3544,11 +3546,11 @@ const AddOverseaPartSchedulePage = () => {
                                                               const isEditing =
                                                                 editingExpandedPart.showInput &&
                                                                 editingExpandedPart.headerId ===
-                                                                  hdr.id &&
+                                                                hdr.id &&
                                                                 editingExpandedPart.vendorIndex ===
-                                                                  idx &&
+                                                                idx &&
                                                                 editingExpandedPart.partIndex ===
-                                                                  pIndex;
+                                                                pIndex;
 
                                                               if (isEditing) {
                                                                 return (
@@ -3627,7 +3629,7 @@ const AddOverseaPartSchedulePage = () => {
                                                                       </span>
                                                                     ) : (
                                                                       (part.qty ??
-                                                                      0)
+                                                                        0)
                                                                     )}
                                                                   </span>
                                                                 );
@@ -3675,7 +3677,7 @@ const AddOverseaPartSchedulePage = () => {
                                                               title="Edit"
                                                               disabled={
                                                                 loadingParts[
-                                                                  part.id
+                                                                part.id
                                                                 ]
                                                               }
                                                             >
@@ -3710,7 +3712,7 @@ const AddOverseaPartSchedulePage = () => {
                                                               title="Delete"
                                                               disabled={
                                                                 loadingParts[
-                                                                  part.id
+                                                                part.id
                                                                 ]
                                                               }
                                                             >
@@ -4038,7 +4040,7 @@ const AddOverseaPartSchedulePage = () => {
                                 checked={
                                   addVendorPartFormData.parts.length > 0 &&
                                   selectedPartsInPopup.length ===
-                                    addVendorPartFormData.parts.length
+                                  addVendorPartFormData.parts.length
                                 }
                                 style={{
                                   cursor: "pointer",
@@ -4065,12 +4067,12 @@ const AddOverseaPartSchedulePage = () => {
                             <tr
                               key={part.id || index}
                               onMouseEnter={(e) =>
-                                (e.target.closest("tr").style.backgroundColor =
-                                  "#c7cde8")
+                              (e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8")
                               }
                               onMouseLeave={(e) =>
-                                (e.target.closest("tr").style.backgroundColor =
-                                  "transparent")
+                              (e.target.closest("tr").style.backgroundColor =
+                                "transparent")
                               }
                             >
                               <td style={vendorPartStyles.tdNumber}>

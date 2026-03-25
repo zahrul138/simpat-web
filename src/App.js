@@ -15,8 +15,6 @@ import LandingPage from "./components/LandingPage";
 
 import LoginPage from "./pages/LoginPage";
 
-import ComponentMasterPage from "./pages/mhpage/ComponentMasterPage";
-
 import ProductionMonitoringPage from "./pages/mhpage/ProductionMonitoringPage";
 import TargetSchedulePage from "./pages/mhpage/TargetSchedulePage";
 import AddTargetSchedulePage from "./pages/mhpage/AddTargetSchedulePage";
@@ -161,7 +159,6 @@ const LayoutHandler = () => {
     const routeMapping = {
       "/target-schedule": { app: "production", dept: "SCN-MH" },
       "/control-part": { app: "production", dept: "SCN-MH" },
-      "/component-master": { app: "production", dept: "SCN-MH" },
       "/part-enquiry-id": { app: "production", dept: "SCN-MH" },
       "/request-part": { app: "production", dept: "SCN-MH" },
       "/part-receive": { app: "production", dept: "SCN-MH" },
@@ -231,11 +228,6 @@ const LayoutHandler = () => {
     >
       {location.pathname === "/landing-page" ? (
         <LandingPage currentDepartment={currentDepartment} />
-      ) : (
-        <div></div>
-      )}
-      {location.pathname === "/component-master" ? (
-        <ComponentMasterPage />
       ) : (
         <div></div>
       )}
