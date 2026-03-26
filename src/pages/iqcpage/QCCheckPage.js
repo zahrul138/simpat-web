@@ -83,37 +83,35 @@ const QCCheckPage = ({ sidebarVisible }) => {
   const [dateTo, setDateTo] = useState("");
   const [searchBy, setSearchBy] = useState("part_code");
   const [keyword, setKeyword] = useState("");
-  const [appliedFilters, setAppliedFilters] = useState({ searchBy: "part_code", keyword: "", dateFrom: "", dateTo: "" });
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchBy: "part_code",
+    keyword: "",
+    dateFrom: "",
+    dateTo: "",
+  });
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-
   const [completeQCChecks, setCompleteQCChecks] = useState([]);
-
 
   const isProcessingRef = useRef(false);
 
-
   const [m101Parts, setM101Parts] = useState([]);
   const [selectedM101Ids, setSelectedM101Ids] = useState(new Set());
-
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
 
   const [m136Parts, setM136Parts] = useState([]);
   const [selectedM136Ids, setSelectedM136Ids] = useState(new Set());
 
-
   const [rejectQCChecks, setRejectQCChecks] = useState([]);
-
 
   const [qcChecksComplete, setQcChecksComplete] = useState([]);
 
-
   const [editingCurrentId, setEditingCurrentId] = useState(null);
   const [editCurrentData, setEditCurrentData] = useState({ qc_status: "" });
-
 
   useEffect(() => {
     if (activeTab === "Complete") {
@@ -130,7 +128,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
   const fetchCompleteQCChecks = async () => {
     setLoading(true);
     try {
-
       const response = await fetch(`${API_BASE}/api/qc-checks?status=Complete`);
       const result = await response.json();
 
@@ -147,12 +144,12 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-
   const fetchM101Parts = async () => {
     setLoading(true);
     try {
-
-      const response = await fetch(`${API_BASE}/api/qc-checks?status=M101 Part`);
+      const response = await fetch(
+        `${API_BASE}/api/qc-checks?status=M101 Part`,
+      );
       const result = await response.json();
 
       console.log("[fetchM101Parts] QC checks with M101 Part status:", result);
@@ -160,8 +157,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       if (result.success) {
         const qcChecks = result.data || [];
 
-
-        const formattedParts = qcChecks.map(qc => ({
+        const formattedParts = qcChecks.map((qc) => ({
           id: qc.id,
           part_id: qc.source_part_id,
           vendor_id: qc.source_vendor_id,
@@ -175,7 +171,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
           approve_at: qc.created_at || null,
         }));
 
-        console.log("[fetchM101Parts] Total M101 Part entries:", formattedParts.length);
+        console.log(
+          "[fetchM101Parts] Total M101 Part entries:",
+          formattedParts.length,
+        );
         setM101Parts(formattedParts);
       } else {
         console.log("[fetchM101Parts] No M101 Part entries found");
@@ -189,12 +188,12 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-
   const fetchM136Parts = async () => {
     setLoading(true);
     try {
-
-      const response = await fetch(`${API_BASE}/api/qc-checks?status=M136 Part`);
+      const response = await fetch(
+        `${API_BASE}/api/qc-checks?status=M136 Part`,
+      );
       const result = await response.json();
 
       console.log("[fetchM136Parts] QC checks with M136 Part status:", result);
@@ -202,8 +201,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       if (result.success) {
         const qcChecks = result.data || [];
 
-
-        const formattedParts = qcChecks.map(qc => ({
+        const formattedParts = qcChecks.map((qc) => ({
           id: qc.id,
           part_id: qc.source_part_id,
           vendor_id: qc.source_vendor_id,
@@ -216,7 +214,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
           approve_at: qc.created_at || null,
         }));
 
-        console.log("[fetchM136Parts] Total M136 Part entries:", formattedParts.length);
+        console.log(
+          "[fetchM136Parts] Total M136 Part entries:",
+          formattedParts.length,
+        );
         setM136Parts(formattedParts);
       } else {
         console.log("[fetchM136Parts] No M136 Part entries found");
@@ -229,7 +230,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
       setLoading(false);
     }
   };
-
 
   const fetchRejectQCChecks = async () => {
     setLoading(true);
@@ -250,13 +250,11 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-
   const getCurrentPageData = (data) => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return data.slice(startIndex, endIndex);
   };
-
 
   const getTotalPages = (data) => {
     return Math.max(1, Math.ceil(data.length / itemsPerPage));
@@ -265,16 +263,22 @@ const QCCheckPage = ({ sidebarVisible }) => {
   const applyFilter = (data) => {
     return data.filter((item) => {
       if (appliedFilters.dateFrom) {
-        const prodDate = item.production_date ? item.production_date.split("T")[0] : "";
+        const prodDate = item.production_date
+          ? item.production_date.split("T")[0]
+          : "";
         if (prodDate < appliedFilters.dateFrom) return false;
       }
       if (appliedFilters.dateTo) {
-        const prodDate = item.production_date ? item.production_date.split("T")[0] : "";
+        const prodDate = item.production_date
+          ? item.production_date.split("T")[0]
+          : "";
         if (prodDate > appliedFilters.dateTo) return false;
       }
       if (appliedFilters.keyword) {
         const kw = appliedFilters.keyword.toLowerCase();
-        const field = (item[appliedFilters.searchBy] || "").toString().toLowerCase();
+        const field = (item[appliedFilters.searchBy] || "")
+          .toString()
+          .toLowerCase();
         if (!field.includes(kw)) return false;
       }
       return true;
@@ -286,6 +290,15 @@ const QCCheckPage = ({ sidebarVisible }) => {
     setCurrentPage(1);
   };
 
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleTabClick = (tab) => {
     if (activeTab === tab) {
       if (tab === "Complete") fetchCompleteQCChecks();
@@ -293,20 +306,24 @@ const QCCheckPage = ({ sidebarVisible }) => {
       else if (tab === "M136 Part") fetchM136Parts();
       else if (tab === "Reject") fetchRejectQCChecks();
     } else {
+      setHighlightedRows(new Set());
       setActiveTab(tab);
     }
   };
 
-
   useEffect(() => {
     setCurrentPage(1);
     setSearchBy("part_code");
-    setAppliedFilters({ searchBy: "part_code", keyword: "", dateFrom: "", dateTo: "" });
+    setAppliedFilters({
+      searchBy: "part_code",
+      keyword: "",
+      dateFrom: "",
+      dateTo: "",
+    });
     setKeyword("");
     setDateFrom("");
     setDateTo("");
   }, [activeTab]);
-
 
   const getAuthUser = () => {
     try {
@@ -316,12 +333,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-
   const handleApproveQCCheck = async (id, fromTab = "M101 Part") => {
     if (!window.confirm("Approve this QC Check?")) return;
 
     try {
-
       const authUser = getAuthUserLocal();
       const response = await fetch(`${API_BASE}/api/qc-checks/${id}/approve`, {
         method: "PUT",
@@ -355,74 +370,87 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-
   const handleApprovePartFromSample = async (part, sourceTab) => {
-
     if (isProcessingRef.current) {
-      console.log("[handleApprovePartFromSample] Already processing, ignoring duplicate call");
+      console.log(
+        "[handleApprovePartFromSample] Already processing, ignoring duplicate call",
+      );
       return;
     }
 
     if (!window.confirm("Approve this QC Check?")) return;
 
-
     isProcessingRef.current = true;
     console.log("[handleApprovePartFromSample] Processing locked");
 
     try {
-
       const authUser = getAuthUserLocal();
       console.log("[handleApprovePartFromSample] Auth user:", authUser);
 
-      console.log(`[handleApprovePartFromSample] Approving QC check:`, part.id, part.part_code, part.production_date);
+      console.log(
+        `[handleApprovePartFromSample] Approving QC check:`,
+        part.id,
+        part.part_code,
+        part.production_date,
+      );
 
-
-      const currentPartsList = sourceTab === "M101 Part" ? m101Parts : m136Parts;
-      const sameVendorRows = currentPartsList.filter(p => p.vendor_id === part.vendor_id);
+      const currentPartsList =
+        sourceTab === "M101 Part" ? m101Parts : m136Parts;
+      const sameVendorRows = currentPartsList.filter(
+        (p) => p.vendor_id === part.vendor_id,
+      );
       const isLastRow = sameVendorRows.length === 1;
 
-      console.log(`[handleApprovePartFromSample] Vendor ${part.vendor_id}: ${sameVendorRows.length} row(s) remaining, isLastRow: ${isLastRow}`);
+      console.log(
+        `[handleApprovePartFromSample] Vendor ${part.vendor_id}: ${sameVendorRows.length} row(s) remaining, isLastRow: ${isLastRow}`,
+      );
 
-
-      const response = await fetch(`${API_BASE}/api/qc-checks/${part.id}/approve`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          approved_by: authUser?.id,
-          approved_by_name: authUser?.emp_name || authUser?.name || "Unknown",
-          isLastQcCheck: isLastRow,
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/qc-checks/${part.id}/approve`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            approved_by: authUser?.id,
+            approved_by_name: authUser?.emp_name || authUser?.name || "Unknown",
+            isLastQcCheck: isLastRow,
+          }),
+        },
+      );
 
       const result = await response.json();
       if (response.ok && result.success) {
-        console.log(`[handleApprovePartFromSample] Success, vendorMovedToPass:`, result.vendorMovedToPass);
-
+        console.log(
+          `[handleApprovePartFromSample] Success, vendorMovedToPass:`,
+          result.vendorMovedToPass,
+        );
 
         if (sourceTab === "M101 Part") {
-          setM101Parts(prevParts => {
-            const filtered = prevParts.filter(p => p.id !== part.id);
-            console.log(`[handleApprovePartFromSample] M101 parts after remove: ${filtered.length} (was ${prevParts.length})`);
+          setM101Parts((prevParts) => {
+            const filtered = prevParts.filter((p) => p.id !== part.id);
+            console.log(
+              `[handleApprovePartFromSample] M101 parts after remove: ${filtered.length} (was ${prevParts.length})`,
+            );
             return filtered;
           });
         } else {
-          setM136Parts(prevParts => {
-            const filtered = prevParts.filter(p => p.id !== part.id);
-            console.log(`[handleApprovePartFromSample] M136 parts after remove: ${filtered.length} (was ${prevParts.length})`);
+          setM136Parts((prevParts) => {
+            const filtered = prevParts.filter((p) => p.id !== part.id);
+            console.log(
+              `[handleApprovePartFromSample] M136 parts after remove: ${filtered.length} (was ${prevParts.length})`,
+            );
             return filtered;
           });
         }
 
-
         if (sourceTab === "M101 Part") {
-
           fetch(`${API_BASE}/api/local-schedules/check-iqc-to-pass`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               approvedByName: authUser?.emp_name || authUser?.name || null,
             }),
-          }).catch(() => { });
+          }).catch(() => {});
         }
 
         if (result.vendorMovedToPass) {
@@ -452,7 +480,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
       setToastType("error");
       setTimeout(() => setToastMessage(null), 3000);
     } finally {
-
       setTimeout(() => {
         isProcessingRef.current = false;
         console.log("[handleApprovePartFromSample] Processing flag reset");
@@ -460,13 +487,11 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-
   const handleRejectPartFromSample = async (part, sourceTab) => {
     if (!window.confirm("Reject this QC Check?")) return;
 
     try {
       const authUser = getAuthUser();
-
 
       const response = await fetch(`${API_BASE}/api/qc-checks`, {
         method: "POST",
@@ -488,7 +513,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setToastMessage("QC Check rejected!");
         setToastType("success");
         setTimeout(() => setToastMessage(null), 3000);
-
 
         if (sourceTab === "M101 Part") {
           fetchM101Parts();
@@ -525,7 +549,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setToastType("success");
         setTimeout(() => setToastMessage(null), 3000);
 
-
         if (activeTab === "M101 Part") {
           fetchM101Parts();
         } else if (activeTab === "M136 Part") {
@@ -542,7 +565,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
       setTimeout(() => setToastMessage(null), 3000);
     }
   };
-
 
   const handleEditCurrent = (item) => {
     setEditingCurrentId(item.id);
@@ -583,7 +605,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
           fetchCompleteQCChecks();
         } else if (activeTab === "Reject") {
           fetchRejectQCChecks();
-        };
+        }
       } else {
         throw new Error(result.message || "Failed to update status");
       }
@@ -594,9 +616,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-
   const handleBulkApprove = async (sourceTab) => {
-    const selectedIds = sourceTab === "M101 Part" ? selectedM101Ids : selectedM136Ids;
+    const selectedIds =
+      sourceTab === "M101 Part" ? selectedM101Ids : selectedM136Ids;
     const parts = sourceTab === "M101 Part" ? m101Parts : m136Parts;
 
     if (selectedIds.size === 0) {
@@ -604,13 +626,12 @@ const QCCheckPage = ({ sidebarVisible }) => {
       return;
     }
 
-    if (!window.confirm(`Approve ${selectedIds.size} selected QC Checks?`)) return;
+    if (!window.confirm(`Approve ${selectedIds.size} selected QC Checks?`))
+      return;
 
     try {
-
       const authUser = getAuthUserLocal();
       const selectedParts = parts.filter((p) => selectedIds.has(p.id));
-
 
       const promises = selectedParts.map((part) =>
         fetch(`${API_BASE}/api/qc-checks/${part.id}/approve`, {
@@ -620,7 +641,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
             approved_by: authUser?.id,
             approved_by_name: authUser?.emp_name || authUser?.name || "Unknown",
           }),
-        })
+        }),
       );
 
       await Promise.all(promises);
@@ -654,7 +675,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
     }
   };
 
-
   const toggleM101Checkbox = (id, checked) => {
     setSelectedM101Ids((prev) => {
       const next = new Set(prev);
@@ -667,7 +687,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
     });
   };
 
-
   const toggleSelectAllM101 = () => {
     if (selectedM101Ids.size === m101Parts.length) {
       setSelectedM101Ids(new Set());
@@ -675,7 +694,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
       setSelectedM101Ids(new Set(m101Parts.map((p) => p.id)));
     }
   };
-
 
   const toggleM136Checkbox = (id, checked) => {
     setSelectedM136Ids((prev) => {
@@ -688,7 +706,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
       return next;
     });
   };
-
 
   const toggleSelectAllM136 = () => {
     if (selectedM136Ids.size === m136Parts.length) {
@@ -717,13 +734,11 @@ const QCCheckPage = ({ sidebarVisible }) => {
         setTimeout(() => setToastMessage(null), 3000);
 
         if (activeTab === "Current Check") {
-
           if (activeTab === "Complete") {
             fetchCompleteQCChecks();
           } else if (activeTab === "Reject") {
             fetchRejectQCChecks();
           }
-
         } else {
           fetchCompleteQCChecks();
         }
@@ -835,8 +850,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
       description: "",
     });
   };
-
-
 
   const getColSpanCount = () => {
     if (activeTab === "Complete") return 7;
@@ -1158,7 +1171,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
       fontWeight: "500",
     },
     dataFromCreate: {
-      backgroundColor: "#ccfbf1", 
+      backgroundColor: "#ccfbf1",
       color: "#134e4a",
     },
     dataFromSample: {
@@ -1268,7 +1281,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
     },
   };
 
-
   const renderM101PartTable = () => {
     const filtered = applyFilter(m101Parts);
     const currentData = getCurrentPageData(filtered);
@@ -1344,17 +1356,37 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
               {!loading &&
                 currentData.map((item, index) => {
-                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  const globalIndex =
+                    (currentPage - 1) * itemsPerPage + index + 1;
                   return (
                     <tr
                       key={item.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor:
+                          highlightedRows.has(item.id) ||
+                          selectedM101Ids.has(item.id)
+                            ? "#c7cde8"
+                            : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input[type='checkbox']") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(item.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(item.id) ||
+                          selectedM101Ids.has(item.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1391,10 +1423,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       >
                         {toDDMMYYYY(item.production_date)}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.part_code}
+                      >
                         {item.part_code}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.part_name}
+                      >
                         {item.part_name}
                       </td>
                       <td
@@ -1403,17 +1441,20 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       >
                         {item.vendor_name || "-"}
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                        title="Sample"
-                      >
+                      <td style={styles.tdWithLeftBorder} title="Sample">
                         Sample
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        title={formatApprovedBy(item.approve_by_name, item.approve_at)}
+                        title={formatApprovedBy(
+                          item.approve_by_name,
+                          item.approve_at,
+                        )}
                       >
-                        {formatApprovedBy(item.approve_by_name, item.approve_at)}
+                        {formatApprovedBy(
+                          item.approve_by_name,
+                          item.approve_at,
+                        )}
                       </td>
                       <td style={{ ...styles.tdWithLeftBorder }}>
                         <div
@@ -1476,7 +1517,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <span>of {totalPages}</span>
             <button
               style={styles.paginationButton}
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
             >
               {">"}
@@ -1489,6 +1532,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
               {">>"}
             </button>
           </div>
+          <span style={{ fontSize: "12px", color: "#374151" }}>
+            Total Rows: {filtered.length}
+          </span>
         </div>
         {}
         {selectedM101Ids.size > 0 && (
@@ -1501,7 +1547,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <button
               style={{
                 ...styles.submitButton,
-                ...styles.button
+                ...styles.button,
               }}
               onClick={() => handleBulkApprove("M101 Part")}
             >
@@ -1513,7 +1559,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
       </div>
     );
   };
-
 
   const renderM136PartTable = () => {
     const filtered = applyFilter(m136Parts);
@@ -1590,17 +1635,37 @@ const QCCheckPage = ({ sidebarVisible }) => {
 
               {!loading &&
                 currentData.map((item, index) => {
-                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  const globalIndex =
+                    (currentPage - 1) * itemsPerPage + index + 1;
                   return (
                     <tr
                       key={item.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor:
+                          highlightedRows.has(item.id) ||
+                          selectedM136Ids.has(item.id)
+                            ? "#c7cde8"
+                            : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input[type='checkbox']") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(item.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(item.id) ||
+                          selectedM136Ids.has(item.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1612,9 +1677,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       >
                         {(currentPage - 1) * itemsPerPage + index + 1}
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                      >
+                      <td style={styles.tdWithLeftBorder}>
                         <input
                           type="checkbox"
                           checked={selectedM136Ids.has(item.id)}
@@ -1636,10 +1699,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       >
                         {toDDMMYYYY(item.production_date)}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.part_code}
+                      >
                         {item.part_code}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.part_name}
+                      >
                         {item.part_name}
                       </td>
                       <td
@@ -1648,17 +1717,20 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       >
                         {item.vendor_name || "-"}
                       </td>
-                      <td
-                        style={styles.tdWithLeftBorder}
-                        title="Sample"
-                      >
+                      <td style={styles.tdWithLeftBorder} title="Sample">
                         Sample
                       </td>
                       <td
                         style={styles.tdWithLeftBorder}
-                        title={formatApprovedBy(item.approve_by_name, item.approve_at)}
+                        title={formatApprovedBy(
+                          item.approve_by_name,
+                          item.approve_at,
+                        )}
                       >
-                        {formatApprovedBy(item.approve_by_name, item.approve_at)}
+                        {formatApprovedBy(
+                          item.approve_by_name,
+                          item.approve_at,
+                        )}
                       </td>
                       <td style={{ ...styles.tdWithLeftBorder }}>
                         <div
@@ -1721,7 +1793,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <span>of {totalPages}</span>
             <button
               style={styles.paginationButton}
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
             >
               {">"}
@@ -1734,6 +1808,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
               {">>"}
             </button>
           </div>
+          <span style={{ fontSize: "12px", color: "#374151" }}>
+            Total Rows: {filtered.length}
+          </span>
         </div>
         {}
         {selectedM136Ids.size > 0 && (
@@ -1746,7 +1823,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <button
               style={{
                 ...styles.submitButton,
-                ...styles.button
+                ...styles.button,
               }}
               onClick={() => handleBulkApprove("M136 Part")}
             >
@@ -1758,8 +1835,6 @@ const QCCheckPage = ({ sidebarVisible }) => {
       </div>
     );
   };
-
-
 
   const renderCompleteTable = () => {
     const filtered = applyFilter(completeQCChecks);
@@ -1815,17 +1890,34 @@ const QCCheckPage = ({ sidebarVisible }) => {
               )}
               {!loading &&
                 currentData.map((item, index) => {
-                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  const globalIndex =
+                    (currentPage - 1) * itemsPerPage + index + 1;
                   return (
                     <tr
                       key={item.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(item.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(item.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(item.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1843,10 +1935,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       >
                         {toDDMMYYYY(item.production_date)}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.part_code}
+                      >
                         {item.part_code}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.part_name}
+                      >
                         {item.part_name}
                       </td>
                       <td
@@ -1856,7 +1954,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
                         {item.vendor_name || "-"}
                       </td>
                       <td
-                        style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          ...styles.dataFrom,
+                        }}
                       >
                         <span
                           style={{
@@ -1865,10 +1966,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
                             ...(item.data_from === "M101"
                               ? { backgroundColor: "#dbeafe", color: "#1e40af" }
                               : item.data_from === "M136"
-                                ? { backgroundColor: "#fef3c7", color: "#92400e" }
+                                ? {
+                                    backgroundColor: "#fef3c7",
+                                    color: "#92400e",
+                                  }
                                 : item.data_from === "Create"
                                   ? styles.dataFromCreate
-                                  : { backgroundColor: "#dcfce7", color: "#166534" }),
+                                  : {
+                                      backgroundColor: "#dcfce7",
+                                      color: "#166534",
+                                    }),
                           }}
                           title={item.data_from || "Create"}
                         >
@@ -1885,7 +1992,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
                         {formatApprovedBy(item.approved_by, item.approved_at)}
                       </td>
                       <td
-                        style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          ...styles.dataFrom,
+                        }}
                       >
                         <button
                           style={styles.deleteButton}
@@ -1932,7 +2042,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <span>of {totalPages}</span>
             <button
               style={styles.paginationButton}
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
             >
               {">"}
@@ -1945,11 +2057,13 @@ const QCCheckPage = ({ sidebarVisible }) => {
               {">>"}
             </button>
           </div>
+          <span style={{ fontSize: "12px", color: "#374151" }}>
+            Total Rows: {filtered.length}
+          </span>
         </div>
       </div>
     );
   };
-
 
   const renderRejectTable = () => {
     const filtered = applyFilter(m101Parts);
@@ -2005,17 +2119,34 @@ const QCCheckPage = ({ sidebarVisible }) => {
               )}
               {!loading &&
                 currentData.map((item, index) => {
-                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  const globalIndex =
+                    (currentPage - 1) * itemsPerPage + index + 1;
                   return (
                     <tr
                       key={item.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(item.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(item.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(item.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -2033,10 +2164,16 @@ const QCCheckPage = ({ sidebarVisible }) => {
                       >
                         {toDDMMYYYY(item.production_date)}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={item.part_code}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.part_code}
+                      >
                         {item.part_code}
                       </td>
-                      <td style={styles.tdWithLeftBorder} title={item.part_name}>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={item.part_name}
+                      >
                         {item.part_name}
                       </td>
                       <td
@@ -2064,7 +2201,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
                         )}
                       </td>
                       <td
-                        style={{ ...styles.tdWithLeftBorder, ...styles.dataFrom }}
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          ...styles.dataFrom,
+                        }}
                       >
                         <div
                           style={{
@@ -2132,7 +2272,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <span>of {totalPages}</span>
             <button
               style={styles.paginationButton}
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
             >
               {">"}
@@ -2145,11 +2287,13 @@ const QCCheckPage = ({ sidebarVisible }) => {
               {">>"}
             </button>
           </div>
+          <span style={{ fontSize: "12px", color: "#374151" }}>
+            Total Rows: {filtered.length}
+          </span>
         </div>
       </div>
     );
   };
-
 
   const renderDefaultTable = () => {
     const currentData = getCurrentPageData(m101Parts);
@@ -2276,7 +2420,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
             <span>of {totalPages}</span>
             <button
               style={styles.paginationButton}
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
             >
               {">"}
@@ -2289,6 +2435,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
               {">>"}
             </button>
           </div>
+          <span style={{ fontSize: "12px", color: "#374151" }}>
+            Total Rows: {m101Parts.length}
+          </span>
         </div>
       </div>
     );
@@ -2376,7 +2525,9 @@ const QCCheckPage = ({ sidebarVisible }) => {
                 placeholder="Input Keyword"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                }}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               />
@@ -2397,7 +2548,10 @@ const QCCheckPage = ({ sidebarVisible }) => {
             style={{ ...styles.button, ...styles.primaryButton }}
             onMouseEnter={(e) => handleButtonHover(e, true, "search")}
             onMouseLeave={(e) => handleButtonHover(e, false, "search")}
-            onClick={() => { document.title = "Quality Parts/Add Quality Parts"; navigate("/qc-part/add"); }}
+            onClick={() => {
+              document.title = "Quality Parts/Add Quality Parts";
+              navigate("/qc-part/add");
+            }}
           >
             <Plus size={16} />
             Create
@@ -2626,7 +2780,5 @@ const QCCheckPage = ({ sidebarVisible }) => {
     </div>
   );
 };
-
-const FragmentLike = ({ children }) => children;
 
 export default QCCheckPage;

@@ -32,6 +32,7 @@ const AddQCCheckPage = () => {
   });
 
   const [tempQCChecks, setTempQCChecks] = useState([]);
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
   const [currentEmpName, setCurrentEmpName] = useState("");
   const [showSaveButton, setShowSaveButton] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -41,7 +42,12 @@ const AddQCCheckPage = () => {
     const u = getAuthUserLocal();
     if (u) {
       setCurrentEmpName(
-        u.emp_name || u.employeeName || u.fullname || u.name || u.username || ""
+        u.emp_name ||
+          u.employeeName ||
+          u.fullname ||
+          u.name ||
+          u.username ||
+          "",
       );
     }
   }, []);
@@ -70,7 +76,7 @@ const AddQCCheckPage = () => {
     setSearchLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/kanban-master/by-part-code?part_code=${formData.part_code.trim()}`
+        `${API_BASE}/api/kanban-master/by-part-code?part_code=${formData.part_code.trim()}`,
       );
       const result = await response.json();
       if (result.item) {
@@ -98,7 +104,16 @@ const AddQCCheckPage = () => {
     }
   };
 
-  const handleInsertToTemp = () => {
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleInsertToTemp = async () => {
     if (!formData.part_code.trim()) {
       alert("Please fill in Part Code");
       return;
@@ -115,11 +130,34 @@ const AddQCCheckPage = () => {
     const isDuplicate = tempQCChecks.some(
       (item) =>
         item.part_code === formData.part_code.trim() &&
-        item.production_date === formData.production_date
+        item.production_date === formData.production_date,
     );
     if (isDuplicate) {
       alert("This Part Code + Production Date already added in the list");
       return;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        part_code: formData.part_code.trim(),
+        status: "Complete",
+      });
+      const res = await fetch(`${API_BASE}/api/qc-checks?${params}`);
+      const result = await res.json();
+      const records = result.data || result;
+      if (Array.isArray(records) && records.length > 0) {
+        const match = records.find(
+          (r) => r.production_date === formData.production_date,
+        );
+        if (match) {
+          alert(
+            `Production Date "${formData.production_date}" for Part Code "${formData.part_code.trim()}" already has a Completed QC Check.`,
+          );
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to check existing QC Check:", err);
     }
 
     const now = new Date();
@@ -145,16 +183,24 @@ const AddQCCheckPage = () => {
     const newSelectAll = !selectAll;
     setSelectAll(newSelectAll);
     setTempQCChecks((prev) =>
-      prev.map((item) => ({ ...item, isSelected: newSelectAll }))
+      prev.map((item) => ({ ...item, isSelected: newSelectAll })),
     );
   };
 
   const handleCheckboxChange = (itemId) => {
-    setTempQCChecks((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, isSelected: !item.isSelected } : item
-      )
-    );
+    setTempQCChecks((prev) => {
+      const item = prev.find((i) => i.id === itemId);
+      if (item && item.isSelected) {
+        setHighlightedRows((hs) => {
+          const next = new Set(hs);
+          next.delete(itemId);
+          return next;
+        });
+      }
+      return prev.map((i) =>
+        i.id === itemId ? { ...i, isSelected: !i.isSelected } : i,
+      );
+    });
   };
 
   const handleDeleteTempItem = (itemId) => {
@@ -171,8 +217,6 @@ const AddQCCheckPage = () => {
     setSaving(true);
     try {
       for (const item of selectedItems) {
-        // FIX 1: field → approved_by_name (bukan approved_by)
-        // FIX 2: status → "Complete" agar muncul di tab Complete QCCheckPage
         const qcCheckData = {
           part_code: item.part_code,
           part_name: item.part_name,
@@ -194,14 +238,17 @@ const AddQCCheckPage = () => {
 
         const result = await response.json();
         if (!response.ok) {
-          throw new Error(result.message || `HTTP error! status: ${response.status}`);
+          throw new Error(
+            result.message || `HTTP error! status: ${response.status}`,
+          );
         }
       }
 
       alert(`${selectedItems.length} QC Check(s) saved successfully!`);
       setTempQCChecks((prev) =>
-        prev.filter((item) => !selectedItems.find((s) => s.id === item.id))
+        prev.filter((item) => !selectedItems.find((s) => s.id === item.id)),
       );
+      document.title = "Quality Parts";
       navigate("/qc-part");
     } catch (error) {
       alert(`Failed to save QC Check: ${error.message}`);
@@ -235,7 +282,6 @@ const AddQCCheckPage = () => {
     }
   };
 
-  // Styles identik dengan AddLocalSchedulePage / AddOverseaPartSchedulePage
   const styles = {
     pageContainer: {
       transition: "margin-left 0.3s ease",
@@ -431,7 +477,8 @@ const AddQCCheckPage = () => {
       height: "25px",
       lineHeight: "1",
       verticalAlign: "middle",
-      overflow: "hidden",    },
+      overflow: "hidden",
+    },
     expandedTh: {
       padding: "2px 4px",
       borderTop: "1.5px solid #9fa8da",
@@ -510,21 +557,21 @@ const AddQCCheckPage = () => {
 
   return (
     <div style={styles.pageContainer}>
-       <div>
-              <Helmet>
-                <title>Quality Parts/Add Quality Parts</title>
-              </Helmet>
-            </div>
+      <div>
+        <Helmet>
+          <title>Quality Parts/Add Quality Parts</title>
+        </Helmet>
+      </div>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
-
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
               <h2 style={styles.h2}>Add Quality Part Check</h2>
             </div>
-            <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
-
-              {/* Kolom kiri */}
+            <div
+              style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}
+            >
+              {}
               <div style={{ flex: "1", display: "grid", gap: "25px" }}>
                 <div style={styles.formGroupPartCode}>
                   <label style={styles.label}>Part Code</label>
@@ -586,7 +633,7 @@ const AddQCCheckPage = () => {
                 </div>
               </div>
 
-              {/* Kolom kanan */}
+              {}
               <div style={{ flex: "2", display: "grid", gap: "30px" }}>
                 <div>
                   <label style={styles.label}>Production Date</label>
@@ -611,11 +658,10 @@ const AddQCCheckPage = () => {
                   />
                 </div>
               </div>
-
             </div>
           </div>
 
-          {/* ── Table ── */}
+          {}
           <h2 style={styles.h2}>QC Check List</h2>
           <div style={styles.tableContainer}>
             <div style={styles.tableBodyWrapper}>
@@ -674,21 +720,35 @@ const AddQCCheckPage = () => {
                 </thead>
                 <tbody>
                   {tempQCChecks.length === 0 ? (
-                    <tr>
-
-                    </tr>
+                    <tr></tr>
                   ) : (
                     tempQCChecks.map((item, index) => (
                       <tr
                         key={item.id}
-                        onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                        }
+                        style={{
+                          backgroundColor:
+                            highlightedRows.has(item.id) || item.isSelected
+                              ? "#c7cde8"
+                              : "transparent",
+                          cursor: "pointer",
+                        }}
+                        onClick={(e) => {
+                          if (
+                            !e.target.closest("input[type='checkbox']") &&
+                            !e.target.closest("button")
+                          )
+                            toggleRowHighlight(item.id);
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.closest("tr").style.backgroundColor =
+                            "#c7cde8";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.closest("tr").style.backgroundColor =
+                            highlightedRows.has(item.id) || item.isSelected
+                              ? "#c7cde8"
+                              : "transparent";
+                        }}
                       >
                         <td
                           style={{
@@ -765,7 +825,6 @@ const AddQCCheckPage = () => {
             </div>
           </div>
 
-          {/* ── Save Button ── */}
           {showSaveButton && (
             <div style={styles.saveConfiguration}>
               <button
@@ -789,7 +848,6 @@ const AddQCCheckPage = () => {
               </button>
             </div>
           )}
-
         </div>
       </div>
     </div>

@@ -39,6 +39,8 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
   const [selectedScheduleIds, setSelectedScheduleIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
+  const [highlightedDetailRows, setHighlightedDetailRows] = useState({});
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
   const [activeTab, setActiveTab] = useState("Schedule");
 
@@ -697,6 +699,25 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     else if (activeTab === "Pass") fetchPassVendors();
     else if (activeTab === "Complete") fetchCompleteVendors();
     else fetchSchedules();
+  };
+
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleDetailHighlight = (parentId, detailKey) => {
+    setHighlightedDetailRows((prev) => {
+      const next = { ...prev };
+      const key = `${parentId}_${detailKey}`;
+      if (next[key]) delete next[key];
+      else next[key] = true;
+      return next;
+    });
   };
 
   const handleTabClick = (tab) => {
@@ -3181,16 +3202,39 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     const _sR = (currentPage - 1) * ROWS_PER_PAGE;
     return _fR.slice(_sR, _sR + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              expandedVendorRows[`received_vendor_${vendor.id}`] ||
+              highlightedRows.has(`vendor_fR_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("button") && !e.target.closest("input"))
+              toggleRowHighlight(`vendor_fR_${vendor.id}`);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedVendorRows[`received_vendor_${vendor.id}`] ||
+              highlightedRows.has(`vendor_fR_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
-            title={index + 1}
+            title={_sR + index + 1}
           >
-            {index + 1}
+            {_sR + index + 1}
           </td>
           <td
             style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
@@ -3198,9 +3242,24 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           >
             <button
               style={styles.arrowButton}
-              onClick={() =>
-                toggleVendorRowExpansion(`received_vendor_${vendor.id}`)
-              }
+              onClick={() => {
+                toggleVendorRowExpansion(`received_vendor_${vendor.id}`);
+                if (expandedVendorRows[`received_vendor_${vendor.id}`]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(`vendor_fR_${vendor.id}`);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((k) => {
+                      if (k.startsWith(`received_vendor_${vendor.id}_`))
+                        delete next[k];
+                    });
+                    return next;
+                  });
+                }
+              }}
             >
               {expandedVendorRows[`received_vendor_${vendor.id}`] ? (
                 <MdArrowDropDown style={styles.arrowIcon} />
@@ -3294,7 +3353,39 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                   <tbody>
                     {vendor.parts?.length > 0 ? (
                       vendor.parts.map((part, i) => (
-                        <tr key={part.id}>
+                        <tr
+                          key={part.id}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.closest("input")
+                            )
+                              toggleDetailHighlight(
+                                `received_vendor_${vendor.id}`,
+                                part.id || i,
+                              );
+                          }}
+                          style={{
+                            backgroundColor: highlightedDetailRows[
+                              `received_vendor_${vendor.id}_${part.id || i}`
+                            ]
+                              ? "#c7cde8"
+                              : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              highlightedDetailRows[
+                                `received_vendor_${vendor.id}_${part.id || i}`
+                              ]
+                                ? "#c7cde8"
+                                : "transparent";
+                          }}
+                        >
                           <td
                             style={{
                               ...styles.expandedTd,
@@ -3399,16 +3490,39 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     const _sI = (currentPage - 1) * ROWS_PER_PAGE;
     return _fI.slice(_sI, _sI + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              expandedVendorRows[`iqc_vendor_${vendor.id}`] ||
+              highlightedRows.has(`vendor_fI_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("button") && !e.target.closest("input"))
+              toggleRowHighlight(`vendor_fI_${vendor.id}`);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedVendorRows[`iqc_vendor_${vendor.id}`] ||
+              highlightedRows.has(`vendor_fI_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
-            title={index + 1}
+            title={_sI + index + 1}
           >
-            {index + 1}
+            {_sI + index + 1}
           </td>
           <td
             style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
@@ -3416,9 +3530,24 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           >
             <button
               style={styles.arrowButton}
-              onClick={() =>
-                toggleVendorRowExpansion(`iqc_vendor_${vendor.id}`)
-              }
+              onClick={() => {
+                toggleVendorRowExpansion(`iqc_vendor_${vendor.id}`);
+                if (expandedVendorRows[`iqc_vendor_${vendor.id}`]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(`vendor_fI_${vendor.id}`);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((k) => {
+                      if (k.startsWith(`iqc_vendor_${vendor.id}_`))
+                        delete next[k];
+                    });
+                    return next;
+                  });
+                }
+              }}
             >
               {expandedVendorRows[`iqc_vendor_${vendor.id}`] ? (
                 <MdArrowDropDown style={styles.arrowIcon} />
@@ -3530,7 +3659,39 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                           part.status === "PASS" ? "PASS" : autoStatus;
 
                         return (
-                          <tr key={part.id}>
+                          <tr
+                            key={part.id}
+                            onClick={(e) => {
+                              if (
+                                !e.target.closest("button") &&
+                                !e.target.closest("input")
+                              )
+                                toggleDetailHighlight(
+                                  `iqc_vendor_${vendor.id}`,
+                                  part.id || i,
+                                );
+                            }}
+                            style={{
+                              backgroundColor: highlightedDetailRows[
+                                `iqc_vendor_${vendor.id}_${part.id || i}`
+                              ]
+                                ? "#c7cde8"
+                                : "transparent",
+                              cursor: "pointer",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.closest("tr").style.backgroundColor =
+                                highlightedDetailRows[
+                                  `iqc_vendor_${vendor.id}_${part.id || i}`
+                                ]
+                                  ? "#c7cde8"
+                                  : "transparent";
+                            }}
+                          >
                             <td
                               style={{
                                 ...styles.expandedTd,
@@ -3817,16 +3978,39 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     const _sP = (currentPage - 1) * ROWS_PER_PAGE;
     return _fP.slice(_sP, _sP + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              expandedVendorRows[`sample_vendor_${vendor.id}`] ||
+              highlightedRows.has(`vendor_fP_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("button") && !e.target.closest("input"))
+              toggleRowHighlight(`vendor_fP_${vendor.id}`);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedVendorRows[`sample_vendor_${vendor.id}`] ||
+              highlightedRows.has(`vendor_fP_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
-            title={index + 1}
+            title={_sP + index + 1}
           >
-            {index + 1}
+            {_sP + index + 1}
           </td>
           <td
             style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
@@ -3834,9 +4018,24 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           >
             <button
               style={styles.arrowButton}
-              onClick={() =>
-                toggleVendorRowExpansion(`sample_vendor_${vendor.id}`)
-              }
+              onClick={() => {
+                toggleVendorRowExpansion(`sample_vendor_${vendor.id}`);
+                if (expandedVendorRows[`sample_vendor_${vendor.id}`]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(`vendor_fP_${vendor.id}`);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((k) => {
+                      if (k.startsWith(`sample_vendor_${vendor.id}_`))
+                        delete next[k];
+                    });
+                    return next;
+                  });
+                }
+              }}
               title="Toggle details"
             >
               {expandedVendorRows[`sample_vendor_${vendor.id}`] ? (
@@ -3951,7 +4150,39 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                   <tbody>
                     {vendor.parts?.length > 0 ? (
                       vendor.parts.map((part, i) => (
-                        <tr key={part.id}>
+                        <tr
+                          key={part.id}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.closest("input")
+                            )
+                              toggleDetailHighlight(
+                                `sample_vendor_${vendor.id}`,
+                                part.id || i,
+                              );
+                          }}
+                          style={{
+                            backgroundColor: highlightedDetailRows[
+                              `sample_vendor_${vendor.id}_${part.id || i}`
+                            ]
+                              ? "#c7cde8"
+                              : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              highlightedDetailRows[
+                                `sample_vendor_${vendor.id}_${part.id || i}`
+                              ]
+                                ? "#c7cde8"
+                                : "transparent";
+                          }}
+                        >
                           <td
                             style={{
                               ...styles.expandedTd,
@@ -4223,16 +4454,39 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     const _sC = (currentPage - 1) * ROWS_PER_PAGE;
     return _fC.slice(_sC, _sC + ROWS_PER_PAGE).map((vendor, index) => (
       <React.Fragment key={vendor.id}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              expandedVendorRows[`complete_vendor_${vendor.id}`] ||
+              highlightedRows.has(`vendor_fC_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("button") && !e.target.closest("input"))
+              toggleRowHighlight(`vendor_fC_${vendor.id}`);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedVendorRows[`complete_vendor_${vendor.id}`] ||
+              highlightedRows.has(`vendor_fC_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
-            title={index + 1}
+            title={_sC + index + 1}
           >
-            {index + 1}
+            {_sC + index + 1}
           </td>
           <td
             style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
@@ -4240,9 +4494,24 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
           >
             <button
               style={styles.arrowButton}
-              onClick={() =>
-                toggleVendorRowExpansion(`complete_vendor_${vendor.id}`)
-              }
+              onClick={() => {
+                toggleVendorRowExpansion(`complete_vendor_${vendor.id}`);
+                if (expandedVendorRows[`complete_vendor_${vendor.id}`]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(`vendor_fC_${vendor.id}`);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((k) => {
+                      if (k.startsWith(`complete_vendor_${vendor.id}_`))
+                        delete next[k];
+                    });
+                    return next;
+                  });
+                }
+              }}
               title="Toggle details"
             >
               {expandedVendorRows[`complete_vendor_${vendor.id}`] ? (
@@ -4346,7 +4615,39 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                   <tbody>
                     {vendor.parts?.length > 0 ? (
                       vendor.parts.map((part, i) => (
-                        <tr key={part.id}>
+                        <tr
+                          key={part.id}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.closest("input")
+                            )
+                              toggleDetailHighlight(
+                                `complete_vendor_${vendor.id}`,
+                                part.id || i,
+                              );
+                          }}
+                          style={{
+                            backgroundColor: highlightedDetailRows[
+                              `complete_vendor_${vendor.id}_${part.id || i}`
+                            ]
+                              ? "#c7cde8"
+                              : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              highlightedDetailRows[
+                                `complete_vendor_${vendor.id}_${part.id || i}`
+                              ]
+                                ? "#c7cde8"
+                                : "transparent";
+                          }}
+                        >
                           <td
                             style={{
                               ...styles.expandedTd,
@@ -4554,16 +4855,44 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     const _sS = (currentPage - 1) * ROWS_PER_PAGE;
     return _fS.slice(_sS, _sS + ROWS_PER_PAGE).map((schedule, index) => (
       <React.Fragment key={`schedule-${schedule.id}`}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              selectedScheduleIds.has(schedule.id) ||
+              expandedRows[schedule.id] ||
+              highlightedRows.has(schedule.id)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (
+              !e.target.closest("input[type='checkbox']") &&
+              !e.target.closest("button")
+            )
+              toggleRowHighlight(schedule.id);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              selectedScheduleIds.has(schedule.id) ||
+              expandedRows[schedule.id] ||
+              highlightedRows.has(schedule.id)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
-            title={index + 1}
+            title={_sS + index + 1}
           >
-            {index + 1}
+            {_sS + index + 1}
           </td>
           {activeTab !== "Schedule" && activeTab !== "Today" && (
             <td style={styles.tdWithLeftBorder} title="Select">
@@ -4591,7 +4920,23 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
             {activeTab === "Today" ? null : (
               <button
                 style={styles.arrowButton}
-                onClick={() => toggleRowExpansion(schedule.id)}
+                onClick={() => {
+                  toggleRowExpansion(schedule.id);
+                  if (expandedRows[schedule.id]) {
+                    setHighlightedRows((prev) => {
+                      const next = new Set(prev);
+                      next.delete(schedule.id);
+                      return next;
+                    });
+                    setHighlightedDetailRows((prev) => {
+                      const next = { ...prev };
+                      Object.keys(next).forEach((key) => {
+                        if (key.startsWith(`${schedule.id}_`)) delete next[key];
+                      });
+                      return next;
+                    });
+                  }
+                }}
               >
                 {expandedRows[schedule.id] ? (
                   <MdArrowDropDown style={styles.arrowIcon} />
@@ -4962,7 +5307,44 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                     <tbody>
                                       {vendor.parts?.length > 0 ? (
                                         vendor.parts.map((part, pi) => (
-                                          <tr key={part.id}>
+                                          <tr
+                                            key={part.id}
+                                            onClick={(e) => {
+                                              if (
+                                                !e.target.closest("button") &&
+                                                !e.target.closest("input")
+                                              )
+                                                toggleDetailHighlight(
+                                                  `schedule_${schedule.id}_vendor_${vi}`,
+                                                  part.id || pi,
+                                                );
+                                            }}
+                                            style={{
+                                              backgroundColor:
+                                                highlightedDetailRows[
+                                                  `schedule_${schedule.id}_vendor_${vi}_${part.id || pi}`
+                                                ]
+                                                  ? "#c7cde8"
+                                                  : "transparent",
+                                              cursor: "pointer",
+                                            }}
+                                            onMouseEnter={(e) => {
+                                              e.target.closest(
+                                                "tr",
+                                              ).style.backgroundColor =
+                                                "#c7cde8";
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.target.closest(
+                                                "tr",
+                                              ).style.backgroundColor =
+                                                highlightedDetailRows[
+                                                  `schedule_${schedule.id}_vendor_${vi}_${part.id || pi}`
+                                                ]
+                                                  ? "#c7cde8"
+                                                  : "transparent";
+                                            }}
+                                          >
                                             <td
                                               style={{
                                                 ...styles.expandedTd,
@@ -5650,6 +6032,9 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                     {">>"}
                   </button>
                 </div>
+                <span style={{ fontSize: "12px", color: "#374151" }}>
+                  Total Rows: {_af.length}
+                </span>
               </div>
             );
           })()}
@@ -5952,16 +6337,36 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             addVendorPartFormData.parts.map((part, index) => (
                               <tr
                                 key={part.id || index}
-                                onMouseEnter={(e) =>
-                                  (e.target.closest(
-                                    "tr",
-                                  ).style.backgroundColor = "#c7cde8")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.target.closest(
-                                    "tr",
-                                  ).style.backgroundColor = "transparent")
-                                }
+                                onClick={(e) => {
+                                  if (
+                                    !e.target.closest("button") &&
+                                    !e.target.closest("input")
+                                  )
+                                    toggleDetailHighlight(
+                                      "popup",
+                                      part.id || index,
+                                    );
+                                }}
+                                style={{
+                                  backgroundColor: highlightedDetailRows[
+                                    `popup_${part.id || index}`
+                                  ]
+                                    ? "#c7cde8"
+                                    : "transparent",
+                                  cursor: "pointer",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.closest("tr").style.backgroundColor =
+                                    "#c7cde8";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.closest("tr").style.backgroundColor =
+                                    highlightedDetailRows[
+                                      `popup_${part.id || index}`
+                                    ]
+                                      ? "#c7cde8"
+                                      : "transparent";
+                                }}
                               >
                                 <td
                                   style={vendorPartStyles.tdNumber}

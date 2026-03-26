@@ -28,6 +28,7 @@ const RTVPartPage = ({ sidebarVisible }) => {
   const empName =
     getAuthUserLocal()?.emp_name || getAuthUserLocal()?.name || null;
 
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("tab") || "Waiting LOG";
@@ -102,6 +103,7 @@ const RTVPartPage = ({ sidebarVisible }) => {
   };
 
   const showToast = (msg, type = "success") => {
+    console.log("showToast called with:", msg, type);
     setToastMessage(msg);
     setToastType(type);
     setTimeout(() => setToastMessage(null), 3000);
@@ -125,6 +127,7 @@ const RTVPartPage = ({ sidebarVisible }) => {
     setFilterDateTo("");
     fetchData();
     setCurrentPage(1);
+    setHighlightedRows(new Set());
   }, [activeTab]);
 
   const fetchData = async () => {
@@ -187,6 +190,15 @@ const RTVPartPage = ({ sidebarVisible }) => {
     }
   };
 
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleRemarkChange = (id, value) => {
     setRemarks((prev) => ({ ...prev, [id]: value }));
   };
@@ -203,32 +215,43 @@ const RTVPartPage = ({ sidebarVisible }) => {
     }
   };
 
-  const callAction = async (id, endpoint, bodyKey, targetTab) => {
+  const callAction = async (id, endpoint, bodyKey, targetTab, successMessage) => {
     try {
+      console.log(`Calling: ${API_BASE}/api/rtv-parts/${id}/${endpoint}`);
       const res = await fetch(`${API_BASE}/api/rtv-parts/${id}/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [bodyKey]: empName }),
       });
       const result = await res.json();
+      console.log("Response:", result);
       if (result.success) {
+        showToast(successMessage, "success");
         handleTabChange(targetTab);
       } else {
-        showToast(result.message || "Gagal", "error");
+        showToast(result.message || "Operation failed", "error");
       }
     } catch (err) {
+      console.error("Error:", err);
       showToast("Error: " + err.message, "error");
     }
   };
 
-  const handleReceive = (id) =>
-    callAction(id, "receive", "received_by_name", "Received LOG");
-  const handleProgress = (id) =>
-    callAction(id, "progress", "progress_by_name", "RTV Progress");
-  const handleReplace = (id) =>
-    callAction(id, "replace", "replaced_by_name", "Stock Replaced");
-  const handleComplete = (id) =>
-    callAction(id, "complete", "complete_by_name", "Complete");
+  const handleReceive = (id) => {
+    callAction(id, "receive", "received_by_name", "Received LOG", "Part moved to Received LOG");
+  };
+
+  const handleProgress = (id) => {
+    callAction(id, "progress", "progress_by_name", "RTV Progress", "Part moved to RTV Progress");
+  };
+
+  const handleReplace = (id) => {
+    callAction(id, "replace", "replaced_by_name", "Stock Replaced", "Part moved to Stock Replaced");
+  };
+
+  const handleComplete = (id) => {
+    callAction(id, "complete", "complete_by_name", "Complete", "Part moved to Complete");
+  };
 
   const styles = {
     pageContainer: {
@@ -513,12 +536,25 @@ const RTVPartPage = ({ sidebarVisible }) => {
     },
   };
 
-  const trProps = {
-    onMouseEnter: (e) =>
-      (e.target.closest("tr").style.backgroundColor = "#c7cde8"),
-    onMouseLeave: (e) =>
-      (e.target.closest("tr").style.backgroundColor = "transparent"),
-  };
+  const getRowProps = (rowId) => ({
+    style: {
+      backgroundColor: highlightedRows.has(rowId) ? "#c7cde8" : "transparent",
+      cursor: "pointer",
+    },
+    onClick: (e) => {
+      if (!e.target.closest("input") && !e.target.closest("button")) {
+        toggleRowHighlight(rowId);
+      }
+    },
+    onMouseEnter: (e) => {
+      e.target.closest("tr").style.backgroundColor = "#c7cde8";
+    },
+    onMouseLeave: (e) => {
+      e.target.closest("tr").style.backgroundColor = highlightedRows.has(rowId)
+        ? "#c7cde8"
+        : "transparent";
+    },
+  });
 
   const emptyRow = (colSpan) => (
     <tr>
@@ -668,33 +704,33 @@ const RTVPartPage = ({ sidebarVisible }) => {
                 : pageData.length === 0
                   ? emptyRow(10)
                   : pageData.map((row, index) => (
-                      <tr key={row.id} {...trProps}>
-                        {renderBaseRow(row, index)}
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={formatBy(row.rtv_by_name, row.rtv_at)}
+                    <tr key={row.id} {...getRowProps(row.id)}>
+                      {renderBaseRow(row, index)}
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={formatBy(row.rtv_by_name, row.rtv_at)}
+                      >
+                        {formatBy(row.rtv_by_name, row.rtv_at)}
+                      </td>
+                      <td
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          display: "flex",
+                          gap: "3px",
+                          alignItems: "center",
+                          height: "25px",
+                        }}
+                      >
+                        <button
+                          style={styles.receivedButton}
+                          title="Move to Received LOG"
+                          onClick={() => handleReceive(row.id)}
                         >
-                          {formatBy(row.rtv_by_name, row.rtv_at)}
-                        </td>
-                        <td
-                          style={{
-                            ...styles.tdWithLeftBorder,
-                            display: "flex",
-                            gap: "3px",
-                            alignItems: "center",
-                            height: "25px",
-                          }}
-                        >
-                          <button
-                            style={styles.receivedButton}
-                            title="Move to Received LOG"
-                            onClick={() => handleReceive(row.id)}
-                          >
-                            <Check size={10} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          <Check size={10} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
             </tbody>
           </table>
         </div>
@@ -741,48 +777,48 @@ const RTVPartPage = ({ sidebarVisible }) => {
                 : pageData.length === 0
                   ? emptyRow(10)
                   : pageData.map((row, index) => (
-                      <tr key={row.id} {...trProps}>
-                        {renderBaseRow(row, index, true)}
-                        <td style={styles.tdWithLeftBorder}>
-                          <input
-                            type="text"
-                            value={remarks[row.id] ?? row.remark ?? ""}
-                            onChange={(e) =>
-                              handleRemarkChange(row.id, e.target.value)
-                            }
-                            onBlur={() => handleRemarkSave(row.id)}
-                            placeholder="Enter remark..."
-                            style={styles.remarkInput}
-                          />
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={formatBy(
-                            row.received_by_name,
-                            row.received_at,
-                          )}
+                    <tr key={row.id} {...getRowProps(row.id)}>
+                      {renderBaseRow(row, index, true)}
+                      <td style={styles.tdWithLeftBorder}>
+                        <input
+                          type="text"
+                          value={remarks[row.id] ?? row.remark ?? ""}
+                          onChange={(e) =>
+                            handleRemarkChange(row.id, e.target.value)
+                          }
+                          onBlur={() => handleRemarkSave(row.id)}
+                          placeholder="Enter remark..."
+                          style={styles.remarkInput}
+                        />
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={formatBy(
+                          row.received_by_name,
+                          row.received_at,
+                        )}
+                      >
+                        {formatBy(row.received_by_name, row.received_at)}
+                      </td>
+                      <td
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          display: "flex",
+                          gap: "3px",
+                          alignItems: "center",
+                          height: "25px",
+                        }}
+                      >
+                        <button
+                          style={styles.progressButton}
+                          title="Move to RTV Progress"
+                          onClick={() => handleProgress(row.id)}
                         >
-                          {formatBy(row.received_by_name, row.received_at)}
-                        </td>
-                        <td
-                          style={{
-                            ...styles.tdWithLeftBorder,
-                            display: "flex",
-                            gap: "3px",
-                            alignItems: "center",
-                            height: "25px",
-                          }}
-                        >
-                          <button
-                            style={styles.progressButton}
-                            title="Move to RTV Progress"
-                            onClick={() => handleProgress(row.id)}
-                          >
-                            <Truck size={10} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          <Truck size={10} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
             </tbody>
           </table>
         </div>
@@ -829,36 +865,36 @@ const RTVPartPage = ({ sidebarVisible }) => {
                 : pageData.length === 0
                   ? emptyRow(10)
                   : pageData.map((row, index) => (
-                      <tr key={row.id} {...trProps}>
-                        {renderBaseRow(row, index)}
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={formatBy(
-                            row.progress_by_name,
-                            row.progress_at,
-                          )}
+                    <tr key={row.id} {...getRowProps(row.id)}>
+                      {renderBaseRow(row, index)}
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={formatBy(
+                          row.progress_by_name,
+                          row.progress_at,
+                        )}
+                      >
+                        {formatBy(row.progress_by_name, row.progress_at)}
+                      </td>
+                      <td
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          display: "flex",
+                          gap: "3px",
+                          alignItems: "center",
+                          height: "25px",
+                        }}
+                      >
+                        <button
+                          style={styles.replaceButton}
+                          title="Move to Stock Replaced"
+                          onClick={() => handleReplace(row.id)}
                         >
-                          {formatBy(row.progress_by_name, row.progress_at)}
-                        </td>
-                        <td
-                          style={{
-                            ...styles.tdWithLeftBorder,
-                            display: "flex",
-                            gap: "3px",
-                            alignItems: "center",
-                            height: "25px",
-                          }}
-                        >
-                          <button
-                            style={styles.replaceButton}
-                            title="Move to Stock Replaced"
-                            onClick={() => handleReplace(row.id)}
-                          >
-                            <PackageCheck size={10} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          <PackageCheck size={10} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
             </tbody>
           </table>
         </div>
@@ -906,94 +942,94 @@ const RTVPartPage = ({ sidebarVisible }) => {
                 : pageData.length === 0
                   ? emptyRow(11)
                   : pageData.map((row, index) => (
-                      <tr key={row.id} {...trProps}>
-                        <td
-                          style={{
-                            ...styles.expandedTd,
-                            ...styles.expandedWithLeftBorder,
-                            ...styles.emptyColumn,
-                          }}
+                    <tr key={row.id} {...getRowProps(row.id)}>
+                      <td
+                        style={{
+                          ...styles.expandedTd,
+                          ...styles.expandedWithLeftBorder,
+                          ...styles.emptyColumn,
+                        }}
+                      >
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.part_code}
+                      >
+                        {row.part_code}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.label_id || "-"}
+                      >
+                        {row.label_id || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.part_name}
+                      >
+                        {row.part_name}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.model || "-"}
+                      >
+                        {row.model || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.vendor_name || "-"}
+                      >
+                        {row.vendor_name || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.vendor_type || "-"}
+                      >
+                        {row.vendor_type || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={String(row.qty_return)}
+                      >
+                        {row.qty_return}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.remark || "-"}
+                      >
+                        <span style={styles.remarkReadonly}>
+                          {row.remark || "-"}
+                        </span>
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={formatBy(
+                          row.replaced_by_name,
+                          row.replaced_at,
+                        )}
+                      >
+                        {formatBy(row.replaced_by_name, row.replaced_at)}
+                      </td>
+                      <td
+                        style={{
+                          ...styles.tdWithLeftBorder,
+                          display: "flex",
+                          gap: "3px",
+                          alignItems: "center",
+                          height: "25px",
+                        }}
+                      >
+                        <button
+                          style={styles.completeButton}
+                          title="Move to Complete"
+                          onClick={() => handleComplete(row.id)}
                         >
-                          {(currentPage - 1) * itemsPerPage + index + 1}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.part_code}
-                        >
-                          {row.part_code}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.label_id || "-"}
-                        >
-                          {row.label_id || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.part_name}
-                        >
-                          {row.part_name}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.model || "-"}
-                        >
-                          {row.model || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.vendor_name || "-"}
-                        >
-                          {row.vendor_name || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.vendor_type || "-"}
-                        >
-                          {row.vendor_type || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(row.qty_return)}
-                        >
-                          {row.qty_return}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.remark || "-"}
-                        >
-                          <span style={styles.remarkReadonly}>
-                            {row.remark || "-"}
-                          </span>
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={formatBy(
-                            row.replaced_by_name,
-                            row.replaced_at,
-                          )}
-                        >
-                          {formatBy(row.replaced_by_name, row.replaced_at)}
-                        </td>
-                        <td
-                          style={{
-                            ...styles.tdWithLeftBorder,
-                            display: "flex",
-                            gap: "3px",
-                            alignItems: "center",
-                            height: "25px",
-                          }}
-                        >
-                          <button
-                            style={styles.completeButton}
-                            title="Move to Complete"
-                            onClick={() => handleComplete(row.id)}
-                          >
-                            <BadgeCheck size={10} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          <BadgeCheck size={10} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
             </tbody>
           </table>
         </div>
@@ -1040,77 +1076,77 @@ const RTVPartPage = ({ sidebarVisible }) => {
                 : pageData.length === 0
                   ? emptyRow(10)
                   : pageData.map((row, index) => (
-                      <tr key={row.id} {...trProps}>
-                        <td
-                          style={{
-                            ...styles.expandedTd,
-                            ...styles.expandedWithLeftBorder,
-                            ...styles.emptyColumn,
-                          }}
-                        >
-                          {(currentPage - 1) * itemsPerPage + index + 1}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.part_code}
-                        >
-                          {row.part_code}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.label_id || "-"}
-                        >
-                          {row.label_id || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.part_name}
-                        >
-                          {row.part_name}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.model || "-"}
-                        >
-                          {row.model || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.vendor_name || "-"}
-                        >
-                          {row.vendor_name || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.vendor_type || "-"}
-                        >
-                          {row.vendor_type || "-"}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={String(row.qty_return)}
-                        >
-                          {row.qty_return}
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={row.remark || "-"}
-                        >
-                          <span style={styles.remarkReadonly}>
-                            {row.remark || "-"}
-                          </span>
-                        </td>
-                        <td
-                          style={styles.tdWithLeftBorder}
-                          title={formatBy(
-                            row.complete_by_name,
-                            row.complete_at,
-                          )}
-                        >
-                          {formatBy(row.complete_by_name, row.complete_at)}
-                        </td>
-                      </tr>
-                    ))}
+                    <tr key={row.id} {...getRowProps(row.id)}>
+                      <td
+                        style={{
+                          ...styles.expandedTd,
+                          ...styles.expandedWithLeftBorder,
+                          ...styles.emptyColumn,
+                        }}
+                      >
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.part_code}
+                      >
+                        {row.part_code}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.label_id || "-"}
+                      >
+                        {row.label_id || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.part_name}
+                      >
+                        {row.part_name}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.model || "-"}
+                      >
+                        {row.model || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.vendor_name || "-"}
+                      >
+                        {row.vendor_name || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.vendor_type || "-"}
+                      >
+                        {row.vendor_type || "-"}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={String(row.qty_return)}
+                      >
+                        {row.qty_return}
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={row.remark || "-"}
+                      >
+                        <span style={styles.remarkReadonly}>
+                          {row.remark || "-"}
+                        </span>
+                      </td>
+                      <td
+                        style={styles.tdWithLeftBorder}
+                        title={formatBy(
+                          row.complete_by_name,
+                          row.complete_at,
+                        )}
+                      >
+                        {formatBy(row.complete_by_name, row.complete_at)}
+                      </td>
+                    </tr>
+                  ))}
             </tbody>
           </table>
         </div>

@@ -14,6 +14,7 @@ import {
   FileDown,
 } from "lucide-react";
 import timerService from "../../utils/TimerService";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -63,7 +64,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [tripsData, setTripsData] = useState([]);
-
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const totalItems = partsData.length;
@@ -125,8 +126,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
     Received: {
       cols: [
         "3.5%",
-        "3.5%",
-        "13%",
+        "15%",
         "11%",
         "22%",
         "8%",
@@ -138,7 +138,6 @@ const RequestPartPage = ({ sidebarVisible }) => {
       ],
       headers: [
         "No",
-        "",
         "Label ID",
         "Part Code",
         "Part Name",
@@ -384,6 +383,15 @@ const RequestPartPage = ({ sidebarVisible }) => {
     }
   };
 
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleRemarkChange = (rowId, value) => {
     setRemarks((prev) => ({
       ...prev,
@@ -492,7 +500,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
 
   const handleDeletePermanent = async (partId) => {
     if (
-      !window.confirm("Permanently delete this part? This cannot be undone.")
+      !window.confirm("Delete this request ?")
     ) {
       return;
     }
@@ -805,6 +813,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
     fetchPartsEnquiry();
     setSelectedItems(new Set());
     setSelectAll(false);
+    setHighlightedRows(new Set());
     setCurrentPage(1);
   }, [activeTab]);
 
@@ -812,7 +821,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
     if (!["InTransit", "Arrived"].includes(activeTab)) return;
     const interval = setInterval(() => fetchPartsEnquiry(), 30 * 1000);
     return () => clearInterval(interval);
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const styles = {
     pageContainer: {
@@ -1138,10 +1147,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td
-            colSpan="10"
-            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
-          >
+          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
             Loading...
           </td>
         </tr>
@@ -1151,12 +1157,22 @@ const RequestPartPage = ({ sidebarVisible }) => {
     return currentItems.map((part, idx) => (
       <tr
         key={part.id}
-        onMouseEnter={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-        }
-        onMouseLeave={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "transparent")
-        }
+        style={{
+          backgroundColor: (selectedItems.has(part.id) || highlightedRows.has(part.id)) ? "#c7cde8" : "transparent",
+          cursor: "pointer",
+        }}
+        onClick={(e) => {
+          if (!e.target.closest("input") && !e.target.closest("button")) {
+            toggleRowHighlight(part.id);
+          }
+        }}
+        onMouseEnter={(e) => {
+          e.target.closest("tr").style.backgroundColor = "#c7cde8";
+        }}
+        onMouseLeave={(e) => {
+          const isHighlighted = selectedItems.has(part.id) || highlightedRows.has(part.id);
+          e.target.closest("tr").style.backgroundColor = isHighlighted ? "#c7cde8" : "transparent";
+        }}
       >
         <td
           style={{
@@ -1228,7 +1244,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
         <td style={styles.tdWithLeftBorder} title="Action">
           <button
             style={styles.deleteButton}
-            onClick={() => handleRejectPart(part.id)}
+            onClick={() => handleDeletePermanent(part.id)}
             title="Delete"
           >
             <Trash2 size={10} />
@@ -1255,12 +1271,23 @@ const RequestPartPage = ({ sidebarVisible }) => {
     return currentItems.map((part, idx) => (
       <tr
         key={part.id}
-        onMouseEnter={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-        }
-        onMouseLeave={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "transparent")
-        }
+        style={{
+          backgroundColor: highlightedRows.has(part.id) ? "#c7cde8" : "transparent",
+          cursor: "pointer",
+        }}
+        onClick={(e) => {
+          if (!e.target.closest("input") && !e.target.closest("button")) {
+            toggleRowHighlight(part.id);
+          }
+        }}
+        onMouseEnter={(e) => {
+          e.target.closest("tr").style.backgroundColor = "#c7cde8";
+        }}
+        onMouseLeave={(e) => {
+          e.target.closest("tr").style.backgroundColor = highlightedRows.has(part.id)
+            ? "#c7cde8"
+            : "transparent";
+        }}
       >
         <td
           style={{
@@ -1327,17 +1354,19 @@ const RequestPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: selectedItems.has(part.id)
-            ? "#c7cde8"
-            : "transparent",
+          backgroundColor: highlightedRows.has(part.id) ? "#c7cde8" : "transparent",
+          cursor: "pointer",
         }}
-        onMouseEnter={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-        }
+        onClick={(e) => {
+          if (!e.target.closest("input") && !e.target.closest("button")) {
+            toggleRowHighlight(part.id);
+          }
+        }}
+        onMouseEnter={(e) => {
+          e.target.closest("tr").style.backgroundColor = "#c7cde8";
+        }}
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = selectedItems.has(
-            part.id,
-          )
+          e.target.closest("tr").style.backgroundColor = highlightedRows.has(part.id)
             ? "#c7cde8"
             : "transparent";
         }}
@@ -1352,7 +1381,6 @@ const RequestPartPage = ({ sidebarVisible }) => {
         >
           {startIndex + idx + 1}
         </td>
-        <td style={styles.tdWithLeftBorder} title="-" />
         <td style={styles.tdWithLeftBorder} title={part.label_id || "-"}>
           {part.label_id || "-"}
         </td>
@@ -1406,17 +1434,14 @@ const RequestPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: selectedItems.has(part.id)
-            ? "#c7cde8"
-            : "transparent",
+          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+          cursor: "pointer",
         }}
-        onMouseEnter={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-        }
+        onMouseEnter={(e) => {
+          e.target.closest("tr").style.backgroundColor = "#c7cde8";
+        }}
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = selectedItems.has(
-            part.id,
-          )
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
             ? "#c7cde8"
             : "transparent";
         }}
@@ -1498,12 +1523,23 @@ const RequestPartPage = ({ sidebarVisible }) => {
     return currentItems.map((part, idx) => (
       <tr
         key={part.id}
-        onMouseEnter={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "#fde8e8")
-        }
-        onMouseLeave={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "transparent")
-        }
+        style={{
+          backgroundColor: highlightedRows.has(part.id) ? "#c7cde8" : "transparent",
+          cursor: "pointer",
+        }}
+        onClick={(e) => {
+          if (!e.target.closest("input") && !e.target.closest("button")) {
+            toggleRowHighlight(part.id);
+          }
+        }}
+        onMouseEnter={(e) => {
+          e.target.closest("tr").style.backgroundColor = "#c7cde8";
+        }}
+        onMouseLeave={(e) => {
+          e.target.closest("tr").style.backgroundColor = highlightedRows.has(part.id)
+            ? "#c7cde8"
+            : "transparent";
+        }}
       >
         <td
           style={{
@@ -1585,12 +1621,18 @@ const RequestPartPage = ({ sidebarVisible }) => {
     return currentItems.map((part, idx) => (
       <tr
         key={part.id}
-        onMouseEnter={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "#c7cde8")
-        }
-        onMouseLeave={(e) =>
-          (e.target.closest("tr").style.backgroundColor = "transparent")
-        }
+        style={{
+          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+          cursor: "pointer",
+        }}
+        onMouseEnter={(e) => {
+          e.target.closest("tr").style.backgroundColor = "#c7cde8";
+        }}
+        onMouseLeave={(e) => {
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
+            ? "#c7cde8"
+            : "transparent";
+        }}
       >
         <td
           style={{
@@ -1650,6 +1692,9 @@ const RequestPartPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Request Parts</title>
+      </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
@@ -1689,8 +1734,8 @@ const RequestPartPage = ({ sidebarVisible }) => {
                   activeTab === "Waiting" ||
                   activeTab === "History" ||
                   activeTab === "Rejected") && (
-                  <option value="requested_by_name">Request By</option>
-                )}
+                    <option value="requested_by_name">Request By</option>
+                  )}
                 {activeTab === "Received" && (
                   <option value="approved_by_name">Received By</option>
                 )}
@@ -1922,33 +1967,33 @@ const RequestPartPage = ({ sidebarVisible }) => {
             {!["New", "Waiting", "Received", "Arrived", "Rejected"].includes(
               activeTab,
             ) && (
-              <table
-                style={{
-                  ...styles.table,
-                  minWidth: "970px",
-                  tableLayout: "fixed",
-                }}
-              >
-                {renderColgroup(tableConfig[activeTab].cols)}
-                <thead>
-                  <tr style={styles.tableHeader}>
-                    {tableConfig[activeTab].headers.map((header, idx) => (
-                      <th
-                        key={idx}
-                        style={
-                          idx === 0
-                            ? styles.expandedTh
-                            : styles.thWithLeftBorder
-                        }
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>{renderOtherTabs()}</tbody>
-              </table>
-            )}
+                <table
+                  style={{
+                    ...styles.table,
+                    minWidth: "970px",
+                    tableLayout: "fixed",
+                  }}
+                >
+                  {renderColgroup(tableConfig[activeTab].cols)}
+                  <thead>
+                    <tr style={styles.tableHeader}>
+                      {tableConfig[activeTab].headers.map((header, idx) => (
+                        <th
+                          key={idx}
+                          style={
+                            idx === 0
+                              ? styles.expandedTh
+                              : styles.thWithLeftBorder
+                          }
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>{renderOtherTabs()}</tbody>
+                </table>
+              )}
 
             {activeTab === "Rejected" && (
               <table
@@ -2019,6 +2064,9 @@ const RequestPartPage = ({ sidebarVisible }) => {
                 {">>"}
               </button>
             </div>
+            <span style={{ fontSize: "12px", color: "#374151" }}>
+              Total Row: {totalItems}
+            </span>
           </div>
         </div>
 

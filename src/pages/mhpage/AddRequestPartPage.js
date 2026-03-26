@@ -571,7 +571,7 @@ const AddRequestPartPage = () => {
       const result = await response.json();
       if (result.success) {
         alert("Parts enquiry saved successfully!");
-        document.title = "Request Part - Received";
+        document.title = "Request Parts";
         navigate("/request-part?tab=new");
       } else {
         alert("Failed to save: " + result.message);

@@ -204,6 +204,7 @@ const AddReturnPartsPage = () => {
 
       const result = await res.json();
       if (result.success) {
+        document.title = "Return Parts"
         navigate("/return-parts?tab=New");
       } else {
         alert("Failed to save: " + result.message);
@@ -499,7 +500,7 @@ const AddReturnPartsPage = () => {
       </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.card}>
-          <h2 style={styles.h2}>Return Parts</h2>
+          <h2 style={styles.h2}>Add Return Parts</h2>
 
           <div style={styles.formRow}>
             <div style={styles.formGroup}>
@@ -774,9 +775,6 @@ const AddReturnPartsPage = () => {
                 {">>"}
               </button>
             </div>
-            <span style={{ fontSize: "12px", color: "#374151" }}>
-              Total Row: {validParts.length}
-            </span>
           </div>
         </div>
 

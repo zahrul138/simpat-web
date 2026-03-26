@@ -46,6 +46,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
   const empName =
     getAuthUserLocal()?.emp_name || getAuthUserLocal()?.name || null;
 
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("tab") || "Waiting IQC";
@@ -150,7 +151,11 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
         setRawData(data);
         if (filterKeyword.trim()) {
           const kw = filterKeyword.trim().toLowerCase();
-          setTableData(data.filter((r) => (r[filterSearchBy] || "").toLowerCase().includes(kw)));
+          setTableData(
+            data.filter((r) =>
+              (r[filterSearchBy] || "").toLowerCase().includes(kw),
+            ),
+          );
         } else {
           setTableData(data);
         }
@@ -205,10 +210,20 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
 
   const handleSearch = () => fetchData(activeTab);
 
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleTabClick = (tab) => {
     if (activeTab === tab) {
       fetchData(tab);
     } else {
+      setHighlightedRows(new Set());
       setActiveTab(tab);
     }
   };
@@ -313,7 +328,11 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
       if (result.success) {
         setMoveModal(null);
         await fetchData(moveModal.sourceTab || "IQC Inspect");
-        if (qty === Number(row.qty_return)) setActiveTab(targetStatus);
+        if (["Scrap", "RTV"].includes(targetStatus)) {
+          setActiveTab(targetStatus);
+        } else if (qty === Number(row.qty_return)) {
+          setActiveTab(targetStatus);
+        }
       } else {
         alert("Failed: " + result.message);
       }
@@ -635,8 +654,8 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
       cursor: "pointer",
     },
     rtvButton: {
-      backgroundColor: "#fef3c7",
-      color: "#d97706",
+      backgroundColor: "#dbeafe",
+      color: "#1d4ed8",
       padding: "4px 8px",
       fontSize: "12px",
       borderRadius: "4px",
@@ -677,7 +696,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
       fontSize: "10px",
       fontWeight: "600",
     },
-    badgeRTV: { backgroundColor: "#fef3c7", color: "#92400e" },
+    badgeRTV: { backgroundColor: "#dbeafe", color: "#1d4ed8" },
     badgeScrap: { backgroundColor: "#fee2e2", color: "#991b1b" },
     overlay: {
       position: "fixed",
@@ -826,14 +845,29 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1021,14 +1055,29 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1216,14 +1265,29 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1442,14 +1506,29 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1659,14 +1738,29 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1876,14 +1970,29 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -2088,14 +2197,29 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.target.closest("tr").style.backgroundColor =
-                          "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -2312,7 +2436,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
                     moveModal.targetStatus === "Scrap"
                       ? "#dc2626"
                       : moveModal.targetStatus === "RTV"
-                        ? "#d97706"
+                        ? "#1d4ed8"
                         : "#16a34a",
                 }}
                 onClick={handleMoveModalConfirm}

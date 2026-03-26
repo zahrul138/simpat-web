@@ -25,6 +25,8 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   const [selectedScheduleIds, setSelectedScheduleIds] = useState(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
+  const [highlightedDetailRows, setHighlightedDetailRows] = useState({});
   const [expandedVendorRows, setExpandedVendorRows] = useState({});
   const [activeTab, setActiveTab] = useState("Schedule");
 
@@ -1045,6 +1047,25 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     } else {
       fetchSchedules();
     }
+  };
+
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleDetailHighlight = (parentId, detailKey) => {
+    setHighlightedDetailRows((prev) => {
+      const next = { ...prev };
+      const key = `${parentId}_${detailKey}`;
+      if (next[key]) delete next[key];
+      else next[key] = true;
+      return next;
+    });
   };
 
   const handleTabClick = (tab) => {
@@ -2477,7 +2498,30 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     const _pagedR = _filteredR.slice(_startR, _startR + ROWS_PER_PAGE);
     return _pagedR.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              expandedRows[vendor.id] ||
+              highlightedRows.has(`vendor_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("button") && !e.target.closest("input"))
+              toggleRowHighlight(`vendor_${vendor.id}`);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedRows[vendor.id] ||
+              highlightedRows.has(`vendor_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
@@ -2485,12 +2529,28 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
               ...styles.emptyColumn,
             }}
           >
-            {index + 1}
+            {_startR + index + 1}
           </td>
           <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}>
             <button
               style={styles.arrowButton}
-              onClick={() => toggleRowExpansion(vendor.id)}
+              onClick={() => {
+                toggleRowExpansion(vendor.id);
+                if (expandedRows[vendor.id]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(`vendor_${vendor.id}`);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((k) => {
+                      if (k.startsWith(`vendor_${vendor.id}_`)) delete next[k];
+                    });
+                    return next;
+                  });
+                }
+              }}
             >
               {expandedRows[vendor.id] ? (
                 <MdArrowDropDown style={styles.arrowIcon} />
@@ -2585,7 +2645,39 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                       </tr>
                     ) : (
                       vendor.parts.map((part, pIdx) => (
-                        <tr key={part.id}>
+                        <tr
+                          key={part.id}
+                          onClick={(e) => {
+                            if (
+                              !e.target.closest("button") &&
+                              !e.target.closest("input")
+                            )
+                              toggleDetailHighlight(
+                                `vendor_${vendor.id}`,
+                                part.id || pIdx,
+                              );
+                          }}
+                          style={{
+                            backgroundColor: highlightedDetailRows[
+                              `vendor_${vendor.id}_${part.id || pIdx}`
+                            ]
+                              ? "#c7cde8"
+                              : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              "#c7cde8";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.closest("tr").style.backgroundColor =
+                              highlightedDetailRows[
+                                `vendor_${vendor.id}_${part.id || pIdx}`
+                              ]
+                                ? "#c7cde8"
+                                : "transparent";
+                          }}
+                        >
                           <td
                             style={{
                               ...styles.thirdLevelTd,
@@ -2679,16 +2771,39 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     const _pagedI = _filteredI.slice(_startI, _startI + ROWS_PER_PAGE);
     return _pagedI.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              expandedRows[vendor.id] ||
+              highlightedRows.has(`vendor_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("button") && !e.target.closest("input"))
+              toggleRowHighlight(`vendor_${vendor.id}`);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedRows[vendor.id] ||
+              highlightedRows.has(`vendor_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
-            title={index + 1}
+            title={_startI + index + 1}
           >
-            {index + 1}
+            {_startI + index + 1}
           </td>
           <td
             style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
@@ -2696,7 +2811,23 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           >
             <button
               style={styles.arrowButton}
-              onClick={() => toggleRowExpansion(vendor.id)}
+              onClick={() => {
+                toggleRowExpansion(vendor.id);
+                if (expandedRows[vendor.id]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(`vendor_${vendor.id}`);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((k) => {
+                      if (k.startsWith(`vendor_${vendor.id}_`)) delete next[k];
+                    });
+                    return next;
+                  });
+                }
+              }}
             >
               {expandedRows[vendor.id] ? (
                 <MdArrowDropDown style={styles.arrowIcon} />
@@ -2828,7 +2959,39 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                           part.status === "PASS" ? "PASS" : autoStatus;
 
                         return (
-                          <tr key={part.id}>
+                          <tr
+                            key={part.id}
+                            onClick={(e) => {
+                              if (
+                                !e.target.closest("button") &&
+                                !e.target.closest("input")
+                              )
+                                toggleDetailHighlight(
+                                  `vendor_${vendor.id}`,
+                                  part.id || pIdx,
+                                );
+                            }}
+                            style={{
+                              backgroundColor: highlightedDetailRows[
+                                `vendor_${vendor.id}_${part.id || pIdx}`
+                              ]
+                                ? "#c7cde8"
+                                : "transparent",
+                              cursor: "pointer",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.closest("tr").style.backgroundColor =
+                                highlightedDetailRows[
+                                  `vendor_${vendor.id}_${part.id || pIdx}`
+                                ]
+                                  ? "#c7cde8"
+                                  : "transparent";
+                            }}
+                          >
                             <td
                               style={{
                                 ...styles.thirdLevelTd,
@@ -3147,16 +3310,39 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     const _pagedP = _filteredP.slice(_startP, _startP + ROWS_PER_PAGE);
     return _pagedP.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              expandedRows[vendor.id] ||
+              highlightedRows.has(`vendor_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("button") && !e.target.closest("input"))
+              toggleRowHighlight(`vendor_${vendor.id}`);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedRows[vendor.id] ||
+              highlightedRows.has(`vendor_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
-            title={index + 1}
+            title={_startP + index + 1}
           >
-            {index + 1}
+            {_startP + index + 1}
           </td>
           <td
             style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
@@ -3164,7 +3350,23 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           >
             <button
               style={styles.arrowButton}
-              onClick={() => toggleRowExpansion(vendor.id)}
+              onClick={() => {
+                toggleRowExpansion(vendor.id);
+                if (expandedRows[vendor.id]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(`vendor_${vendor.id}`);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((k) => {
+                      if (k.startsWith(`vendor_${vendor.id}_`)) delete next[k];
+                    });
+                    return next;
+                  });
+                }
+              }}
             >
               {expandedRows[vendor.id] ? (
                 <MdArrowDropDown style={styles.arrowIcon} />
@@ -3295,7 +3497,39 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                           sampleDates.length > 0 ? "SAMPLE" : "PASS";
 
                         return (
-                          <tr key={part.id}>
+                          <tr
+                            key={part.id}
+                            onClick={(e) => {
+                              if (
+                                !e.target.closest("button") &&
+                                !e.target.closest("input")
+                              )
+                                toggleDetailHighlight(
+                                  `vendor_${vendor.id}`,
+                                  part.id || pIdx,
+                                );
+                            }}
+                            style={{
+                              backgroundColor: highlightedDetailRows[
+                                `vendor_${vendor.id}_${part.id || pIdx}`
+                              ]
+                                ? "#c7cde8"
+                                : "transparent",
+                              cursor: "pointer",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.closest("tr").style.backgroundColor =
+                                highlightedDetailRows[
+                                  `vendor_${vendor.id}_${part.id || pIdx}`
+                                ]
+                                  ? "#c7cde8"
+                                  : "transparent";
+                            }}
+                          >
                             <td
                               style={{
                                 ...styles.thirdLevelTd,
@@ -3527,16 +3761,39 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     const _pagedC = _filteredC.slice(_startC, _startC + ROWS_PER_PAGE);
     return _pagedC.map((vendor, index) => (
       <React.Fragment key={vendor.id}>
-        <tr>
+        <tr
+          style={{
+            backgroundColor:
+              expandedRows[vendor.id] ||
+              highlightedRows.has(`vendor_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(e) => {
+            if (!e.target.closest("button") && !e.target.closest("input"))
+              toggleRowHighlight(`vendor_${vendor.id}`);
+          }}
+          onMouseEnter={(e) => {
+            e.target.closest("tr").style.backgroundColor = "#c7cde8";
+          }}
+          onMouseLeave={(e) => {
+            e.target.closest("tr").style.backgroundColor =
+              expandedRows[vendor.id] ||
+              highlightedRows.has(`vendor_${vendor.id}`)
+                ? "#c7cde8"
+                : "transparent";
+          }}
+        >
           <td
             style={{
               ...styles.expandedTd,
               ...styles.expandedWithLeftBorder,
               ...styles.emptyColumn,
             }}
-            title={index + 1}
+            title={_startC + index + 1}
           >
-            {index + 1}
+            {_startC + index + 1}
           </td>
           <td
             style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}
@@ -3544,7 +3801,23 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
           >
             <button
               style={styles.arrowButton}
-              onClick={() => toggleRowExpansion(vendor.id)}
+              onClick={() => {
+                toggleRowExpansion(vendor.id);
+                if (expandedRows[vendor.id]) {
+                  setHighlightedRows((prev) => {
+                    const next = new Set(prev);
+                    next.delete(`vendor_${vendor.id}`);
+                    return next;
+                  });
+                  setHighlightedDetailRows((prev) => {
+                    const next = { ...prev };
+                    Object.keys(next).forEach((k) => {
+                      if (k.startsWith(`vendor_${vendor.id}_`)) delete next[k];
+                    });
+                    return next;
+                  });
+                }
+              }}
             >
               {expandedRows[vendor.id] ? (
                 <MdArrowDropDown style={styles.arrowIcon} />
@@ -3668,7 +3941,39 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                       vendor.parts.map((part, pIdx) => {
                         const sampleStatus = getPartSampleStatus(part);
                         return (
-                          <tr key={part.id}>
+                          <tr
+                            key={part.id}
+                            onClick={(e) => {
+                              if (
+                                !e.target.closest("button") &&
+                                !e.target.closest("input")
+                              )
+                                toggleDetailHighlight(
+                                  `vendor_${vendor.id}`,
+                                  part.id || pIdx,
+                                );
+                            }}
+                            style={{
+                              backgroundColor: highlightedDetailRows[
+                                `vendor_${vendor.id}_${part.id || pIdx}`
+                              ]
+                                ? "#c7cde8"
+                                : "transparent",
+                              cursor: "pointer",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.closest("tr").style.backgroundColor =
+                                highlightedDetailRows[
+                                  `vendor_${vendor.id}_${part.id || pIdx}`
+                                ]
+                                  ? "#c7cde8"
+                                  : "transparent";
+                            }}
+                          >
                             <td
                               style={{
                                 ...styles.thirdLevelTd,
@@ -3921,7 +4226,35 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
     return _pagedS.map((schedule, index) => {
       return (
         <React.Fragment key={schedule.id}>
-          <tr>
+          <tr
+            style={{
+              backgroundColor:
+                selectedScheduleIds.has(schedule.id) ||
+                expandedRows[schedule.id] ||
+                highlightedRows.has(schedule.id)
+                  ? "#c7cde8"
+                  : "transparent",
+              cursor: "pointer",
+            }}
+            onClick={(e) => {
+              if (
+                !e.target.closest("input[type='checkbox']") &&
+                !e.target.closest("button")
+              )
+                toggleRowHighlight(schedule.id);
+            }}
+            onMouseEnter={(e) => {
+              e.target.closest("tr").style.backgroundColor = "#c7cde8";
+            }}
+            onMouseLeave={(e) => {
+              e.target.closest("tr").style.backgroundColor =
+                selectedScheduleIds.has(schedule.id) ||
+                expandedRows[schedule.id] ||
+                highlightedRows.has(schedule.id)
+                  ? "#c7cde8"
+                  : "transparent";
+            }}
+          >
             <td
               style={{
                 ...styles.expandedTd,
@@ -3929,12 +4262,28 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                 ...styles.emptyColumn,
               }}
             >
-              {index + 1}
+              {_startS + index + 1}
             </td>
             <td style={{ ...styles.tdWithLeftBorder, ...styles.emptyColumn }}>
               <button
                 style={styles.arrowButton}
-                onClick={() => toggleRowExpansion(schedule.id)}
+                onClick={() => {
+                  toggleRowExpansion(schedule.id);
+                  if (expandedRows[schedule.id]) {
+                    setHighlightedRows((prev) => {
+                      const next = new Set(prev);
+                      next.delete(schedule.id);
+                      return next;
+                    });
+                    setHighlightedDetailRows((prev) => {
+                      const next = { ...prev };
+                      Object.keys(next).forEach((key) => {
+                        if (key.startsWith(`${schedule.id}_`)) delete next[key];
+                      });
+                      return next;
+                    });
+                  }
+                }}
               >
                 {expandedRows[schedule.id] ? (
                   <MdArrowDropDown style={styles.arrowIcon} />
@@ -4794,6 +5143,9 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                     {">>"}
                   </button>
                 </div>
+                <span style={{ fontSize: "12px", color: "#374151" }}>
+                  Total Rows: {_activeFiltered.length}
+                </span>
               </div>
             );
           })()}

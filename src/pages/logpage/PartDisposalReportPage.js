@@ -152,11 +152,7 @@ const BarChart = ({ data, typeFilter, onBarClick, animKey }) => {
             setTooltip({ x: labelX, y: tipY, label: fmtFullDate(d.date) });
           const hideTip = () => setTooltip(null);
           return (
-            <g
-              key={idx}
-              style={{ cursor: "pointer" }}
-              onClick={() => onBarClick(d)}
-            >
+            <g key={idx}>
               <rect
                 x={groupX - 2}
                 y={0}
@@ -175,9 +171,13 @@ const BarChart = ({ data, typeFilter, onBarClick, animKey }) => {
                   rx="2"
                   fill="#ef4444"
                   opacity="0.85"
-                  style={{ transformOrigin: `${groupX + barW / 2}px ${baseY}px` }}
+                  style={{
+                    transformOrigin: `${groupX + barW / 2}px ${baseY}px`,
+                    cursor: "pointer",
+                  }}
                   onMouseEnter={showTip}
                   onMouseLeave={hideTip}
+                  onClick={() => onBarClick(d)}
                 />
               )}
               {showRtv && rtvH > 0 && (
@@ -191,9 +191,13 @@ const BarChart = ({ data, typeFilter, onBarClick, animKey }) => {
                   rx="2"
                   fill="#2563eb"
                   opacity="0.85"
-                  style={{ transformOrigin: `${(showScrap ? groupX + barW + BAR_GAP : groupX) + barW / 2}px ${baseY}px` }}
+                  style={{
+                    transformOrigin: `${(showScrap ? groupX + barW + BAR_GAP : groupX) + barW / 2}px ${baseY}px`,
+                    cursor: "pointer",
+                  }}
                   onMouseEnter={showTip}
                   onMouseLeave={hideTip}
+                  onClick={() => onBarClick(d)}
                 />
               )}
               <text
@@ -245,6 +249,7 @@ const BarChart = ({ data, typeFilter, onBarClick, animKey }) => {
 };
 
 const PartDisposalReportPage = ({ sidebarVisible }) => {
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
   const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
   const getCurrentMonth = () => {
@@ -391,6 +396,15 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
     }
   };
 
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleTabHover = (e, on, isActive) => {
     if (!isActive) e.target.style.color = on ? "#2563eb" : "#6b7280";
   };
@@ -403,12 +417,10 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
 
   useEffect(() => {
     fetchVendorList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth, typeFilter, vendorId]);
 
   const selectedVendorName = vendorId
@@ -753,7 +765,7 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
       display: "inline-block",
     },
     badgeScrap: { backgroundColor: "#fee2e2", color: "#991b1b" },
-    badgeRtv: { backgroundColor: "#fef3c7", color: "#92400e" },
+    badgeRtv: { backgroundColor: "#dbeafe", color: "#1d4ed8" },
     popupOverlay: {
       position: "fixed",
       top: 0,
@@ -959,7 +971,13 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       {dayModal && (
-        <div style={styles.popupOverlay} onClick={() => setDayModal(null)}>
+        <div
+          style={styles.popupOverlay}
+          onClick={() => {
+            setDayModal(null);
+            setHighlightedRows(new Set());
+          }}
+        >
           <div
             style={styles.popupContainer}
             onClick={(e) => e.stopPropagation()}
@@ -982,7 +1000,10 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
               </div>
               <button
                 style={styles.closeButton}
-                onClick={() => setDayModal(null)}
+                onClick={() => {
+                  setDayModal(null);
+                  setHighlightedRows(new Set());
+                }}
               >
                 ✕
               </button>
@@ -1068,13 +1089,28 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
                         {modalSlice.map((r, i) => (
                           <tr
                             key={i}
+                            style={{
+                              backgroundColor: highlightedRows.has(i)
+                                ? "#c7cde8"
+                                : "transparent",
+                              cursor: "pointer",
+                            }}
+                            onClick={(e) => {
+                              if (
+                                !e.target.closest("input") &&
+                                !e.target.closest("button")
+                              )
+                                toggleRowHighlight(i);
+                            }}
                             onMouseEnter={(e) =>
                               (e.currentTarget.style.backgroundColor =
                                 "#c7cde8")
                             }
                             onMouseLeave={(e) =>
                               (e.currentTarget.style.backgroundColor =
-                                "transparent")
+                                highlightedRows.has(i)
+                                  ? "#c7cde8"
+                                  : "transparent")
                             }
                           >
                             <td

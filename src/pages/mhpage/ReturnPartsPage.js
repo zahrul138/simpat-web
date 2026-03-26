@@ -50,6 +50,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
   const empName =
     getAuthUserLocal()?.emp_name || getAuthUserLocal()?.name || null;
 
+  const [highlightedRows, setHighlightedRows] = useState(new Set());
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("tab") || "New";
@@ -157,6 +158,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
     fetchData(activeTab);
     setSelectedIds(new Set());
     setSelectAll(false);
+    setHighlightedRows(new Set());
   }, [activeTab]);
 
   const fetchData = async (tab) => {
@@ -174,7 +176,11 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
         setRawData(data);
         if (filterKeyword.trim()) {
           const kw = filterKeyword.trim().toLowerCase();
-          setTableData(data.filter((r) => (r[filterSearchBy] || "").toLowerCase().includes(kw)));
+          setTableData(
+            data.filter((r) =>
+              (r[filterSearchBy] || "").toLowerCase().includes(kw),
+            ),
+          );
         } else {
           setTableData(data);
         }
@@ -228,6 +234,15 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
   };
 
   const handleSearch = () => fetchData(activeTab);
+
+  const toggleRowHighlight = (id) => {
+    setHighlightedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleTabClick = (tab) => {
     if (activeTab === tab) {
@@ -312,8 +327,8 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ remark: remarks[id] }),
-            })
-          )
+            }),
+          ),
       );
       const results = await Promise.all(
         Array.from(selectedIds).map((id) => patchStatus(id, "Waiting IQC")),
@@ -717,8 +732,8 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
       cursor: "pointer",
     },
     rtvButton: {
-      backgroundColor: "#fef3c7",
-      color: "#d97706",
+      backgroundColor: "#dbeafe",
+      color: "#1d4ed8",
       padding: "4px 8px",
       fontSize: "12px",
       borderRadius: "4px",
@@ -759,7 +774,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
       fontSize: "10px",
       fontWeight: "600",
     },
-    badgeRTV: { backgroundColor: "#fef3c7", color: "#92400e" },
+    badgeRTV: { backgroundColor: "#dbeafe", color: "#1d4ed8" },
     badgeScrap: { backgroundColor: "#fee2e2", color: "#991b1b" },
     overlay: {
       position: "fixed",
@@ -924,14 +939,29 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1139,14 +1169,29 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1317,14 +1362,29 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1495,14 +1555,29 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1684,14 +1759,29 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -1901,14 +1991,29 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -2118,14 +2223,29 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -2330,14 +2450,29 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
                   return (
                     <tr
                       key={row.id}
-                      onMouseEnter={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "#c7cde8")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.target.closest("tr").style.backgroundColor =
-                        "transparent")
-                      }
+                      style={{
+                        backgroundColor: highlightedRows.has(row.id)
+                          ? "#c7cde8"
+                          : "transparent",
+                        cursor: "pointer",
+                      }}
+                      onClick={(e) => {
+                        if (
+                          !e.target.closest("input") &&
+                          !e.target.closest("button")
+                        )
+                          toggleRowHighlight(row.id);
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.closest("tr").style.backgroundColor =
+                          highlightedRows.has(row.id)
+                            ? "#c7cde8"
+                            : "transparent";
+                      }}
                     >
                       <td
                         style={{
@@ -2644,7 +2779,10 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             style={styles.button}
             onMouseEnter={(e) => handleButtonHover(e, true)}
             onMouseLeave={(e) => handleButtonHover(e, false)}
-            onClick={() => { document.title = "Return Parts/Add Return Parts"; navigate("/return-parts/add"); }}
+            onClick={() => {
+              document.title = "Return Parts/Add Return Parts";
+              navigate("/return-parts/add");
+            }}
           >
             <Plus size={16} />
             Create
