@@ -188,14 +188,12 @@ const Navbar = ({
   const handleLogout = () => {
     const user = getAuthUser();
     if (user) {
-      // Hapus dari active sessions
       fetch(`${API_BASE}/api/active-sessions/logout`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id || user.emp_id || user.username }),
       }).catch(() => { });
 
-      // Catat ke activity log
       fetch(`${API_BASE}/api/activity-logs/logout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -250,8 +248,20 @@ const Navbar = ({
   };
 
   const handleSendFeedback = async () => {
-    if (!feedbackDesc.trim() && feedbackPhotos.length === 0) {
-      alert("Harap isi deskripsi atau lampirkan foto terlebih dahulu.");
+    if (!feedbackLocation && !feedbackDesc.trim()) {
+      alert("Please select problem location, or fill in the description.");
+      return;
+    }
+    if (!feedbackLocation) {
+      alert("Please select a problem location.");
+      return;
+    }
+    if (!feedbackDesc.trim()) {
+      if (feedbackPhotos.length > 0) {
+        alert("Please fill in the description.");
+      } else {
+        alert("Please fill in the description.");
+      }
       return;
     }
     setIsSending(true);
@@ -289,7 +299,7 @@ const Navbar = ({
       alert("Feedback successfully submitted!");
       setShowFeedback(false);
     } catch {
-      alert("Failed to send feedback, please try again.");
+      alert("Failed to send, the server is busy, please try again later.");
     } finally {
       setIsSending(false);
     }
@@ -547,7 +557,7 @@ const Navbar = ({
 
           <div style={styles.systemInfo}>
             <span style={{ ...styles.badge, ...styles.greenBadge }}>
-              FY-2026
+              FY-26
             </span>
             |
             <span

@@ -709,7 +709,7 @@ const UserFeedback = ({ sidebarVisible }) => {
             <thead>
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
-                <th style={styles.thWithLeftBorder}>Employee ID</th>
+                <th style={styles.thWithLeftBorder}>ID Card</th>
                 <th style={styles.thWithLeftBorder}>Department</th>
                 <th style={styles.thWithLeftBorder}>Page Location</th>
                 <th style={styles.thWithLeftBorder}>Desc</th>
@@ -882,7 +882,7 @@ const UserFeedback = ({ sidebarVisible }) => {
             <thead>
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
-                <th style={styles.thWithLeftBorder}>Employee ID</th>
+                <th style={styles.thWithLeftBorder}>ID Card</th>
                 <th style={styles.thWithLeftBorder}>Department</th>
                 <th style={styles.thWithLeftBorder}>Page Location</th>
                 <th style={styles.thWithLeftBorder}>Desc</th>
@@ -1055,7 +1055,7 @@ const UserFeedback = ({ sidebarVisible }) => {
             <thead>
               <tr style={styles.tableHeader}>
                 <th style={styles.expandedTh}>No</th>
-                <th style={styles.thWithLeftBorder}>Employee ID</th>
+                <th style={styles.thWithLeftBorder}>ID Card</th>
                 <th style={styles.thWithLeftBorder}>Department</th>
                 <th style={styles.thWithLeftBorder}>Page Location</th>
                 <th style={styles.thWithLeftBorder}>Desc</th>

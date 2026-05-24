@@ -64,6 +64,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [tripsData, setTripsData] = useState([]);
+  const [showTripInfo, setShowTripInfo] = useState(false);
   const [highlightedRows, setHighlightedRows] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -499,9 +500,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
   };
 
   const handleDeletePermanent = async (partId) => {
-    if (
-      !window.confirm("Delete this request ?")
-    ) {
+    if (!window.confirm("Delete this request ?")) {
       return;
     }
 
@@ -1129,6 +1128,74 @@ const RequestPartPage = ({ sidebarVisible }) => {
       outline: "none",
       boxSizing: "border-box",
     },
+    tripInfoButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      fontSize: "13px",
+      fontWeight: "700",
+      padding: "0",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "20px",
+      height: "20px",
+      borderRadius: "50%",
+      backgroundColor: "#2563eb",
+      color: "white",
+      marginLeft: "6px",
+      flexShrink: 0,
+    },
+    tripInfoOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    },
+    tripInfoContainer: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
+      border: "1px solid #e0e7ff",
+      width: "560px",
+      maxHeight: "80vh",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+    },
+    tripInfoHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "14px 20px",
+      backgroundColor: "#e0e7ff",
+      borderBottom: "1.5px solid #9fa8da",
+    },
+    tripInfoTitle: {
+      fontSize: "14px",
+      fontWeight: "600",
+      color: "#1f2937",
+      margin: 0,
+    },
+    tripInfoClose: {
+      background: "none",
+      border: "none",
+      fontSize: "20px",
+      cursor: "pointer",
+      color: "#6b7280",
+      lineHeight: 1,
+      padding: 0,
+    },
+    tripInfoBody: {
+      overflowY: "auto",
+      padding: "16px",
+    },
   };
 
   const handleButtonHover = (e, isHover, type) => {
@@ -1147,7 +1214,10 @@ const RequestPartPage = ({ sidebarVisible }) => {
     if (loading) {
       return (
         <tr>
-          <td colSpan="10" style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+          <td
+            colSpan="10"
+            style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}
+          >
             Loading...
           </td>
         </tr>
@@ -1158,7 +1228,10 @@ const RequestPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: (selectedItems.has(part.id) || highlightedRows.has(part.id)) ? "#c7cde8" : "transparent",
+          backgroundColor:
+            selectedItems.has(part.id) || highlightedRows.has(part.id)
+              ? "#c7cde8"
+              : "transparent",
           cursor: "pointer",
         }}
         onClick={(e) => {
@@ -1170,8 +1243,11 @@ const RequestPartPage = ({ sidebarVisible }) => {
           e.target.closest("tr").style.backgroundColor = "#c7cde8";
         }}
         onMouseLeave={(e) => {
-          const isHighlighted = selectedItems.has(part.id) || highlightedRows.has(part.id);
-          e.target.closest("tr").style.backgroundColor = isHighlighted ? "#c7cde8" : "transparent";
+          const isHighlighted =
+            selectedItems.has(part.id) || highlightedRows.has(part.id);
+          e.target.closest("tr").style.backgroundColor = isHighlighted
+            ? "#c7cde8"
+            : "transparent";
         }}
       >
         <td
@@ -1272,7 +1348,9 @@ const RequestPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: highlightedRows.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: highlightedRows.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
           cursor: "pointer",
         }}
         onClick={(e) => {
@@ -1284,7 +1362,9 @@ const RequestPartPage = ({ sidebarVisible }) => {
           e.target.closest("tr").style.backgroundColor = "#c7cde8";
         }}
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = highlightedRows.has(part.id)
+          e.target.closest("tr").style.backgroundColor = highlightedRows.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
@@ -1354,7 +1434,9 @@ const RequestPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: highlightedRows.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: highlightedRows.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
           cursor: "pointer",
         }}
         onClick={(e) => {
@@ -1366,7 +1448,9 @@ const RequestPartPage = ({ sidebarVisible }) => {
           e.target.closest("tr").style.backgroundColor = "#c7cde8";
         }}
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = highlightedRows.has(part.id)
+          e.target.closest("tr").style.backgroundColor = highlightedRows.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
@@ -1434,14 +1518,18 @@ const RequestPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: selectedItems.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
           cursor: "pointer",
         }}
         onMouseEnter={(e) => {
           e.target.closest("tr").style.backgroundColor = "#c7cde8";
         }}
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
@@ -1524,7 +1612,9 @@ const RequestPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: highlightedRows.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: highlightedRows.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
           cursor: "pointer",
         }}
         onClick={(e) => {
@@ -1536,7 +1626,9 @@ const RequestPartPage = ({ sidebarVisible }) => {
           e.target.closest("tr").style.backgroundColor = "#c7cde8";
         }}
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = highlightedRows.has(part.id)
+          e.target.closest("tr").style.backgroundColor = highlightedRows.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
@@ -1622,14 +1714,18 @@ const RequestPartPage = ({ sidebarVisible }) => {
       <tr
         key={part.id}
         style={{
-          backgroundColor: selectedItems.has(part.id) ? "#c7cde8" : "transparent",
+          backgroundColor: selectedItems.has(part.id)
+            ? "#c7cde8"
+            : "transparent",
           cursor: "pointer",
         }}
         onMouseEnter={(e) => {
           e.target.closest("tr").style.backgroundColor = "#c7cde8";
         }}
         onMouseLeave={(e) => {
-          e.target.closest("tr").style.backgroundColor = selectedItems.has(part.id)
+          e.target.closest("tr").style.backgroundColor = selectedItems.has(
+            part.id,
+          )
             ? "#c7cde8"
             : "transparent";
         }}
@@ -1734,8 +1830,8 @@ const RequestPartPage = ({ sidebarVisible }) => {
                   activeTab === "Waiting" ||
                   activeTab === "History" ||
                   activeTab === "Rejected") && (
-                    <option value="requested_by_name">Request By</option>
-                  )}
+                  <option value="requested_by_name">Request By</option>
+                )}
                 {activeTab === "Received" && (
                   <option value="approved_by_name">Received By</option>
                 )}
@@ -1967,33 +2063,33 @@ const RequestPartPage = ({ sidebarVisible }) => {
             {!["New", "Waiting", "Received", "Arrived", "Rejected"].includes(
               activeTab,
             ) && (
-                <table
-                  style={{
-                    ...styles.table,
-                    minWidth: "970px",
-                    tableLayout: "fixed",
-                  }}
-                >
-                  {renderColgroup(tableConfig[activeTab].cols)}
-                  <thead>
-                    <tr style={styles.tableHeader}>
-                      {tableConfig[activeTab].headers.map((header, idx) => (
-                        <th
-                          key={idx}
-                          style={
-                            idx === 0
-                              ? styles.expandedTh
-                              : styles.thWithLeftBorder
-                          }
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>{renderOtherTabs()}</tbody>
-                </table>
-              )}
+              <table
+                style={{
+                  ...styles.table,
+                  minWidth: "970px",
+                  tableLayout: "fixed",
+                }}
+              >
+                {renderColgroup(tableConfig[activeTab].cols)}
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    {tableConfig[activeTab].headers.map((header, idx) => (
+                      <th
+                        key={idx}
+                        style={
+                          idx === 0
+                            ? styles.expandedTh
+                            : styles.thWithLeftBorder
+                        }
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>{renderOtherTabs()}</tbody>
+              </table>
+            )}
 
             {activeTab === "Rejected" && (
               <table
@@ -2064,9 +2160,21 @@ const RequestPartPage = ({ sidebarVisible }) => {
                 {">>"}
               </button>
             </div>
-            <span style={{ fontSize: "12px", color: "#374151" }}>
-              Total Row: {totalItems}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "12px", color: "#374151" }}>
+                Total Row: {totalItems}
+              </span>
+              {activeTab === "InTransit" && (
+                <button
+                  style={styles.tripInfoButton}
+                  onClick={() => setShowTripInfo(true)}
+                  title="Trip Information"
+                  type="button"
+                >
+                  i
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2091,6 +2199,110 @@ const RequestPartPage = ({ sidebarVisible }) => {
               <Check size={16} />
               Move to Complete
             </button>
+          </div>
+        )}
+
+        {showTripInfo && (
+          <div
+            style={styles.tripInfoOverlay}
+            onClick={() => setShowTripInfo(false)}
+          >
+            <div
+              style={styles.tripInfoContainer}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={styles.tripInfoHeader}>
+                <h3 style={styles.tripInfoTitle}>Trip Information</h3>
+                <button
+                  style={styles.tripInfoClose}
+                  onClick={() => setShowTripInfo(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={styles.tripInfoBody}>
+                <div style={styles.tableContainer}>
+                  <div style={styles.tableBodyWrapper}>
+                    <table
+                      style={{
+                        ...styles.table,
+                        minWidth: "100%",
+                        tableLayout: "fixed",
+                      }}
+                    >
+                      <colgroup>
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "20%" }} />
+                      </colgroup>
+                      <thead>
+                        <tr style={styles.tableHeader}>
+                          <th style={styles.thWithLeftBorder}>Trip Code</th>
+                          <th style={styles.thWithLeftBorder}>Req From</th>
+                          <th style={styles.thWithLeftBorder}>Req To</th>
+                          <th style={styles.thWithLeftBorder}>Arv From</th>
+                          <th style={styles.thWithLeftBorder}>Arv To</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tripsData.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan="5"
+                              style={{
+                                ...styles.tdWithLeftBorder,
+                                textAlign: "center",
+                                padding: "20px",
+                                color: "#6b7280",
+                              }}
+                            >
+                              No trip data
+                            </td>
+                          </tr>
+                        ) : (
+                          tripsData.map((trip) => (
+                            <tr key={trip.id}>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.trip_code}
+                              >
+                                {trip.trip_code}
+                              </td>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.req_from}
+                              >
+                                {trip.req_from}
+                              </td>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.req_to}
+                              >
+                                {trip.req_to}
+                              </td>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.arv_from || "-"}
+                              >
+                                {trip.arv_from || "-"}
+                              </td>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.arv_to || "-"}
+                              >
+                                {trip.arv_to || "-"}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

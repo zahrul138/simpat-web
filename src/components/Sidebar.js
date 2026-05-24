@@ -617,6 +617,18 @@ const Sidebar = ({
   const getMenuItemsByApplication = (app) => {
     const baseItems = {
       production: [
+         {
+          title: "Procurement Schedule",
+          icon: CalendarIcon,
+          isActive: location.pathname.startsWith("/mh-local-schedule"),
+          subItems: [
+            {
+              title: "Local Schedule",
+              href: "/mh-local-schedule",
+              icon: ClockIcon,
+            },
+          ],
+        },
         {
           title: "Production",
           icon: FactoryIcon,
@@ -639,18 +651,6 @@ const Sidebar = ({
               title: "Production Monitoring",
               href: "/production-monitoring",
               icon: MonitorIcon,
-            },
-          ],
-        },
-        {
-          title: "Local Vendor",
-          icon: TruckIcon,
-          isActive: location.pathname.startsWith("/mh-local-schedule"),
-          subItems: [
-            {
-              title: "Local Schedule",
-              href: "/mh-local-schedule",
-              icon: ClockIcon,
             },
           ],
         },
@@ -735,7 +735,7 @@ const Sidebar = ({
             {
               title: "Stock Overview",
               href: "/stock-overview",
-              icon: LayoutDashboardIcon,
+              icon: EyeIcon,
             },
             {
               title: "Shortage Monitoring",
@@ -868,14 +868,14 @@ const Sidebar = ({
             },
           ],
         },
-        {
-          title: "System Monitor",
-          icon: SlidersIcon,
-          isActive: isPathActive("/activity-log"),
-          subItems: [
-            { title: "Activity Log", href: "/activity-log", icon: ScrollIcon },
-          ],
-        },
+        // {
+        //   title: "System Monitor",
+        //   icon: SlidersIcon,
+        //   isActive: isPathActive("/activity-log"),
+        //   subItems: [
+        //     { title: "Activity Log", href: "/activity-log", icon: ScrollIcon },
+        //   ],
+        // },
       ],
     };
 
@@ -980,7 +980,7 @@ const Sidebar = ({
   const navbarHeight = 140;
   const styles = {
     sidebar: {
-      width: "180px",
+      width: "200px",
       backgroundColor: "#1e293b",
       color: "white",
       minHeight: `calc(100vh - ${navbarHeight}px)`,

@@ -11,11 +11,11 @@ const getCurrentUser = () => {
     const authUser = JSON.parse(localStorage.getItem("auth_user") || "null");
     return authUser
       ? authUser.emp_name ||
-          authUser.employeeName ||
-          authUser.fullname ||
-          authUser.name ||
-          authUser.username ||
-          "System"
+      authUser.employeeName ||
+      authUser.fullname ||
+      authUser.name ||
+      authUser.username ||
+      "System"
       : "System";
   } catch {
     return "System";
@@ -273,6 +273,11 @@ const AddPartsPage = () => {
       return;
     }
 
+    if (partFormData.part_code.trim().length !== 9) {
+      alert("Part Code must be exactly 9 characters");
+      return;
+    }
+
     if (!partFormData.part_name.trim()) {
       alert("Please fill in Part Name");
       return;
@@ -315,8 +320,8 @@ const AddPartsPage = () => {
         missingFields.length === 1
           ? `Please select ${missingFields[0]}`
           : `Please select the following options:\n- ${missingFields.join(
-              "\n- "
-            )}`;
+            "\n- "
+          )}`;
 
       alert(errorMessage);
       return;
@@ -342,8 +347,8 @@ const AddPartsPage = () => {
     const customerNames =
       selectedCustomers.length > 0
         ? selectedCustomers
-            .map((c) => `${c.mat_code} | ${c.cust_name}`)
-            .join(", ")
+          .map((c) => `${c.mat_code} | ${c.cust_name}`)
+          .join(", ")
         : "All Customers";
 
     const tempPart = {
@@ -481,6 +486,15 @@ const AddPartsPage = () => {
 
           if (duplicateResult.item) {
             throw new Error(`Part code ${part.part_code} already exists`);
+          }
+
+          const checkDuplicateName = await fetch(
+            `${API_BASE}/api/kanban-master/by-part-name?part_name=${encodeURIComponent(part.part_name)}`
+          );
+          const duplicateNameResult = await checkDuplicateName.json();
+
+          if (duplicateNameResult.item) {
+            throw new Error(`Part name "${part.part_name}" already exists`);
           }
 
           const selectedSize = partSizes.find(
@@ -1258,12 +1272,10 @@ const AddPartsPage = () => {
     <div style={styles.pageContainer}>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
-          <div style={styles.card}>
+          <form style={styles.card} onSubmit={(e) => { e.preventDefault(); handleInsertToTemp(); }}>
             <div style={{ marginBottom: "16px" }}>
               <h2 style={styles.h2}>Add Part Details</h2>
             </div>
-
-            {/* ── Section 1: Part Information ── */}
             <div style={styles.formSection}>
               <div style={styles.formSectionTitle}>Part Information</div>
               <div style={styles.formGrid4}>
@@ -1274,6 +1286,8 @@ const AddPartsPage = () => {
                     style={styles.formInput}
                     placeholder="Enter part code"
                     value={partFormData.part_code}
+                    required
+                    maxLength={9}
                     onChange={(e) => {
                       const numbersOnly = e.target.value.replace(/\D/g, "");
                       handlePartInputChange("part_code", numbersOnly);
@@ -1287,6 +1301,7 @@ const AddPartsPage = () => {
                     style={styles.formInput}
                     placeholder="Enter part name"
                     value={partFormData.part_name}
+                    required
                     onChange={(e) =>
                       handlePartInputChange("part_name", e.target.value)
                     }
@@ -1297,6 +1312,7 @@ const AddPartsPage = () => {
                   <select
                     style={styles.formSelect}
                     value={partFormData.part_size}
+                    required
                     onChange={(e) =>
                       handlePartInputChange("part_size", e.target.value)
                     }
@@ -1326,6 +1342,7 @@ const AddPartsPage = () => {
                   <select
                     style={styles.formSelect}
                     value={partFormData.part_types}
+                    required
                     onChange={(e) =>
                       handlePartInputChange("part_types", e.target.value)
                     }
@@ -1397,7 +1414,7 @@ const AddPartsPage = () => {
               <div style={styles.formSectionTitle}>Specs & Pricing</div>
               <div style={styles.formGrid4}>
                 <div>
-                  <label style={styles.formLabel}>Part Price (USD)</label>
+                  <label style={styles.formLabel}>Part Price (S$)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1463,9 +1480,8 @@ const AddPartsPage = () => {
                   <select
                     style={styles.formSelect}
                     value={partFormData.model}
-                    onChange={(e) =>
-                      handlePartInputChange("model", e.target.value)
-                    }
+                    required
+                    onChange={(e) => handlePartInputChange("model", e.target.value)}
                   >
                     <option value="">Select Model</option>
                     {models.map((model, index) => (
@@ -1478,9 +1494,8 @@ const AddPartsPage = () => {
                   <select
                     style={styles.formSelect}
                     value={partFormData.vendor_id}
-                    onChange={(e) =>
-                      handlePartInputChange("vendor_id", e.target.value)
-                    }
+                    required
+                    onChange={(e) => handlePartInputChange("vendor_id", e.target.value)}
                   >
                     <option value="">Select Vendor</option>
                     {vendors.map((vendor) => (
@@ -1505,9 +1520,8 @@ const AddPartsPage = () => {
                   <select
                     style={styles.formSelect}
                     value={partFormData.stock_level_to}
-                    onChange={(e) =>
-                      handlePartInputChange("stock_level_to", e.target.value)
-                    }
+                    required
+                    onChange={(e) => handlePartInputChange("stock_level_to", e.target.value)}
                   >
                     <option value="">Select Stock Level</option>
                     {stockLevels.map((level, index) => (
@@ -1549,8 +1563,8 @@ const AddPartsPage = () => {
                       selectedPlacement
                         ? `${selectedPlacement.length_cm} cm`
                         : partFormData.placement_id === "no-placement" || !partFormData.placement_id
-                        ? "No Placement"
-                        : ""
+                          ? "No Placement"
+                          : ""
                     }
                     readOnly
                     placeholder={
@@ -1569,8 +1583,8 @@ const AddPartsPage = () => {
                       selectedPlacement
                         ? `${selectedPlacement.width_cm} cm`
                         : partFormData.placement_id === "no-placement" || !partFormData.placement_id
-                        ? "No Placement"
-                        : ""
+                          ? "No Placement"
+                          : ""
                     }
                     readOnly
                     placeholder={
@@ -1589,8 +1603,8 @@ const AddPartsPage = () => {
                       selectedPlacement
                         ? `${selectedPlacement.height_cm} cm`
                         : partFormData.placement_id === "no-placement" || !partFormData.placement_id
-                        ? "No Placement"
-                        : ""
+                          ? "No Placement"
+                          : ""
                     }
                     readOnly
                     placeholder={
@@ -1641,14 +1655,14 @@ const AddPartsPage = () => {
 
             <div style={styles.actionButtonsGroup}>
               <button
+                type="submit"
                 style={{ ...styles.button, ...styles.primaryButton }}
-                onClick={handleInsertToTemp}
               >
                 <Plus size={16} />
                 Insert
               </button>
             </div>
-          </div>
+          </form>
 
           <h2 style={styles.h2}>Part Detail List</h2>
           <div style={styles.tableContainer}>
@@ -1729,21 +1743,18 @@ const AddPartsPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {tempParts.length === 0 ? (
-                    <tr>
-                      
-                    </tr>
-                  ) : (
-                    tempParts.map((part, index) => (
+                  {tempParts.length === 0 
+                   ? null
+                    :tempParts.map((part, index) => (
                       <tr
                         key={part.id}
                         onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8")
                         }
                         onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "transparent")
                         }
                       >
                         <td
@@ -1868,7 +1879,7 @@ const AddPartsPage = () => {
                         </td>
                       </tr>
                     ))
-                  )}
+                  }
                 </tbody>
               </table>
             </div>

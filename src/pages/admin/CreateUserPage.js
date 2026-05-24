@@ -106,7 +106,7 @@ const CreateUserPage = () => {
       return;
     }
     if (form.idCard.length !== 7) {
-      alert("ID Card harus tepat 7 digit.");
+      alert("ID Card must be 7 <digit></digit>.");
       return;
     }
     const mustUsername = usernameFromIdCard(form.idCard);
@@ -118,14 +118,14 @@ const CreateUserPage = () => {
       idCard: form.idCard,
       name: form.employeeName,
       username: mustUsername,
-      password: form.password, // plain
+      password: form.password, 
       department: form.department,
       email: `${mustUsername}@company.com`,
       role,
       status: "Active",
-      createdBy: creator,                     // << emp_name admin
-      createdAt: currentDateTime.fullMinute,  // << YYYY-MM-DD HH:mm
-      createdDate: currentDateTime.full,      // (keep kalau mau dipakai)
+      createdBy: creator,                     
+      createdAt: currentDateTime.fullMinute,  
+      createdDate: currentDateTime.full,      
     };
 
     setTempUsers((prev) => [...prev, newUser]);

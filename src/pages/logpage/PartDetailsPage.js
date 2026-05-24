@@ -385,6 +385,11 @@ const PartDetailsPage = ({ sidebarVisible }) => {
       return;
     }
 
+    if (editFormData.part_code.trim().length !== 9) {
+      alert("Part Code must be exactly 9 characters");
+      return;
+    }
+
     if (!editFormData.vendor_id) {
       setEditError("Vendor is required");
       return;
@@ -1614,7 +1619,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 >
                   <option value="">Select Customer</option>
                   <option value="all customers">All Customers</option>
-                  
+
                   {[
                     ...new Set(
                       partsData
@@ -2149,13 +2154,13 @@ const PartDetailsPage = ({ sidebarVisible }) => {
             </div>
           </div>
         )}
-        
 
-        
+
+
         {showEditPopup && (
           <div style={styles.popupEditOverlay}>
             <div style={styles.popupEditContainer}>
-              
+
               <div style={styles.popupEditHeader}>
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "10px" }}
@@ -2212,7 +2217,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 }}
               >
                 <div style={styles.popupEditForm}>
-                  
+
                   <div style={styles.popupEditSection}>
                     <div style={styles.popupEditSectionTitle}>
                       Part Information
@@ -2224,9 +2229,13 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           type="text"
                           name="part_code"
                           value={editFormData.part_code}
-                          onChange={handleEditFormChange}
+                          onChange={(e) => {
+                            const numbersOnly = e.target.value.replace(/\D/g, "");
+                            setEditFormData({ ...editFormData, part_code: numbersOnly });
+                          }}
                           style={styles.popupEditInput}
                           placeholder="Enter part code"
+                          maxLength={9}
                           required
                         />
                       </div>
@@ -2318,7 +2327,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     </div>
                   </div>
 
-                  
+
                   <div style={styles.popupEditSection}>
                     <div style={styles.popupEditSectionTitle}>
                       Specs & Vendor
@@ -2338,7 +2347,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                       </div>
                       <div style={styles.popupEditFormGroup}>
                         <label style={styles.popupEditLabel}>
-                          Part Price (USD)
+                          Part Price (S$)
                         </label>
                         <input
                           type="number"
@@ -2462,7 +2471,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     </div>
                   </div>
 
-                  
+
                   <div style={styles.popupEditSection}>
                     <div style={styles.popupEditSectionTitle}>
                       Placement & Assembly
@@ -2591,13 +2600,13 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                     </div>
                   </div>
 
-                  
+
                   {editError && (
                     <div style={styles.popupEditError}>⚠ {editError}</div>
                   )}
                 </div>
 
-                
+
                 <div style={styles.popupEditButtonGroup}>
                   <button
                     type="button"
@@ -2661,7 +2670,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
           }
         `}
       </style>
-      </div>
+    </div>
   );
 };
 

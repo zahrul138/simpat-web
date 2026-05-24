@@ -104,9 +104,10 @@ const AddRequestPartPage = () => {
     for (const t of tripsData) {
       const startMin = parseTime(t.req_from);
       const endMin = parseTime(t.req_to);
-      const isActive = startMin > endMin
-        ? nowMin >= startMin || nowMin < endMin
-        : nowMin >= startMin && nowMin < endMin;
+      const isActive =
+        startMin > endMin
+          ? nowMin >= startMin || nowMin < endMin
+          : nowMin >= startMin && nowMin < endMin;
       if (isActive) {
         return { label: t.trip_code, timeRange: `${t.req_from}-${t.req_to}` };
       }
@@ -118,11 +119,17 @@ const AddRequestPartPage = () => {
       const startMin = parseTime(t.req_from);
       let diff = startMin - nowMin;
       if (diff < 0) diff += 24 * 60;
-      if (diff < minDiff) { minDiff = diff; nextTrip = t; }
+      if (diff < minDiff) {
+        minDiff = diff;
+        nextTrip = t;
+      }
     }
 
     if (nextTrip) {
-      return { label: nextTrip.trip_code, timeRange: `${nextTrip.req_from}-${nextTrip.req_to}` };
+      return {
+        label: nextTrip.trip_code,
+        timeRange: `${nextTrip.req_from}-${nextTrip.req_to}`,
+      };
     }
     return { label: "-", timeRange: "-" };
   };
@@ -225,7 +232,7 @@ const AddRequestPartPage = () => {
         setStorageInventoryData(sortedData);
 
         const requestedIds = new Set(
-          sortedData.filter(item => item.is_requested).map(item => item.id)
+          sortedData.filter((item) => item.is_requested).map((item) => item.id),
         );
         setServerRequestedIds(requestedIds);
 
@@ -263,7 +270,7 @@ const AddRequestPartPage = () => {
         });
         setStorageInventoryData(sortedData);
         const requestedIds = new Set(
-          sortedData.filter(item => item.is_requested).map(item => item.id)
+          sortedData.filter((item) => item.is_requested).map((item) => item.id),
         );
         setServerRequestedIds(requestedIds);
 
@@ -297,7 +304,7 @@ const AddRequestPartPage = () => {
   };
 
   const handleSelectStorageItem = (id) => {
-    const item = storageInventoryData.find(i => i.id === id);
+    const item = storageInventoryData.find((i) => i.id === id);
     if (!item) return;
 
     const isDisabled = addedStorageIds.has(id) || serverRequestedIds.has(id);
@@ -315,12 +322,14 @@ const AddRequestPartPage = () => {
   };
 
   const handleAddSelectedStorageItems = () => {
-
     const holdItems = storageInventoryData.filter(
-      (item) => selectedStorageItems.has(item.id) && item.status_part === "HOLD"
+      (item) =>
+        selectedStorageItems.has(item.id) && item.status_part === "HOLD",
     );
     if (holdItems.length > 0) {
-      alert("Cannot insert items with HOLD status. Please deselect HOLD items.");
+      alert(
+        "Cannot insert items with HOLD status. Please deselect HOLD items.",
+      );
       return;
     }
 
@@ -329,7 +338,7 @@ const AddRequestPartPage = () => {
         selectedStorageItems.has(item.id) &&
         item.status_part !== "HOLD" &&
         !addedStorageIds.has(item.id) &&
-        !serverRequestedIds.has(item.id)
+        !serverRequestedIds.has(item.id),
     );
 
     if (selectedItems.length === 0) {
@@ -1253,18 +1262,18 @@ const AddRequestPartPage = () => {
       boxShadow: "0 50px 25px rgba(0, 0, 0, 0.1)",
       width: "100%",
       maxWidth: "900px",
-      height: "70vh", 
+      height: "70vh",
       display: "flex",
       flexDirection: "column",
       margin: "20px 0",
-      overflow: "hidden", 
+      overflow: "hidden",
     },
     popupHeader: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: "16px",
-      flexShrink: 0, 
+      flexShrink: 0,
     },
     popupTitle: {
       margin: 0,
@@ -1367,7 +1376,7 @@ const AddRequestPartPage = () => {
     form: {
       display: "flex",
       flexDirection: "column",
-      flex: 1, 
+      flex: 1,
       minHeight: 0,
     },
     partDetailsSection: {
@@ -1456,7 +1465,7 @@ const AddRequestPartPage = () => {
       display: "flex",
       justifyContent: "flex-end",
       gap: "8px",
-      marginTop: "16px", 
+      marginTop: "16px",
       flexShrink: 0,
     },
     cancelButton: {
@@ -1488,7 +1497,7 @@ const AddRequestPartPage = () => {
       fontSize: "12px",
       color: "#374151",
       height: "20px",
-      flexShrink: 0, 
+      flexShrink: 0,
     },
     paginationControls: {
       display: "flex",
@@ -1532,7 +1541,7 @@ const AddRequestPartPage = () => {
         <div style={styles.gridContainer}>
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
-              <h2 style={styles.h2}>Parts Enquiry</h2>
+              <h2 style={styles.h2}>Add Request Parts</h2>
             </div>
             <div style={{ display: "flex" }}>
               <div style={{ flex: "3", display: "grid", gap: "20px" }}>
@@ -1600,7 +1609,9 @@ const AddRequestPartPage = () => {
                     style={styles.select}
                     value={selectedAnnexUpdate}
                   >
-                    <option><p style={styles.dateDisplay}>{selectedAnnexUpdate}</p></option>
+                    <option>
+                      <p style={styles.dateDisplay}>{selectedAnnexUpdate}</p>
+                    </option>
                   </select>
                 </div>
                 <div>
@@ -1612,8 +1623,19 @@ const AddRequestPartPage = () => {
               </div>
               <div style={{ flex: "3", display: "grid" }}>
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
-                    <label htmlFor="tripDisplay" style={{ ...styles.label, margin: 0 }}>Trip</label>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    <label
+                      htmlFor="tripDisplay"
+                      style={{ ...styles.label, margin: 0 }}
+                    >
+                      Trip
+                    </label>
                     <button
                       style={styles.tripInfoButton}
                       onClick={() => setShowTripInfo(true)}
@@ -1623,13 +1645,17 @@ const AddRequestPartPage = () => {
                       i
                     </button>
                   </div>
-                  <p style={styles.tripDisplay}>{getActiveTripInfo(currentTime).label}</p>
+                  <p style={styles.tripDisplay}>
+                    {getActiveTripInfo(currentTime).label}
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="timeTrip" style={styles.label}>
                     Trip Time
                   </label>
-                  <p style={styles.timeDisplay}>{getActiveTripInfo(currentTime).timeRange}</p>
+                  <p style={styles.timeDisplay}>
+                    {getActiveTripInfo(currentTime).timeRange}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1665,19 +1691,19 @@ const AddRequestPartPage = () => {
                       {partData.filter(
                         (p) => p.partCode && p.partCode.trim() !== "",
                       ).length > 1 && (
-                          <input
-                            type="checkbox"
-                            checked={selectAllMainTable}
-                            onChange={handleSelectAllMainTable}
-                            style={{
-                              margin: "0 auto",
-                              display: "block",
-                              cursor: "pointer",
-                              width: "12px",
-                              height: "12px",
-                            }}
-                          />
-                        )}
+                        <input
+                          type="checkbox"
+                          checked={selectAllMainTable}
+                          onChange={handleSelectAllMainTable}
+                          style={{
+                            margin: "0 auto",
+                            display: "block",
+                            cursor: "pointer",
+                            width: "12px",
+                            height: "12px",
+                          }}
+                        />
+                      )}
                     </th>
                     <th style={styles.thWithLeftBorder}>Label ID</th>
                     <th style={styles.thWithLeftBorder}>Part Code</th>
@@ -1694,47 +1720,48 @@ const AddRequestPartPage = () => {
                 <tbody>
                   {partData.filter(
                     (p) => p.partCode && p.partCode.trim() !== "",
-                  ).length === 0 ? (
-                    <tr></tr>
-                  ) : (
-                    partData
-                      .filter((p) => p.partCode && p.partCode.trim() !== "")
-                      .map((part, index) => (
-                        <tr
-                          key={part.id}
-                          style={{
-                            backgroundColor: selectedMainTableItems.has(part.id)
-                              ? "#c7cde8"
-                              : "transparent",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.closest("tr").style.backgroundColor =
-                              "#c7cde8";
-                          }}
-                          onMouseLeave={(e) => {
-                            if (selectedMainTableItems.has(part.id)) {
+                  ).length === 0
+                    ? null
+                    : partData
+                        .filter((p) => p.partCode && p.partCode.trim() !== "")
+                        .map((part, index) => (
+                          <tr
+                            key={part.id}
+                            style={{
+                              backgroundColor: selectedMainTableItems.has(
+                                part.id,
+                              )
+                                ? "#c7cde8"
+                                : "transparent",
+                            }}
+                            onMouseEnter={(e) => {
                               e.target.closest("tr").style.backgroundColor =
                                 "#c7cde8";
-                            } else {
-                              e.target.closest("tr").style.backgroundColor =
-                                "transparent";
-                            }
-                          }}
-                        >
-                          <td
-                            style={{
-                              ...styles.expandedTd,
-                              ...styles.expandedWithLeftBorder,
-                              ...styles.emptyColumn,
                             }}
-                            title={index + 1}
+                            onMouseLeave={(e) => {
+                              if (selectedMainTableItems.has(part.id)) {
+                                e.target.closest("tr").style.backgroundColor =
+                                  "#c7cde8";
+                              } else {
+                                e.target.closest("tr").style.backgroundColor =
+                                  "transparent";
+                              }
+                            }}
                           >
-                            {index + 1}
-                          </td>
-                          <td style={styles.tdWithLeftBorder}>
-                            {partData.filter(
-                              (p) => p.partCode && p.partCode.trim() !== "",
-                            ).length > 1 && (
+                            <td
+                              style={{
+                                ...styles.expandedTd,
+                                ...styles.expandedWithLeftBorder,
+                                ...styles.emptyColumn,
+                              }}
+                              title={index + 1}
+                            >
+                              {index + 1}
+                            </td>
+                            <td style={styles.tdWithLeftBorder}>
+                              {partData.filter(
+                                (p) => p.partCode && p.partCode.trim() !== "",
+                              ).length > 1 && (
                                 <input
                                   type="checkbox"
                                   checked={selectedMainTableItems.has(part.id)}
@@ -1750,50 +1777,79 @@ const AddRequestPartPage = () => {
                                   }}
                                 />
                               )}
-                          </td>
-                          <td style={styles.tdWithLeftBorder} title={part.labelId || "-"}>
-                            {part.labelId || "-"}
-                          </td>
-                          <td style={styles.tdWithLeftBorder} title={part.partCode}>
-                            {part.partCode}
-                          </td>
-                          <td style={styles.tdWithLeftBorder} title={part.partName}>
-                            {part.partName}
-                          </td>
-                          <td style={styles.tdWithLeftBorder} title={part.model || "-"}>
-                            {part.model || "-"}
-                          </td>
-                          <td style={styles.tdWithLeftBorder} title={String(part.reqQty)}>{part.reqQty}</td>
-                          <td style={styles.tdWithLeftBorder} title="M136">M136</td>
-                          <td style={styles.tdWithLeftBorder} title={getActiveTripInfo(currentTime).label}>
-                            {getActiveTripInfo(currentTime).label}
-                          </td>
-                          <td style={styles.tdWithLeftBorder} title={part.status || "-"}>
-                            {part.status || "-"}
-                          </td>
-                          <td style={styles.tdWithLeftBorder} title={part.remark || ""}>
-                            <input
-                              type="text"
-                              value={part.remark || ""}
-                              onChange={(e) =>
-                                handleRemarkChange(part.id, e.target.value)
-                              }
-                              placeholder="Enter remark..."
-                              style={styles.remarkInput}
-                            />
-                          </td>
-                          <td style={styles.tdWithLeftBorder}>
-                            <button
-                              onClick={() => handleDeleteFromMainTable(part.id)}
-                              style={styles.deleteButton}
-                              title="Delete"
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={part.labelId || "-"}
                             >
-                              <Trash2 size={10} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                  )}
+                              {part.labelId || "-"}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={part.partCode}
+                            >
+                              {part.partCode}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={part.partName}
+                            >
+                              {part.partName}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={part.model || "-"}
+                            >
+                              {part.model || "-"}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={String(part.reqQty)}
+                            >
+                              {part.reqQty}
+                            </td>
+                            <td style={styles.tdWithLeftBorder} title="M136">
+                              M136
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={getActiveTripInfo(currentTime).label}
+                            >
+                              {getActiveTripInfo(currentTime).label}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={part.status || "-"}
+                            >
+                              {part.status || "-"}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={part.remark || ""}
+                            >
+                              <input
+                                type="text"
+                                value={part.remark || ""}
+                                onChange={(e) =>
+                                  handleRemarkChange(part.id, e.target.value)
+                                }
+                                placeholder="Enter remark..."
+                                style={styles.remarkInput}
+                              />
+                            </td>
+                            <td style={styles.tdWithLeftBorder}>
+                              <button
+                                onClick={() =>
+                                  handleDeleteFromMainTable(part.id)
+                                }
+                                style={styles.deleteButton}
+                                title="Delete"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
                 </tbody>
               </table>
             </div>
@@ -1945,25 +2001,45 @@ const AddRequestPartPage = () => {
                       <tbody>
                         {loadingStorage ? (
                           <tr>
-                            <td colSpan="10" style={{ textAlign: "center", padding: "20px" }}>
+                            <td
+                              colSpan="10"
+                              style={{ textAlign: "center", padding: "20px" }}
+                            >
                               Loading...
                             </td>
                           </tr>
                         ) : storageInventoryData.length === 0 ? (
                           <tr>
-                            <td colSpan="10" style={{ textAlign: "center", padding: "20px", color: "#9ca3af" }}>
+                            <td
+                              colSpan="10"
+                              style={{
+                                textAlign: "center",
+                                padding: "20px",
+                                color: "#9ca3af",
+                              }}
+                            >
                               No data available
                             </td>
                           </tr>
                         ) : (
                           popupCurrentData.map((item, index) => {
-                            const actualIndex = (popupCurrentPage - 1) * popupItemsPerPage + index + 1;
-                            const isDisabled = addedStorageIds.has(item.id) || serverRequestedIds.has(item.id);
-                            const isSelected = selectedStorageItems.has(item.id);
+                            const actualIndex =
+                              (popupCurrentPage - 1) * popupItemsPerPage +
+                              index +
+                              1;
+                            const isDisabled =
+                              addedStorageIds.has(item.id) ||
+                              serverRequestedIds.has(item.id);
+                            const isSelected = selectedStorageItems.has(
+                              item.id,
+                            );
 
                             let backgroundColor = "transparent";
-                            if (addedStorageIds.has(item.id) || serverRequestedIds.has(item.id)) {
-                              backgroundColor = "#a5b4fc";  
+                            if (
+                              addedStorageIds.has(item.id) ||
+                              serverRequestedIds.has(item.id)
+                            ) {
+                              backgroundColor = "#a5b4fc";
                             } else if (isSelected) {
                               backgroundColor = "#c7cde8";
                             } else if (item.status_part === "HOLD") {
@@ -1975,48 +2051,110 @@ const AddRequestPartPage = () => {
                                 key={item.id}
                                 style={{ backgroundColor }}
                                 onMouseEnter={(e) => {
-                                  if (!isDisabled && item.status_part !== "HOLD") {
-                                    e.target.closest("tr").style.backgroundColor = "#c7cde8";
+                                  if (
+                                    !isDisabled &&
+                                    item.status_part !== "HOLD"
+                                  ) {
+                                    e.target.closest(
+                                      "tr",
+                                    ).style.backgroundColor = "#c7cde8";
                                   }
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.target.closest("tr").style.backgroundColor = backgroundColor;
+                                  e.target.closest("tr").style.backgroundColor =
+                                    backgroundColor;
                                 }}
                               >
-                                <td style={vendorPartStyles.tdNumber} title={actualIndex}>{actualIndex}</td>
+                                <td
+                                  style={vendorPartStyles.tdNumber}
+                                  title={actualIndex}
+                                >
+                                  {actualIndex}
+                                </td>
                                 <td style={vendorPartStyles.td}>
                                   <input
                                     type="checkbox"
                                     checked={selectedStorageItems.has(item.id)}
-                                    onChange={() => handleSelectStorageItem(item.id)}
-                                    disabled={isDisabled || item.status_part === "HOLD"}
+                                    onChange={() =>
+                                      handleSelectStorageItem(item.id)
+                                    }
+                                    disabled={
+                                      isDisabled || item.status_part === "HOLD"
+                                    }
                                     style={{
                                       margin: "0 auto",
                                       display: "block",
-                                      cursor: (isDisabled || item.status_part === "HOLD") ? "not-allowed" : "pointer",
+                                      cursor:
+                                        isDisabled ||
+                                        item.status_part === "HOLD"
+                                          ? "not-allowed"
+                                          : "pointer",
                                       width: "12px",
                                       height: "12px",
-                                      opacity: (isDisabled || item.status_part === "HOLD") ? 0.5 : 1,
+                                      opacity:
+                                        isDisabled ||
+                                        item.status_part === "HOLD"
+                                          ? 0.5
+                                          : 1,
                                     }}
                                   />
                                 </td>
-                                <td style={vendorPartStyles.td} title={item.label_id}>{item.label_id}</td>
-                                <td style={vendorPartStyles.td} title={item.part_code}>{item.part_code}</td>
-                                <td style={vendorPartStyles.td} title={item.part_name}>{item.part_name}</td>
-                                <td style={vendorPartStyles.td} title={item.model}>{item.model}</td>
-                                <td style={vendorPartStyles.td} title={String(item.qty)}>{item.qty}</td>
-                                <td style={vendorPartStyles.td} title="M136">M136</td>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={item.label_id}
+                                >
+                                  {item.label_id}
+                                </td>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={item.part_code}
+                                >
+                                  {item.part_code}
+                                </td>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={item.part_name}
+                                >
+                                  {item.part_name}
+                                </td>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={item.model}
+                                >
+                                  {item.model}
+                                </td>
+                                <td
+                                  style={vendorPartStyles.td}
+                                  title={String(item.qty)}
+                                >
+                                  {item.qty}
+                                </td>
+                                <td style={vendorPartStyles.td} title="M136">
+                                  M136
+                                </td>
                                 <td
                                   style={{
                                     ...vendorPartStyles.td,
-                                    color: item.status_part === "HOLD" ? "#dc2626" : "inherit",
-                                    fontWeight: item.status_part === "HOLD" ? "600" : "normal",
+                                    color:
+                                      item.status_part === "HOLD"
+                                        ? "#dc2626"
+                                        : "inherit",
+                                    fontWeight:
+                                      item.status_part === "HOLD"
+                                        ? "600"
+                                        : "normal",
                                   }}
                                   title={item.status_part}
                                 >
                                   {item.status_part}
                                 </td>
-                                <td style={{ ...vendorPartStyles.td, fontWeight: 500 }} title={item.remark || "-"}>
+                                <td
+                                  style={{
+                                    ...vendorPartStyles.td,
+                                    fontWeight: 500,
+                                  }}
+                                  title={item.remark || "-"}
+                                >
                                   {item.remark || "-"}
                                 </td>
                               </tr>
@@ -2109,16 +2247,33 @@ const AddRequestPartPage = () => {
       )}
 
       {showTripInfo && (
-        <div style={styles.tripInfoOverlay} onClick={() => setShowTripInfo(false)}>
-          <div style={styles.tripInfoContainer} onClick={(e) => e.stopPropagation()}>
+        <div
+          style={styles.tripInfoOverlay}
+          onClick={() => setShowTripInfo(false)}
+        >
+          <div
+            style={styles.tripInfoContainer}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={styles.tripInfoHeader}>
               <h3 style={styles.tripInfoTitle}>Trip Information</h3>
-              <button style={styles.tripInfoClose} onClick={() => setShowTripInfo(false)}>×</button>
+              <button
+                style={styles.tripInfoClose}
+                onClick={() => setShowTripInfo(false)}
+              >
+                ×
+              </button>
             </div>
             <div style={styles.tripInfoBody}>
               <div style={styles.tableContainer}>
                 <div style={styles.tableBodyWrapper}>
-                  <table style={{ ...styles.table, minWidth: "100%", tableLayout: "fixed" }}>
+                  <table
+                    style={{
+                      ...styles.table,
+                      minWidth: "100%",
+                      tableLayout: "fixed",
+                    }}
+                  >
                     <colgroup>
                       <col style={{ width: "20%" }} />
                       <col style={{ width: "20%" }} />
@@ -2138,18 +2293,51 @@ const AddRequestPartPage = () => {
                     <tbody>
                       {tripsData.length === 0 ? (
                         <tr>
-                          <td colSpan="5" style={{ ...styles.tdWithLeftBorder, textAlign: "center", padding: "20px", color: "#6b7280" }}>
+                          <td
+                            colSpan="5"
+                            style={{
+                              ...styles.tdWithLeftBorder,
+                              textAlign: "center",
+                              padding: "20px",
+                              color: "#6b7280",
+                            }}
+                          >
                             No trip data
                           </td>
                         </tr>
                       ) : (
                         tripsData.map((trip) => (
                           <tr key={trip.id}>
-                            <td style={styles.tdWithLeftBorder} title={trip.trip_code}>{trip.trip_code}</td>
-                            <td style={styles.tdWithLeftBorder} title={trip.req_from}>{trip.req_from}</td>
-                            <td style={styles.tdWithLeftBorder} title={trip.req_to}>{trip.req_to}</td>
-                            <td style={styles.tdWithLeftBorder} title={trip.arv_from || "-"}>{trip.arv_from || "-"}</td>
-                            <td style={styles.tdWithLeftBorder} title={trip.arv_to || "-"}>{trip.arv_to || "-"}</td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={trip.trip_code}
+                            >
+                              {trip.trip_code}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={trip.req_from}
+                            >
+                              {trip.req_from}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={trip.req_to}
+                            >
+                              {trip.req_to}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={trip.arv_from || "-"}
+                            >
+                              {trip.arv_from || "-"}
+                            </td>
+                            <td
+                              style={styles.tdWithLeftBorder}
+                              title={trip.arv_to || "-"}
+                            >
+                              {trip.arv_to || "-"}
+                            </td>
                           </tr>
                         ))
                       )}

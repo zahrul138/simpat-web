@@ -34,6 +34,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
   const [filterKeyword, setFilterKeyword] = useState("");
 
   const [tripsData, setTripsData] = useState([]);
+  const [showTripInfo, setShowTripInfo] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -414,6 +415,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       });
       const result = await response.json();
       if (result.success) {
+        alert("Part deleted successfully!");
         fetchPartsEnquiry();
       } else {
         alert("Failed to delete: " + result.message);
@@ -704,7 +706,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
     if (!["InTransit", "Arrived"].includes(activeTab)) return;
     const interval = setInterval(() => fetchPartsEnquiry(), 30 * 1000);
     return () => clearInterval(interval);
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const styles = {
     pageContainer: {
@@ -1011,6 +1013,74 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
       margin: 0,
       outline: "none",
       boxSizing: "border-box",
+    },
+    tripInfoButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      fontSize: "13px",
+      fontWeight: "700",
+      padding: "0",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "20px",
+      height: "20px",
+      borderRadius: "50%",
+      backgroundColor: "#2563eb",
+      color: "white",
+      marginLeft: "6px",
+      flexShrink: 0,
+    },
+    tripInfoOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    },
+    tripInfoContainer: {
+      backgroundColor: "white",
+      borderRadius: "8px",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
+      border: "1px solid #e0e7ff",
+      width: "560px",
+      maxHeight: "80vh",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+    },
+    tripInfoHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "14px 20px",
+      backgroundColor: "#e0e7ff",
+      borderBottom: "1.5px solid #9fa8da",
+    },
+    tripInfoTitle: {
+      fontSize: "14px",
+      fontWeight: "600",
+      color: "#1f2937",
+      margin: 0,
+    },
+    tripInfoClose: {
+      background: "none",
+      border: "none",
+      fontSize: "20px",
+      cursor: "pointer",
+      color: "#6b7280",
+      lineHeight: 1,
+      padding: 0,
+    },
+    tripInfoBody: {
+      overflowY: "auto",
+      padding: "16px",
     },
   };
 
@@ -1826,35 +1896,50 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
               </button>
             </div>
 
-            {activeTab === "Received" && partsData.length > 0 && (
-              <button
-                onClick={handleDownloadExcel}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "4px 12px",
-                  backgroundColor: "#2563eb",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "background-color 0.2s ease",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#2563eb")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#2563eb")
-                }
-                title="Download Excel per Trip"
-              >
-                <FileDown size={13} />
-              </button>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "12px", color: "#374151" }}>
+                Total Row: {totalItems}
+              </span>
+              {activeTab === "Received" && partsData.length > 0 && (
+                <button
+                  onClick={handleDownloadExcel}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "4px 12px",
+                    backgroundColor: "#2563eb",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition: "background-color 0.2s ease",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#2563eb")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = "#2563eb")
+                  }
+                  title="Download Excel per Trip"
+                >
+                  <FileDown size={13} />
+                </button>
+              )}
+              {activeTab === "InTransit" && (
+                <button
+                  style={styles.tripInfoButton}
+                  onClick={() => setShowTripInfo(true)}
+                  title="Trip Information"
+                  type="button"
+                >
+                  i
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1879,6 +1964,110 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
               <MdArrowRight size={16} />
               Move to InTransit
             </button>
+          </div>
+        )}
+
+        {showTripInfo && (
+          <div
+            style={styles.tripInfoOverlay}
+            onClick={() => setShowTripInfo(false)}
+          >
+            <div
+              style={styles.tripInfoContainer}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={styles.tripInfoHeader}>
+                <h3 style={styles.tripInfoTitle}>Trip Information</h3>
+                <button
+                  style={styles.tripInfoClose}
+                  onClick={() => setShowTripInfo(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={styles.tripInfoBody}>
+                <div style={styles.tableContainer}>
+                  <div style={styles.tableBodyWrapper}>
+                    <table
+                      style={{
+                        ...styles.table,
+                        minWidth: "100%",
+                        tableLayout: "fixed",
+                      }}
+                    >
+                      <colgroup>
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "20%" }} />
+                        <col style={{ width: "20%" }} />
+                      </colgroup>
+                      <thead>
+                        <tr style={styles.tableHeader}>
+                          <th style={styles.thWithLeftBorder}>Trip Code</th>
+                          <th style={styles.thWithLeftBorder}>Req From</th>
+                          <th style={styles.thWithLeftBorder}>Req To</th>
+                          <th style={styles.thWithLeftBorder}>Arv From</th>
+                          <th style={styles.thWithLeftBorder}>Arv To</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tripsData.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan="5"
+                              style={{
+                                ...styles.tdWithLeftBorder,
+                                textAlign: "center",
+                                padding: "20px",
+                                color: "#6b7280",
+                              }}
+                            >
+                              No trip data
+                            </td>
+                          </tr>
+                        ) : (
+                          tripsData.map((trip) => (
+                            <tr key={trip.id}>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.trip_code}
+                              >
+                                {trip.trip_code}
+                              </td>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.req_from}
+                              >
+                                {trip.req_from}
+                              </td>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.req_to}
+                              >
+                                {trip.req_to}
+                              </td>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.arv_from || "-"}
+                              >
+                                {trip.arv_from || "-"}
+                              </td>
+                              <td
+                                style={styles.tdWithLeftBorder}
+                                title={trip.arv_to || "-"}
+                              >
+                                {trip.arv_to || "-"}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

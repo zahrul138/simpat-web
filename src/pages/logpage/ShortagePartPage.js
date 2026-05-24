@@ -212,7 +212,7 @@ const ShortagePartPage = ({ sidebarVisible }) => {
     );
 
     if (shortageParts.length === 0) {
-      alert("Tidak ada part dengan status Shortage");
+      alert("No parts with Shortage status");
       return;
     }
 
@@ -890,8 +890,8 @@ const ShortagePartPage = ({ sidebarVisible }) => {
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Shortage Part (M136)</h1>
-            <span style={styles.partCount}>
+            <h1 style={styles.title}>Shortage Part Monitoring</h1>
+            {/* <span style={styles.partCount}>
               {partsLoading
                 ? "Loading..."
                 : `${sortedFilteredParts.length} parts`}
@@ -900,7 +900,7 @@ const ShortagePartPage = ({ sidebarVisible }) => {
                   — filtered by "{appliedKeyword}"
                 </span>
               )}
-            </span>
+            </span> */}
           </div>
 
           <div style={styles.filterRow}>

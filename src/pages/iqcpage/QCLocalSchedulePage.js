@@ -837,7 +837,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
       const uniqueDates = [...new Set(validDates)];
       if (uniqueDates.length !== validDates.length) {
         alert(
-          "Error: Production dates must have different dates. Please remove duplicate dates.",
+          "Production dates must have different dates. Please remove duplicate dates.",
         );
         return;
       }
@@ -939,7 +939,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
     const uniqueDates = [...new Set(validDates)];
     if (uniqueDates.length !== validDates.length) {
       alert(
-        "Error: Production dates must have different dates. Please remove duplicate dates.",
+        "Production dates must have different dates. Please remove duplicate dates.",
       );
       return;
     }

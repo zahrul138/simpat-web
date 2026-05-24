@@ -33,8 +33,13 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
   });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [searchBy, setSearchBy] = useState("Vendor");
+  const [searchBy, setSearchBy] = useState("Vendor Name");
   const [keyword, setKeyword] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
+  const [appliedSearchBy, setAppliedSearchBy] = useState("Vendor Name");
+  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [appliedDateFrom, setAppliedDateFrom] = useState("");
+  const [appliedDateTo, setAppliedDateTo] = useState("");
   const [tooltip, setTooltip] = useState({
     visible: false,
     content: "",
@@ -42,7 +47,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     y: 0,
   });
 
-  // ==================== EDIT VENDOR STATES ====================
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editVendorData, setEditVendorData] = useState({
     id: null,
@@ -86,7 +90,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       const result = await response.json();
 
       if (result.success) {
-        // 🔥 HAPUS SORTING TAMBAHAN - Biarkan sesuai dari backend
         setVendors(result.data || []);
       } else {
         throw new Error(result.message || "Failed to fetch vendors");
@@ -100,15 +103,12 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Tambahkan function ini setelah fetchVendors
   const getRowNumber = (vendor, index) => {
-    // Jika backend sudah menyediakan row_num, gunakan itu
     if (vendor.row_num !== undefined) {
       return vendor.row_num;
     }
 
-    // Fallback: hitung berdasarkan posisi di seluruh data
-    const allVendors = filteredVendors; // atau vendors jika tidak ada filter
+    const allVendors = filteredVendors;
     const actualIndex = allVendors.findIndex((v) => v.id === vendor.id);
     return actualIndex + 1;
   };
@@ -116,7 +116,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
   const handleDeleteVendor = async (vendorId) => {
     if (
       !window.confirm(
-        "Are you sure you want to PERMANENTLY delete this vendor? This action cannot be undone!"
+        "Delete this vendor ?"
       )
     ) {
       return;
@@ -134,10 +134,9 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       if (!response.ok) {
         const errorData = await response.json();
 
-        // Handle foreign key constraint error
         if (errorData.error === "Foreign key constraint violation") {
           alert(
-            `Cannot delete vendor: ${errorData.message}\n\nPlease remove all references to this vendor first.`
+            `Cannot delete vendor: ${errorData.message}\n\nPlease remove or move all references to this vendor first.`
           );
           return;
         }
@@ -153,7 +152,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
         alert(
           `Vendor "${result.deletedVendor.vendor_name}" has been permanently deleted!`
         );
-        // Refresh data setelah delete
+
         fetchVendors();
       } else {
         throw new Error(result.message || "Failed to delete vendor");
@@ -164,7 +163,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // ==================== EDIT VENDOR FUNCTIONS ====================
   const fetchVendorTypes = async () => {
     try {
       const token = localStorage.getItem("auth_token");
@@ -223,7 +221,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       [field]: value,
     }));
 
-    // Auto update types when vendor_type_id changes
     if (field === "vendor_type_id") {
       const selectedType = vendorTypes.find((t) => t.id === parseInt(value));
       if (selectedType) {
@@ -293,7 +290,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     }
   };
 
-  // ==================== HELPER FUNCTIONS ====================
   const formatDateForDisplay = (dateString) => {
     try {
       const date = new Date(dateString);
@@ -314,39 +310,42 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       const authUser = JSON.parse(localStorage.getItem("auth_user") || "null");
       return authUser
         ? authUser.emp_name ||
-            authUser.employeeName ||
-            authUser.fullname ||
-            authUser.name ||
-            authUser.username ||
-            "System"
+        authUser.employeeName ||
+        authUser.fullname ||
+        authUser.name ||
+        authUser.username ||
+        "System"
         : "System";
     } catch {
       return "System";
     }
   };
 
-  // Perbaiki filteredVendors untuk lebih stabil
   const filteredVendors = useMemo(() => {
-    if (!keyword.trim() && !dateFrom && !dateTo) return vendors;
+    if (!hasSearched) return vendors;
 
-    const searchTerm = keyword.toLowerCase().trim();
+    const searchTerm = appliedKeyword.toLowerCase().trim();
 
     return vendors.filter((vendor) => {
-      // Filter by keyword
       let matchesKeyword = true;
-      if (keyword.trim()) {
-        switch (searchBy) {
-          case "Vendor":
+      if (appliedKeyword.trim()) {
+        switch (appliedSearchBy) {
+          case "Vendor Name":
             matchesKeyword = vendor.vendor_name
               ?.toLowerCase()
               .includes(searchTerm);
             break;
-          case "Product Code":
+          case "Vendor Code":
             matchesKeyword = vendor.vendor_code
               ?.toLowerCase()
               .includes(searchTerm);
             break;
-          case "Product Description":
+          case "Types":
+            matchesKeyword = vendor.types
+              ?.toLowerCase()
+              .includes(searchTerm);
+            break;
+          case "Description":
             matchesKeyword = vendor.vendor_desc
               ?.toLowerCase()
               .includes(searchTerm);
@@ -356,18 +355,17 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
         }
       }
 
-      // Filter by date
       let matchesDate = true;
-      if (dateFrom || dateTo) {
+      if (appliedDateFrom || appliedDateTo) {
         const vendorDate = new Date(vendor.created_at);
 
-        if (dateFrom) {
-          const fromDate = new Date(dateFrom);
+        if (appliedDateFrom) {
+          const fromDate = new Date(appliedDateFrom);
           matchesDate = matchesDate && vendorDate >= fromDate;
         }
 
-        if (dateTo) {
-          const toDate = new Date(dateTo);
+        if (appliedDateTo) {
+          const toDate = new Date(appliedDateTo);
           toDate.setHours(23, 59, 59, 999);
           matchesDate = matchesDate && vendorDate <= toDate;
         }
@@ -375,14 +373,12 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
 
       return matchesKeyword && matchesDate;
     });
-  }, [vendors, keyword, searchBy, dateFrom, dateTo]);
+  }, [vendors, hasSearched, appliedKeyword, appliedSearchBy, appliedDateFrom, appliedDateTo]);
 
-  // 🔥 FUNGSI PAGINATION BARU
   const paginatedVendors = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
 
-    // Hitung total pages
     const totalItems = filteredVendors.length;
     const calculatedTotalPages = Math.ceil(totalItems / itemsPerPage);
     setTotalPages(calculatedTotalPages);
@@ -390,7 +386,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     return filteredVendors.slice(startIndex, endIndex);
   }, [filteredVendors, currentPage, itemsPerPage]);
 
-  // 🔥 FUNGSI UNTUK PAGINATION CONTROLS
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -403,33 +398,9 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
   const handleNextPage = () =>
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
 
-  // 🔥 RESET KE PAGE 1 KETIKA SEARCH/FILTER BERUBAH
   useEffect(() => {
     setCurrentPage(1);
-  }, [keyword, searchBy, dateFrom, dateTo]);
-
-  const dateFilteredVendors = useMemo(() => {
-    if (!dateFrom && !dateTo) return filteredVendors;
-
-    return filteredVendors.filter((vendor) => {
-      const vendorDate = new Date(vendor.created_at);
-      let fromValid = true;
-      let toValid = true;
-
-      if (dateFrom) {
-        const fromDate = new Date(dateFrom);
-        fromValid = vendorDate >= fromDate;
-      }
-
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        toValid = vendorDate <= toDate;
-      }
-
-      return fromValid && toValid;
-    });
-  }, [filteredVendors, dateFrom, dateTo]);
+  }, [appliedKeyword, appliedSearchBy, appliedDateFrom, appliedDateTo]);
 
   const toggleRowExpansion = (rowId) => {
     setExpandedRows((prev) => {
@@ -599,9 +570,17 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
   };
 
   const handleSearchByChange = (e) => {
-    const value = e.target.value;
-    setSearchBy(value);
+    setSearchBy(e.target.value);
     setKeyword("");
+  };
+
+  const handleSearch = () => {
+    setAppliedSearchBy(searchBy);
+    setAppliedKeyword(keyword);
+    setAppliedDateFrom(dateFrom);
+    setAppliedDateTo(dateTo);
+    setHasSearched(true);
+    setCurrentPage(1);
   };
 
   const formatNumber = (num) => {
@@ -609,18 +588,10 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
     return new Intl.NumberFormat().format(num);
   };
 
-  // ==================== USE EFFECT ====================
   useEffect(() => {
     fetchVendors();
     fetchVendorTypes();
   }, []);
-
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
-  };
 
   const styles = {
     pageContainer: {
@@ -1051,9 +1022,10 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       padding: "8px 16px",
       border: "none",
       borderRadius: "4px",
-      fontSize: "14px",
+      fontSize: "12px",
       fontWeight: "500",
       cursor: "pointer",
+      fontFamily: "inherit",
     },
     labelPopUp: {
       fontSize: "12px",
@@ -1183,7 +1155,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       fontFamily: "inherit",
     },
 
-    // ==================== EDIT MODAL STYLES ====================
     editModalOverlay: {
       position: "fixed",
       top: 0,
@@ -1301,14 +1272,15 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       borderTop: "1px solid #e5e7eb",
     },
     editSubmitButton: {
-      backgroundColor: "#1d4ed8",
+      backgroundColor: "#2563eb",
       color: "white",
       padding: "8px 16px",
       border: "none",
       borderRadius: "4px",
-      fontSize: "14px",
+      fontSize: "12px",
       fontWeight: "500",
       cursor: "pointer",
+      fontFamily: "inherit",
       display: "flex",
       alignItems: "center",
       gap: "8px",
@@ -1319,12 +1291,10 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
       padding: "8px 16px",
       border: "none",
       borderRadius: "4px",
-      fontSize: "14px",
+      fontSize: "12px",
       fontWeight: "500",
       cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
+      fontFamily: "inherit",
     },
   };
 
@@ -1334,8 +1304,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
         {tooltip.content}
         <div style={styles.tooltipArrow}></div>
       </div>
-
-      {/* ==================== EDIT VENDOR MODAL ==================== */}
       {editModalOpen && (
         <div style={styles.editModalOverlay}>
           <div style={styles.editModalContainer}>
@@ -1350,7 +1318,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
             </div>
 
             <form onSubmit={handleUpdateVendor}>
-              {/* Vendor Code (Read-only) */}
               <div style={styles.editFormGroup}>
                 <label style={styles.editFormLabel}>Vendor Code</label>
                 <div style={styles.editVendorCodeDisplay}>
@@ -1358,7 +1325,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 </div>
               </div>
 
-              {/* Vendor Name */}
               <div style={styles.editFormGroup}>
                 <label style={styles.editFormLabel}>
                   Vendor Name<span style={styles.editRequiredStar}>*</span>
@@ -1377,7 +1343,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 />
               </div>
 
-              {/* Vendor Description */}
               <div style={styles.editFormGroup}>
                 <label style={styles.editFormLabel}>
                   Description<span style={styles.editRequiredStar}>*</span>
@@ -1395,7 +1360,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 />
               </div>
 
-              {/* Vendor Type */}
               <div style={styles.editFormGroup}>
                 <label style={styles.editFormLabel}>Vendor Type</label>
                 <select
@@ -1406,8 +1370,8 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                   }
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
+                  required
                 >
-                  <option value="">Select Vendor Type</option>
                   {vendorTypes.map((type) => (
                     <option key={type.id} value={type.id}>
                       {type.type_name || type.name}
@@ -1416,7 +1380,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 </select>
               </div>
 
-              {/* Types */}
               <div style={styles.editFormGroup}>
                 <label style={styles.editFormLabel}>Types</label>
                 <input
@@ -1432,7 +1395,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 />
               </div>
 
-              {/* Country & City Row */}
               <div style={styles.editFormRow}>
                 <div style={styles.editFormGroup}>
                   <label style={styles.editFormLabel}>Country</label>
@@ -1464,7 +1426,6 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 </div>
               </div>
 
-              {/* Status */}
               <div style={styles.editFormGroup}>
                 <label style={styles.editFormLabel}>Status</label>
                 <select
@@ -1484,14 +1445,12 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 </select>
               </div>
 
-              {/* Button Group */}
               <div style={styles.editButtonGroup}>
                 <button
                   type="button"
                   style={styles.editCancelButton}
                   onClick={handleCloseEditModal}
                 >
-                  <X size={16} />
                   Cancel
                 </button>
                 <button
@@ -1500,7 +1459,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                   disabled={editLoading}
                 >
                   <Save size={16} />
-                  {editLoading ? "Saving..." : "Save Changes"}
+                  {editLoading ? "Saving..." : "Save"}
                 </button>
               </div>
             </form>
@@ -1548,7 +1507,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
                 >
-                  <option style={optionStyle}>Search Date</option>
+                  <option>Created At</option>
                 </select>
                 <input
                   type="date"
@@ -1579,18 +1538,13 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
                 >
-                  <option value="Vendor" style={optionStyle}>
-                    Vendor
-                  </option>
-                  <option value="Product Code" style={optionStyle}>
-                    Product Code
-                  </option>
-                  <option value="Product Description" style={optionStyle}>
-                    Product Description
-                  </option>
+                  <option value="Vendor Name">Vendor Name</option>
+                  <option value="Vendor Code">Vendor Code</option>
+                  <option value="Types">Types</option>
+                  <option value="Description">Description</option>
                 </select>
 
-                {searchBy === "Vendor" ? (
+                {searchBy === "Types" ? (
                   <select
                     style={styles.input}
                     value={keyword}
@@ -1598,28 +1552,39 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                     onFocus={handleInputFocus}
                     onBlur={handleInputBlur}
                   >
-                    <option value="">Select Vendor</option>
-                    {vendors.map((vendor) => (
-                      <option key={vendor.id} value={vendor.vendor_name}>
-                        {vendor.vendor_name}
-                      </option>
-                    ))}
+                    <option value="">Select Types</option>
+                    {[...new Set(vendors.map((v) => v.types).filter(Boolean))].map(
+                      (type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      )
+                    )}
                   </select>
                 ) : (
                   <input
                     type="text"
                     style={styles.input}
-                    placeholder="Input Keyword"
+                    placeholder={
+                      searchBy === "Vendor Name"
+                        ? "Enter vendor name..."
+                        : searchBy === "Vendor Code"
+                        ? "Enter vendor code..."
+                        : "Enter description..."
+                    }
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     onFocus={handleInputFocus}
                     onBlur={handleInputBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSearch();
+                    }}
                   />
                 )}
 
                 <button
                   style={styles.button}
-                  onClick={fetchVendors}
+                  onClick={handleSearch}
                   onMouseEnter={(e) => handleButtonHover(e, true, "search")}
                   onMouseLeave={(e) => handleButtonHover(e, false, "search")}
                 >
@@ -1675,24 +1640,10 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 <tbody>
                   {paginatedVendors.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan="8"
-                        style={{
-                          ...styles.tdWithLeftBorder,
-                          textAlign: "center",
-                          fontStyle: "italic",
-                          color: "#6b7280",
-                        }}
-                      >
-                        {vendors.length === 0
-                          ? "No vendors found"
-                          : "No vendors match your search criteria"}
-                      </td>
+                      
                     </tr>
                   ) : (
-                    // 🔥 PERBAIKAN: Hapus kurung kurawal ganda yang tidak perlu
                     paginatedVendors.map((vendor, index) => {
-                      // 🔥 GUNAKAN ID atau row_num dari backend
                       const displayNumber =
                         vendor.row_num ||
                         (currentPage - 1) * itemsPerPage + index + 1;
@@ -1701,12 +1652,12 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                         <tr
                           key={vendor.id}
                           onMouseEnter={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "#c7cde8")
+                          (e.target.closest("tr").style.backgroundColor =
+                            "#c7cde8")
                           }
                           onMouseLeave={(e) =>
-                            (e.target.closest("tr").style.backgroundColor =
-                              "transparent")
+                          (e.target.closest("tr").style.backgroundColor =
+                            "transparent")
                           }
                         >
                           <td
@@ -1828,22 +1779,12 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 </button>
               </div>
 
-              {/* 🔥 TAMBAHKAN INFO JUMLAH DATA */}
               <div style={{ fontSize: "12px", color: "#374151" }}>
                 Total Row : {filteredVendors.length}
               </div>
             </div>
           </div>
-          {/* <div style={styles.saveConfiguration}>
-            <button
-              style={{ ...styles.button, ...styles.primaryButton }}
-              onMouseEnter={(e) => handleButtonHover(e, true, "primary")}
-              onMouseLeave={(e) => handleButtonHover(e, false, "primary")}
-            >
-              <Save size={16} />
-              Input Schedule
-            </button>
-          </div> */}
+
         </div>
       )}
     </div>

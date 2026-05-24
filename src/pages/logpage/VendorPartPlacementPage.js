@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Trash2, Pencil, X } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Save } from "lucide-react";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const VendorPartPlacementPage = ({ sidebarVisible }) => {
   const navigate = useNavigate();
 
-  // State untuk data
   const [placementsData, setPlacementsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,15 +19,17 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     y: 0,
   });
 
-  // State untuk filter dan search
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [searchBy, setSearchBy] = useState("placement_name");
   const [keyword, setKeyword] = useState("");
+  const [appliedSearchBy, setAppliedSearchBy] = useState("placement_name");
+  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [appliedDateFrom, setAppliedDateFrom] = useState("");
+  const [appliedDateTo, setAppliedDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  // State untuk popup edit
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [editingPlacement, setEditingPlacement] = useState(null);
   const [editFormData, setEditFormData] = useState({
@@ -41,7 +42,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState(null);
 
-  // Fungsi untuk fetch data dari vendor-placements
   const fetchPlacementsData = async () => {
     try {
       setLoading(true);
@@ -69,7 +69,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fungsi untuk handle delete placement permanent tanpa confirm
   const handleDeletePlacement = async (placementId, placementName) => {
     try {
       const response = await fetch(
@@ -99,7 +98,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Fungsi untuk membuka popup edit
   const handleEditClick = (placement) => {
     setEditingPlacement(placement);
     setEditFormData({
@@ -113,7 +111,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     setShowEditPopup(true);
   };
 
-  // Fungsi untuk menutup popup edit
   const handleCloseEditPopup = () => {
     setShowEditPopup(false);
     setEditingPlacement(null);
@@ -127,7 +124,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     setEditError(null);
   };
 
-  // Fungsi untuk menangani perubahan form edit
   const handleEditFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setEditFormData({
@@ -136,13 +132,10 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     });
   };
 
-  // Fungsi untuk menyimpan perubahan
   const handleSaveEdit = async () => {
     if (!editingPlacement) return;
-
-    // Validasi input
     if (!editFormData.placement_name.trim()) {
-      setEditError("Placement name is required");
+      alert("Placement name is required");
       return;
     }
 
@@ -204,7 +197,7 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
 
       if (result.success) {
         handleCloseEditPopup();
-        fetchPlacementsData(); 
+        fetchPlacementsData();
       } else {
         throw new Error(result.message || "Failed to update placement");
       }
@@ -215,57 +208,27 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
       setEditLoading(false);
     }
   };
-
-  // Fungsi untuk handle search
-  const handleSearchClick = async () => {
-    try {
-      setLoading(true);
-
-      // Untuk sekarang, kita filter di frontend
-      const filtered = placementsData.filter((placement) => {
-        if (!keyword) return true;
-
-        const searchTerm = keyword.toLowerCase();
-        switch (searchBy) {
-          case "placement_name":
-            return placement.placement_name?.toLowerCase().includes(searchTerm);
-          case "created_by":
-            return placement.created_by?.toLowerCase().includes(searchTerm);
-          default:
-            return true;
-        }
-      });
-
-      // Simulate API call delay
-      setTimeout(() => {
-        setPlacementsData(filtered);
-        setCurrentPage(1);
-        setLoading(false);
-      }, 300);
-    } catch (err) {
-      console.error("Error searching placements:", err);
-      setError(err.message);
-      setLoading(false);
-    }
+  const handleSearchClick = () => {
+    setAppliedSearchBy(searchBy);
+    setAppliedKeyword(keyword);
+    setAppliedDateFrom(dateFrom);
+    setAppliedDateTo(dateTo);
+    setCurrentPage(1);
   };
 
-  // Format date untuk display sesuai format yang diminta
   const formatDateForDisplay = (dateString) => {
     try {
       if (!dateString) return "";
 
-      // Handle format "DD/MM/YYYY HH24:MI" dari API
       if (dateString.includes("/")) {
-        // Format: DD/MM/YYYY HH24:MI
+
         const [datePart, timePart] = dateString.split(" ");
         if (!datePart || !timePart) return "";
 
-        // Ambil bagian waktu dan ganti : dengan .
         const formattedTime = timePart.replace(":", ".");
         return formattedTime;
       }
 
-      // Handle ISO format
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return "";
 
@@ -277,15 +240,14 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Format tanggal saja (tanpa waktu) untuk date filter
   const formatDateOnly = (dateString) => {
     try {
       if (!dateString) return "";
 
       if (dateString.includes("/")) {
-        // Format: DD/MM/YYYY HH24:MI
+
         const [datePart] = dateString.split(" ");
-        return datePart; // Return DD/MM/YYYY
+        return datePart;
       }
 
       const date = new Date(dateString);
@@ -300,13 +262,11 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     }
   };
 
-  // Format dimensions untuk display
   const formatDimension = (dimension) => {
     if (!dimension) return "0.00 cm";
     return `${parseFloat(dimension).toFixed(2)} cm`;
   };
 
-  // Format Created By sesuai permintaan: emp_name | tanggal/bulan/tahun jam.menit
   const formatCreatedBy = (placement) => {
     const createdByName = placement.created_by || "System";
     const dateString = placement.created_at_formatted || placement.created_at;
@@ -320,14 +280,13 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     return `${createdByName} | ${formattedDate} ${formattedTime}`;
   };
 
-  // Filter data berdasarkan search
   const filteredData = useMemo(() => {
-    if (!keyword) return placementsData;
+    if (!appliedKeyword) return placementsData;
 
-    const searchTerm = keyword.toLowerCase();
+    const searchTerm = appliedKeyword.toLowerCase();
 
     return placementsData.filter((placement) => {
-      switch (searchBy) {
+      switch (appliedSearchBy) {
         case "placement_name":
           return placement.placement_name?.toLowerCase().includes(searchTerm);
         case "created_by":
@@ -336,45 +295,41 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
           return true;
       }
     });
-  }, [placementsData, keyword, searchBy]);
+  }, [placementsData, appliedKeyword, appliedSearchBy]);
 
-  // Filter berdasarkan date
   const dateFilteredData = useMemo(() => {
-    if (!dateFrom && !dateTo) return filteredData;
+    if (!appliedDateFrom && !appliedDateTo) return filteredData;
 
     return filteredData.filter((placement) => {
       const placementDate = new Date(placement.created_at);
       let fromValid = true;
       let toValid = true;
 
-      if (dateFrom) {
-        const fromDate = new Date(dateFrom);
+      if (appliedDateFrom) {
+        const fromDate = new Date(appliedDateFrom);
         fromValid = placementDate >= fromDate;
       }
 
-      if (dateTo) {
-        const toDate = new Date(dateTo);
+      if (appliedDateTo) {
+        const toDate = new Date(appliedDateTo);
         toDate.setHours(23, 59, 59, 999);
         toValid = placementDate <= toDate;
       }
 
       return fromValid && toValid;
     });
-  }, [filteredData, dateFrom, dateTo]);
+  }, [filteredData, appliedDateFrom, appliedDateTo]);
 
-  // Pagination
   const totalPages = Math.ceil(dateFilteredData.length / itemsPerPage);
   const currentData = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return dateFilteredData.slice(startIndex, startIndex + itemsPerPage);
   }, [dateFilteredData, currentPage, itemsPerPage]);
 
-  // Fetch data saat komponen mount
   useEffect(() => {
     fetchPlacementsData();
   }, []);
 
-  // Event Handlers
   const handleButtonHover = (e, isHover, type) => {
     if (!e || !e.target) return;
 
@@ -401,7 +356,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
     setSearchBy(value);
     setKeyword("");
 
-    // Jika placement_type dipilih, set keyword ke empty string
     if (value === "placement_type") {
       setKeyword("");
     }
@@ -454,13 +408,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
       ...tooltip,
       visible: false,
     });
-  };
-
-  const optionStyle = {
-    backgroundColor: "#d1d5db",
-    color: "#374151",
-    fontSize: "12px",
-    padding: "4px 8px",
   };
 
   const styles = {
@@ -706,7 +653,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
       backgroundColor: "#e0e7ff",
     },
 
-    // Styles untuk popup edit
     popupOverlay: {
       position: "fixed",
       top: 130,
@@ -909,7 +855,7 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               >
-                <option style={optionStyle}>Created Date</option>
+                <option>Created Date</option>
               </select>
               <input
                 type="date"
@@ -940,10 +886,10 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
               >
-                <option value="placement_name" style={optionStyle}>
+                <option value="placement_name">
                   Placement Name
                 </option>
-                <option value="created_by" style={optionStyle}>
+                <option value="created_by">
                   Created By
                 </option>
               </select>
@@ -973,7 +919,6 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
               <button
                 style={styles.button}
                 onClick={handleSearchClick}
-                disabled={loading}
                 onMouseEnter={(e) => {
                   handleButtonHover(e, true, "search");
                 }}
@@ -981,7 +926,7 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                   handleButtonHover(e, false, "search");
                 }}
               >
-                {loading ? "Searching..." : "Search"}
+                Search
               </button>
             </div>
           </div>
@@ -1048,8 +993,9 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                   <col style={{ width: "13%" }} />
                   <col style={{ width: "13%" }} />
                   <col style={{ width: "13%" }} />
+                  <col style={{ width: "10%" }} />
                   <col style={{ width: "27%" }} />
-                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8.5%" }} />
                 </colgroup>
                 <thead>
                   <tr style={styles.tableHeader}>
@@ -1058,6 +1004,7 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                     <th style={styles.thWithLeftBorder}>Length</th>
                     <th style={styles.thWithLeftBorder}>Width</th>
                     <th style={styles.thWithLeftBorder}>Height</th>
+                    <th style={styles.thWithLeftBorder}>Total Parts</th>
                     <th style={styles.thWithLeftBorder}>Created By</th>
                     <th style={styles.thWithLeftBorder}>Action</th>
                   </tr>
@@ -1070,12 +1017,12 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                       <tr
                         key={placement.id}
                         onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#f3f4f6")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "#f3f4f6")
                         }
                         onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "transparent")
                         }
                       >
                         <td
@@ -1119,6 +1066,15 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                           title={`${formatDimension(placement.height_cm)}`}
                         >
                           {formatDimension(placement.height_cm)}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.tdWithLeftBorder,
+                            textAlign: "right",
+                          }}
+                          title={`${placement.total_parts ?? 0}`}
+                        >
+                          {placement.total_parts ?? 0}
                         </td>
                         <td
                           style={styles.tdWithLeftBorder}
@@ -1255,10 +1211,11 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
 
       {showEditPopup && (
         <div style={styles.popupOverlay}>
-          <div style={styles.popupContainer}>
+          <form style={styles.popupContainer} onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }}>
             <div style={styles.popupHeader}>
               <h2 style={styles.popupTitle}>Edit Vendor Placement</h2>
               <button
+                type="button"
                 style={styles.closeButton}
                 onClick={handleCloseEditPopup}
                 title="Close"
@@ -1276,6 +1233,7 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                 onChange={handleEditFormChange}
                 style={styles.formInput}
                 placeholder="Enter placement name"
+                required
               />
             </div>
 
@@ -1290,6 +1248,7 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                 placeholder="Enter length in cm"
                 min="0.01"
                 step="0.01"
+                required
               />
             </div>
 
@@ -1304,6 +1263,7 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                 placeholder="Enter width in cm"
                 min="0.01"
                 step="0.01"
+                required
               />
             </div>
 
@@ -1318,12 +1278,14 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                 placeholder="Enter height in cm"
                 min="0.01"
                 step="0.01"
+                required
               />
             </div>
             {editError && <div style={styles.errorMessage}>{editError}</div>}
 
             <div style={styles.popupButtonGroup}>
               <button
+                type="button"
                 style={styles.cancelButton}
                 onClick={handleCloseEditPopup}
                 disabled={editLoading}
@@ -1331,23 +1293,22 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                 Cancel
               </button>
               <button
-                style={
-                  editLoading ? styles.saveButtonDisabled : styles.saveButton
-                }
-                onClick={handleSaveEdit}
+                type="submit"
+                style={editLoading ? styles.saveButtonDisabled : styles.saveButton}
                 disabled={editLoading}
               >
+                <Save size={16} />
                 {editLoading ? (
                   <>
                     <div style={styles.loadingSpinner}></div>
                     Saving...
                   </>
                 ) : (
-                  "Save Changes"
+                  "Save"
                 )}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </div>

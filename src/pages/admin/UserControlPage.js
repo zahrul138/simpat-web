@@ -36,7 +36,7 @@ const UserControlPage = () => {
     location.state?.tab || "Active"
   );
 
-  // ===== Helpers =====
+  
   const getRoleByDepartment = (department) =>
     department === "ADMIN" ? "Admin" : "User";
 
@@ -151,7 +151,7 @@ const UserControlPage = () => {
   const handleInputFocus = (e) => (e.target.style.borderColor = "#9fa8da");
   const handleInputBlur = (e) => (e.target.style.borderColor = "#d1d5db");
 
-  // ===== API actions =====
+  
   const openDetailModal = (user) => {
     setDetailModal({ visible: true, user });
     setEditMode(false);
@@ -205,7 +205,7 @@ const UserControlPage = () => {
         user: { ...prev.user, ...withMeta },
       }));
       setEditMode(false);
-      // ── Kick out jika akun sendiri di-set Inactive via modal edit ──
+      
       if (payload.status === "Inactive" && editForm.id === loggedInId) {
         clearAuth();
         navigate("/login");
@@ -261,7 +261,7 @@ const UserControlPage = () => {
           ? { ...prev, user: { ...prev.user, status: nextStatus } }
           : prev
       );
-      // ── Kick out jika user yang di-deactivate adalah yang sedang login ──
+      setActiveTab(nextStatus === "Inactive" ? "In-Active" : "Active");
       if (nextStatus === "Inactive" && userId === loggedInId) {
         clearAuth();
         navigate("/login");
@@ -295,7 +295,7 @@ const UserControlPage = () => {
     setCurrentPage(Math.min(Math.max(1, num), totalPages));
   };
 
-  // ===== Styles =====
+  
   const modalOverlayStyle = {
     position: "fixed",
     top: 0,
@@ -1085,10 +1085,10 @@ const UserControlPage = () => {
                 </button>
               </div>
 
-              {/* ── Body ── */}
+              {}
               <div style={styles.modalBody}>
 
-                {/* Section: Identity */}
+                {}
                 <div style={styles.modalSectionTitle}>Identity</div>
 
                 <div style={styles.modalField}>
@@ -1137,8 +1137,7 @@ const UserControlPage = () => {
                   )}
                 </div>
 
-
-                {/* Section: Account */}
+                {}
                 <div style={{ ...styles.modalSectionTitle, marginTop: "14px" }}>Account</div>
 
                 <div style={styles.modalField}>
@@ -1202,7 +1201,7 @@ const UserControlPage = () => {
 
               </div>
 
-              {/* ── Footer ── */}
+              {}
               <div style={styles.modalFooter}>
                 {editMode ? (
                   <>
@@ -1251,7 +1250,7 @@ const UserControlPage = () => {
         </div>
       </div>
 
-      {/* Tooltip */}
+      {}
       <div
         style={{
           position: "fixed",

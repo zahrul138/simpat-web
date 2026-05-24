@@ -93,7 +93,7 @@ const useWarningSettings = () => {
   const deleteWarningSetting = useCallback((id) => {
     setWarningSettings((prev) => {
       if (prev.length <= 1) {
-        alert("Minimal harus ada 1 setting warning");
+        alert("Cannot be deleted, at least one warning setting must be present");
         return prev;
       }
 

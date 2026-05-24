@@ -339,7 +339,6 @@ const LoginPage = () => {
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
-                      // Icon mata tertutup (hide)
                       <svg 
                         width="15" 
                         height="15" 
@@ -352,7 +351,6 @@ const LoginPage = () => {
                         <line x1="1" y1="1" x2="23" y2="23" />
                       </svg>
                     ) : (
-                      // Icon mata terbuka (show)
                       <svg 
                         width="15" 
                         height="15" 

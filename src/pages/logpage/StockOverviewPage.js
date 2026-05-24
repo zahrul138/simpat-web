@@ -83,7 +83,7 @@ const StockOverviewPage = () => {
 
   const handleSearch = async () => {
     if (!searchPartCode.trim()) {
-      setSearchError("Please enter a part code");
+      alert("Please enter a part code");
       return;
     }
 
@@ -102,7 +102,7 @@ const StockOverviewPage = () => {
         setStockData(result.data);
         await fetchMovements(searchPartCode.trim(), activeTab, 1);
       } else {
-        setSearchError(result.message || "Part code not found");
+        alert(result.message || "Part code not found");
         setStockData(null);
       }
     } catch (err) {
@@ -285,6 +285,7 @@ const StockOverviewPage = () => {
     tabsContainer: {
       display: "flex",
       borderBottom: "2px solid #e5e7eb",
+      marginBottom: "16px",
     },
     tabButton: {
       padding: "12px 24px",
@@ -788,9 +789,9 @@ const StockOverviewPage = () => {
                         Loading...
                       </td>
                     </tr>
-                  ) : movements.length === 0 ? (
-                    <tr></tr>
-                  ) : (
+                  ) : movements.length === 0
+                    ? null
+                   : 
                     movements.map((movement, index) => (
                       <tr
                         key={movement.id}
@@ -874,7 +875,7 @@ const StockOverviewPage = () => {
                         </td>
                       </tr>
                     ))
-                  )}
+                  }
                 </tbody>
               </table>
             </div>

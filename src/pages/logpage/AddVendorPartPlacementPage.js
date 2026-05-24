@@ -1075,12 +1075,9 @@ const AddVendorPartPlacementPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {tempPlacements.length === 0 ? (
-                    <tr>
-                     
-                    </tr>
-                  ) : (
-                    tempPlacements.map((placement, index) => (
+                  {tempPlacements.length === 0 
+                  ? null
+                    :tempPlacements.map((placement, index) => (
                       <tr
                         key={placement.id}
                         onMouseEnter={(e) =>
@@ -1141,7 +1138,7 @@ const AddVendorPartPlacementPage = () => {
                         </td>
                       </tr>
                     ))
-                  )}
+                  }
                 </tbody>
               </table>
             </div>

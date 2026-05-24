@@ -3786,7 +3786,7 @@ const AddOverseaPartSchedulePage = () => {
                 ) : (
                   <>
                     <Save size={16} />
-                    Input Schedule
+                    Save Configuration
                   </>
                 )}
               </button>

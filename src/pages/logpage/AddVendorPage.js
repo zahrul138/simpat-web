@@ -19,11 +19,11 @@ const getCurrentUser = () => {
     const authUser = JSON.parse(localStorage.getItem("auth_user") || "null");
     return authUser
       ? authUser.emp_name ||
-          authUser.employeeName ||
-          authUser.fullname ||
-          authUser.name ||
-          authUser.username ||
-          "System"
+      authUser.employeeName ||
+      authUser.fullname ||
+      authUser.name ||
+      authUser.username ||
+      "System"
       : "System";
   } catch {
     return "System";
@@ -47,6 +47,7 @@ const AddVendorPage = () => {
   const [tempVendors, setTempVendors] = useState([]);
   const [currentEmpName, setCurrentEmpName] = useState("");
   const [showSaveButton, setShowSaveButton] = useState(false);
+  const [vendorTypes, setVendorTypes] = useState([]);
 
   useEffect(() => {
     const u = getAuthUserLocal();
@@ -60,6 +61,7 @@ const AddVendorPage = () => {
         "";
       setCurrentEmpName(name);
     }
+    fetchVendorTypes();
   }, []);
 
   useEffect(() => {
@@ -73,19 +75,27 @@ const AddVendorPage = () => {
     }));
   };
 
-  const handleTypeChange = (type) => {
-    const typeId = type === "Local" ? 1 : 2;
-    const typesValue = type === "Local" ? "Local" : "Oversea";
+  const fetchVendorTypes = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/vendor-types`);
+      const result = await response.json();
+      if (result.success) {
+        setVendorTypes(result.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching vendor types:", err);
+    }
+  };
 
+  const handleTypeChange = (selectedId, typeName) => {
     setVendorFormData((prev) => ({
       ...prev,
-      vendor_type_id: typeId,
-      types: typesValue,
-      vendor_country: type === "Local" ? "Indonesia" : "",
-      vendor_city: type === "Local" ? "Batam" : "",
+      vendor_type_id: parseInt(selectedId),
+      types: typeName,
+      vendor_country: typeName === "Local" ? "Indonesia" : "",
+      vendor_city: typeName === "Local" ? "Batam" : "",
     }));
-
-    setSelectedModel(type === "Local" ? "Veronicas" : "Heracles");
+    setSelectedModel(selectedId);
   };
 
   const handleInsertToTemp = () => {
@@ -104,7 +114,6 @@ const AddVendorPage = () => {
         alert("Please fill in Country for Oversea vendor");
         return;
       }
-      // Validasi city opsional untuk oversea
       if (!vendorFormData.vendor_city.trim()) {
         const proceed = window.confirm(
           "City field is empty for Oversea vendor. Do you want to continue without city?"
@@ -181,67 +190,67 @@ const AddVendorPage = () => {
   };
 
   const handleSaveConfiguration = async () => {
-  console.log("=== SAVE CONFIGURATION STARTED ===");
-  
-  const selectedVendors = tempVendors.filter((vendor) => vendor.isSelected);
-  console.log("Selected vendors:", selectedVendors);
+    console.log("=== SAVE CONFIGURATION STARTED ===");
 
-  if (selectedVendors.length === 0) {
-    alert("Please select at least one vendor to save!");
-    return;
-  }
+    const selectedVendors = tempVendors.filter((vendor) => vendor.isSelected);
+    console.log("Selected vendors:", selectedVendors);
 
-  try {
-    const currentUser = getCurrentUser();
-    console.log("Current user:", currentUser);
-
-    const vendor = selectedVendors[0];
-    
-    const vendorData = {
-      vendor_name: vendor.vendor_name,
-      vendor_desc: vendor.vendor_desc,
-      vendor_type_id: vendor.vendor_type_id,
-      types: vendor.types,
-      vendor_country: vendor.vendor_country,
-      vendor_city: vendor.vendor_city,
-      is_active: true,
-      created_by: currentUser,
-    };
-
-    console.log("Sending data to API:", vendorData);
-
-    const response = await fetch(`${API_BASE}/api/vendors`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(vendorData),
-    });
-
-    console.log("Response status:", response.status);
-    console.log("Response ok:", response.ok);
-
-    const result = await response.json();
-    console.log("API Response:", result);
-
-    if (!response.ok) {
-      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+    if (selectedVendors.length === 0) {
+      alert("Please select at least one vendor to save!");
+      return;
     }
 
-    if (result.success) {
-      alert(`Vendor "${vendor.vendor_name}" saved successfully!`);
-      // Hapus vendor yang berhasil disimpan
-      setTempVendors((prev) => prev.filter((v) => v.id !== vendor.id));
-      navigate("/vendor-details");
-    } else {
-      throw new Error(result.message || "Failed to save vendor");
-    }
+    try {
+      const currentUser = getCurrentUser();
+      console.log("Current user:", currentUser);
 
-  } catch (error) {
-    console.error("Save error:", error);
-    alert(`Failed to save vendor: ${error.message}`);
-  }
-};
+      const vendor = selectedVendors[0];
+
+      const vendorData = {
+        vendor_name: vendor.vendor_name,
+        vendor_desc: vendor.vendor_desc,
+        vendor_type_id: vendor.vendor_type_id,
+        types: vendor.types,
+        vendor_country: vendor.vendor_country,
+        vendor_city: vendor.vendor_city,
+        is_active: true,
+        created_by: currentUser,
+      };
+
+      console.log("Sending data to API:", vendorData);
+
+      const response = await fetch(`${API_BASE}/api/vendors`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(vendorData),
+      });
+
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
+      const result = await response.json();
+      console.log("API Response:", result);
+
+      if (!response.ok) {
+        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      }
+
+      if (result.success) {
+        alert(`Vendor "${vendor.vendor_name}" saved successfully!`);
+        // Hapus vendor yang berhasil disimpan
+        setTempVendors((prev) => prev.filter((v) => v.id !== vendor.id));
+        navigate("/vendor-details");
+      } else {
+        throw new Error(result.message || "Failed to save vendor");
+      }
+
+    } catch (error) {
+      console.error("Save error:", error);
+      alert(`Failed to save vendor: ${error.message}`);
+    }
+  };
 
   const formatDateForDisplay = (dateString) => {
     try {
@@ -858,15 +867,20 @@ const AddVendorPage = () => {
                   <label style={styles.label}>Types *</label>
                   <select
                     style={styles.select}
-                    value={selectedModel}
-                    onChange={(e) =>
-                      handleTypeChange(
-                        e.target.value === "Veronicas" ? "Local" : "Oversea"
-                      )
-                    }
+                    value={vendorFormData.vendor_type_id}
+                    onChange={(e) => {
+                      const selected = vendorTypes.find(
+                        (t) => t.id === parseInt(e.target.value)
+                      );
+                      handleTypeChange(e.target.value, selected?.type_name || "");
+                    }}
                   >
-                    <option value="Veronicas">Local</option>
-                    <option value="Heracles">Oversea</option>
+                    <option value="">Select Type</option>
+                    {vendorTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.type_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -883,7 +897,7 @@ const AddVendorPage = () => {
               </div>
 
               <div style={{ flex: "2", display: "grid", gap: "35px" }}>
-                {vendorFormData.vendor_type_id === 2 ? (
+                {vendorFormData.types === "Oversea" ? (
                   <>
                     <div>
                       <label style={styles.label}>Country *</label>
@@ -915,7 +929,6 @@ const AddVendorPage = () => {
                     </div>
                   </>
                 ) : (
-                  // 🔥 TAMPILAN UNTUK LOCAL (READ-ONLY)
                   <>
                     <div>
                       <label style={styles.label}>Country</label>
@@ -1009,21 +1022,18 @@ const AddVendorPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {tempVendors.length === 0 ? (
-                    <tr>
-                      
-                    </tr>
-                  ) : (
-                    tempVendors.map((vendor, index) => (
+                  {tempVendors.length === 0
+                  ? null
+                    :tempVendors.map((vendor, index) => (
                       <tr
                         key={vendor.id}
                         onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8")
                         }
                         onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "transparent")
                         }
                       >
                         <td
@@ -1076,7 +1086,7 @@ const AddVendorPage = () => {
                         </td>
                       </tr>
                     ))
-                  )}
+                  }
                 </tbody>
               </table>
             </div>

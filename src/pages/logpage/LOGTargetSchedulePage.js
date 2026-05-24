@@ -2345,7 +2345,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
           >
             Complete
           </button>
-          <button
+          {/* <button
             style={{
               ...styles.tabButton,
               ...(activeTab === "Reject" && styles.tabButtonActive),
@@ -2359,7 +2359,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
             }
           >
             Reject
-          </button>
+          </button> */}
         </div>
 
         <div style={styles.tableContainer}>

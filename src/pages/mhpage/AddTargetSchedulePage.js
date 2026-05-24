@@ -1476,10 +1476,9 @@ const AddTargetSchedulePage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {savedProductionSchedules.length === 0 ? (
-                    <tr></tr>
-                  ) : (
-                    savedProductionSchedules.map((h, idx) => (
+                  {savedProductionSchedules.length === 0 
+                    ? null
+                    : savedProductionSchedules.map((h, idx) => (
                       <React.Fragment key={h.id}>
                         <tr
                           style={{
@@ -1806,7 +1805,7 @@ const AddTargetSchedulePage = () => {
                         )}
                       </React.Fragment>
                     ))
-                  )}
+                  }
                 </tbody>
               </table>
             </div>
@@ -1839,7 +1838,7 @@ const AddTargetSchedulePage = () => {
               onClick={handleInsertSchedule}
             >
               <Save size={16} />
-              Input Schedule
+              Save Configuration
             </button>
           </div>
         )}

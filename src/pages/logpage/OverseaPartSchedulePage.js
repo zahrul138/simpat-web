@@ -11,6 +11,7 @@ import {
   X,
   Check,
   CheckCircle,
+  RotateCcw
 } from "lucide-react";
 import { Helmet } from "react-helmet";
 
@@ -290,21 +291,21 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
     const config =
       palletType === "large"
         ? {
-            length: 110,
-            width: 110,
-            maxHeight: 170,
-            baseHeight: 15,
-            maxWeight: 150,
-            name: "Large Pallet (110x110)",
-          }
+          length: 110,
+          width: 110,
+          maxHeight: 170,
+          baseHeight: 15,
+          maxWeight: 150,
+          name: "Large Pallet (110x110)",
+        }
         : {
-            length: 96,
-            width: 76,
-            maxHeight: 150,
-            baseHeight: 15,
-            maxWeight: 60,
-            name: "Small Pallet (76x96)",
-          };
+          length: 96,
+          width: 76,
+          maxHeight: 150,
+          baseHeight: 15,
+          maxWeight: 60,
+          name: "Small Pallet (76x96)",
+        };
 
     const availableHeight = config.maxHeight - config.baseHeight;
 
@@ -1386,6 +1387,26 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
       }
     } catch (error) {
       alert("Failed to move vendor: " + error.message);
+    }
+  };
+
+  const handleReturnVendor = async (vendorId) => {
+    if (!window.confirm("Return this schedule to Schedule tab?")) return;
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/oversea-schedules/vendors/${vendorId}/return`,
+        { method: "PUT", headers: { "Content-Type": "application/json" } }
+      );
+      const result = await response.json();
+      if (response.ok && result.success) {
+        alert("Schedule returned to Schedule tab!");
+        setActiveTab("Schedule");
+        await fetchReceivedVendors();
+      } else {
+        throw new Error(result.message || "Failed to return vendor");
+      }
+    } catch (error) {
+      alert("Failed to return schedule: " + error.message);
     }
   };
 
@@ -3390,7 +3411,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           style={{
             backgroundColor:
               expandedRows[vendor.id] ||
-              highlightedRows.has(`vendor_${vendor.id}`)
+                highlightedRows.has(`vendor_${vendor.id}`)
                 ? "#c7cde8"
                 : "transparent",
             cursor: "pointer",
@@ -3405,7 +3426,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           onMouseLeave={(e) => {
             e.target.closest("tr").style.backgroundColor =
               expandedRows[vendor.id] ||
-              highlightedRows.has(`vendor_${vendor.id}`)
+                highlightedRows.has(`vendor_${vendor.id}`)
                 ? "#c7cde8"
                 : "transparent";
           }}
@@ -3505,7 +3526,13 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
             >
               <Check size={10} />
             </button>
-            {}
+            <button
+              style={styles.returnButton}
+              onClick={() => handleReturnVendor(vendor.id)}
+              title="Return to Schedule"
+            >
+              <RotateCcw size={10} />
+            </button>
             <button
               style={styles.deleteButton}
               onClick={() => handleDeleteVendor(vendor.id, null)}
@@ -3516,7 +3543,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           </td>
         </tr>
 
-        {}
+        { }
         {expandedRows[vendor.id] && vendor.parts && (
           <tr>
             <td colSpan="12" style={{ padding: 0, border: "none" }}>
@@ -3685,7 +3712,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           style={{
             backgroundColor:
               expandedRows[vendor.id] ||
-              highlightedRows.has(`vendor_${vendor.id}`)
+                highlightedRows.has(`vendor_${vendor.id}`)
                 ? "#c7cde8"
                 : "transparent",
             cursor: "pointer",
@@ -3700,7 +3727,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           onMouseLeave={(e) => {
             e.target.closest("tr").style.backgroundColor =
               expandedRows[vendor.id] ||
-              highlightedRows.has(`vendor_${vendor.id}`)
+                highlightedRows.has(`vendor_${vendor.id}`)
                 ? "#c7cde8"
                 : "transparent";
           }}
@@ -3814,7 +3841,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           </td>
         </tr>
 
-        {}
+        { }
         {expandedRows[vendor.id] && vendor.parts && (
           <tr>
             <td colSpan="12" style={{ padding: 0, border: "none" }}>
@@ -3939,7 +3966,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                             >
                               {part.unit || "PCS"}
                             </td>
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -3979,25 +4006,25 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                         />
                                         {(editIqcPartData.prod_dates || [])
                                           .length > 1 && (
-                                          <button
-                                            style={styles.inlineProdDateRemove}
-                                            onClick={() => {
-                                              const newDates = (
-                                                editIqcPartData.prod_dates || []
-                                              ).filter((_, i) => i !== dateIdx);
-                                              setEditIqcPartData((p) => ({
-                                                ...p,
-                                                prod_dates:
-                                                  newDates.length > 0
-                                                    ? newDates
-                                                    : [""],
-                                              }));
-                                            }}
-                                            title="Remove date"
-                                          >
-                                            <X size={12} />
-                                          </button>
-                                        )}
+                                            <button
+                                              style={styles.inlineProdDateRemove}
+                                              onClick={() => {
+                                                const newDates = (
+                                                  editIqcPartData.prod_dates || []
+                                                ).filter((_, i) => i !== dateIdx);
+                                                setEditIqcPartData((p) => ({
+                                                  ...p,
+                                                  prod_dates:
+                                                    newDates.length > 0
+                                                      ? newDates
+                                                      : [""],
+                                                }));
+                                              }}
+                                              title="Remove date"
+                                            >
+                                              <X size={12} />
+                                            </button>
+                                          )}
                                       </div>
                                     ),
                                   )}
@@ -4032,7 +4059,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 </span>
                               )}
                             </td>
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={displayStatus || "-"}
@@ -4050,7 +4077,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   title="Select status"
                                 >
                                   {!editIqcPartData.status ||
-                                  editIqcPartData.status === "-" ? (
+                                    editIqcPartData.status === "-" ? (
                                     <option value="">-</option>
                                   ) : null}
                                   <option value="PASS">PASS</option>
@@ -4063,14 +4090,14 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 </span>
                               )}
                             </td>
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={
                                 sampleDates.length > 0
                                   ? sampleDates
-                                      .map((d) => formatDate(d))
-                                      .join(", ")
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
                                   : "-"
                               }
                             >
@@ -4084,7 +4111,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 "-"
                               )}
                             </td>
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -4125,7 +4152,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 );
                               })()}
                             </td>
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={part.remark || "-"}
@@ -4184,7 +4211,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           style={{
             backgroundColor:
               expandedRows[vendor.id] ||
-              highlightedRows.has(`vendor_${vendor.id}`)
+                highlightedRows.has(`vendor_${vendor.id}`)
                 ? "#c7cde8"
                 : "transparent",
             cursor: "pointer",
@@ -4199,7 +4226,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           onMouseLeave={(e) => {
             e.target.closest("tr").style.backgroundColor =
               expandedRows[vendor.id] ||
-              highlightedRows.has(`vendor_${vendor.id}`)
+                highlightedRows.has(`vendor_${vendor.id}`)
                 ? "#c7cde8"
                 : "transparent";
           }}
@@ -4299,7 +4326,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
             {formatDate(vendor.schedule_date_ref || vendor.schedule_date)}
           </td>
 
-          {}
+          { }
           <td
             style={styles.tdWithLeftBorder}
             title={
@@ -4317,7 +4344,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                 : "-"}
           </td>
 
-          {}
+          { }
           <td style={styles.tdWithLeftBorder}>
             <button
               style={styles.checkButton}
@@ -4329,7 +4356,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           </td>
         </tr>
 
-        {}
+        { }
         {expandedRows[vendor.id] && vendor.parts && (
           <tr>
             <td colSpan="13" style={{ padding: 0, border: "none" }}>
@@ -4454,7 +4481,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                             >
                               {part.unit || "PCS"}
                             </td>
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -4480,7 +4507,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </span>
                             </td>
 
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={displayStatus}
@@ -4490,14 +4517,14 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </span>
                             </td>
 
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={
                                 sampleDates.length > 0
                                   ? sampleDates
-                                      .map((d) => formatDate(d))
-                                      .join(", ")
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
                                   : "-"
                               }
                             >
@@ -4511,7 +4538,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 "-"
                               )}
                             </td>
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -4553,7 +4580,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               })()}
                             </td>
 
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={part.remark || "-"}
@@ -4575,7 +4602,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 part.remark || "-"
                               )}
                             </td>
-                            {}
+                            { }
                             <td style={styles.thirdLevelTd} title="Action">
                               {editingPartId === part.id ? (
                                 <>
@@ -4651,7 +4678,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           style={{
             backgroundColor:
               expandedRows[vendor.id] ||
-              highlightedRows.has(`vendor_${vendor.id}`)
+                highlightedRows.has(`vendor_${vendor.id}`)
                 ? "#c7cde8"
                 : "transparent",
             cursor: "pointer",
@@ -4666,7 +4693,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           onMouseLeave={(e) => {
             e.target.closest("tr").style.backgroundColor =
               expandedRows[vendor.id] ||
-              highlightedRows.has(`vendor_${vendor.id}`)
+                highlightedRows.has(`vendor_${vendor.id}`)
                 ? "#c7cde8"
                 : "transparent";
           }}
@@ -4766,7 +4793,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
             {formatDate(vendor.schedule_date_ref || vendor.schedule_date)}
           </td>
 
-          {}
+          { }
           <td
             style={styles.tdWithLeftBorder}
             title={
@@ -4781,7 +4808,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           </td>
         </tr>
 
-        {}
+        { }
         {expandedRows[vendor.id] && vendor.parts && (
           <tr>
             <td colSpan="12" style={{ padding: 0, border: "none" }}>
@@ -4900,7 +4927,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               {part.unit || "PCS"}
                             </td>
 
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -4926,7 +4953,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </span>
                             </td>
 
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={part.status || "-"}
@@ -4955,14 +4982,14 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               )}
                             </td>
 
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={
                                 sampleStatus.sampleDates.length > 0
                                   ? sampleStatus.sampleDates
-                                      .map((d) => formatDate(d))
-                                      .join(", ")
+                                    .map((d) => formatDate(d))
+                                    .join(", ")
                                   : "-"
                               }
                             >
@@ -4976,7 +5003,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 "-"
                               )}
                             </td>
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={(() => {
@@ -5018,7 +5045,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               })()}
                             </td>
 
-                            {}
+                            { }
                             <td
                               style={styles.thirdLevelTd}
                               title={part.remark || "-"}
@@ -5040,7 +5067,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 part.remark || "-"
                               )}
                             </td>
-                            {}
+                            { }
                             <td style={styles.thirdLevelTd} title="Action">
                               {editingPartId === part.id ? (
                                 <>
@@ -5120,8 +5147,8 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                 style={{
                   backgroundColor:
                     selectedScheduleIds.has(schedule.id) ||
-                    expandedRows[schedule.id] ||
-                    highlightedRows.has(schedule.id)
+                      expandedRows[schedule.id] ||
+                      highlightedRows.has(schedule.id)
                       ? "#c7cde8"
                       : "transparent",
                   cursor: "pointer",
@@ -5139,8 +5166,8 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                 onMouseLeave={(e) => {
                   e.target.closest("tr").style.backgroundColor =
                     selectedScheduleIds.has(schedule.id) ||
-                    expandedRows[schedule.id] ||
-                    highlightedRows.has(schedule.id)
+                      expandedRows[schedule.id] ||
+                      highlightedRows.has(schedule.id)
                       ? "#c7cde8"
                       : "transparent";
                 }}
@@ -5244,7 +5271,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                 </td>
               </tr>
 
-              {}
+              { }
               {expandedRows[schedule.id] &&
                 schedule.vendors &&
                 schedule.vendors.length > 0 && (
@@ -5337,7 +5364,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     style={styles.expandedTd}
                                     title={
                                       vendor.do_number &&
-                                      vendor.do_number.length > 0
+                                        vendor.do_number.length > 0
                                         ? Array.isArray(vendor.do_number)
                                           ? vendor.do_number.join(", ")
                                           : vendor.do_number
@@ -5345,7 +5372,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     }
                                   >
                                     {vendor.do_number &&
-                                    vendor.do_number.length > 0
+                                      vendor.do_number.length > 0
                                       ? Array.isArray(vendor.do_number)
                                         ? vendor.do_number.join(", ")
                                         : vendor.do_number
@@ -5380,7 +5407,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                   <td style={styles.expandedTd}></td>
                                 </tr>
 
-                                {}
+                                { }
                                 {expandedVendorRows[
                                   `vendor_${schedule.id}_${vendor.id}`
                                 ] &&
@@ -5601,8 +5628,8 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
             style={{
               backgroundColor:
                 selectedScheduleIds.has(schedule.id) ||
-                expandedRows[schedule.id] ||
-                highlightedRows.has(schedule.id)
+                  expandedRows[schedule.id] ||
+                  highlightedRows.has(schedule.id)
                   ? "#c7cde8"
                   : "transparent",
               cursor: "pointer",
@@ -5620,8 +5647,8 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
             onMouseLeave={(e) => {
               e.target.closest("tr").style.backgroundColor =
                 selectedScheduleIds.has(schedule.id) ||
-                expandedRows[schedule.id] ||
-                highlightedRows.has(schedule.id)
+                  expandedRows[schedule.id] ||
+                  highlightedRows.has(schedule.id)
                   ? "#c7cde8"
                   : "transparent";
             }}
@@ -5712,7 +5739,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
             </td>
           </tr>
 
-          {}
+          { }
           {expandedRows[schedule.id] &&
             schedule.vendors &&
             schedule.vendors.length > 0 && (
@@ -5801,7 +5828,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 style={styles.expandedTd}
                                 title={
                                   vendor.do_number &&
-                                  vendor.do_number.length > 0
+                                    vendor.do_number.length > 0
                                     ? Array.isArray(vendor.do_number)
                                       ? vendor.do_number.join(", ")
                                       : vendor.do_number
@@ -5869,7 +5896,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                               </td>
                             </tr>
 
-                            {}
+                            { }
                             {expandedVendorRows[
                               `vendor_${schedule.id}_${vendor.id}`
                             ] &&
@@ -6128,37 +6155,37 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                                               "",
                                                             ]
                                                           ).length > 1 && (
-                                                            <button
-                                                              style={
-                                                                styles.inlineProdDateRemove
-                                                              }
-                                                              onClick={() => {
-                                                                const newDates =
-                                                                  (
-                                                                    editPartData.prod_dates || [
-                                                                      "",
-                                                                    ]
-                                                                  ).filter(
-                                                                    (_, i) =>
-                                                                      i !==
-                                                                      dateIdx,
+                                                              <button
+                                                                style={
+                                                                  styles.inlineProdDateRemove
+                                                                }
+                                                                onClick={() => {
+                                                                  const newDates =
+                                                                    (
+                                                                      editPartData.prod_dates || [
+                                                                        "",
+                                                                      ]
+                                                                    ).filter(
+                                                                      (_, i) =>
+                                                                        i !==
+                                                                        dateIdx,
+                                                                    );
+                                                                  setEditPartData(
+                                                                    (p) => ({
+                                                                      ...p,
+                                                                      prod_dates:
+                                                                        newDates,
+                                                                      prod_date:
+                                                                        newDates[0] ||
+                                                                        null,
+                                                                    }),
                                                                   );
-                                                                setEditPartData(
-                                                                  (p) => ({
-                                                                    ...p,
-                                                                    prod_dates:
-                                                                      newDates,
-                                                                    prod_date:
-                                                                      newDates[0] ||
-                                                                      null,
-                                                                  }),
-                                                                );
-                                                              }}
-                                                              title="Remove date"
-                                                            >
-                                                              <X size={12} />
-                                                            </button>
-                                                          )}
+                                                                }}
+                                                                title="Remove date"
+                                                              >
+                                                                <X size={12} />
+                                                              </button>
+                                                            )}
                                                         </div>
                                                       ))}
                                                       <button
@@ -6410,7 +6437,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           </div>
         </div>
 
-        {}
+        { }
         <div style={styles.actionButtonsGroup}>
           <button
             style={{ ...styles.button, ...styles.primaryButton }}
@@ -6424,7 +6451,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           </button>
         </div>
 
-        {}
+        { }
         <div style={styles.tabsContainer}>
           {tabNames.map((tab) => (
             <button
@@ -6440,7 +6467,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
           ))}
         </div>
 
-        {}
+        { }
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
             {activeTab === "Received" ? (
@@ -6619,7 +6646,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
             )}
           </div>
 
-          {}
+          { }
           {(() => {
             const _rawData =
               activeTab === "Received"
@@ -6715,7 +6742,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         )}
       </div>
 
-      {}
+      { }
       {addVendorDetail && (
         <div style={vendorDetailStyles.popupOverlay}>
           <div style={vendorDetailStyles.popupContainer}>
@@ -6852,7 +6879,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         </div>
       )}
 
-      {}
+      { }
       {addVendorPartDetail && (
         <div style={vendorPartStyles.popupOverlay}>
           <div style={vendorPartStyles.popupContainer}>
@@ -6948,7 +6975,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                 checked={
                                   addVendorPartFormData.parts.length > 0 &&
                                   selectedPartsInPopup.length ===
-                                    addVendorPartFormData.parts.length
+                                  addVendorPartFormData.parts.length
                                 }
                                 style={{
                                   cursor: "pointer",
@@ -6974,12 +7001,12 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                             <tr
                               key={part.id || index}
                               onMouseEnter={(e) =>
-                                (e.target.closest("tr").style.backgroundColor =
-                                  "#c7cde8")
+                              (e.target.closest("tr").style.backgroundColor =
+                                "#c7cde8")
                               }
                               onMouseLeave={(e) =>
-                                (e.target.closest("tr").style.backgroundColor =
-                                  "transparent")
+                              (e.target.closest("tr").style.backgroundColor =
+                                "transparent")
                               }
                             >
                               <td
@@ -7137,7 +7164,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         </div>
       )}
 
-      {}
+      { }
       {showProdDatesPopup && activeProdDatesPart && (
         <div style={styles.popupOverlayDates}>
           <div style={styles.popupContainerDates}>
@@ -7221,7 +7248,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
         </div>
       )}
 
-      {}
+      { }
       {showAddSamplePopup && activeSamplePart && (
         <div style={styles.popupOverlayDates}>
           <div style={styles.popupContainerDates}>

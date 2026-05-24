@@ -498,7 +498,7 @@ const AdminDashboardPage = () => {
   return (
     <div style={styles.page}>
       <Helmet>
-        <title>System Dashboard | SIMPAT Admin</title>
+        <title>Dashboard</title>
       </Helmet>
 
       <div style={styles.topBar}>
@@ -715,14 +715,8 @@ const AdminDashboardPage = () => {
           <div style={styles.cardHeader}>
             <div style={styles.cardHeaderLeft}>
               <ClipboardList size={13} color="#2563eb" />
-              <span style={styles.cardHeaderTitle}>Recent Activity</span>
+              <span style={styles.cardHeaderTitle}>Activity Log</span>
             </div>
-            <button
-              style={styles.cardHeaderAction}
-              onClick={() => navigate("/activity-log")}
-            >
-              View All <ChevronRight size={11} />
-            </button>
           </div>
           <div style={styles.activityBody}>
             {recentAct.length === 0 ? (

@@ -18,7 +18,6 @@ import LoginPage from "./pages/LoginPage";
 import ProductionMonitoringPage from "./pages/mhpage/ProductionMonitoringPage";
 import TargetSchedulePage from "./pages/mhpage/TargetSchedulePage";
 import AddTargetSchedulePage from "./pages/mhpage/AddTargetSchedulePage";
-import ReceivedLocalSchedulePage from "./pages/mhpage/ReceivedLocalSchedulePage";
 import ReturnPartsPage from "./pages/mhpage/ReturnPartsPage";
 import MHLocalSchedulePage from "./pages/mhpage/MHLocalSchedulePage";
 import TargetScanningPage from "./pages/mhpage/TargetScanningPage";
@@ -79,7 +78,7 @@ const MainLayout = ({
     layout: {
       display: "flex",
       transition: "margin-left 0.3s ease",
-      marginLeft: sidebarVisible ? "200px" : "20px",
+      marginLeft: sidebarVisible ? "215px" : "20px",
       marginTop: navbarHeight + "px",
     },
     mainContent: {
@@ -264,7 +263,6 @@ const LayoutHandler = () => {
       {location.pathname === "/stock-overview-mh" && <StockOverviewPage />}
       {location.pathname === "/part-details" && <PartDetailsPage />}
       {location.pathname === "/part-details/add" && <AddPartsPage />}
-      {location.pathname === "/received-local" && <ReceivedLocalSchedulePage />}
       {location.pathname === "/qc-part" && <QCCheckPage />}
       {location.pathname === "/qc-part/add" && <AddQCCheckPage />}
       {location.pathname === "/qc-return-parts" && <QCReturnPartsPage />}

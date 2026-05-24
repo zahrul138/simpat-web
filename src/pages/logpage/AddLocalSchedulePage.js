@@ -2594,7 +2594,6 @@ const AddLocalSchedulePage = () => {
         parts: updatedParts,
       };
       
-      // PERBAIKAN ROBUST: Langsung set pallet ke 0 jika parts kosong
       if (updatedParts.length === 0) {
         setPalletCalculations((prevCalc) => ({
           ...prevCalc,
@@ -2609,7 +2608,6 @@ const AddLocalSchedulePage = () => {
           },
         }));
       } else {
-        // Jika masih ada parts, recalculate dengan delay
         setTimeout(() => {
           recalculatePalletForVendor(headerId, vendorIndex);
         }, 100);
@@ -3816,10 +3814,9 @@ const AddLocalSchedulePage = () => {
                 </thead>
 
                 <tbody>
-                  {headerDrafts.length === 0 ? (
-                    <tr></tr>
-                  ) : (
-                    headerDrafts.map((hdr, headerIndex) => {
+                  {headerDrafts.length === 0
+                   ? null
+                    :headerDrafts.map((hdr, headerIndex) => {
                       const headerVendors = vendorDraftsByHeader[hdr.id] || [];
                       const headerPalletTotal = calculateTotalPalletForHeader(
                         hdr.id
@@ -3849,6 +3846,7 @@ const AddLocalSchedulePage = () => {
                           <td style={styles.tdWithLeftBorder}>
                             <input
                               type="checkbox"
+                              title="Select"
                               checked={selectedHeaderIds.has(hdr.id)}
                               onChange={(e) =>
                                 toggleHeaderCheckbox(hdr.id, e.target.checked)
@@ -3870,6 +3868,7 @@ const AddLocalSchedulePage = () => {
                           >
                             <button
                               style={styles.arrowButton}
+                              title="Expand"
                               onClick={() => toggleRowExpansion(hdr.id)}
                             >
                               {expandedRows[hdr.id] ? (
@@ -4518,7 +4517,7 @@ const AddLocalSchedulePage = () => {
                       ) : null;
                       return [headerRow, expandedRow];
                     })
-                  )}
+                  }
                 </tbody>
               </table>
             </div>
@@ -4560,7 +4559,7 @@ const AddLocalSchedulePage = () => {
                 ) : (
                   <>
                     <Save size={16} />
-                    Input Schedule
+                    Save Configuration
                   </>
                 )}
               </button>
@@ -4896,7 +4895,6 @@ const AddLocalSchedulePage = () => {
                                       value.includes("e") ||
                                       value.includes("E")
                                     ) {
-                                      // Hapus karakter 'e' atau 'E'
                                       const cleanValue = value.replace(
                                         /[eE]/g,
                                         ""

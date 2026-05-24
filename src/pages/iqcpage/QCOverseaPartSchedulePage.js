@@ -1189,14 +1189,14 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
       );
 
       if (validDates.length === 0) {
-        alert("Error: Please add at least one production date.");
+        alert("Please add at least one production date.");
         return;
       }
 
       const uniqueDates = [...new Set(validDates)];
       if (uniqueDates.length !== validDates.length) {
         alert(
-          "Error: Production dates must have different dates. Please remove duplicate dates.",
+          "Production dates must have different dates. Please remove duplicate dates.",
         );
         return;
       }
@@ -4835,14 +4835,14 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Oversea Part Schedule</title>
+        <title>Oversea Schedule</title>
       </Helmet>
 
       <div style={styles.welcomeCard}>
         {}
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
-            <h1 style={styles.title}>Oversea Part Schedule</h1>
+            <h1 style={styles.title}>Oversea Schedule</h1>
           </div>
 
           <div style={styles.filterRow}>

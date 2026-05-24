@@ -3090,7 +3090,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
           >
             Complete
           </button>
-          <button
+          {/* <button
             style={{
               ...styles.tabButton,
               ...(activeTab === "Reject" && styles.tabButtonActive),
@@ -3104,7 +3104,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
             }
           >
             Reject
-          </button>
+          </button> */}
         </div>
 
         <div style={styles.tableContainer}>

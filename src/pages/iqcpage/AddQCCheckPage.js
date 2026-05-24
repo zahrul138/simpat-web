@@ -133,7 +133,7 @@ const AddQCCheckPage = () => {
         item.production_date === formData.production_date,
     );
     if (isDuplicate) {
-      alert("This Part Code + Production Date already added in the list");
+      alert("This Part Code Production Date already added in the list");
       return;
     }
 
@@ -244,7 +244,7 @@ const AddQCCheckPage = () => {
         }
       }
 
-      alert(`${selectedItems.length} QC Check(s) saved successfully!`);
+      alert(`${selectedItems.length} QC Check saved successfully!`);
       setTempQCChecks((prev) =>
         prev.filter((item) => !selectedItems.find((s) => s.id === item.id)),
       );
@@ -566,7 +566,7 @@ const AddQCCheckPage = () => {
         <div style={styles.gridContainer}>
           <div style={styles.card}>
             <div style={{ marginBottom: "24px" }}>
-              <h2 style={styles.h2}>Add Quality Part Check</h2>
+              <h2 style={styles.h2}>Add Quality Parts</h2>
             </div>
             <div
               style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}
