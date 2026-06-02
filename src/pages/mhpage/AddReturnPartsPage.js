@@ -609,130 +609,130 @@ const AddReturnPartsPage = () => {
                 {getCurrentPageData().length === 0
                   ? null
                   : getCurrentPageData().map((part, index) => {
-                      const globalIndex =
-                        (currentPage - 1) * itemsPerPage + index + 1;
-                      return (
-                        <tr
-                          key={part.id}
-                          style={{
-                            backgroundColor: selectedMainTableItems.has(part.id)
-                              ? "#c7cde8"
-                              : "transparent",
-                          }}
-                          onMouseEnter={(e) => {
+                    const globalIndex =
+                      (currentPage - 1) * itemsPerPage + index + 1;
+                    return (
+                      <tr
+                        key={part.id}
+                        style={{
+                          backgroundColor: selectedMainTableItems.has(part.id)
+                            ? "#c7cde8"
+                            : "transparent",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.closest("tr").style.backgroundColor =
+                            "#c7cde8";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (selectedMainTableItems.has(part.id)) {
                             e.target.closest("tr").style.backgroundColor =
                               "#c7cde8";
-                          }}
-                          onMouseLeave={(e) => {
-                            if (selectedMainTableItems.has(part.id)) {
-                              e.target.closest("tr").style.backgroundColor =
-                                "#c7cde8";
-                            } else {
-                              e.target.closest("tr").style.backgroundColor =
-                                "transparent";
-                            }
+                          } else {
+                            e.target.closest("tr").style.backgroundColor =
+                              "transparent";
+                          }
+                        }}
+                      >
+                        <td
+                          style={{
+                            ...styles.expandedTd,
+                            ...styles.expandedWithLeftBorder,
+                            ...styles.emptyColumn,
                           }}
                         >
-                          <td
-                            style={{
-                              ...styles.expandedTd,
-                              ...styles.expandedWithLeftBorder,
-                              ...styles.emptyColumn,
-                            }}
-                          >
-                            {globalIndex}
-                          </td>
-                          <td style={styles.tdWithLeftBorder}>
-                            {showCheckbox && (
-                              <input
-                                type="checkbox"
-                                checked={selectedMainTableItems.has(part.id)}
-                                onChange={() =>
-                                  handleMainTableCheckbox(part.id)
-                                }
-                                style={{
-                                  margin: "0 auto",
-                                  display: "block",
-                                  cursor: "pointer",
-                                  width: "12px",
-                                  height: "12px",
-                                }}
-                              />
-                            )}
-                          </td>
-                          <td
-                            style={styles.tdWithLeftBorder}
-                            title={part.partCode}
-                          >
-                            {part.partCode}
-                          </td>
-                          <td
-                            style={styles.tdWithLeftBorder}
-                            title={part.partName}
-                          >
-                            {part.partName}
-                          </td>
-                          <td
-                            style={styles.tdWithLeftBorder}
-                            title={part.model}
-                          >
-                            {part.model}
-                          </td>
-                          <td
-                            style={styles.tdWithLeftBorder}
-                            title={part.vendorName}
-                          >
-                            {part.vendorName}
-                          </td>
-                          <td
-                            style={styles.tdWithLeftBorder}
-                            title={part.vendorType}
-                          >
-                            {part.vendorType}
-                          </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          {globalIndex}
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          {showCheckbox && (
                             <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              title={part.qtyReturn}
-                              value={part.qtyReturn}
-                              onChange={(e) =>
-                                handleQtyReturnChange(part.id, e.target.value)
+                              type="checkbox"
+                              checked={selectedMainTableItems.has(part.id)}
+                              onChange={() =>
+                                handleMainTableCheckbox(part.id)
                               }
-                              style={styles.qtyInput}
+                              style={{
+                                margin: "0 auto",
+                                display: "block",
+                                cursor: "pointer",
+                                width: "12px",
+                                height: "12px",
+                              }}
                             />
-                          </td>
-                          <td style={styles.tdWithLeftBorder}>
-                            <input
-                              type="text"
-                              title={part.remark}
-                              value={part.remark || ""}
-                              onChange={(e) =>
-                                handleRemarkChange(part.id, e.target.value)
-                              }
-                              placeholder="Add remark..."
-                              style={styles.remarkInput}
-                            />
-                          </td>
-                          <td
-                            style={styles.tdWithLeftBorder}
-                            title={part.returnBy}
+                          )}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.partCode}
+                        >
+                          {part.partCode}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.partName}
+                        >
+                          {part.partName}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.model}
+                        >
+                          {part.model}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.vendorName}
+                        >
+                          {part.vendorName}
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.vendorType}
+                        >
+                          {part.vendorType}
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            title={part.qtyReturn}
+                            value={part.qtyReturn}
+                            onChange={(e) =>
+                              handleQtyReturnChange(part.id, e.target.value)
+                            }
+                            style={styles.qtyInput}
+                          />
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          <input
+                            type="text"
+                            title={part.remark}
+                            value={part.remark || ""}
+                            onChange={(e) =>
+                              handleRemarkChange(part.id, e.target.value)
+                            }
+                            placeholder="Add remark..."
+                            style={styles.remarkInput}
+                          />
+                        </td>
+                        <td
+                          style={styles.tdWithLeftBorder}
+                          title={part.returnBy}
+                        >
+                          {part.returnBy}
+                        </td>
+                        <td style={styles.tdWithLeftBorder}>
+                          <button
+                            onClick={() => handleDeleteFromMainTable(part.id)}
+                            style={styles.deleteButton}
+                            title="Delete"
                           >
-                            {part.returnBy}
-                          </td>
-                          <td style={styles.tdWithLeftBorder}>
-                            <button
-                              onClick={() => handleDeleteFromMainTable(part.id)}
-                              style={styles.deleteButton}
-                              title="Delete"
-                            >
-                              <Trash2 size={10} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            <Trash2 size={10} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -778,6 +778,7 @@ const AddReturnPartsPage = () => {
                 {">>"}
               </button>
             </div>
+            <span>Total Rows: {validParts.length}</span>
           </div>
         </div>
 

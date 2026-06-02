@@ -1635,7 +1635,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
           totalPages,
           setCurrentPage,
           filteredRows.length,
-          `Total Row: ${filteredRows.length} | Approved: ${actualInput} / ${totalUnits}`,
+          `Total Rows: ${filteredRows.length} | Approved: ${actualInput} / ${totalUnits}`,
         )}
       </div>
     );
@@ -2087,7 +2087,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
           cTotalPages,
           setCPage,
           filteredComplete.length,
-          `Total Row: ${filteredComplete.length}`,
+          `Total Rows: ${filteredComplete.length}`,
         )}
       </div>
     );

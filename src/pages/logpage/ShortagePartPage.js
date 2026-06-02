@@ -18,7 +18,7 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch {}
+  } catch { }
   if (!res.ok) {
     const msg = data?.message || text || `HTTP ${res.status}`;
     const err = new Error(msg);
@@ -119,7 +119,7 @@ const ShortagePartPage = ({ sidebarVisible }) => {
           setCustomersMap(map);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -1004,7 +1004,7 @@ const ShortagePartPage = ({ sidebarVisible }) => {
                 <col style={{ width: "15%" }} />
                 <col style={{ width: "7%" }} />
                 <col style={{ width: "7%" }} />
-                <col style={{ width: "11%" }} />
+                <col style={{ width: "15%" }} />
                 <col style={{ width: "6%" }} />
                 <col style={{ width: "8%" }} />
                 <col style={{ width: "5%" }} />
@@ -1069,12 +1069,12 @@ const ShortagePartPage = ({ sidebarVisible }) => {
                       <tr
                         key={p.id || p.code}
                         onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8")
                         }
                         onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "transparent")
                         }
                       >
                         <td style={styles.tdNo}>{startIndex + idx + 1}</td>
@@ -1110,15 +1110,15 @@ const ShortagePartPage = ({ sidebarVisible }) => {
                           title={
                             p.customerSpecial
                               ? p.customerSpecial
-                                  .map((id) => customersMap[id] || id)
-                                  .join(", ")
+                                .map((id) => customersMap[id] || id)
+                                .join(", ")
                               : "All Customers"
                           }
                         >
                           {p.customerSpecial
                             ? p.customerSpecial
-                                .map((id) => customersMap[id] || id)
-                                .join(", ")
+                              .map((id) => customersMap[id] || id)
+                              .join(", ")
                             : "All Customers"}
                         </td>
                         <td
@@ -1251,29 +1251,31 @@ const ShortagePartPage = ({ sidebarVisible }) => {
                 {">>"}
               </button>
             </div>
-
-            {sortedFilteredParts.length > 0 && (
-              <button
-                onClick={handleDownloadExcel}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "4px 12px",
-                  backgroundColor: "#2563eb",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-                title="Download Excel"
-              >
-                <FileDown size={13} />
-              </button>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span>Total Rows: {sortedFilteredParts.length}</span>
+              {sortedFilteredParts.length > 0 && (
+                <button
+                  onClick={handleDownloadExcel}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "4px 12px",
+                    backgroundColor: "#2563eb",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    fontSize: "11px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                  title="Download Excel"
+                >
+                  <FileDown size={13} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

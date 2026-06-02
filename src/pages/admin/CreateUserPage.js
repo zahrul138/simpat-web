@@ -8,7 +8,6 @@ import { Save, Trash2, Eye, EyeOff, Plus, CloudUpload } from "lucide-react";
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 const getToken = () => localStorage.getItem("auth_token");
 
-// ===== helpers umum =====
 const onlyDigits = (s) => (s || "").replace(/\D+/g, "");
 const capFirst = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "");
 const getFirstName = (employeeUpper) => {
@@ -24,7 +23,7 @@ const passwordFrom = (employeeUpper, idCard) => {
   const d3 = last3(idCard);
   return fn && d3 ? `${fn}${d3}` : fn || "";
 };
-// ambil emp_name display dari user login (Navbar)
+
 const getDisplayName = () => {
   try {
     const u = JSON.parse(localStorage.getItem("auth_user") || "null");
@@ -57,8 +56,8 @@ const CreateUserPage = () => {
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
     return {
-      full: `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`, // YYYY-MM-DD HH:mm:ss
-      fullMinute: `${year}-${month}-${day} ${hours}:${minutes}`,      // YYYY-MM-DD HH:mm
+      full: `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`,
+      fullMinute: `${year}-${month}-${day} ${hours}:${minutes}`,
       dateOnly: `${year}-${month}-${day}`,
     };
   });
@@ -73,7 +72,6 @@ const CreateUserPage = () => {
   };
   const togglePasswordVisibility = () => setShowPassword((v) => !v);
 
-  // ID Card: angka saja, max 7; auto username & password
   const onChangeIdCard = (e) => {
     const digits = onlyDigits(e.target.value).slice(0, 7);
     const autoUser = usernameFromIdCard(digits);
@@ -86,7 +84,6 @@ const CreateUserPage = () => {
     }));
   };
 
-  // Employee: selalu UPPERCASE; auto password
   const onChangeEmployee = (e) => {
     const upper = (e.target.value || "").toUpperCase();
     const autoPass = passwordFrom(upper, form.idCard);
@@ -97,9 +94,7 @@ const CreateUserPage = () => {
     }));
   };
 
-  // Username dikunci ke peb.{idCard}
-  const onChangeUsername = () => {};
-
+  const onChangeUsername = () => { };
   const createUser = () => {
     if (!form.idCard.trim() || !form.employeeName.trim() || !form.password.trim()) {
       alert("Please complete all required fields.");
@@ -118,14 +113,14 @@ const CreateUserPage = () => {
       idCard: form.idCard,
       name: form.employeeName,
       username: mustUsername,
-      password: form.password, 
+      password: form.password,
       department: form.department,
       email: `${mustUsername}@company.com`,
       role,
       status: "Active",
-      createdBy: creator,                     
-      createdAt: currentDateTime.fullMinute,  
-      createdDate: currentDateTime.full,      
+      createdBy: creator,
+      createdAt: currentDateTime.fullMinute,
+      createdDate: currentDateTime.full,
     };
 
     setTempUsers((prev) => [...prev, newUser]);
@@ -156,7 +151,7 @@ const CreateUserPage = () => {
       department: u.department,
       role: u.role,
       status: u.status,
-      createdBy: u.createdBy,        // << ikut kirim ke BE
+      createdBy: u.createdBy,
     }));
 
     try {
@@ -500,7 +495,7 @@ const CreateUserPage = () => {
                 <select
                   style={styles.select}
                   value={form.department}
-                  onChange={(e)=>setForm({...form,department:e.target.value})}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
                 >
                   <option value="SCN-MH" style={optionStyle}>SCN-MH</option>
                   <option value="SCN-LOG" style={optionStyle}>SCN-LOG</option>
@@ -510,7 +505,6 @@ const CreateUserPage = () => {
                 <div style={{ marginTop: "4px", fontSize: "10px", color: "#6b7280" }} />
               </div>
 
-              {/* Create button */}
               <div style={styles.actionButtonsGroup}>
                 <button
                   style={{ ...styles.button, ...styles.primaryButton }}
@@ -524,7 +518,6 @@ const CreateUserPage = () => {
               </div>
             </div>
 
-            {/* Right column */}
             <div style={{ flex: "2", display: "grid", gap: "20px", paddingBottom: "70px" }}>
               <div>
                 <label style={styles.label}>Username *</label>
@@ -635,7 +628,6 @@ const CreateUserPage = () => {
                           {user.role}
                         </span>
                       </td>
-                      {/* === Created: "createdBy | YYYY-MM-DD HH:mm" === */}
                       <td style={styles.tdWithLeftBorder}>
                         {user.createdBy} | {user.createdAt}
                       </td>
@@ -648,19 +640,15 @@ const CreateUserPage = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="10" style={{ ...styles.tdWithLeftBorder, textAlign: "center", color: "#9ca3af" }}>
-                      No data has been created
-                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
           <div style={styles.paginationBar}>
-            <span>Total: {tempUsers.length} user(s)</span>
-            {tempUsers.length > 0 && <span>Selected: {selectedUsers.size} user(s)</span>}
+            <span style={{ marginLeft: "auto" }}>Total Row: {tempUsers.length}</span>
           </div>
-        </div>
+        </div>  
 
         {tempUsers.length > 0 && (
           <div style={styles.saveConfiguration}>

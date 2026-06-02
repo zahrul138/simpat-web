@@ -2149,13 +2149,11 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                 </button>
               </div>
               <div style={{ fontSize: "12px", color: "#374151" }}>
-                Total Row : {filteredData.length}
+                Total Rows: {filteredData.length}
               </div>
             </div>
           </div>
         )}
-
-
 
         {showEditPopup && (
           <div style={styles.popupEditOverlay}>

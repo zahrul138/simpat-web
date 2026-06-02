@@ -1202,7 +1202,7 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
                 </button>
               </div>
               <div style={{ fontSize: "12px", color: "#374151" }}>
-                Total Row : {dateFilteredData.length}
+                Total Rows: {dateFilteredData.length}
               </div>
             </div>
           </div>

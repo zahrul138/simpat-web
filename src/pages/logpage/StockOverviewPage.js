@@ -923,8 +923,8 @@ const StockOverviewPage = () => {
                   {">>"}
                 </button>
               </div>
-              <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                Total: {movementsPagination.total || 0} records
+              <div style={{ fontSize: "12px", fontWeight: "38 0"}}>
+                Total Rows: {movementsPagination.total || 0} 
               </div>
             </div>
           </div>

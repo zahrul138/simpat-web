@@ -2763,7 +2763,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       title={
                         currentSchedule
                           ? `Sisa ${remainingToday} unit × ${p.qty_per_assembly} pcs/unit = ${getStockTarget(p.qty_per_assembly)} pcs`
-                          : "Tidak ada schedule aktif"
+                          : "No Active Schedule"
                       }
                     >
                       {currentSchedule
@@ -2968,7 +2968,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
               </button>
             </div>
             <span style={{ fontSize: "12px", color: "#374151" }}>
-              Total Row: {sortedFilteredParts.length}
+              Total Rows: {sortedFilteredParts.length}
             </span>
           </div>
         </div>

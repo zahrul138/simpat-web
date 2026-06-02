@@ -64,7 +64,6 @@ const AddVendorPartPlacementPage = () => {
     setShowSaveButton(tempPlacements.length > 0);
   }, [tempPlacements]);
 
-  // Fungsi untuk validasi input decimal
   const validateDecimalInput = (value) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       const parts = value.split('.');
@@ -75,28 +74,23 @@ const AddVendorPartPlacementPage = () => {
     return false;
   };
 
-  // Fungsi helper untuk formatting
   const formatDecimalOnBlur = (value) => {
     if (!value) return "0.00";
     
     let formatted = value;
     
-    // Kasus khusus: "03" → "0.3"
     if (/^0[1-9]$/.test(formatted)) {
       formatted = "0." + formatted.charAt(1);
     }
     
-    // Kasus: "3" → "3.00"
     if (formatted && !formatted.includes('.')) {
       formatted = formatted + '.00';
     }
     
-    // Kasus: "." → "0.00"
     if (formatted === '.') {
       formatted = '0.00';
     }
     
-    // Format ke 2 decimal places
     if (formatted.includes('.')) {
       const parts = formatted.split('.');
       if (parts[1].length === 1) {
@@ -109,7 +103,6 @@ const AddVendorPartPlacementPage = () => {
     return formatted;
   };
 
-  // Handler untuk input change
   const handlePlacementInputChange = (field, value) => {
     setPlacementFormData((prev) => ({
       ...prev,
@@ -117,15 +110,12 @@ const AddVendorPartPlacementPage = () => {
     }));
   };
 
-  // Handler untuk insert ke temporary list - TANPA VALIDASI DESCRIPTION
   const handleInsertToTemp = () => {
-    // Validasi required fields
     if (!placementFormData.placement_name.trim()) {
       alert("Please fill in Placement Name");
       return;
     }
 
-    // Validasi dimensions
     const requiredDimensions = ['length_cm', 'width_cm', 'height_cm'];
     for (const dimension of requiredDimensions) {
       const value = placementFormData[dimension];
@@ -135,7 +125,6 @@ const AddVendorPartPlacementPage = () => {
       }
     }
 
-    // Check for duplicate placement name in temp list
     const isDuplicate = tempPlacements.some(
       (placement) => 
         placement.placement_name.toLowerCase() === 
@@ -147,12 +136,10 @@ const AddVendorPartPlacementPage = () => {
       return;
     }
 
-    // Format dimensions to 2 decimal places
     const formattedLength = formatDecimalOnBlur(placementFormData.length_cm);
     const formattedWidth = formatDecimalOnBlur(placementFormData.width_cm);
     const formattedHeight = formatDecimalOnBlur(placementFormData.height_cm);
 
-    // Calculate volume
     const volume = (
       parseFloat(formattedLength) * 
       parseFloat(formattedWidth) * 
@@ -173,8 +160,6 @@ const AddVendorPartPlacementPage = () => {
     };
 
     setTempPlacements((prev) => [...prev, tempPlacement]);
-
-    // Reset form
     setPlacementFormData({
       placement_name: "",
       length_cm: "",
@@ -184,7 +169,6 @@ const AddVendorPartPlacementPage = () => {
     });
   };
 
-  // Handler untuk select all checkbox
   const handleSelectAllChange = () => {
     const newSelectAll = !selectAll;
     setSelectAll(newSelectAll);
@@ -196,7 +180,6 @@ const AddVendorPartPlacementPage = () => {
     );
   };
 
-  // Handler untuk individual checkbox
   const handleCheckboxChange = (placementId) => {
     setTempPlacements((prev) =>
       prev.map((placement) =>
@@ -216,14 +199,12 @@ const AddVendorPartPlacementPage = () => {
     }
   }, [tempPlacements]);
 
-  // Handler untuk delete dari temporary list
   const handleDeleteTempPlacement = (placementId) => {
     setTempPlacements((prev) => 
       prev.filter((placement) => placement.id !== placementId)
     );
   };
 
-  // Handler untuk save ke database
   const handleSaveConfiguration = async () => {
     console.log("=== SAVE CONFIGURATION STARTED ===");
 
@@ -238,8 +219,6 @@ const AddVendorPartPlacementPage = () => {
     try {
       const currentUser = getCurrentUser();
       console.log("Current user:", currentUser);
-
-      // Save placements one by one
       const savePromises = selectedPlacements.map(async (placement) => {
         const placementData = {
           placement_name: placement.placement_name,
@@ -277,8 +256,6 @@ const AddVendorPartPlacementPage = () => {
       });
 
       const results = await Promise.allSettled(savePromises);
-      
-      // Check results
       const successfulSaves = results.filter(r => r.status === 'fulfilled' && r.value.success);
       const failedSaves = results.filter(r => r.status === 'rejected');
       
@@ -286,11 +263,9 @@ const AddVendorPartPlacementPage = () => {
         console.error("Some saves failed:", failedSaves);
         
         if (successfulSaves.length === 0) {
-          // All failed
           alert("Failed to save placements. Please try again.");
           return;
         } else {
-          // Some succeeded, some failed
           const confirmContinue = window.confirm(
             `${successfulSaves.length} placements saved successfully, ` +
             `${failedSaves.length} failed. Do you want to continue?`
@@ -300,18 +275,15 @@ const AddVendorPartPlacementPage = () => {
         }
       }
 
-      // Remove successfully saved placements from temp list
       const savedIds = successfulSaves.map(r => r.value.id);
       setTempPlacements((prev) => 
         prev.filter((placement) => !savedIds.includes(placement.id))
       );
 
-      // Show success message
       if (successfulSaves.length > 0) {
         alert(`Data successfully saved.`);
       }
       
-      // Navigate if all saved
       if (tempPlacements.length === successfulSaves.length) {
         navigate("/vendor-placement");
       }
@@ -322,7 +294,6 @@ const AddVendorPartPlacementPage = () => {
     }
   };
 
-  // Format date for display
   const formatDateForDisplay = (dateString) => {
     try {
       const date = new Date(dateString);
@@ -1157,6 +1128,7 @@ const AddVendorPartPlacementPage = () => {
                 <button style={styles.paginationButton}>{">"}</button>
                 <button style={styles.paginationButton}>{">>"}</button>
               </div>
+              <span>Total Rows: {tempPlacements.length}</span>
             </div>
           </div>
 

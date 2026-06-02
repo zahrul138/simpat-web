@@ -964,7 +964,7 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
           </button>
         ))}
       </div>
-      <span style={styles.paginationTotalRow}>Total Row: {totalRows}</span>
+      <span style={styles.paginationTotalRow}>Total Rows: {totalRows}</span>
     </div>
   );
 

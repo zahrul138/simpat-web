@@ -4537,6 +4537,7 @@ const AddLocalSchedulePage = () => {
                 <button style={styles.paginationButton}>{">"}</button>
                 <button style={styles.paginationButton}>{">>"}</button>
               </div>
+              <span>Total Rows: {headerDrafts.length}</span>
             </div>
           </div>
 
@@ -4984,6 +4985,7 @@ const AddLocalSchedulePage = () => {
                         {">>"}
                       </button>
                     </div>
+                    <span>Total Rows: {addVendorPartFormData.parts.length}</span>
                   </div>
                 </div>
               </div>

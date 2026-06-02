@@ -1898,7 +1898,7 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ fontSize: "12px", color: "#374151" }}>
-                Total Row: {totalItems}
+                Total Rows: {totalItems}
               </span>
               {activeTab === "Received" && partsData.length > 0 && (
                 <button

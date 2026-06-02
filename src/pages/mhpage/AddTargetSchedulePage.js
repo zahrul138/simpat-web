@@ -1825,6 +1825,7 @@ const AddTargetSchedulePage = () => {
                 <button style={styles.paginationButton}>{">"}</button>
                 <button style={styles.paginationButton}>{">>"}</button>
               </div>
+              <span>Total Rows: {savedProductionSchedules.length}</span>
             </div>
           </div>
         </div>

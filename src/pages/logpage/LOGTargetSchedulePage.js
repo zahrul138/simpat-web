@@ -2523,7 +2523,7 @@ const LOGTargetSchedulePage = ({ sidebarVisible }) => {
                 {">>"}
               </button>
             </div>
-            <span>Total Row: {totalItems}</span>
+            <span>Total Rows: {totalItems}</span>
           </div>
         </div>
 

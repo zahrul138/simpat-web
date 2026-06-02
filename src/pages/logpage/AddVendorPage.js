@@ -1105,6 +1105,7 @@ const AddVendorPage = () => {
                 <button style={styles.paginationButton}>{">"}</button>
                 <button style={styles.paginationButton}>{">>"}</button>
               </div>
+              <span>Total Rows: {tempVendors.length}</span>
             </div>
           </div>
 

@@ -1780,7 +1780,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
               </div>
 
               <div style={{ fontSize: "12px", color: "#374151" }}>
-                Total Row : {filteredVendors.length}
+                Total Rows: {filteredVendors.length}
               </div>
             </div>
           </div>

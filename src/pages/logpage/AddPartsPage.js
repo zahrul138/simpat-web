@@ -1409,7 +1409,6 @@ const AddPartsPage = () => {
               </div>
             </div>
 
-            {/* ── Section 2: Specs & Pricing ── */}
             <div style={styles.formSection}>
               <div style={styles.formSectionTitle}>Specs & Pricing</div>
               <div style={styles.formGrid4}>
@@ -1471,7 +1470,6 @@ const AddPartsPage = () => {
               </div>
             </div>
 
-            {/* ── Section 3: Vendor & Stock ── */}
             <div style={styles.formSection}>
               <div style={styles.formSectionTitle}>Vendor & Stock</div>
               <div style={styles.formGrid4}>
@@ -1532,7 +1530,6 @@ const AddPartsPage = () => {
               </div>
             </div>
 
-            {/* ── Section 4: Placement & Assembly ── */}
             <div style={styles.formSection}>
               <div style={styles.formSectionTitle}>Placement & Assembly</div>
               <div style={styles.formGrid4}>
@@ -1898,6 +1895,7 @@ const AddPartsPage = () => {
                 <button style={styles.paginationButton}>{">"}</button>
                 <button style={styles.paginationButton}>{">>"}</button>
               </div>
+              <span>Total Rows: {tempParts.length}</span>
             </div>
           </div>
 

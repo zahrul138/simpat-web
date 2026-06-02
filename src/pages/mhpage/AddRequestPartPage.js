@@ -1868,6 +1868,7 @@ const AddRequestPartPage = () => {
                 <button style={styles.paginationButton}>{">"}</button>
                 <button style={styles.paginationButton}>{">>"}</button>
               </div>
+              <span>Total Rows: {partData.filter((p) => p.partCode && p.partCode.trim() !== "").length}</span>
             </div>
           </div>
           <div style={styles.saveConfiguration}>

@@ -1557,7 +1557,7 @@ const StorageInventoryPage = ({ sidebarVisible }) => {
                 {">>"}
               </button>
             </div>
-            <div>Total Row: {totalItems}</div>
+            <div>Total Rows: {totalItems}</div>
           </div>
         </div>
         {activeTab === "Off System" && selectedItemIds.size > 0 && (

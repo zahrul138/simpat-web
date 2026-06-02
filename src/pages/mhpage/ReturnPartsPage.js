@@ -1107,7 +1107,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             </button>
           </div>
           <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
+            Total Rows: {tableData.length}
           </span>
         </div>
       </div>
@@ -1300,7 +1300,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             </button>
           </div>
           <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
+            Total Rows: {tableData.length}
           </span>
         </div>
       </div>
@@ -1493,7 +1493,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             </button>
           </div>
           <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
+            Total Rows: {tableData.length}
           </span>
         </div>
       </div>
@@ -1689,7 +1689,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             </button>
           </div>
           <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
+            Total Rows: {tableData.length}
           </span>
         </div>
       </div>
@@ -1927,7 +1927,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             </button>
           </div>
           <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
+            Total Rows: {tableData.length}
           </span>
         </div>
       </div>
@@ -2153,7 +2153,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             </button>
           </div>
           <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
+            Total Rows: {tableData.length}
           </span>
         </div>
       </div>
@@ -2365,7 +2365,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             </button>
           </div>
           <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
+            Total Rows: {tableData.length}
           </span>
         </div>
       </div>
@@ -2624,7 +2624,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
             </button>
           </div>
           <span style={{ fontSize: "12px", color: "#374151" }}>
-            Total Row: {tableData.length}
+            Total Rows: {tableData.length}
           </span>
         </div>
       </div>
