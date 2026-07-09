@@ -488,15 +488,6 @@ const AddPartsPage = () => {
             throw new Error(`Part code ${part.part_code} already exists`);
           }
 
-          const checkDuplicateName = await fetch(
-            `${API_BASE}/api/kanban-master/by-part-name?part_name=${encodeURIComponent(part.part_name)}`
-          );
-          const duplicateNameResult = await checkDuplicateName.json();
-
-          if (duplicateNameResult.item) {
-            throw new Error(`Part name "${part.part_name}" already exists`);
-          }
-
           const selectedSize = partSizes.find(
             (size) => size.size_name === part.part_size
           );
@@ -561,11 +552,7 @@ const AddPartsPage = () => {
       }
 
       if (errorMessages.length > 0) {
-        alert(
-          `Successfully saved ${successCount} part(s). Errors:\n${errorMessages.join(
-            "\n"
-          )}`
-        );
+        alert(`Data has been created`);
       } else {
         alert(`Parts successfully saved`);
         resetForm();
@@ -1740,9 +1727,9 @@ const AddPartsPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {tempParts.length === 0 
-                   ? null
-                    :tempParts.map((part, index) => (
+                  {tempParts.length === 0
+                    ? null
+                    : tempParts.map((part, index) => (
                       <tr
                         key={part.id}
                         onMouseEnter={(e) =>
@@ -1814,15 +1801,17 @@ const AddPartsPage = () => {
                         >
                           {part.qty_per_box}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td style={styles.tdWithLeftBorder} title={part.part_price}>
                           {part.part_price}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td style={styles.tdWithLeftBorder} title={part.part_weight
+                          ? `${part.part_weight} ${part.weight_unit || "kg"}`
+                          : "-"}>
                           {part.part_weight
                             ? `${part.part_weight} ${part.weight_unit || "kg"}`
                             : "-"}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td style={styles.tdWithLeftBorder} title={part.placement_name}>
                           {part.placement_name}
                         </td>
                         <td style={styles.tdWithLeftBorder} title={part.customer_names}>
@@ -1861,7 +1850,7 @@ const AddPartsPage = () => {
                         >
                           {part.qty_per_assembly || 1}
                         </td>
-                        <td style={styles.tdWithLeftBorder}>
+                        <td style={styles.tdWithLeftBorder} title={`${currentEmpName} | ${formatDateForDisplay(part.created_at)}`}>
                           {currentEmpName} |{" "}
                           {formatDateForDisplay(part.created_at)}
                         </td>

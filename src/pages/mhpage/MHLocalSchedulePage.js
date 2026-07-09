@@ -2642,7 +2642,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     },
     prodDatesBadge: {
       display: "inline",
-      fontSize: "10px",
+      fontSize: "12px",
       color: "#374151",
     },
 
@@ -2690,7 +2690,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
 
     prodDatesList: {
       display: "inline",
-      fontSize: "10px",
+      fontSize: "12px",
     },
 
     statusBadge: {
@@ -3862,7 +3862,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                               }
                             >
                               {sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -3903,7 +3903,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (
@@ -4310,7 +4310,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -4350,7 +4350,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                   ),
                               );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {_pass.map((d) => formatDate(d)).join(", ")}
                                 </span>
                               ) : (
@@ -4756,7 +4756,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -4796,7 +4796,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
                                   ),
                               );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {_pass.map((d) => formatDate(d)).join(", ")}
                                 </span>
                               ) : (
@@ -5731,7 +5731,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Local Schedule</title>
+          <title>Production Management | Local Schedule</title>
         </Helmet>
       </div>
 

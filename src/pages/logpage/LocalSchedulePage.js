@@ -2797,7 +2797,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     },
     prodDatesBadge: {
       display: "inline",
-      fontSize: "10px",
+      fontSize: "12px",
       color: "#374151",
     },
 
@@ -2845,7 +2845,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
 
     prodDatesList: {
       display: "inline",
-      fontSize: "10px",
+      fontSize: "12px",
     },
 
     statusBadge: {
@@ -4054,7 +4054,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                               }
                             >
                               {sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -4095,7 +4095,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (
@@ -4544,7 +4544,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -4584,7 +4584,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   ),
                               );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {_pass.map((d) => formatDate(d)).join(", ")}
                                 </span>
                               ) : (
@@ -4990,7 +4990,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -5030,7 +5030,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
                                   ),
                               );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {_pass.map((d) => formatDate(d)).join(", ")}
                                 </span>
                               ) : (

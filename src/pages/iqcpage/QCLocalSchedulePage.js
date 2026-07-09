@@ -2650,7 +2650,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
     },
     prodDatesBadge: {
       display: "inline",
-      fontSize: "10px",
+      fontSize: "12px",
       color: "#374151",
     },
 
@@ -2698,7 +2698,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
 
     prodDatesList: {
       display: "inline",
-      fontSize: "10px",
+      fontSize: "12px",
     },
 
     statusBadge: {
@@ -3874,7 +3874,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
                               }
                             >
                               {sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -3915,7 +3915,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (
@@ -4364,7 +4364,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -4404,7 +4404,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
                                   ),
                               );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {_pass.map((d) => formatDate(d)).join(", ")}
                                 </span>
                               ) : (
@@ -4810,7 +4810,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
                             {(() => {
                               const { sampleDates } = getPartSampleStatus(part);
                               return sampleDates.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {sampleDates
                                     .map((d) => formatDate(d))
                                     .join(", ")}
@@ -4850,7 +4850,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
                                   ),
                               );
                               return _pass.length > 0 ? (
-                                <span style={{ fontSize: "10px" }}>
+                                <span style={{ fontSize: "12px" }}>
                                   {_pass.map((d) => formatDate(d)).join(", ")}
                                 </span>
                               ) : (
@@ -5612,7 +5612,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Local Part Schedule</title>
+          <title>Quality Assurance | Local Part Schedule</title>
         </Helmet>
       </div>
 

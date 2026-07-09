@@ -2391,7 +2391,7 @@ const QCReturnPartsPage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Return Parts</title>
+        <title>Quality Assurance | Return Parts</title>
       </Helmet>
       {moveModal && (
         <div style={styles.overlay} onClick={() => setMoveModal(null)}>

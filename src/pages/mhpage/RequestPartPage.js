@@ -1789,7 +1789,7 @@ const RequestPartPage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Request Parts</title>
+        <title>Production Management | Request Parts</title>
       </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>

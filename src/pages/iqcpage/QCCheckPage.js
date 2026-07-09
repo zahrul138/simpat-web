@@ -2447,7 +2447,7 @@ const QCCheckPage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Quality Parts</title>
+          <title>Quality Assurance | Quality Parts</title>
         </Helmet>
       </div>
       {toastMessage && (

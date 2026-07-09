@@ -39,6 +39,9 @@ const AddLocalSchedulePage = () => {
     useState(null);
   const [tripOptions, setTripOptions] = useState([]);
   const [vendorOptions, setVendorOptions] = useState([]);
+  const localVendorOptions = vendorOptions.filter((v) =>
+    (v.types || v.vendor_type || "").toLowerCase().includes("local")
+  );
   const [addVendorDetail, setAddVendorDetail] = useState(false);
   const [addVendorFormData, setAddVendorFormData] = useState({
     trip: "",
@@ -65,10 +68,7 @@ const AddLocalSchedulePage = () => {
   });
   const [loadingParts, setLoadingParts] = useState({});
   const [palletCalculations, setPalletCalculations] = useState({});
-
-  // Tambah state untuk loading submit
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const palletConfig = {
     large: {
       width: 110,
@@ -118,9 +118,6 @@ const AddLocalSchedulePage = () => {
     }
   }, []);
 
-  // ==================== FUNGSI UTAMA PALLET CALCULATION ====================
-
-  // Helper function: cek apakah box muat di pallet
   const canBoxFitPallet = (boxLength, boxWidth, palletLength, palletWidth) => {
     return (
       (boxLength <= palletLength && boxWidth <= palletWidth) ||
@@ -128,7 +125,6 @@ const AddLocalSchedulePage = () => {
     );
   };
 
-  // Fungsi untuk menghitung kapasitas maksimal box dalam pallet
   const calculateMaxBoxesInPallet = (box, palletType) => {
     const config =
       palletType === "large"
@@ -149,21 +145,14 @@ const AddLocalSchedulePage = () => {
 
     const availableHeight = config.maxHeight - config.baseHeight;
 
-    // Hitung boxes per layer dengan orientasi terbaik
     let bestBoxesPerLayer = 0;
     let bestOrientation = "";
-
-    // Coba orientasi normal
     const boxesLengthwiseNormal = Math.floor(config.length / box.length);
     const boxesWidthwiseNormal = Math.floor(config.width / box.width);
     const boxesPerLayerNormal = boxesLengthwiseNormal * boxesWidthwiseNormal;
-
-    // Coba orientasi rotated
     const boxesLengthwiseRotated = Math.floor(config.length / box.width);
     const boxesWidthwiseRotated = Math.floor(config.width / box.length);
     const boxesPerLayerRotated = boxesLengthwiseRotated * boxesWidthwiseRotated;
-
-    // Ambil yang terbaik
     if (boxesPerLayerNormal >= boxesPerLayerRotated) {
       bestBoxesPerLayer = boxesPerLayerNormal;
       bestOrientation = "normal";
@@ -172,7 +161,6 @@ const AddLocalSchedulePage = () => {
       bestOrientation = "rotated";
     }
 
-    // Untuk large pallet, coba kombinasi mixed jika kurang dari 4
     if (palletType === "large" && bestBoxesPerLayer < 4) {
       const boxesMixed = boxesPerLayerNormal + boxesPerLayerRotated;
       if (boxesMixed > bestBoxesPerLayer) {
@@ -181,32 +169,15 @@ const AddLocalSchedulePage = () => {
       }
     }
 
-    // Hitung maksimal layers berdasarkan tinggi
     const maxLayersByHeight = Math.floor(availableHeight / box.height);
-
-    // Safety factor: kurangi 1 layer untuk toleransi
     const safeLayersByHeight = Math.max(1, maxLayersByHeight - 1);
-
-    // Hitung berat per layer
     const weightPerLayer = bestBoxesPerLayer * box.weight;
-
-    // Hitung maksimal layers berdasarkan berat
     const maxLayersByWeight = Math.floor(config.maxWeight / weightPerLayer);
-
-    // Ambil yang lebih kecil antara batas tinggi dan batas berat
     const safeLayers = Math.min(safeLayersByHeight, maxLayersByWeight);
     const finalLayers = Math.max(1, safeLayers);
-
-    // Total boxes per pallet berdasarkan dimensi
     const maxBoxesByDimension = bestBoxesPerLayer * finalLayers;
-
-    // Hitung max boxes berdasarkan berat saja
     const maxBoxesByWeight = Math.floor(config.maxWeight / box.weight);
-
-    // Ambil yang lebih kecil (dimensi ATAU berat yang membatasi)
     const maxBoxesPerPallet = Math.min(maxBoxesByDimension, maxBoxesByWeight);
-
-    // Hitung berat per pallet
     const weightPerPallet = maxBoxesPerPallet * box.weight;
 
     return {
@@ -220,11 +191,8 @@ const AddLocalSchedulePage = () => {
     };
   };
 
-  // Fungsi optimasi untuk mixing pallet
   const optimizeMixedPalletPacking = async (palletResults) => {
     if (palletResults.length <= 1) return palletResults;
-
-    // Urutkan berdasarkan utilization terendah
     palletResults.sort((a, b) => {
       const utilA = a.weight / (a.type === "large" ? 150 : 60);
       const utilB = b.weight / (b.type === "large" ? 150 : 60);
@@ -234,7 +202,6 @@ const AddLocalSchedulePage = () => {
     const optimized = [...palletResults];
     let changed = true;
 
-    // Iterasi untuk optimasi
     while (changed && optimized.length > 1) {
       changed = false;
 
@@ -242,20 +209,13 @@ const AddLocalSchedulePage = () => {
         for (let j = i + 1; j < optimized.length; j++) {
           const palletA = optimized[i];
           const palletB = optimized[j];
-
-          // Hanya gabung jika type sama
           if (palletA.type !== palletB.type) continue;
 
           const maxWeight = palletA.type === "large" ? 150 : 60;
           const combinedWeight = palletA.weight + palletB.weight;
-
-          // Cek apakah bisa digabung berdasarkan berat
           if (combinedWeight <= maxWeight) {
-            // Gabungkan
             palletA.weight = combinedWeight;
             palletA.boxesCount += palletB.boxesCount;
-
-            // Hapus palletB
             optimized.splice(j, 1);
             changed = true;
             console.log(`Merged pallet ${j} into ${i} (${palletA.type})`);
@@ -284,7 +244,6 @@ const AddLocalSchedulePage = () => {
 
       console.log(`=== PERHITUNGAN PALLET DENGAN ${boxData.length} BOX ===`);
 
-      // 1. Kumpulkan data box berdasarkan ukuran
       const boxGroups = {};
       let totalBoxesAll = boxData.length;
       let totalWeightAll = 0;
@@ -326,15 +285,11 @@ const AddLocalSchedulePage = () => {
       );
       console.log(`Kelompok box:`, Object.keys(boxGroups).length);
 
-      // 2. Hitung pallet untuk setiap kelompok box
       let totalLargePallets = 0;
       let totalSmallPallets = 0;
       const palletDetails = [];
-
-      // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
-      // for...in tidak menjamin urutan, sehingga urutan row bisa mempengaruhi hasil
       const sortedKeys = Object.keys(boxGroups).sort();
-      
+
       for (const key of sortedKeys) {
         const group = boxGroups[key];
         const weightPerBox = group.totalWeight / group.totalBoxes;
@@ -343,8 +298,6 @@ const AddLocalSchedulePage = () => {
         console.log(`  Total box: ${group.totalBoxes}`);
         console.log(`  Berat per box: ${weightPerBox.toFixed(2)}kg`);
         console.log(`  Total berat: ${group.totalWeight.toFixed(2)}kg`);
-
-        // Cek apakah muat di small pallet
         const fitsSmall = canBoxFitPallet(group.length, group.width, 96, 76);
         const fitsLarge = canBoxFitPallet(group.length, group.width, 110, 110);
 
@@ -352,8 +305,6 @@ const AddLocalSchedulePage = () => {
         if (!fitsLarge && fitsSmall) {
           palletType = "small";
         }
-
-        // Hitung kapasitas untuk pallet type yang dipilih
         const capacity = calculateMaxBoxesInPallet(
           {
             length: group.length,
@@ -370,14 +321,13 @@ const AddLocalSchedulePage = () => {
           `    Weight per pallet: ${capacity.weightPerPallet.toFixed(2)}kg`
         );
 
-        // Hitung berapa pallet dibutuhkan
         const palletsNeeded = Math.ceil(
           group.totalBoxes / capacity.maxBoxesPerPallet
         );
 
         console.log(`  Pallets needed: ${palletsNeeded}`);
 
-        // Distribusikan ke pallet-pallet
+
         let remainingBoxes = group.totalBoxes;
         for (let i = 0; i < palletsNeeded; i++) {
           const boxesInThisPallet = Math.min(
@@ -406,10 +356,8 @@ const AddLocalSchedulePage = () => {
         }
       }
 
-      // 3. Coba optimasi mixing untuk box yang underutilized
       const optimizedPallets = optimizePalletMixing(palletDetails);
 
-      // 4. Hitung hasil akhir
       let finalLargePallets = 0;
       let finalSmallPallets = 0;
       let finalTotalWeight = 0;
@@ -456,7 +404,6 @@ const AddLocalSchedulePage = () => {
       };
     } catch (error) {
       console.error("Error in optimized calculation:", error);
-      // Fallback ke perhitungan sederhana
       return calculateSimplePalletFromBoxData(boxData);
     }
   };
@@ -473,7 +420,6 @@ const AddLocalSchedulePage = () => {
       };
     }
 
-    // Kelompokkan box berdasarkan ukuran
     const boxGroups = {};
     let totalWeight = 0;
 
@@ -499,16 +445,12 @@ const AddLocalSchedulePage = () => {
     let totalSmallPallets = 0;
     const details = [];
 
-    // PERBAIKAN ERROR 2: Urutkan keys untuk konsistensi perhitungan
     const sortedKeys = Object.keys(boxGroups).sort();
 
     for (const key of sortedKeys) {
       const group = boxGroups[key];
       if (group.totalBoxes <= 0) continue;
-
       const avgWeightPerBox = group.totalWeight / group.totalBoxes;
-
-      // Hitung kapasitas untuk setiap jenis pallet
       const largeCapacity = calculateMaxBoxesInPallet(
         {
           length: group.length,
@@ -528,8 +470,6 @@ const AddLocalSchedulePage = () => {
         },
         "small"
       );
-
-      // Pilih pallet type
       let palletType = "large";
       let capacity = largeCapacity;
 
@@ -541,7 +481,7 @@ const AddLocalSchedulePage = () => {
         capacity = smallCapacity;
       }
 
-      // Hitung pallet yang dibutuhkan
+
       const palletsNeeded = Math.ceil(
         group.totalBoxes / capacity.maxBoxesPerPallet
       );
@@ -562,7 +502,7 @@ const AddLocalSchedulePage = () => {
       });
     }
 
-    // Optimasi: gabung small pallets jika bisa
+
     if (totalSmallPallets >= 2) {
       const largeFromSmall = Math.floor(totalSmallPallets / 2);
       totalLargePallets += largeFromSmall;
@@ -584,28 +524,21 @@ const AddLocalSchedulePage = () => {
 
     const optimized = [...palletDetails];
 
-    // Coba gabung pallet yang sama type dan masih ada space
     for (let i = 0; i < optimized.length; i++) {
       for (let j = i + 1; j < optimized.length; j++) {
         const palletA = optimized[i];
         const palletB = optimized[j];
-
-        // Hanya gabung jika type sama
         if (palletA.palletType !== palletB.palletType) continue;
 
         const maxWeight = palletA.palletType === "large" ? 150 : 60;
         const combinedWeight = palletA.totalWeight + palletB.totalWeight;
         const combinedBoxes = palletA.boxesCount + palletB.boxesCount;
 
-        // Cek apakah bisa digabung (berat dan kapasitas)
         if (combinedWeight <= maxWeight && combinedBoxes <= palletA.capacity) {
-          // Gabungkan ke palletA
           palletA.boxesCount = combinedBoxes;
           palletA.totalWeight = combinedWeight;
-
-          // Hapus palletB
           optimized.splice(j, 1);
-          j--; // Adjust index karena array berubah
+          j--;
           console.log(`Merged pallets (${palletA.palletType})`);
         }
       }
@@ -613,8 +546,6 @@ const AddLocalSchedulePage = () => {
 
     return optimized;
   };
-
-  // Fungsi fallback sederhana
   const calculateSimplePallet = async (headerId, vendorIndex) => {
     try {
       const vendor = vendorDraftsByHeader[headerId]?.[vendorIndex];
@@ -889,8 +820,6 @@ const AddLocalSchedulePage = () => {
 
       console.log(`Total boxes collected: ${totalBoxes}, Total weight: ${totalWeight.toFixed(2)}kg`);
 
-      // PERBAIKAN ERROR 1: Jika tidak ada boxData sama sekali, langsung return 0
-      // Jangan panggil calculateSimplePallet karena bisa memberikan hasil yang salah
       if (boxData.length === 0) {
         console.log(`No box data collected, setting total pallet to 0`);
         setPalletCalculations((prev) => ({
@@ -906,8 +835,6 @@ const AddLocalSchedulePage = () => {
         }));
         return;
       }
-
-      // Hitung pallet dengan optimasi
       const result = await calculateOptimizedMixedPallet(boxData);
 
       setPalletCalculations((prev) => ({
@@ -950,9 +877,6 @@ const AddLocalSchedulePage = () => {
     }
     return details;
   };
-
-  // ==================== FUNGSI-FUNGSI LAIN (TIDAK BERUBAH) ====================
-  // [Semua fungsi lainnya tetap sama seperti sebelumnya...]
 
   const handleEditPartClick = (
     headerId,
@@ -1055,10 +979,10 @@ const AddLocalSchedulePage = () => {
           ...newVendors[vendorIndex],
           parts: newParts,
         };
-        
+
         // PERBAIKAN ROBUST: Check jika semua parts punya qtyBox = 0
         const hasNonZeroQty = newParts.some(p => (p.qtyBox || 0) > 0);
-        
+
         if (!hasNonZeroQty) {
           // Semua parts qtyBox = 0, set pallet ke 0
           setPalletCalculations((prevCalc) => ({
@@ -1079,7 +1003,7 @@ const AddLocalSchedulePage = () => {
             recalculatePalletForVendor(headerId, vendorIndex);
           }, 100);
         }
-        
+
         return { ...prev, [headerId]: newVendors };
       });
 
@@ -1199,12 +1123,10 @@ const AddLocalSchedulePage = () => {
           ...newVendors[vendorIndex],
           parts: newParts,
         };
-        
-        // PERBAIKAN ROBUST: Check jika semua parts punya qtyBox = 0
+
         const hasNonZeroQty = newParts.some(p => (p.qtyBox || 0) > 0);
-        
+
         if (!hasNonZeroQty) {
-          // Semua parts qtyBox = 0, set pallet ke 0
           setPalletCalculations((prevCalc) => ({
             ...prevCalc,
             [`${headerId}_${vendorIndex}`]: {
@@ -1218,12 +1140,11 @@ const AddLocalSchedulePage = () => {
             },
           }));
         } else {
-          // Ada parts dengan qtyBox > 0, recalculate dengan delay
           setTimeout(() => {
             recalculatePalletForVendor(headerId, vendorIndex);
           }, 100);
         }
-        
+
         return { ...prev, [headerId]: newVendors };
       });
 
@@ -1271,7 +1192,6 @@ const AddLocalSchedulePage = () => {
   };
 
   useEffect(() => {
-    // Hitung ulang pallet setiap kali vendorDraftsByHeader berubah
     headerDrafts.forEach((header) => {
       const vendors = vendorDraftsByHeader[header.id] || [];
       vendors.forEach((_, vendorIndex) => {
@@ -1385,8 +1305,6 @@ const AddLocalSchedulePage = () => {
       const selectedSchedules = [...selectedHeaderIds].map((id) =>
         headerDrafts.find((h) => h.id === id)
       );
-
-      // Validasi: setiap schedule harus memiliki vendor
       for (const schedule of selectedSchedules) {
         const vendors = vendorDraftsByHeader[schedule.id] || [];
         if (vendors.length === 0) {
@@ -1395,8 +1313,6 @@ const AddLocalSchedulePage = () => {
           );
           return;
         }
-
-        // Validasi: setiap vendor harus memiliki parts
         for (const vendor of vendors) {
           if (!vendor.parts || vendor.parts.length === 0) {
             alert(
@@ -1410,13 +1326,9 @@ const AddLocalSchedulePage = () => {
       setIsSubmitting(true);
       const results = [];
       const errors = [];
-
-      // Process each schedule
       for (const schedule of selectedSchedules) {
         try {
           console.log(`Processing schedule for ${schedule.scheduleDate}`);
-
-          // 1. Create schedule header
           const schedulePayload = {
             stockLevel: schedule.stockLevel,
             modelName: schedule.modelName,
@@ -1454,7 +1366,6 @@ const AddLocalSchedulePage = () => {
 
           console.log(`Schedule created with ID: ${createdScheduleId}`);
 
-          // 2. Add vendors to schedule
           const vendors = vendorDraftsByHeader[schedule.id] || [];
           let vendorIds = [];
 
@@ -1494,7 +1405,6 @@ const AddLocalSchedulePage = () => {
             console.log(`Vendors added: ${vendorIds.length}`);
           }
 
-          // 3. Add parts to each vendor
           for (let i = 0; i < vendors.length; i++) {
             const vendor = vendors[i];
             const vendorId = vendorIds[i];
@@ -1531,7 +1441,6 @@ const AddLocalSchedulePage = () => {
                   `Failed to add parts to vendor ${vendorId}:`,
                   errorData
                 );
-                // Continue with other vendors even if this one fails
               }
             }
           }
@@ -1592,8 +1501,6 @@ const AddLocalSchedulePage = () => {
         successfulScheduleIds.forEach((id) => newSet.delete(id));
         return newSet;
       });
-
-      // Navigate back to main page
       navigate("/local-schedule");
     } catch (error) {
       console.error("Error in handleSubmitScheduleToDatabase:", error);
@@ -1662,18 +1569,14 @@ const AddLocalSchedulePage = () => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
-      
-      // Update parts
       const updatedParts = (vendors[vendorIndex].parts || []).filter(
         (p) => p.id !== partId
       );
-      
+
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
         parts: updatedParts,
       };
-      
-      // PERBAIKAN ROBUST: Langsung set pallet ke 0 jika parts kosong
       if (updatedParts.length === 0) {
         setPalletCalculations((prevCalc) => ({
           ...prevCalc,
@@ -1688,12 +1591,11 @@ const AddLocalSchedulePage = () => {
           },
         }));
       } else {
-        // Jika masih ada parts, recalculate dengan delay
         setTimeout(() => {
           recalculatePalletForVendor(headerId, vendorIndex);
         }, 100);
       }
-      
+
       return { ...prev, [headerId]: vendors };
     });
   };
@@ -2040,13 +1942,10 @@ const AddLocalSchedulePage = () => {
         ...vendors[vendorIndex],
         parts: [...existingParts, ...uniquePartsToInsert],
       };
-      
-      // PERBAIKAN: Recalculate berdasarkan state yang baru
-      // Set timeout agar state update selesai dulu
       setTimeout(() => {
         recalculatePalletForVendor(headerId, vendorIndex);
       }, 0);
-      
+
       return { ...prev, [headerId]: vendors };
     });
 
@@ -2071,8 +1970,6 @@ const AddLocalSchedulePage = () => {
     });
     return totalParts;
   };
-
-  // Calculate total parts for vendor
   const calculateTotalPartsForVendor = (vendorData) => {
     if (!vendorData || !vendorData.parts || !Array.isArray(vendorData.parts))
       return 0;
@@ -2117,7 +2014,7 @@ const AddLocalSchedulePage = () => {
     await handleSubmitScheduleToDatabase();
   }
 
-  // Fungsi untuk menghapus schedule dari database
+
   const handleDeleteSchedule = async (scheduleId) => {
     if (
       !window.confirm(
@@ -2142,7 +2039,6 @@ const AddLocalSchedulePage = () => {
 
       alert("Schedule deleted successfully!");
 
-      // Refresh data
     } catch (error) {
       console.error("Error deleting schedule:", error);
       alert(`Failed to delete schedule: ${error.message}`);
@@ -2174,7 +2070,6 @@ const AddLocalSchedulePage = () => {
         return;
       }
 
-      // Validasi semua vendor harus memiliki parts
       for (const hdr of selected) {
         const vendors = vendorDraftsByHeader[hdr.id] || [];
         for (const vendor of vendors) {
@@ -2192,8 +2087,6 @@ const AddLocalSchedulePage = () => {
       for (let i = 0; i < selected.length; i++) {
         const hdr = selected[i];
         console.log(`Processing schedule ${i + 1}/${selected.length}:`, hdr);
-
-        // 1. Create schedule header
         const scheduleBody = {
           stockLevel: hdr.stockLevel,
           modelName: hdr.modelName,
@@ -2223,10 +2116,7 @@ const AddLocalSchedulePage = () => {
           console.error("Schedule ID not found:", scheduleData);
           throw new Error(`Schedule ID tidak ditemukan`);
         }
-
         console.log(`Schedule created with ID: ${scheduleId}`);
-
-        // 2. Create vendors
         const vendors = vendorDraftsByHeader[hdr.id] || [];
         if (vendors.length > 0) {
           const vendorPayload = {
@@ -2259,7 +2149,6 @@ const AddLocalSchedulePage = () => {
 
           console.log(`Vendors created successfully:`, vendorsData);
 
-          // 3. Create parts for each vendor
           for (let j = 0; j < vendors.length; j++) {
             const vendor = vendors[j];
             const vendorId = vendorsData.vendors[j]?.id;
@@ -2303,11 +2192,10 @@ const AddLocalSchedulePage = () => {
         }
       }
 
-      console.log("=== ALL SCHEDULES SUBMITTED SUCCESSFULLY ===");
+      console.log("ALL SCHEDULES SUBMITTED SUCCESSFULLY");
 
       alert("Semua schedule, vendor details, dan parts berhasil disimpan.");
 
-      // Clear local drafts
       const nextHeaders = headerDrafts.filter(
         (h) => !selectedHeaderIds.has(h.id)
       );
@@ -2349,8 +2237,6 @@ const AddLocalSchedulePage = () => {
         });
         return next;
       });
-
-      // Navigate ke halaman utama
       navigate("/local-schedule");
     } catch (error) {
       console.error("Error in handleSubmitVendors:", error);
@@ -2583,17 +2469,15 @@ const AddLocalSchedulePage = () => {
     setVendorDraftsByHeader((prev) => {
       const vendors = [...(prev[headerId] || [])];
       if (!vendors[vendorIndex]) return prev;
-      
-      // Update parts
       const updatedParts = (vendors[vendorIndex].parts || []).filter(
         (p) => p.id !== partId
       );
-      
+
       vendors[vendorIndex] = {
         ...vendors[vendorIndex],
         parts: updatedParts,
       };
-      
+
       if (updatedParts.length === 0) {
         setPalletCalculations((prevCalc) => ({
           ...prevCalc,
@@ -2612,7 +2496,7 @@ const AddLocalSchedulePage = () => {
           recalculatePalletForVendor(headerId, vendorIndex);
         }, 100);
       }
-      
+
       return { ...prev, [headerId]: vendors };
     });
   };
@@ -3224,7 +3108,6 @@ const AddLocalSchedulePage = () => {
         cursor: "pointer",
       },
     },
-    // TOOLTIP STYLE (SAMA SEPERTI TARGETSCHEDULEPAGE.JS)
     tooltip: {
       position: "fixed",
       top: tooltip.y,
@@ -3815,8 +3698,8 @@ const AddLocalSchedulePage = () => {
 
                 <tbody>
                   {headerDrafts.length === 0
-                   ? null
-                    :headerDrafts.map((hdr, headerIndex) => {
+                    ? null
+                    : headerDrafts.map((hdr, headerIndex) => {
                       const headerVendors = vendorDraftsByHeader[hdr.id] || [];
                       const headerPalletTotal = calculateTotalPalletForHeader(
                         hdr.id
@@ -4639,12 +4522,12 @@ const AddLocalSchedulePage = () => {
                   required
                 >
                   <option value="">Select Vendor</option>
-                  {vendorOptions.length === 0 ? (
+                  {localVendorOptions.length === 0 ? (
                     <option value="" disabled>
                       (loading / empty)
                     </option>
                   ) : (
-                    vendorOptions.map((v) => {
+                    localVendorOptions.map((v) => {
                       const label = `${v.vendor_code} - ${v.vendor_name}`;
                       return (
                         <option key={v.id} value={label}>

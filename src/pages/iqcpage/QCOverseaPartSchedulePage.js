@@ -3207,7 +3207,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (
@@ -3658,7 +3658,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (
@@ -4122,7 +4122,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (
@@ -4835,7 +4835,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Oversea Schedule</title>
+        <title>Quality Assurance | Oversea Schedule</title>
       </Helmet>
 
       <div style={styles.welcomeCard}>

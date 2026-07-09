@@ -35,6 +35,9 @@ const AddOverseaPartSchedulePage = () => {
     useState(null);
   const [tripOptions, setTripOptions] = useState([]);
   const [vendorOptions, setVendorOptions] = useState([]);
+  const overseaVendorOptions = vendorOptions.filter((v) =>
+    (v.types || v.vendor_type || "").toLowerCase().includes("oversea")
+  );
   const [addVendorDetail, setAddVendorDetail] = useState(false);
   const [addVendorFormData, setAddVendorFormData] = useState({
     trip: "",
@@ -3871,7 +3874,7 @@ const AddOverseaPartSchedulePage = () => {
                       (loading / empty)
                     </option>
                   ) : (
-                    vendorOptions.map((v) => {
+                    overseaVendorOptions.map((v) => {
                       const label = `${v.vendor_code} - ${v.vendor_name}`;
                       return (
                         <option key={v.id} value={label}>

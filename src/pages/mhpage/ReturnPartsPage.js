@@ -2645,7 +2645,7 @@ const ReturnPartsPage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Return Parts</title>
+        <title>Production Management | Return Parts</title>
       </Helmet>
       {moveModal && (
         <div style={styles.overlay} onClick={() => setMoveModal(null)}>

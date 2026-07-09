@@ -4144,7 +4144,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (
@@ -4571,7 +4571,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (
@@ -5036,7 +5036,7 @@ const OverseaPartSchedulePage = ({ sidebarVisible }) => {
                                     ),
                                 );
                                 return _pass.length > 0 ? (
-                                  <span style={{ fontSize: "10px" }}>
+                                  <span style={{ fontSize: "12px" }}>
                                     {_pass.map((d) => formatDate(d)).join(", ")}
                                   </span>
                                 ) : (

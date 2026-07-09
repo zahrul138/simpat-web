@@ -2929,7 +2929,7 @@ const TargetSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Target Schedule</title>
+          <title>Production Management | Target Schedule</title>
         </Helmet>
       </div>
 
