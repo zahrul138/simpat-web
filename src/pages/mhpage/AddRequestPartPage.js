@@ -1535,7 +1535,7 @@ const AddRequestPartPage = () => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Request Parts/Add Request Parts</title>
+        <title>Add Request Parts</title>
       </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>

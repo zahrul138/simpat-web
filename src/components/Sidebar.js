@@ -719,7 +719,7 @@ const Sidebar = ({
           ],
         },
         {
-          title: "Inventory Control",
+          title: "Warehouse Control",
           icon: WarehouseIcon,
           isActive:
             isPathActive("/storage-inventory") ||

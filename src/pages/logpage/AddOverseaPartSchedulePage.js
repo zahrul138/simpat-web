@@ -2878,7 +2878,7 @@ const AddOverseaPartSchedulePage = () => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Oversea Schedule/Add Oversea Schedule</title>
+        <title>Add Oversea Schedule</title>
       </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>

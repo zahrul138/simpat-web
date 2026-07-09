@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Pencil, X, Save } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -839,6 +840,9 @@ const VendorPartPlacementPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Vendor Placement</title>
+      </Helmet>
       <div style={styles.tooltip}>{tooltip.content}</div>
 
       <div style={styles.welcomeCard}>

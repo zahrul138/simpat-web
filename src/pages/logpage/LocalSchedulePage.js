@@ -5944,7 +5944,7 @@ const LocalSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Inventory Control | Local Schedule</title>
+          <title>Local Schedule</title>
         </Helmet>
       </div>
 

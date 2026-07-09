@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { Helmet } from "react-helmet";
 
 const BarChart = ({ data, typeFilter, onBarClick, animKey }) => {
   const CHART_H = 300;
@@ -425,7 +426,7 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
 
   const selectedVendorName = vendorId
     ? vendorList.find((v) => String(v.id) === String(vendorId))?.vendor_name ||
-      "-"
+    "-"
     : null;
 
   const modalRecords = dayModal?.records || [];
@@ -970,6 +971,9 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Part Disposal Report</title>
+      </Helmet>
       {dayModal && (
         <div
           style={styles.popupOverlay}
@@ -1035,7 +1039,7 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
                   <strong style={styles.pillStrongMargin}>
                     {formatSGD(
                       modalScrapTotal(modalRecords) +
-                        modalRtvTotal(modalRecords),
+                      modalRtvTotal(modalRecords),
                     )}
                   </strong>
                 </div>
@@ -1103,14 +1107,14 @@ const PartDisposalReportPage = ({ sidebarVisible }) => {
                                 toggleRowHighlight(i);
                             }}
                             onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#c7cde8")
+                            (e.currentTarget.style.backgroundColor =
+                              "#c7cde8")
                             }
                             onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                highlightedRows.has(i)
-                                  ? "#c7cde8"
-                                  : "transparent")
+                            (e.currentTarget.style.backgroundColor =
+                              highlightedRows.has(i)
+                                ? "#c7cde8"
+                                : "transparent")
                             }
                           >
                             <td

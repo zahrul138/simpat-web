@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { AlertTriangle, SlidersHorizontal, Save, FileDown } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -887,6 +888,9 @@ const ShortagePartPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Shortage Monitoring</title>
+      </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>

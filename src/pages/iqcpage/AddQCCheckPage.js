@@ -559,7 +559,7 @@ const AddQCCheckPage = () => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Quality Parts/Add Quality Parts</title>
+          <title>Add Quality Parts</title>
         </Helmet>
       </div>
       <div style={styles.welcomeCard}>

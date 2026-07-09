@@ -5612,7 +5612,7 @@ const QCLocalSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Quality Assurance | Local Part Schedule</title>
+          <title>Local Part Schedule</title>
         </Helmet>
       </div>
 

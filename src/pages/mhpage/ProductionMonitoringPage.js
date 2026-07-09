@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Plus, Trash2, Eye, Settings, AlertTriangle } from "lucide-react";
+import { Helmet } from "react-helmet";
 import timerService from "../../utils/TimerService";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
@@ -34,7 +35,7 @@ const http = async (path, { method = "GET", body, headers } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch {}
+  } catch { }
   if (!res.ok) {
     const msg = data?.message || text || `HTTP ${res.status}`;
     const err = new Error(msg);
@@ -426,9 +427,9 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
         if (immediate) {
           await http("/api/production-schedules/auto-complete", {
             method: "PATCH",
-          }).catch(() => {});
+          }).catch(() => { });
         }
-      } catch (err) {}
+      } catch (err) { }
     },
     [loadCurrentSchedule],
   );
@@ -573,7 +574,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           setCustomersMap(map);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const currentCustomer = useMemo(() => {
@@ -633,7 +634,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           .then((data) => {
             if (data?.completed > 0) loadCurrentSchedule();
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     }, 1000);
 
@@ -669,7 +670,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
             .then((data) => {
               if (data?.completed > 0) loadCurrentSchedule();
             })
-            .catch(() => {});
+            .catch(() => { });
         }, 200);
       }
     } else if (currentSchedule && remainingShiftTime > 0) {
@@ -1638,10 +1639,10 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
   const remainingToday = currentSchedule
     ? Math.max(
-        0,
-        (currentSchedule.total_input || 0) -
-          (currentSchedule.actual_input || 0),
-      )
+      0,
+      (currentSchedule.total_input || 0) -
+      (currentSchedule.actual_input || 0),
+    )
     : 0;
 
   const getStockTarget = (qtyPerAssembly) =>
@@ -1750,6 +1751,9 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Production Monitoring</title>
+      </Helmet>
       {toastMessage && (
         <div
           style={{
@@ -2155,7 +2159,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        {}
+        { }
         {showSettingsPopup && (
           <div style={styles.popupOverlay}>
             <div
@@ -2396,7 +2400,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           </div>
         )}
 
-        {}
+        { }
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
             <h1 style={styles.title}>Planning Monitor</h1>
@@ -2584,7 +2588,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
           ))}
         </div>
 
-        {}
+        { }
         <div style={styles.tableContainer}>
           <div style={styles.tableBodyWrapper}>
             <table
@@ -2726,8 +2730,8 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       title={
                         p.customerSpecial
                           ? p.customerSpecial
-                              .map((id) => customersMap[id] || id)
-                              .join(", ")
+                            .map((id) => customersMap[id] || id)
+                            .join(", ")
                           : "All Customers"
                       }
                       onMouseEnter={showTooltip}
@@ -2735,8 +2739,8 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                     >
                       {p.customerSpecial
                         ? p.customerSpecial
-                            .map((id) => customersMap[id] || id)
-                            .join(", ")
+                          .map((id) => customersMap[id] || id)
+                          .join(", ")
                         : "All Customers"}
                     </td>
 
@@ -2749,7 +2753,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       {p.qty_per_assembly}
                     </td>
 
-                    {}
+                    { }
                     <td
                       style={{
                         ...styles.tdWithLeftBorder,
@@ -2771,7 +2775,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                         : "-"}
                     </td>
 
-                    {}
+                    { }
                     <td
                       style={{
                         ...styles.tdWithLeftBorder,
@@ -2832,7 +2836,7 @@ const ProductionMonitoringPage = ({ sidebarVisible }) => {
                       </span>
                     </td>
 
-                    {}
+                    { }
                     <td
                       style={{
                         ...styles.tdWithLeftBorder,

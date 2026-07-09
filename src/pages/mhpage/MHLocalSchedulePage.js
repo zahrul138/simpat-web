@@ -5731,7 +5731,7 @@ const MHLocalSchedulePage = ({ sidebarVisible }) => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Production Management | Local Schedule</title>
+          <title>Local Schedule</title>
         </Helmet>
       </div>
 

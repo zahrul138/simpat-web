@@ -496,7 +496,7 @@ const AddReturnPartsPage = () => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Return Parts/Add Return Parts</title>
+        <title>Add Return Parts</title>
       </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.card}>

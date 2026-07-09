@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Save } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -815,6 +816,11 @@ const AddVendorPage = () => {
 
   return (
     <div style={styles.pageContainer}>
+      <div>
+        <Helmet>
+          <title>Add Vendor</title>
+        </Helmet>
+      </div>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
           <div style={styles.card}>
@@ -1023,8 +1029,8 @@ const AddVendorPage = () => {
                 </thead>
                 <tbody>
                   {tempVendors.length === 0
-                  ? null
-                    :tempVendors.map((vendor, index) => (
+                    ? null
+                    : tempVendors.map((vendor, index) => (
                       <tr
                         key={vendor.id}
                         onMouseEnter={(e) =>
@@ -1109,7 +1115,7 @@ const AddVendorPage = () => {
             </div>
           </div>
 
-          {showSaveButton && (  
+          {showSaveButton && (
             <div style={styles.saveConfiguration}>
               <button
                 style={{ ...styles.button, ...styles.primaryButton }}

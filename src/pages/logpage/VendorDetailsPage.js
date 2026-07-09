@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Plus, Trash2, Pencil, Save, X } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const VendorDetailsPage = ({ sidebarVisible }) => {
   const navbarTotalHeight = 164;
@@ -1300,6 +1301,9 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Vendor Details</title>
+      </Helmet>
       <div style={styles.tooltip}>
         {tooltip.content}
         <div style={styles.tooltipArrow}></div>
@@ -1569,8 +1573,8 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                       searchBy === "Vendor Name"
                         ? "Enter vendor name..."
                         : searchBy === "Vendor Code"
-                        ? "Enter vendor code..."
-                        : "Enter description..."
+                          ? "Enter vendor code..."
+                          : "Enter description..."
                     }
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
@@ -1640,7 +1644,7 @@ const VendorDetailsPage = ({ sidebarVisible }) => {
                 <tbody>
                   {paginatedVendors.length === 0 ? (
                     <tr>
-                      
+
                     </tr>
                   ) : (
                     paginatedVendors.map((vendor, index) => {

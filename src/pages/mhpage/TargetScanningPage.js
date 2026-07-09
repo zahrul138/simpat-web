@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { CheckSquare, Check, SkipForward, Pencil, Save, X } from "lucide-react";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import timerService from "../../utils/TimerService";
-
+import { Helmet } from "react-helmet";
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 const http = async (path, { method = "GET", body } = {}) => {
@@ -21,7 +21,7 @@ const http = async (path, { method = "GET", body } = {}) => {
   let data = null;
   try {
     data = text ? JSON.parse(text) : null;
-  } catch {}
+  } catch { }
   if (!res.ok) {
     const err = new Error(data?.message || `HTTP ${res.status}`);
     err.status = res.status;
@@ -176,7 +176,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
   );
 
   useEffect(() => {
-    const unsub = timerService.subscribe(() => {});
+    const unsub = timerService.subscribe(() => { });
     return unsub;
   }, []);
 
@@ -200,7 +200,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
             map[r.unit_no] = r;
           });
           setApprovals(map);
-        } catch {}
+        } catch { }
 
         try {
           const detailResp = await http(
@@ -214,7 +214,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
             return { customer: d.customer || "", start, end: cum };
           });
           setDetailBreakdown(bd);
-        } catch {}
+        } catch { }
       } else {
         setApprovals({});
         setDetailBreakdown([]);
@@ -411,14 +411,14 @@ const TargetScanningPage = ({ sidebarVisible }) => {
       const approvedAt = result.approved_at;
       let displayName = approvedByName
         ? (() => {
-            const dt = new Date(approvedAt);
-            const day = String(dt.getDate()).padStart(2, "0");
-            const month = String(dt.getMonth() + 1).padStart(2, "0");
-            const year = dt.getFullYear();
-            const hh = String(dt.getHours()).padStart(2, "0");
-            const mm = String(dt.getMinutes()).padStart(2, "0");
-            return `${approvedByName} | ${day}/${month}/${year} ${hh}.${mm}`;
-          })()
+          const dt = new Date(approvedAt);
+          const day = String(dt.getDate()).padStart(2, "0");
+          const month = String(dt.getMonth() + 1).padStart(2, "0");
+          const year = dt.getFullYear();
+          const hh = String(dt.getHours()).padStart(2, "0");
+          const mm = String(dt.getMinutes()).padStart(2, "0");
+          return `${approvedByName} | ${day}/${month}/${year} ${hh}.${mm}`;
+        })()
         : "";
       setSchedule((prev) =>
         prev ? { ...prev, actual_input: newActual } : prev,
@@ -517,9 +517,9 @@ const TargetScanningPage = ({ sidebarVisible }) => {
       setSchedule((prev) =>
         prev
           ? {
-              ...prev,
-              actual_input: result.new_actual_input ?? actualInput + 1,
-            }
+            ...prev,
+            actual_input: result.new_actual_input ?? actualInput + 1,
+          }
           : prev,
       );
     } catch (err) {
@@ -1688,7 +1688,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                       style={{
                         backgroundColor:
                           expandedRows[sched.id] ||
-                          highlightedRows.has(sched.id)
+                            highlightedRows.has(sched.id)
                             ? "#c7cde8"
                             : "transparent",
                         cursor: "pointer",
@@ -1707,7 +1707,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                       onMouseLeave={(e) => {
                         e.target.closest("tr").style.backgroundColor =
                           expandedRows[sched.id] ||
-                          highlightedRows.has(sched.id)
+                            highlightedRows.has(sched.id)
                             ? "#c7cde8"
                             : "transparent";
                       }}
@@ -1899,7 +1899,7 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                           onMouseEnter={(e) => {
                                             if (
                                               !highlightedDetailRows[
-                                                `${sched.id}_${unitNo}`
+                                              `${sched.id}_${unitNo}`
                                               ]
                                             )
                                               e.target.closest(
@@ -1910,14 +1910,14 @@ const TargetScanningPage = ({ sidebarVisible }) => {
                                           onMouseLeave={(e) => {
                                             if (
                                               !highlightedDetailRows[
-                                                `${sched.id}_${unitNo}`
+                                              `${sched.id}_${unitNo}`
                                               ]
                                             )
                                               e.target.closest(
                                                 "tr",
                                               ).style.backgroundColor = isApp
-                                                ? "#f0fdf4"
-                                                : "transparent";
+                                                  ? "#f0fdf4"
+                                                  : "transparent";
                                           }}
                                         >
                                           <td
@@ -2095,6 +2095,9 @@ const TargetScanningPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Target Scanning</title>
+      </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>

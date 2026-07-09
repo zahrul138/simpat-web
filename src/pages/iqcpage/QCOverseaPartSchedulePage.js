@@ -4835,7 +4835,7 @@ const QCOverseaPartSchedulePage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>Quality Assurance | Oversea Schedule</title>
+        <title>Oversea Schedule</title>
       </Helmet>
 
       <div style={styles.welcomeCard}>

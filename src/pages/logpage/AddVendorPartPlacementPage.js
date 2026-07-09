@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Save } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -19,11 +20,11 @@ const getCurrentUser = () => {
     const authUser = JSON.parse(localStorage.getItem("auth_user") || "null");
     return authUser
       ? authUser.emp_name ||
-          authUser.employeeName ||
-          authUser.fullname ||
-          authUser.name ||
-          authUser.username ||
-          "System"
+      authUser.employeeName ||
+      authUser.fullname ||
+      authUser.name ||
+      authUser.username ||
+      "System"
       : "System";
   } catch {
     return "System";
@@ -76,21 +77,21 @@ const AddVendorPartPlacementPage = () => {
 
   const formatDecimalOnBlur = (value) => {
     if (!value) return "0.00";
-    
+
     let formatted = value;
-    
+
     if (/^0[1-9]$/.test(formatted)) {
       formatted = "0." + formatted.charAt(1);
     }
-    
+
     if (formatted && !formatted.includes('.')) {
       formatted = formatted + '.00';
     }
-    
+
     if (formatted === '.') {
       formatted = '0.00';
     }
-    
+
     if (formatted.includes('.')) {
       const parts = formatted.split('.');
       if (parts[1].length === 1) {
@@ -99,7 +100,7 @@ const AddVendorPartPlacementPage = () => {
         formatted = parts[0] + '.' + parts[1].substring(0, 2);
       }
     }
-    
+
     return formatted;
   };
 
@@ -126,8 +127,8 @@ const AddVendorPartPlacementPage = () => {
     }
 
     const isDuplicate = tempPlacements.some(
-      (placement) => 
-        placement.placement_name.toLowerCase() === 
+      (placement) =>
+        placement.placement_name.toLowerCase() ===
         placementFormData.placement_name.trim().toLowerCase()
     );
 
@@ -141,8 +142,8 @@ const AddVendorPartPlacementPage = () => {
     const formattedHeight = formatDecimalOnBlur(placementFormData.height_cm);
 
     const volume = (
-      parseFloat(formattedLength) * 
-      parseFloat(formattedWidth) * 
+      parseFloat(formattedLength) *
+      parseFloat(formattedWidth) *
       parseFloat(formattedHeight)
     ).toFixed(2);
 
@@ -200,7 +201,7 @@ const AddVendorPartPlacementPage = () => {
   }, [tempPlacements]);
 
   const handleDeleteTempPlacement = (placementId) => {
-    setTempPlacements((prev) => 
+    setTempPlacements((prev) =>
       prev.filter((placement) => placement.id !== placementId)
     );
   };
@@ -241,7 +242,7 @@ const AddVendorPartPlacementPage = () => {
         });
 
         const result = await response.json();
-        
+
         if (!response.ok) {
           throw new Error(
             result.message || `HTTP error! status: ${response.status}`
@@ -258,10 +259,10 @@ const AddVendorPartPlacementPage = () => {
       const results = await Promise.allSettled(savePromises);
       const successfulSaves = results.filter(r => r.status === 'fulfilled' && r.value.success);
       const failedSaves = results.filter(r => r.status === 'rejected');
-      
+
       if (failedSaves.length > 0) {
         console.error("Some saves failed:", failedSaves);
-        
+
         if (successfulSaves.length === 0) {
           alert("Failed to save placements. Please try again.");
           return;
@@ -270,24 +271,24 @@ const AddVendorPartPlacementPage = () => {
             `${successfulSaves.length} placements saved successfully, ` +
             `${failedSaves.length} failed. Do you want to continue?`
           );
-          
+
           if (!confirmContinue) return;
         }
       }
 
       const savedIds = successfulSaves.map(r => r.value.id);
-      setTempPlacements((prev) => 
+      setTempPlacements((prev) =>
         prev.filter((placement) => !savedIds.includes(placement.id))
       );
 
       if (successfulSaves.length > 0) {
         alert(`Data successfully saved.`);
       }
-      
+
       if (tempPlacements.length === successfulSaves.length) {
         navigate("/vendor-placement");
       }
-      
+
     } catch (error) {
       console.error("Save error:", error);
       alert(`Failed to save placements: ${error.message}`);
@@ -867,6 +868,11 @@ const AddVendorPartPlacementPage = () => {
 
   return (
     <div style={styles.pageContainer}>
+      <div>
+        <Helmet>
+          <title>Add Vendor Part Placement</title>
+        </Helmet>
+      </div>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
           <div style={styles.card}>
@@ -1046,18 +1052,18 @@ const AddVendorPartPlacementPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {tempPlacements.length === 0 
-                  ? null
-                    :tempPlacements.map((placement, index) => (
+                  {tempPlacements.length === 0
+                    ? null
+                    : tempPlacements.map((placement, index) => (
                       <tr
                         key={placement.id}
                         onMouseEnter={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "#c7cde8")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "#c7cde8")
                         }
                         onMouseLeave={(e) =>
-                          (e.target.closest("tr").style.backgroundColor =
-                            "transparent")
+                        (e.target.closest("tr").style.backgroundColor =
+                          "transparent")
                         }
                       >
                         <td

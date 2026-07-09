@@ -1167,7 +1167,7 @@ const RTVPartPage = ({ sidebarVisible }) => {
   return (
     <div style={styles.pageContainer}>
       <Helmet>
-        <title>RTV Part</title>
+        <title>RTV Control</title>
       </Helmet>
 
       {toastMessage && (

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Save } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -1257,6 +1258,11 @@ const AddPartsPage = () => {
 
   return (
     <div style={styles.pageContainer}>
+      <div>
+        <Helmet>
+          <title>Add Parts</title>
+        </Helmet>
+      </div>
       <div style={styles.welcomeCard}>
         <div style={styles.gridContainer}>
           <form style={styles.card} onSubmit={(e) => { e.preventDefault(); handleInsertToTemp(); }}>

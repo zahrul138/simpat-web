@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -1525,6 +1526,9 @@ const PartDetailsPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Part Detail</title>
+      </Helmet>
       <div style={styles.tooltip}>
         {tooltip.content}
         <div style={styles.tooltipArrow}></div>
@@ -1921,7 +1925,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           >
                             {part.part_types}
                           </td>
-                          <td 
+                          <td
                             style={styles.tdWithLeftBorder}
                             title={part.placement_name || "No Placement"}
                           >

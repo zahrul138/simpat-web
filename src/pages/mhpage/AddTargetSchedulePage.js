@@ -1324,7 +1324,7 @@ const AddTargetSchedulePage = () => {
     <div style={styles.pageContainer}>
       <div>
         <Helmet>
-          <title>Target Schedule/Add Target Schedule</title>
+          <title>Add Target Schedule</title>
         </Helmet>
       </div>
       <div style={styles.welcomeCard}>

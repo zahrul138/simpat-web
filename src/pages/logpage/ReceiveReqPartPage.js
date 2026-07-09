@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MdArrowRight, MdArrowDropDown } from "react-icons/md";
 import { Trash2, Pencil, Save, X, Search, Check, FileDown } from "lucide-react";
+import { Helmet } from "react-helmet";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
@@ -1571,6 +1572,9 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
 
   return (
     <div style={styles.pageContainer}>
+      <Helmet>
+        <title>Receive Request</title>
+      </Helmet>
       <div style={styles.welcomeCard}>
         <div style={styles.combinedHeaderFilter}>
           <div style={styles.headerRow}>
@@ -1609,8 +1613,8 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
                 {(activeTab === "Waiting" ||
                   activeTab === "History" ||
                   activeTab === "Rejected") && (
-                  <option value="requested_by_name">Request By</option>
-                )}
+                    <option value="requested_by_name">Request By</option>
+                  )}
                 {activeTab === "Received" && (
                   <option value="approved_by_name">Received By</option>
                 )}
@@ -1798,33 +1802,33 @@ const ReceiveReqPartPage = ({ sidebarVisible }) => {
             {!["Waiting", "Received", "Arrived", "Rejected"].includes(
               activeTab,
             ) && (
-              <table
-                style={{
-                  ...styles.table,
-                  minWidth: "970px",
-                  tableLayout: "fixed",
-                }}
-              >
-                {renderColgroup(tableConfig[activeTab].cols)}
-                <thead>
-                  <tr style={styles.tableHeader}>
-                    {tableConfig[activeTab].headers.map((header, idx) => (
-                      <th
-                        key={idx}
-                        style={
-                          idx === 0
-                            ? styles.expandedTh
-                            : styles.thWithLeftBorder
-                        }
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>{renderOtherTabs()}</tbody>
-              </table>
-            )}
+                <table
+                  style={{
+                    ...styles.table,
+                    minWidth: "970px",
+                    tableLayout: "fixed",
+                  }}
+                >
+                  {renderColgroup(tableConfig[activeTab].cols)}
+                  <thead>
+                    <tr style={styles.tableHeader}>
+                      {tableConfig[activeTab].headers.map((header, idx) => (
+                        <th
+                          key={idx}
+                          style={
+                            idx === 0
+                              ? styles.expandedTh
+                              : styles.thWithLeftBorder
+                          }
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>{renderOtherTabs()}</tbody>
+                </table>
+              )}
 
             {activeTab === "Rejected" && (
               <table
