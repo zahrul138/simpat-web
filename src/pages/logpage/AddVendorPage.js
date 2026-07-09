@@ -1109,7 +1109,7 @@ const AddVendorPage = () => {
             </div>
           </div>
 
-          {showSaveButton && (
+          {showSaveButton && (  
             <div style={styles.saveConfiguration}>
               <button
                 style={{ ...styles.button, ...styles.primaryButton }}

@@ -1921,7 +1921,10 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           >
                             {part.part_types}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td 
+                            style={styles.tdWithLeftBorder}
+                            title={part.placement_name || "No Placement"}
+                          >
                             {part.placement_name || "No Placement"}
                           </td>
                           <td
@@ -1970,14 +1973,14 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                               <span>All Customers</span>
                             )}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>{part.model}</td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.model}>{part.model}</td>
+                          <td style={styles.tdWithLeftBorder} title={part.vendor_name || "-"}>
                             {part.vendor_name || "-"}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.vendor_type || "-"}>
                             {part.vendor_type || "-"}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={part.stock_level_to}>
                             {part.stock_level_to}
                           </td>
                           <td
@@ -1998,7 +2001,7 @@ const PartDetailsPage = ({ sidebarVisible }) => {
                           >
                             {part.qty_per_assembly || 1}
                           </td>
-                          <td style={styles.tdWithLeftBorder}>
+                          <td style={styles.tdWithLeftBorder} title={`${part.created_by_name} | ${formatDateForDisplay(part.created_at)}`}>
                             {part.created_by_name || "System"} |{" "}
                             {formatDateForDisplay(part.created_at)}
                           </td>
