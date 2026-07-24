@@ -23,7 +23,7 @@ const API = {
 };
 
 const http = async (path, { method = "GET", body, headers } = {}) => {
-  const token = localStorage.getItem("auth_token");
+  const token = sessionStorage.getItem("auth_token");
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
@@ -148,7 +148,7 @@ const buildScheduleBody = (header) => {
 };
 
 const postOneSchedule = async (header) => {
-  const token = localStorage.getItem("auth_token");
+  const token = sessionStorage.getItem("auth_token");
   if (!token) {
     throw new Error("Login token not found. Please login again.");
   }
